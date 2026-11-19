@@ -26254,6 +26254,275 @@ window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText
     return s;
 };
 
+window.obterUrlTopoModeloContrato = function(m) {
+    if (!m) return '/assets/logo-header.png';
+    if (m.topo_url && String(m.topo_url).trim()) return String(m.topo_url).trim();
+    if (m.topo_r2_key && m.id) {
+        const rev = encodeURIComponent(String(m.topo_r2_key).slice(-16));
+        return `/api/public/modelos-contrato/${m.id}/topo-arquivo?v=${rev}`;
+    }
+    return '/assets/logo-header.png';
+};
+
+window._padraoQuadroClienteContrato = function() {
+    return {
+        lbl_contratante: 'Contratante:',
+        val_contratante: '{{CLIENTE_RAZAO_SOCIAL}}',
+        lbl_cnpj: 'CNPJ:',
+        val_cnpj: '{{CLIENTE_CNPJ}}',
+        lbl_endereco: 'Endereço de Faturamento:',
+        val_endereco: '{{CLIENTE_ENDERECO}}, {{CLIENTE_NUMERO}} – {{CLIENTE_BAIRRO}}',
+        lbl_cep: 'CEP:',
+        val_cep: '{{CLIENTE_CEP}}',
+        lbl_cidade: 'Cidade:',
+        val_cidade: '{{CLIENTE_MUNICIPIO}}',
+        lbl_estado: 'Estado:',
+        val_estado: '{{CLIENTE_UF}}',
+        lbl_ie: 'Inscrição Estadual:',
+        val_ie: '{{CLIENTE_IE}}',
+        lbl_telefone: 'Telefone:',
+        val_telefone: '{{CLIENTE_TELEFONE}}',
+        lbl_contato: 'Contato:',
+        val_contato: '{{CONTATO_NOME}}',
+        lbl_tel_contato: 'Tel. Contato:',
+        val_tel_contato: '{{CONTATO_TELEFONE}}',
+        lbl_email: 'E-mail:',
+        val_email: '{{CONTATO_EMAIL}}'
+    };
+};
+
+window._padraoQuadroIntervenienteContrato = function() {
+    return {
+        lbl_interveniente: 'Interveniente:',
+        val_interveniente: '{{INTERVENIENTE_RAZAO_SOCIAL}}',
+        lbl_cnpj: 'CNPJ:',
+        val_cnpj: '{{INTERVENIENTE_CNPJ}}',
+        lbl_endereco: 'Endereço:',
+        val_endereco: '{{INTERVENIENTE_ENDERECO}}, {{INTERVENIENTE_NUMERO}} {{INTERVENIENTE_COMPLEMENTO}} – {{INTERVENIENTE_BAIRRO}}',
+        lbl_cep: 'CEP:',
+        val_cep: '{{INTERVENIENTE_CEP}}',
+        lbl_cidade: 'Cidade:',
+        val_cidade: '{{INTERVENIENTE_MUNICIPIO}}',
+        lbl_estado: 'Estado:',
+        val_estado: '{{INTERVENIENTE_UF}}',
+        lbl_ie: 'Inscrição Estadual:',
+        val_ie: '{{INTERVENIENTE_IE}}',
+        lbl_telefone: 'Telefone:',
+        val_telefone: '{{INTERVENIENTE_TELEFONE}}',
+        lbl_email: 'E-mail:',
+        val_email: '{{INTERVENIENTE_EMAIL}}'
+    };
+};
+
+window._padraoAssinaturasContrato = function(ehInterveniente) {
+    const arr = [
+        {
+            titulo: 'LOCATÁRIA / CONTRATANTE',
+            linha1: '{{CLIENTE_RAZAO_SOCIAL}}',
+            linha2: 'CNPJ/CPF: {{CLIENTE_CNPJ}}'
+        }
+    ];
+    if (ehInterveniente) {
+        arr.push({
+            titulo: 'INTERVENIENTE',
+            linha1: '{{INTERVENIENTE_RAZAO_SOCIAL}}',
+            linha2: 'CNPJ/CPF: {{INTERVENIENTE_CNPJ}}'
+        });
+    }
+    arr.push({
+        titulo: 'LOCADORA / CONTRATADA',
+        linha1: 'AMÉRICA RENTAL EQUIPAMENTOS LTDA',
+        linha2: 'CNPJ: 03.434.448/0001-01'
+    });
+    return arr;
+};
+
+/* Extrai ou migra a estrutura (Preâmbulo + Tabela de Dados do Cliente + Cláusulas + Assinaturas) do modelo */
+window.extrairEstruturaModeloContrato = function(m) {
+    if (!m) {
+        return {
+            v: 2,
+            preambulo: '',
+            quadro_cliente: window._padraoQuadroClienteContrato(),
+            quadro_interveniente: window._padraoQuadroIntervenienteContrato(),
+            clausulas: '',
+            assinaturas: window._padraoAssinaturasContrato(false)
+        };
+    }
+    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
+    let parsedCaputs = null;
+    try {
+        if (m.caputs) {
+            const p = typeof m.caputs === 'string' ? JSON.parse(m.caputs) : m.caputs;
+            if (p && typeof p === 'object' && !Array.isArray(p) && p.v === 2) {
+                parsedCaputs = p;
+            }
+        }
+    } catch (_) {}
+
+    const qCliPadrao = window._padraoQuadroClienteContrato();
+    const qIntPadrao = window._padraoQuadroIntervenienteContrato();
+
+    if (parsedCaputs) {
+        return {
+            v: 2,
+            preambulo: parsedCaputs.preambulo !== undefined ? String(parsedCaputs.preambulo) : '',
+            quadro_cliente: Object.assign({}, qCliPadrao, parsedCaputs.quadro_cliente || {}),
+            quadro_interveniente: Object.assign({}, qIntPadrao, parsedCaputs.quadro_interveniente || {}),
+            clausulas: parsedCaputs.clausulas !== undefined ? String(parsedCaputs.clausulas) : String(m.texto_contrato || ''),
+            assinaturas: Array.isArray(parsedCaputs.assinaturas)
+                ? parsedCaputs.assinaturas
+                : window._padraoAssinaturasContrato(ehInterveniente)
+        };
+    }
+
+    // Migração automática do texto bruto antigo (separa Preâmbulo, remove linhas soltas de qualificação do cliente e mantém Cláusulas)
+    const rawTexto = String(m.texto_contrato || '');
+    const linhas = rawTexto.split(/\r?\n/);
+    const preambuloLinhas = [];
+    const clausulasLinhas = [];
+    let chegouClausulas = false;
+    let chegouQualificacao = false;
+
+    const rgxQualifLine = /^(Locat[áa]ria\s*\/\s*Contratante|Contratante|Interveniente|Endere[çc]o(?: de Faturamento)?|Cidade|Estado|CNPJ(?:\/CPF)?|Telefone|Contato|CEP|Inscri[çc][ãa]o Estadual|E-mail|Tel\.\s*Contato)\s*:/i;
+    const rgxInicioClausula = /^(\d+\s*[–-]\s*CL[ÁA]USULA|CL[ÁA]USULA\s+PRIMEIRA)/i;
+
+    for (let i = 0; i < linhas.length; i++) {
+        const ln = linhas[i];
+        const trimLn = ln.trim();
+        if (!chegouClausulas && rgxInicioClausula.test(trimLn)) {
+            chegouClausulas = true;
+        }
+        if (chegouClausulas) {
+            clausulasLinhas.push(ln);
+        } else if (rgxQualifLine.test(trimLn)) {
+            chegouQualificacao = true;
+            // Linha de qualificação agora faz parte da Tabela de Dados do Cliente
+        } else if (!chegouQualificacao) {
+            preambuloLinhas.push(ln);
+        } else if (trimLn) {
+            // Qualquer linha entre a qualificação e a primeira cláusula (ex: parágrafo do Interveniente)
+            if (/^E\s+como\s+INTERVENIENTE/i.test(trimLn)) {
+                // O cabeçalho do interveniente já fica representado pelo quadro de interveniente
+            } else {
+                clausulasLinhas.push(ln);
+            }
+        }
+    }
+
+    return {
+        v: 2,
+        preambulo: preambuloLinhas.join('\n').trim(),
+        quadro_cliente: qCliPadrao,
+        quadro_interveniente: qIntPadrao,
+        clausulas: clausulasLinhas.join('\n').trim(),
+        assinaturas: window._padraoAssinaturasContrato(ehInterveniente)
+    };
+};
+
+/* Renderiza a Tabela de Dados do Cliente (somente leitura para PDF/Impressão) */
+window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente) {
+    const q = (est && est.quadro_cliente) ? est.quadro_cliente : window._padraoQuadroClienteContrato();
+    const res = (txt) => _escHtmlProp(window.resolverTextoModeloContrato(txt || '', ctx, false));
+
+    const tabelaCliente = `
+        <table style="width:100%; border-collapse:collapse; margin:10px 0 14px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            <tbody>
+                <tr style="background:#f8fafc;">
+                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; width:62%; color:#0f172a;">
+                        <strong>${res(q.lbl_contratante || 'Contratante:')}</strong> ${res(q.val_contratante)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:38%; color:#0f172a;">
+                        <strong>${res(q.lbl_cnpj || 'CNPJ:')}</strong> ${res(q.val_cnpj)}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_endereco || 'Endereço de Faturamento:')}</strong> ${res(q.val_endereco)}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                        <strong>${res(q.lbl_cep || 'CEP:')}</strong> ${res(q.val_cep)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:44%; color:#0f172a;">
+                        <strong>${res(q.lbl_cidade || 'Cidade:')}</strong> ${res(q.val_cidade)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                        <strong>${res(q.lbl_estado || 'Estado:')}</strong> ${res(q.val_estado)}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(q.val_ie)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_telefone || 'Telefone:')}</strong> ${res(q.val_telefone)}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_contato || 'Contato:')}</strong> ${res(q.val_contato)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_tel_contato || 'Tel. Contato:')}</strong> ${res(q.val_tel_contato)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(q.lbl_email || 'E-mail:')}</strong> ${res(q.val_email)}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+
+    if (!ehInterveniente) return tabelaCliente;
+
+    const qi = (est && est.quadro_interveniente) ? est.quadro_interveniente : window._padraoQuadroIntervenienteContrato();
+    const tabelaInterv = `
+        <div style="font-size:10pt; font-weight:700; color:#0f172a; margin:8px 0 4px 0;">E como INTERVENIENTE, abaixo qualificado(a):</div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 14px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            <tbody>
+                <tr style="background:#f8fafc;">
+                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; width:62%; color:#0f172a;">
+                        <strong>${res(qi.lbl_interveniente || 'Interveniente:')}</strong> ${res(qi.val_interveniente)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:38%; color:#0f172a;">
+                        <strong>${res(qi.lbl_cnpj || 'CNPJ:')}</strong> ${res(qi.val_cnpj)}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(qi.lbl_endereco || 'Endereço:')}</strong> ${res(qi.val_endereco)}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                        <strong>${res(qi.lbl_cep || 'CEP:')}</strong> ${res(qi.val_cep)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:44%; color:#0f172a;">
+                        <strong>${res(qi.lbl_cidade || 'Cidade:')}</strong> ${res(qi.val_cidade)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                        <strong>${res(qi.lbl_estado || 'Estado:')}</strong> ${res(qi.val_estado)}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(qi.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(qi.val_ie)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(qi.lbl_telefone || 'Telefone:')}</strong> ${res(qi.val_telefone)}
+                    </td>
+                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                        <strong>${res(qi.lbl_email || 'E-mail:')}</strong> ${res(qi.val_email)}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+    return tabelaCliente + tabelaInterv;
+};
+
 window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
     const m = modelo || {};
     const ctx = window.montarContextoMnemonicosContrato(
@@ -26264,106 +26533,87 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
         listaAvarias
     );
 
+    const est = window.extrairEstruturaModeloContrato(m);
+    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
+        Boolean(dadosContrato?.proposta?.interveniente_nome);
+
     const tituloResolvido = window.resolverTextoModeloContrato(
         m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`,
         ctx,
         false
     );
 
-    const textoPreResolvido = window.resolverTextoModeloContrato(m.texto_contrato || '', ctx, true);
-    const linhas = String(textoPreResolvido || '').split(/\r?\n/);
+    const formatarBlocoTextoParaHtml = (textoBruto) => {
+        const pre = window.resolverTextoModeloContrato(textoBruto || '', ctx, true);
+        const ls = String(pre || '').split(/\r?\n/);
+        const out = [];
+        for (let i = 0; i < ls.length; i++) {
+            const rawLine = ls[i].trim();
+            if (!rawLine) {
+                out.push('<div style="height:6px;"></div>');
+                continue;
+            }
+            if (rawLine === '{{TABELA_PRODUTOS}}') {
+                out.push(ctx['{{TABELA_PRODUTOS}}']);
+                continue;
+            }
+            if (rawLine === '{{TABELA_SERVICOS}}') {
+                out.push(ctx['{{TABELA_SERVICOS}}']);
+                continue;
+            }
+            if (rawLine === '{{TABELA_VALORES_AVARIAS}}') {
+                out.push(ctx['{{TABELA_VALORES_AVARIAS}}']);
+                continue;
+            }
+            let escaped = _escHtmlProp(rawLine);
+            if (escaped.includes('{{TABELA_PRODUTOS}}')) {
+                escaped = escaped.split('{{TABELA_PRODUTOS}}').join(ctx['{{TABELA_PRODUTOS}}']);
+            }
+            if (escaped.includes('{{TABELA_SERVICOS}}')) {
+                escaped = escaped.split('{{TABELA_SERVICOS}}').join(ctx['{{TABELA_SERVICOS}}']);
+            }
+            if (escaped.includes('{{TABELA_VALORES_AVARIAS}}')) {
+                escaped = escaped.split('{{TABELA_VALORES_AVARIAS}}').join(ctx['{{TABELA_VALORES_AVARIAS}}']);
+            }
+            if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(rawLine)) {
+                out.push(`<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1; text-transform:uppercase;">${escaped}</div>`);
+                continue;
+            }
+            out.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:6px;">${escaped}</div>`);
+        }
+        return out.join('\n');
+    };
 
-    const htmlLinhas = [];
-    for (let i = 0; i < linhas.length; i++) {
-        const rawLine = linhas[i].trim();
-        if (!rawLine) {
-            htmlLinhas.push('<div style="height:6px;"></div>');
-            continue;
-        }
-        if (rawLine === '{{TABELA_PRODUTOS}}') {
-            htmlLinhas.push(ctx['{{TABELA_PRODUTOS}}']);
-            continue;
-        }
-        if (rawLine === '{{TABELA_SERVICOS}}') {
-            htmlLinhas.push(ctx['{{TABELA_SERVICOS}}']);
-            continue;
-        }
-        if (rawLine === '{{TABELA_VALORES_AVARIAS}}') {
-            htmlLinhas.push(ctx['{{TABELA_VALORES_AVARIAS}}']);
-            continue;
-        }
+    const htmlPreambulo = formatarBlocoTextoParaHtml(est.preambulo);
+    const htmlTabelaCliente = window.gerarHtmlTabelaDadosClienteContrato(est, ctx, ehInterveniente);
+    const htmlClausulas = formatarBlocoTextoParaHtml(est.clausulas);
 
-        // Check if line contains inline table tag
-        let escaped = _escHtmlProp(rawLine);
-        if (escaped.includes('{{TABELA_PRODUTOS}}')) {
-            escaped = escaped.split('{{TABELA_PRODUTOS}}').join(ctx['{{TABELA_PRODUTOS}}']);
-        }
-        if (escaped.includes('{{TABELA_SERVICOS}}')) {
-            escaped = escaped.split('{{TABELA_SERVICOS}}').join(ctx['{{TABELA_SERVICOS}}']);
-        }
-        if (escaped.includes('{{TABELA_VALORES_AVARIAS}}')) {
-            escaped = escaped.split('{{TABELA_VALORES_AVARIAS}}').join(ctx['{{TABELA_VALORES_AVARIAS}}']);
-        }
-
-        // Style clause headings (e.g. "1 – CLÁUSULA PRIMEIRA - DO OBJETO")
-        if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(rawLine)) {
-            htmlLinhas.push(`<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1; text-transform:uppercase;">${escaped}</div>`);
-            continue;
-        }
-
-        // Qualification lines (Locatária / Contratante:, Interveniente:, Endereço:, Cidade:, etc.)
-        if (/^(Locat[áa]ria\s*\/\s*Contratante|Interveniente|Endere[çc]o(?: de Faturamento)?|Cidade|Estado|CNPJ(?:\/CPF)?|Telefone|Contato|CEP|Inscri[çc][ãa]o Estadual|E-mail|Tel\.\s*Contato)\s*:/i.test(rawLine)) {
-            const idxColon = escaped.indexOf(':');
-            const left = idxColon >= 0 ? escaped.slice(0, idxColon + 1) : escaped;
-            const right = idxColon >= 0 ? escaped.slice(idxColon + 1) : '';
-            htmlLinhas.push(`<div style="font-size:10pt; line-height:1.45; color:#0f172a; background:#f8fafc; padding:3px 10px; border-left:3px solid #1e293b; margin-bottom:2px;"><strong>${left}</strong>${right}</div>`);
-            continue;
-        }
-
-        // Sub-clauses (e.g. "2.1.", "7.1.1 –")
-        if (/^(\d+\.\d+(?:\.\d+)?|[A-Z]\s*[–-])/.test(rawLine)) {
-            htmlLinhas.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:5px;">${escaped}</div>`);
-            continue;
-        }
-
-        htmlLinhas.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:6px;">${escaped}</div>`);
-    }
-
-    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
-        Boolean(dadosContrato?.proposta?.interveniente_nome);
-
-    const blocoAssinaturasHtml = `
-        <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:${ehInterveniente ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:28px; padding-top:16px;">
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCATÁRIA / CONTRATANTE</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: ${_escHtmlProp(ctx['{{CLIENTE_CNPJ}}'])}</div>
-            </div>
-            ${ehInterveniente ? `
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">INTERVENIENTE</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">${_escHtmlProp(ctx['{{INTERVENIENTE_RAZAO_SOCIAL}}'])}</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: ${_escHtmlProp(ctx['{{INTERVENIENTE_CNPJ}}'])}</div>
-            </div>
-            ` : ''}
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCADORA / CONTRATADA</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ: 03.434.448/0001-01</div>
-            </div>
+    const assinaturasAtivas = Array.isArray(est.assinaturas) ? est.assinaturas : [];
+    const blocoAssinaturasHtml = assinaturasAtivas.length > 0 ? `
+        <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:repeat(${assinaturasAtivas.length}, 1fr); gap:28px; padding-top:16px;">
+            ${assinaturasAtivas.map(ass => {
+                const tRes = _escHtmlProp(window.resolverTextoModeloContrato(ass.titulo || '', ctx, false));
+                const l1Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha1 || '', ctx, false));
+                const l2Res = _escHtmlProp(window.resolverTextoModeloContrato(ass.linha2 || '', ctx, false));
+                return `
+                    <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                        ${tRes ? `<div style="font-weight:700; font-size:10pt; color:#0f172a;">${tRes}</div>` : ''}
+                        ${l1Res ? `<div style="font-size:9.5pt; color:#334155; margin-top:2px;">${l1Res}</div>` : ''}
+                        ${l2Res ? `<div style="font-size:8.5pt; color:#64748b;">${l2Res}</div>` : ''}
+                    </div>
+                `;
+            }).join('')}
         </div>
-    `;
+    ` : '';
 
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias);
-    const topoImgSrc = typeof window.obterUrlTopoModeloContrato === 'function'
-        ? window.obterUrlTopoModeloContrato(m)
-        : '/assets/logo-header.png';
+    const topoImgSrc = window.obterUrlTopoModeloContrato(m);
 
     return `
         <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
-            <!-- Topo com o Logo da Empresa (por Tipo de Contrato) -->
-            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; display:flex; align-items:center; justify-content:space-between;">
-                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
+            <!-- Topo com o Logo da Empresa ocupando 100% da largura da página -->
+            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a;">
+                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; height:auto; display:block;">
             </div>
 
             <!-- Título do Contrato -->
@@ -26371,9 +26621,11 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
                 ${_escHtmlProp(tituloResolvido)}
             </div>
 
-            <!-- Corpo do Contrato -->
+            <!-- Preâmbulo + Tabela de Dados do Cliente + Cláusulas -->
             <div class="america-contrato-body">
-                ${htmlLinhas.join('\n')}
+                ${htmlPreambulo}
+                ${htmlTabelaCliente}
+                ${htmlClausulas}
             </div>
 
             <!-- Assinaturas -->
@@ -26382,7 +26634,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
             <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
                 <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
-                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
+                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; height:auto; display:block;">
                 </div>
                 <div style="text-align:center; font-weight:800; font-size:12pt; color:#0f172a; text-transform:uppercase; margin-bottom:6px; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
                     ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
@@ -26395,16 +26647,6 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             </div>
         </div>
     `;
-};
-
-window.obterUrlTopoModeloContrato = function(m) {
-    if (!m) return '/assets/logo-header.png';
-    if (m.topo_url && String(m.topo_url).trim()) return String(m.topo_url).trim();
-    if (m.topo_r2_key && m.id) {
-        const rev = encodeURIComponent(String(m.topo_r2_key).slice(-16));
-        return `/api/public/modelos-contrato/${m.id}/topo-arquivo?v=${rev}`;
-    }
-    return '/assets/logo-header.png';
 };
 
 window.gerarHtmlDocumentoContratoCompleto = function(modelo, dadosContrato, listaAvarias) {
@@ -26498,7 +26740,9 @@ window.imprimirContratoComModelo = async function(pObj) {
 
 window._modelosContratoList = [];
 window._modeloContratoAtivo = null;
-window._mcUltimoCampoFocado = 'mc-edit-texto';
+window._estruturaContratoAtivo = null;
+window._mcUltimoElementoFocado = null;
+window._mcMnemonicosAberto = false; // Inicia minimizado com setinha para baixo
 
 /* Filtra quais mnemônicos pertencem ao Tipo de Contrato selecionado na lista da esquerda */
 window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
@@ -26507,23 +26751,18 @@ window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
     const tag = String(item.tag || '').trim().toUpperCase();
     const cat = String(item.categoria || '').trim();
 
-    // Campos de Interveniente aparecem apenas quando o tipo selecionado é INTERVENIENTE
     if (cat === 'Interveniente' || tag.startsWith('{{INTERVENIENTE_')) {
         return t === 'INTERVENIENTE';
     }
-    // Campos de Contrato Vinculado / Base aparecem apenas quando o tipo selecionado é ADITIVO
     if (tag === '{{CONTRATO_VINCULADO}}' || tag === '{{CONTRATO_VINCULADO_TIPO}}') {
         return t === 'ADITIVO';
     }
-    // Campos de Evento aparecem apenas em EVENTO e EQUIPAMENTOS
     if (tag === '{{NOME_EVENTO}}' || tag === '{{DIAS_EVENTO}}') {
         return t === 'EVENTO' || t === 'EQUIPAMENTOS';
     }
-    // Hora início / Hora fim aparecem em EVENTO, EQUIPAMENTOS e LIMPA FOSSA
     if (tag === '{{HORA_INICIO}}' || tag === '{{HORA_FIM}}') {
         return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'LIMPA FOSSA';
     }
-    // Tabela de Serviços aparece nos tipos que possuem quadro de serviços
     if (tag === '{{TABELA_SERVICOS}}') {
         return ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'EQUIPAMENTOS', 'ADITIVO', 'INTERVENIENTE'].includes(t);
     }
@@ -26556,7 +26795,7 @@ window._renderModelosContratoInt = async function() {
                 </div>
             </div>
 
-            <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Topo + Mnemônicos + Pré-visualização Editável do Contrato) -->
+            <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Mnemônicos Minimizados + Pré-visualização Editável do Contrato) -->
             <div style="display:grid; grid-template-columns: 260px 1fr; gap:0.85rem; align-items:start;">
                 <!-- Coluna Esquerda: Tipos de Contrato -->
                 <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:60px;">
@@ -26573,11 +26812,9 @@ window._renderModelosContratoInt = async function() {
                     </div>
                 </div>
 
-                <!-- Coluna Direita: Topo/Mnemônicos + Pré-visualização Editável do Contrato -->
+                <!-- Coluna Direita: Mnemônicos Minimizáveis + Pré-visualização Editável do Contrato -->
                 <div style="display:flex; flex-direction:column; gap:0.85rem;">
-                    <div id="mc-editor-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
-                        <div style="text-align:center; padding:2rem; color:#94a3b8;">Selecione um tipo de contrato ao lado para editar.</div>
-                    </div>
+                    <div id="mc-editor-card"></div>
 
                     <!-- Pré-visualização do Contrato (Editável diretamente) -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
@@ -26666,9 +26903,19 @@ window.selecionarModeloContrato = function(id) {
     const found = (window._modelosContratoList || []).find(m => Number(m.id) === Number(id));
     if (!found) return;
     window._modeloContratoAtivo = JSON.parse(JSON.stringify(found));
+    window._estruturaContratoAtivo = window.extrairEstruturaModeloContrato(window._modeloContratoAtivo);
     window.filtrarListaSidebarModelosContrato();
     window._renderEditorModeloContratoAtivo();
     window.atualizarPreviewModeloContratoAtivo();
+};
+
+window.togglePainelMnemonicosContrato = function(event) {
+    if (event && event.target && event.target.id === 'mc-mnemonico-search') return;
+    window._mcMnemonicosAberto = !Boolean(window._mcMnemonicosAberto);
+    const bodyEl = document.getElementById('mc-mnemonicos-collapsible-body');
+    const iconEl = document.getElementById('mc-mnemonicos-chevron');
+    if (bodyEl) bodyEl.style.display = window._mcMnemonicosAberto ? 'block' : 'none';
+    if (iconEl) iconEl.className = window._mcMnemonicosAberto ? 'ph ph-caret-up' : 'ph ph-caret-down';
 };
 
 window._renderEditorModeloContratoAtivo = function() {
@@ -26676,58 +26923,34 @@ window._renderEditorModeloContratoAtivo = function() {
     const m = window._modeloContratoAtivo;
     if (!card || !m) return;
 
-    const topoImgSrc = window.obterUrlTopoModeloContrato(m);
-    const temTopoCustom = Boolean(m.topo_r2_key || (m.topo_url && m.topo_url !== '/assets/logo-header.png'));
+    const aberto = Boolean(window._mcMnemonicosAberto);
 
     card.innerHTML = `
-        <!-- Topo Padrão do Contrato com Logo da Empresa (Editável por Tipo de Contrato) -->
-        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:10px 14px; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:260px;">
-                <img id="mc-topo-img-card" src="${_escHtmlProp(topoImgSrc)}" alt="Topo do Contrato" style="height:54px; max-width:340px; object-fit:contain; background:#fff; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0;">
-                <div>
-                    <div style="font-size:0.78rem; font-weight:800; color:#0f172a;">Topo Padrão do Contrato com Logo da Empresa</div>
+        <!-- Input oculto para upload de topo diretamente pelo botão Editar Topo da Pré-visualização -->
+        <input type="file" id="mc-input-file-topo" accept="image/*" style="display:none;" onchange="window.enviarTopoPersonalizadoModeloContrato(this)">
+
+        <!-- Painel de Mnemônicos Minimizado com Setinha para Baixo (abre/fecha ao clicar) -->
+        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:0.7rem 0.95rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+            <div onclick="window.togglePainelMnemonicosContrato(event)"
+                style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; gap:8px;">
+                <div style="font-size:0.82rem; font-weight:800; color:#4c1d95; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-brackets-curly" style="font-size:1rem;"></i>
+                    <span>Mnemônicos dos Campos do Contrato (Clique para inserir no texto)</span>
                 </div>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <input type="file" id="mc-input-file-topo" accept="image/*" style="display:none;" onchange="window.enviarTopoPersonalizadoModeloContrato(this)">
-                <button type="button" onclick="document.getElementById('mc-input-file-topo')?.click()"
-                    style="background:#7048e8; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
-                    <i class="ph ph-image-square"></i> Editar Topo
+                <button type="button" title="Abrir / Fechar Mnemônicos"
+                    style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                    <i id="mc-mnemonicos-chevron" class="ph ${aberto ? 'ph-caret-up' : 'ph-caret-down'}" style="font-size:0.95rem; font-weight:800;"></i>
                 </button>
-                ${temTopoCustom ? `
-                <button type="button" onclick="window.removerTopoPersonalizadoModeloContrato()"
-                    style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:5px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-trash"></i> Remover Topo
-                </button>` : ''}
-                <span style="background:#ede9fe; color:#5b21b6; font-weight:800; font-size:0.76rem; padding:4px 10px; border-radius:999px;">
-                    Tipo: ${_escHtmlProp(m.codigo_tipo || m.nome)}
-                </span>
             </div>
-        </div>
-
-        <!-- Campo Título do Contrato -->
-        <div style="margin-bottom:0.85rem;">
-            <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Título do Contrato (Aceita mnemônicos como {{NUMERO_CONTRATO}})</label>
-            <input type="text" id="mc-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
-                onfocus="window._mcUltimoCampoFocado='mc-edit-titulo'"
-                oninput="window._onInputCamposModeloContratoAtivo('titulo')"
-                placeholder="Ex: CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${_escHtmlProp(m.nome)}"
-                style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.85rem; font-weight:700; color:#0f172a; box-sizing:border-box; text-transform:none;">
-        </div>
-
-        <!-- Painel de Mnemônicos (Filtrado automaticamente pelo Tipo de Contrato selecionado na esquerda) -->
-        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:0.75rem 0.9rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.55rem;">
-                <div>
-                    <div style="font-size:0.8rem; font-weight:800; color:#4c1d95; display:flex; align-items:center; gap:5px;">
-                        <i class="ph ph-brackets-curly"></i> Mnemônicos dos Campos do Contrato (Clique para inserir no texto)
-                    </div>
+            <div id="mc-mnemonicos-collapsible-body" style="display:${aberto ? 'block' : 'none'}; margin-top:0.65rem; padding-top:0.55rem; border-top:1px solid #ddd6fe;">
+                <div style="display:flex; justify-content:flex-end; margin-bottom:0.5rem;">
+                    <input type="text" id="mc-mnemonico-search" placeholder="🔍 Buscar campo ou mnemônico..."
+                        onclick="event.stopPropagation()"
+                        oninput="window.renderizarChipsMnemonicosContrato()"
+                        style="width:250px; height:30px; padding:0 0.6rem; border:1px solid #c4b5fd; border-radius:6px; font-size:0.78rem; background:#fff; outline:none; text-transform:none;">
                 </div>
-                <input type="text" id="mc-mnemonico-search" placeholder="🔍 Buscar campo ou mnemônico..."
-                    oninput="window.renderizarChipsMnemonicosContrato()"
-                    style="width:240px; height:30px; padding:0 0.6rem; border:1px solid #c4b5fd; border-radius:6px; font-size:0.78rem; background:#fff; outline:none; text-transform:none;">
+                <div id="mc-mnemonicos-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:165px; overflow-y:auto; padding:2px;"></div>
             </div>
-            <div id="mc-mnemonicos-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:155px; overflow-y:auto; padding:2px;"></div>
         </div>
     `;
 
@@ -26759,7 +26982,6 @@ window.enviarTopoPersonalizadoModeloContrato = async function(inputEl) {
             if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
             window._comercialModelosContrato = window._modelosContratoList;
         }
-        window._renderEditorModeloContratoAtivo();
         window.atualizarPreviewModeloContratoAtivo();
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('Topo do contrato atualizado com sucesso!');
@@ -26798,7 +27020,6 @@ window.removerTopoPersonalizadoModeloContrato = async function() {
         const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
         if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
         window._comercialModelosContrato = window._modelosContratoList;
-        window._renderEditorModeloContratoAtivo();
         window.atualizarPreviewModeloContratoAtivo();
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso('Topo padrão restaurado!');
@@ -26839,16 +27060,21 @@ window.renderizarChipsMnemonicosContrato = function() {
     `).join('');
 };
 
-window._autoAjustarAlturaTextareaContrato = function(el) {
-    const textarea = el || document.getElementById('mc-edit-texto');
-    if (!textarea) return;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.max(420, textarea.scrollHeight + 12) + 'px';
+window._autoAjustarAlturaTextareaContrato = function() {
+    ['mc-edit-preambulo', 'mc-edit-texto'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.height = 'auto';
+        const minH = id === 'mc-edit-preambulo' ? 88 : 380;
+        el.style.height = Math.max(minH, el.scrollHeight + 10) + 'px';
+    });
 };
 
 window.inserirMnemonicoNoTextoContrato = function(tag) {
-    const targetId = window._mcUltimoCampoFocado === 'mc-edit-titulo' ? 'mc-edit-titulo' : 'mc-edit-texto';
-    const el = document.getElementById(targetId) || document.getElementById('mc-edit-texto');
+    let el = window._mcUltimoElementoFocado;
+    if (!el || !document.body.contains(el)) {
+        el = document.getElementById('mc-edit-texto') || document.getElementById('mc-edit-preambulo');
+    }
     if (!el) return;
     const start = el.selectionStart ?? el.value.length;
     const end = el.selectionEnd ?? el.value.length;
@@ -26856,27 +27082,72 @@ window.inserirMnemonicoNoTextoContrato = function(tag) {
     el.value = val.slice(0, start) + tag + val.slice(end);
     el.focus();
     const newPos = start + tag.length;
-    el.setSelectionRange(newPos, newPos);
-    window._onInputCamposModeloContratoAtivo(targetId === 'mc-edit-titulo' ? 'titulo' : 'texto');
+    try { el.setSelectionRange(newPos, newPos); } catch (_) {}
+    el.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
-window._onInputCamposModeloContratoAtivo = function(origem = '') {
+window._sincronizarEstruturaParaModeloContratoAtivo = function() {
     const m = window._modeloContratoAtivo;
-    if (!m) return;
-    const inpTit = document.getElementById('mc-edit-titulo');
+    const est = window._estruturaContratoAtivo;
+    if (!m || !est) return;
+
     const inpTitSheet = document.getElementById('mc-sheet-edit-titulo');
-    const inpTxt = document.getElementById('mc-edit-texto');
-    if (origem === 'titulo_sheet' && inpTitSheet) {
-        m.titulo_contrato = inpTitSheet.value;
-        if (inpTit && inpTit !== document.activeElement) inpTit.value = m.titulo_contrato;
-    } else if (inpTit) {
-        m.titulo_contrato = inpTit.value;
-        if (inpTitSheet && inpTitSheet !== document.activeElement) inpTitSheet.value = m.titulo_contrato;
+    if (inpTitSheet) m.titulo_contrato = inpTitSheet.value;
+
+    const inpPre = document.getElementById('mc-edit-preambulo');
+    if (inpPre) est.preambulo = inpPre.value;
+
+    const inpClau = document.getElementById('mc-edit-texto');
+    if (inpClau) est.clausulas = inpClau.value;
+
+    document.querySelectorAll('#mc-live-preview [data-q-cli]').forEach(inp => {
+        const k = inp.getAttribute('data-q-cli');
+        if (k && est.quadro_cliente) est.quadro_cliente[k] = inp.value;
+    });
+
+    document.querySelectorAll('#mc-live-preview [data-q-int]').forEach(inp => {
+        const k = inp.getAttribute('data-q-int');
+        if (k && est.quadro_interveniente) est.quadro_interveniente[k] = inp.value;
+    });
+
+    document.querySelectorAll('#mc-live-preview [data-ass-idx]').forEach(inp => {
+        const idx = Number(inp.getAttribute('data-ass-idx'));
+        const field = inp.getAttribute('data-ass-field');
+        if (Array.isArray(est.assinaturas) && est.assinaturas[idx] && field) {
+            est.assinaturas[idx][field] = inp.value;
+        }
+    });
+
+    m.caputs = JSON.stringify(est);
+    m.texto_contrato = [est.preambulo, est.clausulas].filter(Boolean).join('\n\n');
+    window._autoAjustarAlturaTextareaContrato();
+};
+
+window.removerBlocoAssinaturaModeloContrato = function(idx) {
+    const est = window._estruturaContratoAtivo;
+    if (!est || !Array.isArray(est.assinaturas)) return;
+    window._sincronizarEstruturaParaModeloContratoAtivo();
+    est.assinaturas.splice(idx, 1);
+    if (window._modeloContratoAtivo) {
+        window._modeloContratoAtivo.caputs = JSON.stringify(est);
     }
-    if (inpTxt) {
-        m.texto_contrato = inpTxt.value;
-        window._autoAjustarAlturaTextareaContrato(inpTxt);
+    window.atualizarPreviewModeloContratoAtivo();
+};
+
+window.adicionarBlocoAssinaturaModeloContrato = function() {
+    const est = window._estruturaContratoAtivo;
+    if (!est) return;
+    window._sincronizarEstruturaParaModeloContratoAtivo();
+    if (!Array.isArray(est.assinaturas)) est.assinaturas = [];
+    est.assinaturas.push({
+        titulo: 'ASSINATURA',
+        linha1: '{{CLIENTE_RAZAO_SOCIAL}}',
+        linha2: 'CNPJ/CPF: {{CLIENTE_CNPJ}}'
+    });
+    if (window._modeloContratoAtivo) {
+        window._modeloContratoAtivo.caputs = JSON.stringify(est);
     }
+    window.atualizarPreviewModeloContratoAtivo();
 };
 
 window.atualizarPreviewModeloContratoAtivo = function() {
@@ -26884,70 +27155,225 @@ window.atualizarPreviewModeloContratoAtivo = function() {
     const m = window._modeloContratoAtivo;
     if (!previewEl || !m) return;
 
+    if (!window._estruturaContratoAtivo) {
+        window._estruturaContratoAtivo = window.extrairEstruturaModeloContrato(m);
+    }
+    const est = window._estruturaContratoAtivo;
+    const q = est.quadro_cliente || window._padraoQuadroClienteContrato();
+    const qi = est.quadro_interveniente || window._padraoQuadroIntervenienteContrato();
+
     const topoImgSrc = window.obterUrlTopoModeloContrato(m);
+    const temTopoCustom = Boolean(m.topo_r2_key || (m.topo_url && m.topo_url !== '/assets/logo-header.png'));
     const ctx = window.montarContextoMnemonicosContrato({}, null, null, null, window._valoresAvariasList || []);
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(window._valoresAvariasList || []);
 
-    const blocoAssinaturasHtml = `
-        <div style="margin-top:28px; page-break-inside:avoid; display:grid; grid-template-columns:${ehInterveniente ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:28px; padding-top:16px;">
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCATÁRIA / CONTRATANTE</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">{{CLIENTE_RAZAO_SOCIAL}}</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: {{CLIENTE_CNPJ}}</div>
-            </div>
-            ${ehInterveniente ? `
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">INTERVENIENTE</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">{{INTERVENIENTE_RAZAO_SOCIAL}}</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: {{INTERVENIENTE_CNPJ}}</div>
-            </div>
-            ` : ''}
-            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
-                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCADORA / CONTRATADA</div>
-                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
-                <div style="font-size:8.5pt; color:#64748b;">CNPJ: 03.434.448/0001-01</div>
+    const cellInputStyle = 'border:1px dashed transparent; background:transparent; font-family:Arial, Helvetica, sans-serif; font-size:9.5pt; color:#0f172a; padding:2px 4px; border-radius:4px; outline:none; text-transform:none; box-sizing:border-box;';
+    const renderCellQ = (scopeAttr, lblKey, valKey, lblW = 'auto') => `
+        <div style="display:flex; align-items:center; gap:4px; width:100%;">
+            <input type="text" ${scopeAttr}="${lblKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}"
+                onfocus="window._mcUltimoElementoFocado=this; this.style.borderColor='#94a3b8'; this.style.background='#fff';"
+                onblur="this.style.borderColor='transparent'; this.style.background='transparent';"
+                oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                style="${cellInputStyle} font-weight:700; width:${lblW}; flex-shrink:0;">
+            <input type="text" ${scopeAttr}="${valKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[valKey] : qi[valKey]) || '')}"
+                onfocus="window._mcUltimoElementoFocado=this; this.style.borderColor='#94a3b8'; this.style.background='#fff';"
+                onblur="this.style.borderColor='transparent'; this.style.background='transparent';"
+                oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                style="${cellInputStyle} flex:1; min-width:60px;">
+        </div>
+    `;
+
+    const tabelaClienteEditavelHtml = `
+        <table style="width:100%; border-collapse:collapse; margin:10px 0 12px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            <tbody>
+                <tr style="background:#f8fafc;">
+                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
+                        ${renderCellQ('data-q-cli', 'lbl_contratante', 'val_contratante', '92px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
+                        ${renderCellQ('data-q-cli', 'lbl_cnpj', 'val_cnpj', '52px')}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_endereco', 'val_endereco', '175px')}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                        ${renderCellQ('data-q-cli', 'lbl_cep', 'val_cep', '44px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
+                        ${renderCellQ('data-q-cli', 'lbl_cidade', 'val_cidade', '60px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                        ${renderCellQ('data-q-cli', 'lbl_estado', 'val_estado', '58px')}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_ie', 'val_ie', '130px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_telefone', 'val_telefone', '68px')}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_contato', 'val_contato', '64px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_tel_contato', 'val_tel_contato', '88px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-cli', 'lbl_email', 'val_email', '54px')}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+
+    const tabelaIntervenienteEditavelHtml = ehInterveniente ? `
+        <div style="font-size:9.5pt; font-weight:700; color:#0f172a; margin:8px 0 4px 0;">E como INTERVENIENTE, abaixo qualificado(a):</div>
+        <table style="width:100%; border-collapse:collapse; margin:4px 0 12px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            <tbody>
+                <tr style="background:#f8fafc;">
+                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
+                        ${renderCellQ('data-q-int', 'lbl_interveniente', 'val_interveniente', '98px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
+                        ${renderCellQ('data-q-int', 'lbl_cnpj', 'val_cnpj', '52px')}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-int', 'lbl_endereco', 'val_endereco', '76px')}
+                    </td>
+                </tr>
+                <tr style="background:#f8fafc;">
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                        ${renderCellQ('data-q-int', 'lbl_cep', 'val_cep', '44px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
+                        ${renderCellQ('data-q-int', 'lbl_cidade', 'val_cidade', '60px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                        ${renderCellQ('data-q-int', 'lbl_estado', 'val_estado', '58px')}
+                    </td>
+                </tr>
+                <tr style="background:#ffffff;">
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-int', 'lbl_ie', 'val_ie', '130px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-int', 'lbl_telefone', 'val_telefone', '68px')}
+                    </td>
+                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                        ${renderCellQ('data-q-int', 'lbl_email', 'val_email', '54px')}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    ` : '';
+
+    const assinaturas = Array.isArray(est.assinaturas) ? est.assinaturas : [];
+    const blocoAssinaturasEditavelHtml = `
+        <div style="margin-top:26px; padding-top:12px;">
+            ${assinaturas.length > 0 ? `
+            <div style="display:grid; grid-template-columns:repeat(${assinaturas.length}, 1fr); gap:22px;">
+                ${assinaturas.map((ass, idx) => `
+                    <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center; position:relative; background:#f8fafc; border-radius:0 0 6px 6px; padding-bottom:8px; padding-left:6px; padding-right:6px;">
+                        <button type="button" onclick="window.removerBlocoAssinaturaModeloContrato(${idx})"
+                            title="Excluir este campo de assinatura"
+                            style="position:absolute; top:4px; right:4px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; width:22px; height:22px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem;">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                        <input type="text" data-ass-idx="${idx}" data-ass-field="titulo" value="${_escHtmlProp(ass.titulo || '')}"
+                            onfocus="window._mcUltimoElementoFocado=this"
+                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                            placeholder="Título da assinatura..."
+                            style="width:88%; text-align:center; font-weight:700; font-size:9.5pt; color:#0f172a; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
+                        <input type="text" data-ass-idx="${idx}" data-ass-field="linha1" value="${_escHtmlProp(ass.linha1 || '')}"
+                            onfocus="window._mcUltimoElementoFocado=this"
+                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                            placeholder="Razão Social / Nome..."
+                            style="width:94%; text-align:center; font-size:9pt; color:#334155; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; margin-bottom:3px; outline:none; text-transform:none;">
+                        <input type="text" data-ass-idx="${idx}" data-ass-field="linha2" value="${_escHtmlProp(ass.linha2 || '')}"
+                            onfocus="window._mcUltimoElementoFocado=this"
+                            oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                            placeholder="CNPJ / CPF..."
+                            style="width:94%; text-align:center; font-size:8.5pt; color:#64748b; border:1px dashed #cbd5e1; border-radius:4px; background:#fff; padding:2px 6px; outline:none; text-transform:none;">
+                    </div>
+                `).join('')}
+            </div>` : ''}
+            <div style="text-align:right; margin-top:8px;">
+                <button type="button" onclick="window.adicionarBlocoAssinaturaModeloContrato()"
+                    style="background:#f1f5f9; color:#334155; border:1px dashed #94a3b8; padding:4px 10px; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    <i class="ph ph-plus-circle"></i> Adicionar Assinatura
+                </button>
             </div>
         </div>
     `;
 
     previewEl.innerHTML = `
         <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
-            <!-- Topo com o Logo da Empresa (Editável por Tipo de Contrato) -->
-            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; display:flex; align-items:center; justify-content:space-between; gap:12px; position:relative;">
-                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
-                <button type="button" onclick="document.getElementById('mc-input-file-topo')?.click()"
-                    title="Alterar imagem de topo deste tipo de contrato"
-                    style="position:absolute; right:0; top:0; background:rgba(15,23,42,0.78); color:#fff; border:none; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                    <i class="ph ph-pencil-simple"></i> Editar Topo
-                </button>
+            <!-- Topo com o Logo da Empresa ocupando a largura total da página (Editável pelo botão Editar Topo) -->
+            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; position:relative;">
+                <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; height:auto; display:block;">
+                <div style="position:absolute; right:6px; top:6px; display:flex; gap:6px;">
+                    <button type="button" onclick="document.getElementById('mc-input-file-topo')?.click()"
+                        title="Alterar imagem de topo deste tipo de contrato"
+                        style="background:rgba(15,23,42,0.82); color:#fff; border:none; padding:5px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="ph ph-pencil-simple"></i> Editar Topo
+                    </button>
+                    ${temTopoCustom ? `
+                    <button type="button" onclick="window.removerTopoPersonalizadoModeloContrato()"
+                        title="Restaurar topo padrão da empresa"
+                        style="background:rgba(220,38,38,0.88); color:#fff; border:none; padding:5px 9px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                        <i class="ph ph-trash"></i>
+                    </button>` : ''}
+                </div>
             </div>
 
             <!-- Título do Contrato (Editável diretamente na folha do contrato) -->
-            <div style="margin-bottom:16px;">
+            <div style="margin-bottom:14px;">
                 <input type="text" id="mc-sheet-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
-                    onfocus="window._mcUltimoCampoFocado='mc-edit-titulo'"
-                    oninput="window._onInputCamposModeloContratoAtivo('titulo_sheet')"
+                    onfocus="window._mcUltimoElementoFocado=this"
+                    oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
                     title="Clique para editar o título do contrato"
                     style="width:100%; text-align:center; font-weight:800; font-size:13pt; color:#0f172a; letter-spacing:0.02em; padding:8px 12px; background:#f8fafc; border:1px dashed #94a3b8; border-radius:4px; box-sizing:border-box; outline:none; text-transform:none;">
             </div>
 
-            <!-- Corpo do Contrato (Editável diretamente na Pré-visualização) -->
-            <div class="america-contrato-body">
-                <textarea id="mc-edit-texto"
-                    onfocus="window._mcUltimoCampoFocado='mc-edit-texto'"
-                    oninput="window._onInputCamposModeloContratoAtivo('texto')"
-                    placeholder="Digite aqui o texto completo do contrato e clique nos mnemônicos acima para inserir os campos..."
-                    style="width:100%; min-height:460px; padding:12px 14px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10.5pt; line-height:1.58; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(m.texto_contrato || '')}</textarea>
+            <!-- Preâmbulo do Contrato (Editável) -->
+            <div style="margin-bottom:6px;">
+                <textarea id="mc-edit-preambulo"
+                    onfocus="window._mcUltimoElementoFocado=this"
+                    oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                    placeholder="Texto introdutório do contrato..."
+                    style="width:100%; min-height:88px; padding:10px 12px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.55; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(est.preambulo || '')}</textarea>
             </div>
 
-            <!-- Assinaturas -->
-            ${blocoAssinaturasHtml}
+            <!-- Dados do Cliente mostrados como TABELA na Pré-visualização -->
+            ${tabelaClienteEditavelHtml}
+            ${tabelaIntervenienteEditavelHtml}
 
-            <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
+            <!-- Cláusulas do Contrato (Editável diretamente na Pré-visualização) -->
+            <div class="america-contrato-body">
+                <textarea id="mc-edit-texto"
+                    onfocus="window._mcUltimoElementoFocado=this"
+                    oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
+                    placeholder="Digite aqui as cláusulas do contrato e clique nos mnemônicos acima para inserir os campos..."
+                    style="width:100%; min-height:420px; padding:12px 14px; border:1px dashed #cbd5e1; border-radius:6px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:10pt; line-height:1.58; color:#0f172a; box-sizing:border-box; resize:vertical; outline:none; text-transform:none;">${_escHtmlProp(est.clausulas || '')}</textarea>
+            </div>
+
+            <!-- Assinaturas (Editáveis e Excluíveis) -->
+            ${blocoAssinaturasEditavelHtml}
+
+            <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS (Somente leitura na pré-visualização) -->
             <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
                 <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
-                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
+                    <img src="${_escHtmlProp(topoImgSrc)}" alt="América Rental Equipamentos Ltda" style="width:100%; height:auto; display:block;">
                 </div>
                 <div style="text-align:center; font-weight:800; font-size:12pt; color:#0f172a; text-transform:uppercase; margin-bottom:6px; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
                     ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
@@ -26956,7 +27382,6 @@ window.atualizarPreviewModeloContratoAtivo = function() {
                     Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação:
                 </div>
                 ${tabelaAvariasHtml}
-                ${blocoAssinaturasHtml}
             </div>
         </div>
     `;
@@ -26967,7 +27392,7 @@ window.atualizarPreviewModeloContratoAtivo = function() {
 window.salvarModeloContratoAtivo = async function() {
     const m = window._modeloContratoAtivo;
     if (!m || !m.id) return;
-    window._onInputCamposModeloContratoAtivo();
+    window._sincronizarEstruturaParaModeloContratoAtivo();
     try {
         const res = await apiPut(`/comercial/modelos-contrato/${m.id}`, {
             nome: m.nome,
@@ -26996,7 +27421,7 @@ window.salvarModeloContratoAtivo = async function() {
 window.imprimirModeloContratoAtivo = function() {
     const m = window._modeloContratoAtivo;
     if (!m) return;
-    window._onInputCamposModeloContratoAtivo();
+    window._sincronizarEstruturaParaModeloContratoAtivo();
     const win = window.open('', '_blank', 'width=980,height=820');
     win.document.write(window.gerarHtmlDocumentoContratoCompleto(m, null, window._valoresAvariasList || []));
     win.document.close();
