@@ -41,6 +41,17 @@ const PROP_TIPOS = [
     'EQUIPAMENTOS',
     'AVARIA'
 ];
+const CONTRATO_TIPOS = [
+    'EVENTO',
+    'OBRA MENSAL',
+    'OBRA QUINZENAL',
+    'OBRA SEMANAL',
+    'LIMPA FOSSA',
+    'ADITIVO',
+    'EQUIPAMENTOS',
+    'INTERVENIENTE'
+];
+window.CONTRATO_TIPOS = CONTRATO_TIPOS;
 const PROP_FASES = [
     'Em Elaboração',
     'Proposta Enviada',
@@ -2728,9 +2739,15 @@ function _renderFormPropostaInt() {
                         <div>
                             <label class="prop-lbl">Tipo *</label>
                             <div style="display:flex; gap:0.4rem; align-items:center;">
-                                <select id="prop-tipo" onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                <select id="prop-tipo" onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value); if(typeof window.atualizarVisibilidadeIntervenienteContrato === 'function') window.atualizarVisibilidadeIntervenienteContrato(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
                                     <option value="">-- Selecione --</option>
-                                    ${PROP_TIPOS.map(t => `<option value="${t}" ${(v('tipo')===t || String(v('tipo')||'').replace(/^PROPOSTA\s+/i,'')===t)?'selected':''}>${t}</option>`).join('')}
+                                    ${(() => {
+                                        const baseTipos = window._modoTelaComercial === 'contrato' ? CONTRATO_TIPOS : PROP_TIPOS;
+                                        const tipoAtualLimpo = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                                        const listaTipos = [...baseTipos];
+                                        if (tipoAtualLimpo && !listaTipos.includes(tipoAtualLimpo)) listaTipos.push(tipoAtualLimpo);
+                                        return listaTipos.map(t => `<option value="${t}" ${(v('tipo')===t || tipoAtualLimpo===t)?'selected':''}>${t}</option>`).join('');
+                                    })()}
                                 </select>
                                 <button type="button" onclick="window.abrirModalPreenchimentoIA()" style="display:none; background:#7048e8; color:#fff; border:none; border-radius:6px; height:36px; padding:0 0.75rem; font-size:0.8rem; font-weight:700; align-items:center; gap:0.35rem; cursor:pointer; white-space:nowrap; box-shadow:none; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
                                     <i class="ph ph-magic-wand" style="font-size:1rem;"></i> IA: Atendimento
@@ -2941,6 +2958,22 @@ function _renderFormPropostaInt() {
                                     </div>
                                     <button type="button" id="btn-pesq-contrato-aditivo" onclick="window.pesquisarOuAbrirBuscaContratoAditivo()" style="background:#2563eb; border:none; border-radius:4px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Contrato Base Ativo do Cliente">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="prop-wrapper-interveniente" style="display:${(String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE' || (window._modoTelaComercial === 'contrato' && v('interveniente_nome'))) ? 'block' : 'none'}; grid-column: 1 / -1; margin-top:0.2rem;">
+                                <label class="prop-lbl">Interveniente (Razão Social / Nome ou CPF/CNPJ) <span style="color:#7048e8; font-weight:700;">(Contrato Interveniente)</span></label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="position:relative; flex:1;">
+                                        <input type="text" id="prop-interveniente" value="${_escHtmlProp(typeof window.formatarNomeClienteComIcone === 'function' && v('interveniente_nome') ? window.formatarNomeClienteComIcone(v('interveniente_nome')) : (v('interveniente_nome') || ''))}"
+                                            placeholder="Digite para filtrar ou pesquise o cliente interveniente..."
+                                            onfocus="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
+                                            oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
+                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none;">
+                                        <div id="prop-interveniente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
+                                    </div>
+                                    <button type="button" onclick="if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato();" title="Pesquisar Interveniente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -7252,6 +7285,7 @@ window.salvarPropostaNova = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -7725,6 +7759,7 @@ window.estornarPropostaEdicao = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -8016,6 +8051,7 @@ window.aprovarPropostaEdicao = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -8104,6 +8140,11 @@ window.aprovarPropostaEdicao = async function() {
                     const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
                     const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
                     htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                }
+                if (ehModoContratoAssinafy && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+                    const propObjAssinafy = Object.assign({}, propExistente || {}, payload, { id: finalId });
+                    const htmlContratoMod = await window.gerarHtmlContratoParaPropostaObj(propObjAssinafy, false);
+                    if (htmlContratoMod) htmlImpressaoSimples = htmlContratoMod;
                 }
             } catch (errDocAd) {
                 console.warn('[ASSINAFY] Falha ao montar html_impressao_simples:', errDocAd);
@@ -8952,8 +8993,12 @@ window.baixarPdfProposta = async function(id = null) {
         Swal.fire('Aviso', 'Salve a proposta primeiro para poder baixar o PDF.', 'warning');
         return;
     }
-    window._marcarPropostaComoEnviadaAuto(propId, false);
     const p = _propostasData.find(pr => pr.id === propId);
+    if (window._modoTelaComercial === 'contrato' && p && typeof window.imprimirContratoComModelo === 'function') {
+        await window.imprimirContratoComModelo(p);
+        return;
+    }
+    window._marcarPropostaComoEnviadaAuto(propId, false);
     const cod = (p && p.codigo) ? p.codigo : propId;
 
     Swal.fire({
@@ -9566,6 +9611,12 @@ async function imprimirProposta(id) {
     let textosLegais = [];
     let clientObj = null;
     let cnpj = '—';
+
+    if (window._modoTelaComercial === 'contrato' && typeof window.imprimirContratoComModelo === 'function') {
+        Swal.close();
+        await window.imprimirContratoComModelo(p);
+        return;
+    }
 
     try {
         const [models, modelosProp, clients] = await Promise.all([
@@ -19653,6 +19704,7 @@ window._garantirTabelasPrecoCarregadas = async function(force = false) {
 window.obterTipoEfetivoProposta = function(tipo) {
     const raw = (tipo !== undefined && tipo !== null) ? tipo : (document.getElementById('prop-tipo')?.value || '');
     const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (t === 'INTERVENIENTE') return 'OBRA MENSAL';
     if (t === 'ADITIVO') {
         const inpAdt = document.getElementById('prop-contrato-aditivo');
         let tipoBase = String(inpAdt?.getAttribute('data-contrato-tipo') || window._contratoVinculadoTipoAtivo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -25510,802 +25562,1076 @@ function valorPorExtenso(valor) {
     return texto;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// MÓDULO: MODELOS DE CONTRATOS COMERCIAIS (8 TIPOS + MNEMÔNICOS + TABELA DE AVARIAS)
+// Regra Obrigatória (.agents/rules/contrato-mnemonicos-obrigatorio.md):
+// Sempre que criar um novo campo na tela de Contrato, incluir um mnemônico
+// correspondente em window.CONTRATO_MNEMONICOS_CATALOGO e em window.resolverTextoModeloContrato.
+// ══════════════════════════════════════════════════════════════════════════
+
+window.CONTRATO_MNEMONICOS_CATALOGO = [
+    // Dados do Contrato
+    { tag: '{{NUMERO_CONTRATO}}', label: 'Nº do Contrato', categoria: 'Contrato', exemplo: '0145' },
+    { tag: '{{CODIGO_PROPOSTA}}', label: 'Código da Proposta', categoria: 'Contrato', exemplo: '0218' },
+    { tag: '{{TIPO_CONTRATO}}', label: 'Tipo do Contrato', categoria: 'Contrato', exemplo: 'OBRA MENSAL' },
+    { tag: '{{ATENDENTE}}', label: 'Atendente', categoria: 'Contrato', exemplo: 'Thais Ricci' },
+    { tag: '{{REPRESENTANTE}}', label: 'Representante Comercial', categoria: 'Contrato', exemplo: 'Thais Ricci' },
+    { tag: '{{LOCAL_FILIAL}}', label: 'Local / Filial', categoria: 'Contrato', exemplo: 'AMERICA RENTAL' },
+    { tag: '{{DATA_CADASTRO}}', label: 'Data de Cadastro', categoria: 'Contrato', exemplo: '19/11/2026' },
+    { tag: '{{VALIDADE_PROPOSTA}}', label: 'Validade da Proposta', categoria: 'Contrato', exemplo: '26/11/2026' },
+    { tag: '{{PREVISAO_FECHAMENTO}}', label: 'Previsão de Fechamento', categoria: 'Contrato', exemplo: '26/11/2026' },
+    { tag: '{{SITUACAO_CONTRATO}}', label: 'Situação do Contrato', categoria: 'Contrato', exemplo: 'AGUARDANDO ASSINATURA' },
+    { tag: '{{CONTRATO_VINCULADO}}', label: 'Nº do Contrato Base (Aditivo)', categoria: 'Contrato', exemplo: '0120' },
+    { tag: '{{CONTRATO_VINCULADO_TIPO}}', label: 'Tipo do Contrato Base (Aditivo)', categoria: 'Contrato', exemplo: 'OBRA MENSAL' },
+
+    // Dados do Cliente (Locatária / Contratante)
+    { tag: '{{CLIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Cliente', categoria: 'Cliente', exemplo: 'CONSTRUTORA EXEMPLO S.A.' },
+    { tag: '{{CLIENTE_NOME_FANTASIA}}', label: 'Nome Fantasia do Cliente', categoria: 'Cliente', exemplo: 'CONSTRUTORA EXEMPLO' },
+    { tag: '{{CLIENTE_CNPJ}}', label: 'CNPJ / CPF do Cliente', categoria: 'Cliente', exemplo: '12.345.678/0001-90' },
+    { tag: '{{CLIENTE_IE}}', label: 'Inscrição Estadual do Cliente', categoria: 'Cliente', exemplo: '110.042.490.114' },
+    { tag: '{{CLIENTE_ENDERECO}}', label: 'Endereço de Faturamento (Logradouro)', categoria: 'Cliente', exemplo: 'Av. Paulista' },
+    { tag: '{{CLIENTE_NUMERO}}', label: 'Número do Endereço do Cliente', categoria: 'Cliente', exemplo: '1000' },
+    { tag: '{{CLIENTE_COMPLEMENTO}}', label: 'Complemento do Endereço do Cliente', categoria: 'Cliente', exemplo: 'Conj. 101' },
+    { tag: '{{CLIENTE_BAIRRO}}', label: 'Bairro do Cliente', categoria: 'Cliente', exemplo: 'Bela Vista' },
+    { tag: '{{CLIENTE_MUNICIPIO}}', label: 'Cidade / Município do Cliente', categoria: 'Cliente', exemplo: 'São Paulo' },
+    { tag: '{{CLIENTE_UF}}', label: 'Estado (UF) do Cliente', categoria: 'Cliente', exemplo: 'SP' },
+    { tag: '{{CLIENTE_CEP}}', label: 'CEP do Cliente', categoria: 'Cliente', exemplo: '01310-100' },
+    { tag: '{{CLIENTE_TELEFONE}}', label: 'Telefone do Cliente', categoria: 'Cliente', exemplo: '(11) 3000-4000' },
+    { tag: '{{CLIENTE_EMAIL}}', label: 'E-mail do Cliente', categoria: 'Cliente', exemplo: 'financeiro@exemplo.com.br' },
+
+    // Dados do Contato
+    { tag: '{{CONTATO_NOME}}', label: 'Nome do Contato', categoria: 'Contato', exemplo: 'Carlos Alberto' },
+    { tag: '{{CONTATO_EMAIL}}', label: 'E-mail do Contato', categoria: 'Contato', exemplo: 'carlos@exemplo.com.br' },
+    { tag: '{{CONTATO_TELEFONE}}', label: 'Telefone / Celular do Contato', categoria: 'Contato', exemplo: '(11) 98888-7777' },
+    { tag: '{{CONTATO_CARGO}}', label: 'Cargo / Departamento do Contato', categoria: 'Contato', exemplo: 'Engenheiro Residente' },
+
+    // Dados do Interveniente
+    { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: ' CONSÓRCIO INTERVENIENTE LTDA' },
+    { tag: '{{INTERVENIENTE_CNPJ}}', label: 'CNPJ / CPF do Interveniente', categoria: 'Interveniente', exemplo: '98.765.432/0001-10' },
+    { tag: '{{INTERVENIENTE_IE}}', label: 'Inscrição Estadual do Interveniente', categoria: 'Interveniente', exemplo: '220.111.333.444' },
+    { tag: '{{INTERVENIENTE_ENDERECO}}', label: 'Endereço do Interveniente', categoria: 'Interveniente', exemplo: 'Rua das Palmeiras' },
+    { tag: '{{INTERVENIENTE_NUMERO}}', label: 'Número do Endereço do Interveniente', categoria: 'Interveniente', exemplo: '500' },
+    { tag: '{{INTERVENIENTE_COMPLEMENTO}}', label: 'Complemento do Interveniente', categoria: 'Interveniente', exemplo: '5º Andar' },
+    { tag: '{{INTERVENIENTE_BAIRRO}}', label: 'Bairro do Interveniente', categoria: 'Interveniente', exemplo: 'Centro' },
+    { tag: '{{INTERVENIENTE_MUNICIPIO}}', label: 'Cidade / Município do Interveniente', categoria: 'Interveniente', exemplo: 'Guarulhos' },
+    { tag: '{{INTERVENIENTE_UF}}', label: 'Estado (UF) do Interveniente', categoria: 'Interveniente', exemplo: 'SP' },
+    { tag: '{{INTERVENIENTE_CEP}}', label: 'CEP do Interveniente', categoria: 'Interveniente', exemplo: '07000-000' },
+    { tag: '{{INTERVENIENTE_TELEFONE}}', label: 'Telefone do Interveniente', categoria: 'Interveniente', exemplo: '(11) 2400-5000' },
+    { tag: '{{INTERVENIENTE_EMAIL}}', label: 'E-mail do Interveniente', categoria: 'Interveniente', exemplo: 'contratos@interveniente.com.br' },
+
+    // Período, Evento e Local de Instalação
+    { tag: '{{PERIODO_INICIO}}', label: 'Período Início (Data de Entrega)', categoria: 'Período e Local', exemplo: '20/11/2026' },
+    { tag: '{{PERIODO_FIM}}', label: 'Período Fim (Até)', categoria: 'Período e Local', exemplo: '20/12/2026' },
+    { tag: '{{HORA_INICIO}}', label: 'Hora Início', categoria: 'Período e Local', exemplo: '08:00' },
+    { tag: '{{HORA_FIM}}', label: 'Hora Fim', categoria: 'Período e Local', exemplo: '18:00' },
+    { tag: '{{DIAS_CONTRATO}}', label: 'Dias de Contrato', categoria: 'Período e Local', exemplo: '30' },
+    { tag: '{{DIAS_EVENTO}}', label: 'Dias de Evento / Sucção', categoria: 'Período e Local', exemplo: '20/11/2026 (08:00-18:00)' },
+    { tag: '{{NOME_EVENTO}}', label: 'Nome do Evento', categoria: 'Período e Local', exemplo: 'Festival América 2026' },
+    { tag: '{{ENDERECO_INSTALACAO}}', label: 'Endereço de Entrega / Instalação', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP - CEP: 07110-000' },
+    { tag: '{{REGIAO_INSTALACAO}}', label: 'Região de Instalação (Zona)', categoria: 'Período e Local', exemplo: 'Zona Central' },
+    { tag: '{{DISTANCIA_KM}}', label: 'Distância (KM)', categoria: 'Período e Local', exemplo: '12,5 km' },
+
+    // Condições Comerciais, Produtos, Serviços e Valores
+    { tag: '{{TABELA_PRECOS}}', label: 'Tabela de Preços', categoria: 'Produtos e Valores', exemplo: 'OBRA MENSAL' },
+    { tag: '{{CONDICAO_PAGAMENTO}}', label: 'Condição de Pagamento', categoria: 'Produtos e Valores', exemplo: 'BOLETO - DDL 28 DIAS' },
+    { tag: '{{TIPO_FRETE}}', label: 'Tipo de Frete (CIF / FOB)', categoria: 'Produtos e Valores', exemplo: 'CIF' },
+    { tag: '{{TRANSPORTADORA}}', label: 'Transportadora', categoria: 'Produtos e Valores', exemplo: 'América Rental' },
+    { tag: '{{VALOR_FRETE_IDA}}', label: 'Valor Frete Ida', categoria: 'Produtos e Valores', exemplo: 'R$ 150,00' },
+    { tag: '{{VALOR_FRETE_VOLTA}}', label: 'Valor Frete Volta', categoria: 'Produtos e Valores', exemplo: 'R$ 150,00' },
+    { tag: '{{DESCONTO_PERCENT}}', label: 'Desconto (%)', categoria: 'Produtos e Valores', exemplo: '0%' },
+    { tag: '{{DESCONTO_REAIS}}', label: 'Desconto (R$)', categoria: 'Produtos e Valores', exemplo: 'R$ 0,00' },
+    { tag: '{{VALOR_TOTAL}}', label: 'Valor Total do Contrato', categoria: 'Produtos e Valores', exemplo: '1.440,00' },
+    { tag: '{{VALOR_TOTAL_EXTENSO}}', label: 'Valor Total por Extenso', categoria: 'Produtos e Valores', exemplo: 'UM MIL E QUATROCENTOS E QUARENTA REAIS' },
+    { tag: '{{TABELA_PRODUTOS}}', label: 'Tabela de Produtos / Equipamentos', categoria: 'Produtos e Valores', exemplo: '[Tabela de Produtos]' },
+    { tag: '{{TABELA_SERVICOS}}', label: 'Tabela de Serviços / Taxas Complementares', categoria: 'Produtos e Valores', exemplo: '[Tabela de Serviços]' },
+    { tag: '{{OBSERVACOES}}', label: 'Observações do Contrato', categoria: 'Produtos e Valores', exemplo: 'Manutenção 1x por semana.' },
+    { tag: '{{TABELA_VALORES_AVARIAS}}', label: 'Tabela de Valores de Avarias (Anexo I)', categoria: 'Produtos e Valores', exemplo: '[Tabela de Valores de Avarias]' },
+    { tag: '{{DATA_ATUAL}}', label: 'Data Atual (DD/MM/AAAA)', categoria: 'Contrato', exemplo: '19/11/2026' },
+    { tag: '{{DATA_ATUAL_EXTENSO}}', label: 'Data Atual por Extenso', categoria: 'Contrato', exemplo: '19 DE NOVEMBRO DE 2026' }
+];
+
+window.atualizarVisibilidadeIntervenienteContrato = function(tipoVal) {
+    const t = String(tipoVal !== undefined ? tipoVal : (document.getElementById('prop-tipo')?.value || '')).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const wrap = document.getElementById('prop-wrapper-interveniente');
+    if (!wrap) return;
+    const inp = document.getElementById('prop-interveniente');
+    const mostrar = t === 'INTERVENIENTE' || (window._modoTelaComercial === 'contrato' && Boolean(inp && inp.value.trim()));
+    wrap.style.display = mostrar ? 'block' : 'none';
+    if (mostrar && inp && !inp.value.trim()) {
+        // Se o cliente selecionado tiver cliente_centralizador cadastrado, sugere automaticamente
+        const cliNome = typeof window.limparPrefixoGrupoCliente === 'function'
+            ? window.limparPrefixoGrupoCliente(document.getElementById('prop-cliente')?.value || '')
+            : String(document.getElementById('prop-cliente')?.value || '').trim();
+        if (cliNome && Array.isArray(_clientesCache)) {
+            const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const cliObj = _clientesCache.find(c => norm(c.nome_razao_social) === norm(cliNome) || norm(c.nome_fantasia) === norm(cliNome));
+            if (cliObj && cliObj.cliente_centralizador) {
+                inp.value = typeof window.formatarNomeClienteComIcone === 'function'
+                    ? window.formatarNomeClienteComIcone(cliObj.cliente_centralizador)
+                    : cliObj.cliente_centralizador;
+            }
+        }
+    }
+};
+
+window.filtrarDropdownIntervenienteContrato = async function(termo = '', abrir = true) {
+    const drop = document.getElementById('prop-interveniente-dropdown');
+    if (!drop) return;
+    if (!abrir) { drop.style.display = 'none'; return; }
+    let lista = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+    if (!lista.length && typeof window.obterClientesCache === 'function') {
+        lista = await window.obterClientesCache().catch(() => []);
+    }
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
+    const filtrados = (!q ? lista : lista.filter(c =>
+        norm(c.nome_razao_social).includes(q) ||
+        norm(c.nome_fantasia).includes(q) ||
+        String(c.cpf_cnpj || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+    )).slice(0, 60);
+
+    if (!filtrados.length) {
+        drop.innerHTML = '<div style="padding:8px 10px; font-size:0.78rem; color:#94a3b8;">Nenhum cliente encontrado.</div>';
+        drop.style.display = 'block';
+        return;
+    }
+    drop.innerHTML = filtrados.map(c => {
+        const razao = c.nome_razao_social || c.nome_fantasia || '';
+        const razaoComIcone = typeof window.formatarNomeClienteComIcone === 'function'
+            ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista)
+            : razao;
+        const razaoEsc = String(razaoComIcone).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `<div onmousedown="event.preventDefault(); const el=document.getElementById('prop-interveniente'); if(el){ el.value='${razaoEsc}'; el.dispatchEvent(new Event('input',{bubbles:true})); } document.getElementById('prop-interveniente-dropdown').style.display='none';"
+            style="padding:7px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.82rem; display:flex; justify-content:space-between; gap:8px;"
+            onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'">
+            <span style="font-weight:700; color:#1e293b;">${_escHtmlProp(razaoComIcone)}</span>
+            <span style="color:#64748b; font-size:0.75rem;">${_escHtmlProp(c.cpf_cnpj || '')}</span>
+        </div>`;
+    }).join('');
+    drop.style.display = 'block';
+};
+
+if (!window._listenerCloseIntervenienteDropdown && typeof document !== 'undefined') {
+    window._listenerCloseIntervenienteDropdown = true;
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('prop-wrapper-interveniente');
+        const drop = document.getElementById('prop-interveniente-dropdown');
+        if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+            drop.style.display = 'none';
+        }
+    });
+}
+
+window.abrirModalPesquisaIntervenienteContrato = async function() {
+    const inp = document.getElementById('prop-interveniente');
+    await window.filtrarDropdownIntervenienteContrato(inp ? inp.value : '', true);
+    if (inp) inp.focus();
+};
+
+window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
+    let itens = [];
+    try {
+        itens = typeof itensRaw === 'string' ? JSON.parse(itensRaw || '[]') : (Array.isArray(itensRaw) ? itensRaw : []);
+    } catch (_) { itens = []; }
+    if (!itens.length) {
+        itens = [
+            { produto: 'CABINE SANITÁRIA STANDARD', observacao: 'LOCAÇÃO E MANUTENÇÃO', quantidade: 2, valor_unitario: 720.00, valor_total: 1440.00 }
+        ];
+    }
+    const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rowsHtml = itens.map((it, idx) => {
+        const nome = it.produto || it.descricao || it.nome || ('Item ' + (idx + 1));
+        const obs = it.observacao || it.obs || '—';
+        const qtd = Number(it.quantidade || it.qtde || 1);
+        const unit = Number(it.valor_unitario ?? it.valor ?? 0);
+        const tot = Number(it.valor_total ?? it.total ?? (qtd * unit));
+        return `
+            <tr>
+                <td style="padding:6px 8px; border:1px solid #cbd5e1; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
+                <td style="padding:6px 8px; border:1px solid #cbd5e1; color:#334155;">${_escHtmlProp(obs)}</td>
+                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:center; font-weight:700;">${qtd}</td>
+                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right;">R$ ${fmtM(unit)}</td>
+                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">R$ ${fmtM(tot)}</td>
+            </tr>
+        `;
+    }).join('');
+    return `
+        <table style="width:100%; border-collapse:collapse; margin:8px 0 12px 0; font-size:10.5pt; font-family:Arial, Helvetica, sans-serif;">
+            <thead>
+                <tr style="background:#f1f5f9; color:#1e293b;">
+                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:left;">Equipamento / Produto</th>
+                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:left;">Observação</th>
+                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:center; width:70px;">Qtd.</th>
+                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; width:115px;">Vlr. Unitário</th>
+                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; width:120px;">Vlr. Total</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+};
+
+window.gerarHtmlTabelaServicosContrato = function(servicosRaw) {
+    let servs = [];
+    try {
+        servs = typeof servicosRaw === 'string' ? JSON.parse(servicosRaw || '[]') : (Array.isArray(servicosRaw) ? servicosRaw : []);
+    } catch (_) { servs = []; }
+    if (!servs.length) {
+        return '<div style="font-size:10pt; color:#475569; margin:4px 0 8px 0;">Não há taxas ou serviços complementares adicionais.</div>';
+    }
+    const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const rowsHtml = servs.map((sv, idx) => {
+        const nome = sv.servico || sv.descricao || sv.nome || ('Serviço ' + (idx + 1));
+        const obs = sv.observacao || sv.obs || '—';
+        const vlr = Number(sv.valor_final ?? sv.valor ?? sv.valor_total ?? 0);
+        return `
+            <tr>
+                <td style="padding:5px 8px; border:1px solid #cbd5e1; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
+                <td style="padding:5px 8px; border:1px solid #cbd5e1; color:#334155;">${_escHtmlProp(obs)}</td>
+                <td style="padding:5px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">R$ ${fmtM(vlr)}</td>
+            </tr>
+        `;
+    }).join('');
+    return `
+        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif;">
+            <thead>
+                <tr style="background:#f1f5f9; color:#1e293b;">
+                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:left;">Serviço / Taxa Complementar</th>
+                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:left;">Observação</th>
+                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:right; width:120px;">Valor</th>
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+};
+
+window.gerarHtmlTabelaValoresAvariasContrato = function(listaAvarias) {
+    const lista = Array.isArray(listaAvarias) && listaAvarias.length > 0
+        ? listaAvarias
+        : (Array.isArray(window._valoresAvariasList) ? window._valoresAvariasList : []);
+    const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Divide em 2 colunas lado a lado para caber perfeitamente na última página do contrato
+    const metade = Math.ceil(lista.length / 2);
+    const col1 = lista.slice(0, metade);
+    const col2 = lista.slice(metade);
+
+    const renderTabelaCol = (arr) => `
+        <table style="width:100%; border-collapse:collapse; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif;">
+            <thead>
+                <tr style="background:#1e293b; color:#ffffff;">
+                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:left;">Item / Descrição da Avaria</th>
+                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:right; width:110px;">Valor (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${arr.map((av, i) => `
+                    <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                        <td style="padding:4px 8px; border:1px solid #cbd5e1; color:#0f172a; font-weight:600;">${_escHtmlProp(av.nome || '')}</td>
+                        <td style="padding:4px 8px; border:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:700; white-space:nowrap;">R$ ${fmtM(av.valor)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    if (!lista.length) {
+        return `
+            <div style="padding:14px; border:1px solid #cbd5e1; border-radius:6px; text-align:center; color:#64748b; font-size:10pt;">
+                Nenhum item cadastrado em Valores de Avarias.
+            </div>
+        `;
+    }
+
+    return `
+        <div style="display:grid; grid-template-columns:${col2.length > 0 ? '1fr 1fr' : '1fr'}; gap:12px; align-items:start;">
+            <div>${renderTabelaCol(col1)}</div>
+            ${col2.length > 0 ? `<div>${renderTabelaCol(col2)}</div>` : ''}
+        </div>
+    `;
+};
+
+window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {
+    const p = pRaw || {};
+    const cli = clientObj || {};
+    const con = contatoObj || {};
+    const inter = intervenienteObj || {};
+    const limparIcone = (s) => typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(s || '')
+        : String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+
+    const fmtDataBr = (d) => {
+        const s = String(d || '').trim();
+        if (!s) return '—';
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+    };
+    const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const mesesExt = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+    const hoje = new Date();
+    const dataAtualBr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
+    const dataAtualExtenso = `${String(hoje.getDate()).padStart(2, '0')} DE ${mesesExt[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
+
+    const vlrTotalNum = Number(p.valor_total !== undefined ? p.valor_total : 1440);
+    const vlrExtenso = (typeof valorPorExtenso === 'function' ? valorPorExtenso(vlrTotalNum) : 'um mil e quatrocentos e quarenta reais').toUpperCase();
+
+    const clienteRazao = limparIcone(p.cliente_nome || cli.nome_razao_social || 'CONSTRUTORA EXEMPLO S.A.');
+    const interRazao = limparIcone(p.interveniente_nome || inter.nome_razao_social || cli.cliente_centralizador || 'INTERVENIENTE EXEMPLO LTDA');
+
+    let diasEvTxt = '—';
+    try {
+        const arrD = typeof p.dias_evento === 'string' ? JSON.parse(p.dias_evento || '[]') : (Array.isArray(p.dias_evento) ? p.dias_evento : []);
+        if (arrD.length > 0) diasEvTxt = arrD.join(', ');
+    } catch (_) {}
+
+    return {
+        '{{NUMERO_CONTRATO}}': String(p.contrato || p.numero_contrato || p.codigo || '0001').trim(),
+        '{{CODIGO_PROPOSTA}}': String(p.codigo || '0001').trim(),
+        '{{TIPO_CONTRATO}}': String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, ''),
+        '{{ATENDENTE}}': String(p.atendente_nome || p.atendente || window.obterNomeUsuarioLogado() || 'Thais Ricci').trim(),
+        '{{REPRESENTANTE}}': String(p.representante || p.atendente_nome || p.atendente || 'Thais Ricci').trim(),
+        '{{LOCAL_FILIAL}}': String(p.local || 'AMERICA RENTAL').trim(),
+        '{{DATA_CADASTRO}}': fmtDataBr(p.data_cadastro || dataAtualBr),
+        '{{VALIDADE_PROPOSTA}}': fmtDataBr(p.validade_proposta || dataAtualBr),
+        '{{PREVISAO_FECHAMENTO}}': fmtDataBr(p.previsao_fechamento || dataAtualBr),
+        '{{SITUACAO_CONTRATO}}': String(p.situacao_contrato || 'AGUARDANDO ASSINATURA').trim(),
+        '{{CONTRATO_VINCULADO}}': String(p.contrato_vinculado || '0001').trim(),
+        '{{CONTRATO_VINCULADO_TIPO}}': String(p.contrato_vinculado_tipo || p.tipo || 'OBRA MENSAL').trim(),
+
+        '{{CLIENTE_RAZAO_SOCIAL}}': clienteRazao,
+        '{{CLIENTE_RAZAO}}': clienteRazao,
+        '{{CLIENTE_NOME}}': clienteRazao,
+        '{{CLIENTE_NOME_FANTASIA}}': limparIcone(cli.nome_fantasia || clienteRazao),
+        '{{CLIENTE_CNPJ}}': String(cli.cpf_cnpj || p.cliente_cnpj || '00.000.000/0001-00').trim(),
+        '{{CLIENTE_IE}}': String(cli.inscricao_estadual || p.cliente_ie || 'ISENTO').trim(),
+        '{{CLIENTE_ENDERECO}}': String(cli.endereco || p.cliente_endereco || 'Rua Exemplo').trim(),
+        '{{CLIENTE_NUMERO}}': String(cli.numero || p.cliente_numero || '100').trim(),
+        '{{CLIENTE_COMPLEMENTO}}': String(cli.complemento || p.cliente_complemento || '').trim(),
+        '{{CLIENTE_BAIRRO}}': String(cli.bairro || p.cliente_bairro || 'Centro').trim(),
+        '{{CLIENTE_MUNICIPIO}}': String(cli.municipio || p.cliente_municipio || 'Guarulhos').trim(),
+        '{{CLIENTE_UF}}': String(cli.uf || p.cliente_uf || 'SP').trim(),
+        '{{CLIENTE_CEP}}': String(cli.cep || p.cliente_cep || '07000-000').trim(),
+        '{{CLIENTE_TELEFONE}}': String(cli.telefone || cli.celular || p.cliente_telefone || '(11) 2499-3353').trim(),
+        '{{CLIENTE_EMAIL}}': String(cli.email || con.email || 'contato@cliente.com.br').trim(),
+
+        '{{CONTATO_NOME}}': String(p.contato_nome || con.nome || 'Contato Responsável').trim(),
+        '{{CONTATO_EMAIL}}': String(con.email || p.assinafy_email || cli.email || 'contato@cliente.com.br').trim(),
+        '{{CONTATO_TELEFONE}}': String(con.celular || con.telefone || cli.telefone || '(11) 99999-0000').trim(),
+        '{{CONTATO_CARGO}}': String(con.cargo || con.departamento || '').trim(),
+
+        '{{INTERVENIENTE_RAZAO_SOCIAL}}': interRazao,
+        '{{INTERVENIENTE_CNPJ}}': String(inter.cpf_cnpj || '00.000.000/0001-00').trim(),
+        '{{INTERVENIENTE_IE}}': String(inter.inscricao_estadual || 'ISENTO').trim(),
+        '{{INTERVENIENTE_ENDERECO}}': String(inter.endereco || '—').trim(),
+        '{{INTERVENIENTE_NUMERO}}': String(inter.numero || 'S/N').trim(),
+        '{{INTERVENIENTE_COMPLEMENTO}}': String(inter.complemento || '').trim(),
+        '{{INTERVENIENTE_BAIRRO}}': String(inter.bairro || '—').trim(),
+        '{{INTERVENIENTE_MUNICIPIO}}': String(inter.municipio || 'São Paulo').trim(),
+        '{{INTERVENIENTE_UF}}': String(inter.uf || 'SP').trim(),
+        '{{INTERVENIENTE_CEP}}': String(inter.cep || '00000-000').trim(),
+        '{{INTERVENIENTE_TELEFONE}}': String(inter.telefone || inter.celular || '—').trim(),
+        '{{INTERVENIENTE_EMAIL}}': String(inter.email || '—').trim(),
+
+        '{{PERIODO_INICIO}}': fmtDataBr(p.periodo_inicio || dataAtualBr),
+        '{{PERIODO_FIM}}': fmtDataBr(p.periodo_fim || dataAtualBr),
+        '{{HORA_INICIO}}': String(p.hora_inicio || '08:00').trim(),
+        '{{HORA_FIM}}': String(p.hora_fim || '18:00').trim(),
+        '{{DIAS_CONTRATO}}': String(p.dias_contrato !== undefined ? p.dias_contrato : 30),
+        '{{DIAS_EVENTO}}': diasEvTxt,
+        '{{NOME_EVENTO}}': String(p.nome_evento || '—').trim(),
+        '{{ENDERECO_INSTALACAO}}': String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim(),
+        '{{REGIAO_INSTALACAO}}': String(p.regiao || 'Zona Central').trim(),
+        '{{DISTANCIA_KM}}': p.distancia_km ? `${Number(p.distancia_km).toFixed(1)} km` : '0,0 km',
+
+        '{{TABELA_PRECOS}}': String(p.tabela_precos || p.tipo || 'OBRA MENSAL').trim(),
+        '{{TABELA_PRECO}}': String(p.tabela_precos || p.tipo || 'OBRA MENSAL').trim(),
+        '{{CONDICAO_PAGAMENTO}}': String(p.condicao_pagamento || 'BOLETO - DDL 28 DIAS').trim(),
+        '{{TIPO_FRETE}}': String(p.tipo_frete || 'CIF').trim(),
+        '{{TRANSPORTADORA}}': String(p.transportadora || 'América Rental').trim(),
+        '{{VALOR_FRETE_IDA}}': 'R$ ' + fmtM(p.valor_frete_ida || 0),
+        '{{VALOR_FRETE_VOLTA}}': 'R$ ' + fmtM(p.valor_frete_volta || 0),
+        '{{DESCONTO_PERCENT}}': String(p.desconto_percent || 0) + '%',
+        '{{DESCONTO_REAIS}}': 'R$ ' + fmtM(p.desconto_reais || 0),
+        '{{VALOR_TOTAL}}': fmtM(vlrTotalNum),
+        '{{VALOR_TOTAL_EXTENSO}}': vlrExtenso,
+        '{{VALOR_EXTENSO}}': vlrExtenso,
+        '{{OBSERVACOES}}': String(p.observacoes || '—').trim(),
+        '{{DATA_ATUAL}}': dataAtualBr,
+        '{{DATA_ATUAL_EXTENSO}}': dataAtualExtenso,
+
+        '{{TABELA_PRODUTOS}}': window.gerarHtmlTabelaProdutosContrato(p.itens),
+        '{{TABELA_SERVICOS}}': window.gerarHtmlTabelaServicosContrato(p.itens_servicos),
+        '{{TABELA_VALORES_AVARIAS}}': window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias)
+    };
+};
+
+window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText = false) {
+    let s = String(textoBruto || '');
+    const map = ctxMap || {};
+    // Normalize any legacy Word template variables if user pasted directly from Word
+    const legacyAliases = [
+        [/\$\{codigo\}/g, '{{NUMERO_CONTRATO}}'],
+        [/\$\{entidade_tipo_contrato\.descricao\}/g, '{{TIPO_CONTRATO}}'],
+        [/\$\{entidade_cliente\.razaosocial\}/g, '{{CLIENTE_RAZAO_SOCIAL}}'],
+        [/\$\{Nome do Cliente\}/g, '{{CLIENTE_RAZAO_SOCIAL}}'],
+        [/\$\{endereco_faturamento_endereco\}/g, '{{CLIENTE_ENDERECO}}'],
+        [/\$\{endereco_faturamento_numero\}/g, '{{CLIENTE_NUMERO}}'],
+        [/\$\{endereco_faturamento_bairro\}/g, '{{CLIENTE_BAIRRO}}'],
+        [/\$\{entidade_cliente\.municipio\}/g, '{{CLIENTE_MUNICIPIO}}'],
+        [/\$\{entidade_cliente\.uf\}/g, '{{CLIENTE_UF}}'],
+        [/\$\{entidade_cliente\.cnpj\}/g, '{{CLIENTE_CNPJ}}'],
+        [/\$\{entidade_cliente\.telefone\}/g, '{{CLIENTE_TELEFONE}}'],
+        [/\$\{entidade_cliente\.cep\}/g, '{{CLIENTE_CEP}}'],
+        [/\$\{entidade_cliente\.inscestadual\}/g, '{{CLIENTE_IE}}'],
+        [/\$\{entidade_contato\.nome\}/g, '{{CONTATO_NOME}}'],
+        [/\$\{entidade_contato\.email1\}/g, '{{CONTATO_EMAIL}}'],
+        [/\$\{entidade_contato\.telefone\}/g, '{{CONTATO_TELEFONE}}'],
+        [/\$\{cliente_centralizador_razao_social\}/g, '{{INTERVENIENTE_RAZAO_SOCIAL}}'],
+        [/\$\{cliente_centralizador_endereco\}/g, '{{INTERVENIENTE_ENDERECO}}'],
+        [/\$\{cliente_centralizador_end_numero\}/g, '{{INTERVENIENTE_NUMERO}}'],
+        [/\$\{cliente_centralizador_complemento\}/g, '{{INTERVENIENTE_COMPLEMENTO}}'],
+        [/\$\{cliente_centralizador_bairro\}/g, '{{INTERVENIENTE_BAIRRO}}'],
+        [/\$\{cliente_centralizador_municipio\}/g, '{{INTERVENIENTE_MUNICIPIO}}'],
+        [/\$\{cliente_centralizador_uf\}/g, '{{INTERVENIENTE_UF}}'],
+        [/\$\{cliente_centralizador_cnpj_cpf\}/g, '{{INTERVENIENTE_CNPJ}}'],
+        [/\$\{cliente_centralizador_email\}/g, '{{INTERVENIENTE_EMAIL}}'],
+        [/\$\{cliente_centralizador_cep\}/g, '{{INTERVENIENTE_CEP}}'],
+        [/\$\{cliente_centralizador_telefone\}/g, '{{INTERVENIENTE_TELEFONE}}'],
+        [/\$\{PRODUTOS_CTPROD_TABELA_NOVO\}/g, '{{TABELA_PRODUTOS}}'],
+        [/\$\{SERVICOS_TABELA_COMPLETA_NOVO\}/g, '{{TABELA_SERVICOS}}'],
+        [/\$\{datavigini_formatada\}/g, '{{PERIODO_INICIO}}'],
+        [/\$\{datainiciolocacaorapida\}/g, '{{PERIODO_INICIO}}'],
+        [/\$\{datavigfim_formatada\}/g, '{{PERIODO_FIM}}'],
+        [/\$\{datafimlocacaorapida\}/g, '{{PERIODO_FIM}}'],
+        [/\$\{total_ctprod_formatado\}/g, '{{VALOR_TOTAL}}'],
+        [/\$\{total_ctprod_formatado_extenso_caixa_alta\}/g, '{{VALOR_TOTAL_EXTENSO}}'],
+        [/\$\{entidade_proposta_condpag_descricao\}/g, '{{CONDICAO_PAGAMENTO}}'],
+        [/\$\{locacao_rapida_condicao\}/g, '{{CONDICAO_PAGAMENTO}}'],
+        [/\$\{tipo_documento_primeiro_servico\}/g, ''],
+        [/\$\{endereco_instalacao\}/g, '{{ENDERECO_INSTALACAO}}'],
+        [/\$\{hoje_extenso_caixa_alta\}/g, '{{DATA_ATUAL_EXTENSO}}']
+    ];
+    for (const [rgx, rep] of legacyAliases) {
+        s = s.replace(rgx, rep);
+    }
+
+    if (!escapeHtmlText) {
+        Object.keys(map).forEach(k => {
+            s = s.split(k).join(String(map[k] ?? ''));
+        });
+        return s;
+    }
+
+    // When rendering paragraphs to HTML: escape plain text lines, but allow HTML tables ({{TABELA_PRODUTOS}}, {{TABELA_SERVICOS}}, {{TABELA_VALORES_AVARIAS}})
+    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}'];
+    Object.keys(map).forEach(k => {
+        if (!htmlTags.includes(k)) {
+            s = s.split(k).join(String(map[k] ?? ''));
+        }
+    });
+    return s;
+};
+
+window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
+    const m = modelo || {};
+    const ctx = window.montarContextoMnemonicosContrato(
+        dadosContrato?.proposta || dadosContrato || {},
+        dadosContrato?.cliente || null,
+        dadosContrato?.contato || null,
+        dadosContrato?.interveniente || null,
+        listaAvarias
+    );
+
+    const tituloResolvido = window.resolverTextoModeloContrato(
+        m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`,
+        ctx,
+        false
+    );
+
+    const textoPreResolvido = window.resolverTextoModeloContrato(m.texto_contrato || '', ctx, true);
+    const linhas = String(textoPreResolvido || '').split(/\r?\n/);
+
+    const htmlLinhas = [];
+    for (let i = 0; i < linhas.length; i++) {
+        const rawLine = linhas[i].trim();
+        if (!rawLine) {
+            htmlLinhas.push('<div style="height:6px;"></div>');
+            continue;
+        }
+        if (rawLine === '{{TABELA_PRODUTOS}}') {
+            htmlLinhas.push(ctx['{{TABELA_PRODUTOS}}']);
+            continue;
+        }
+        if (rawLine === '{{TABELA_SERVICOS}}') {
+            htmlLinhas.push(ctx['{{TABELA_SERVICOS}}']);
+            continue;
+        }
+        if (rawLine === '{{TABELA_VALORES_AVARIAS}}') {
+            htmlLinhas.push(ctx['{{TABELA_VALORES_AVARIAS}}']);
+            continue;
+        }
+
+        // Check if line contains inline table tag
+        let escaped = _escHtmlProp(rawLine);
+        if (escaped.includes('{{TABELA_PRODUTOS}}')) {
+            escaped = escaped.split('{{TABELA_PRODUTOS}}').join(ctx['{{TABELA_PRODUTOS}}']);
+        }
+        if (escaped.includes('{{TABELA_SERVICOS}}')) {
+            escaped = escaped.split('{{TABELA_SERVICOS}}').join(ctx['{{TABELA_SERVICOS}}']);
+        }
+        if (escaped.includes('{{TABELA_VALORES_AVARIAS}}')) {
+            escaped = escaped.split('{{TABELA_VALORES_AVARIAS}}').join(ctx['{{TABELA_VALORES_AVARIAS}}']);
+        }
+
+        // Style clause headings (e.g. "1 – CLÁUSULA PRIMEIRA - DO OBJETO")
+        if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(rawLine)) {
+            htmlLinhas.push(`<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1; text-transform:uppercase;">${escaped}</div>`);
+            continue;
+        }
+
+        // Qualification lines (Locatária / Contratante:, Interveniente:, Endereço:, Cidade:, etc.)
+        if (/^(Locat[áa]ria\s*\/\s*Contratante|Interveniente|Endere[çc]o(?: de Faturamento)?|Cidade|Estado|CNPJ(?:\/CPF)?|Telefone|Contato|CEP|Inscri[çc][ãa]o Estadual|E-mail|Tel\.\s*Contato)\s*:/i.test(rawLine)) {
+            const idxColon = escaped.indexOf(':');
+            const left = idxColon >= 0 ? escaped.slice(0, idxColon + 1) : escaped;
+            const right = idxColon >= 0 ? escaped.slice(idxColon + 1) : '';
+            htmlLinhas.push(`<div style="font-size:10pt; line-height:1.45; color:#0f172a; background:#f8fafc; padding:3px 10px; border-left:3px solid #1e293b; margin-bottom:2px;"><strong>${left}</strong>${right}</div>`);
+            continue;
+        }
+
+        // Sub-clauses (e.g. "2.1.", "7.1.1 –")
+        if (/^(\d+\.\d+(?:\.\d+)?|[A-Z]\s*[–-])/.test(rawLine)) {
+            htmlLinhas.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:5px;">${escaped}</div>`);
+            continue;
+        }
+
+        htmlLinhas.push(`<div style="font-size:10pt; line-height:1.5; color:#1e293b; text-align:justify; margin-bottom:6px;">${escaped}</div>`);
+    }
+
+    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
+        Boolean(dadosContrato?.proposta?.interveniente_nome);
+
+    const blocoAssinaturasHtml = `
+        <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:${ehInterveniente ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:28px; padding-top:16px;">
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCATÁRIA / CONTRATANTE</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: ${_escHtmlProp(ctx['{{CLIENTE_CNPJ}}'])}</div>
+            </div>
+            ${ehInterveniente ? `
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">INTERVENIENTE</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">${_escHtmlProp(ctx['{{INTERVENIENTE_RAZAO_SOCIAL}}'])}</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ/CPF: ${_escHtmlProp(ctx['{{INTERVENIENTE_CNPJ}}'])}</div>
+            </div>
+            ` : ''}
+            <div style="border-top:1px solid #0f172a; padding-top:8px; text-align:center;">
+                <div style="font-weight:700; font-size:10pt; color:#0f172a;">LOCADORA / CONTRATADA</div>
+                <div style="font-size:9.5pt; color:#334155; margin-top:2px;">AMÉRICA RENTAL EQUIPAMENTOS LTDA</div>
+                <div style="font-size:8.5pt; color:#64748b;">CNPJ: 03.434.448/0001-01</div>
+            </div>
+        </div>
+    `;
+
+    const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias);
+
+    return `
+        <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
+            <!-- Topo com o Logo da Empresa -->
+            <div style="padding-bottom:12px; margin-bottom:16px; border-bottom:2px solid #0f172a; display:flex; align-items:center; justify-content:space-between;">
+                <img src="/assets/logo-header.png" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:88px; object-fit:contain; object-position:left center; display:block;">
+            </div>
+
+            <!-- Título do Contrato -->
+            <div style="text-align:center; font-weight:800; font-size:13pt; color:#0f172a; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:16px; padding:8px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
+                ${_escHtmlProp(tituloResolvido)}
+            </div>
+
+            <!-- Corpo do Contrato -->
+            <div class="america-contrato-body">
+                ${htmlLinhas.join('\n')}
+            </div>
+
+            <!-- Assinaturas -->
+            ${blocoAssinaturasHtml}
+
+            <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
+            <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
+                <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
+                    <img src="/assets/logo-header.png" alt="América Rental Equipamentos Ltda" style="width:100%; max-height:80px; object-fit:contain; object-position:left center; display:block;">
+                </div>
+                <div style="text-align:center; font-weight:800; font-size:12pt; color:#0f172a; text-transform:uppercase; margin-bottom:6px; padding:6px 10px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:4px;">
+                    ANEXO I — TABELA DE VALORES DE AVARIAS (CONTRATO Nº ${_escHtmlProp(ctx['{{NUMERO_CONTRATO}}'])})
+                </div>
+                <div style="font-size:9.5pt; color:#334155; margin-bottom:12px; text-align:justify;">
+                    Tabela oficial de custos unitários para reposição ou reparo de peças e componentes avariados, extraviados ou danificados por mau uso durante a locação, integrante do <strong>${_escHtmlProp(tituloResolvido)}</strong> firmado com <strong>${_escHtmlProp(ctx['{{CLIENTE_RAZAO_SOCIAL}}'])}</strong>:
+                </div>
+                ${tabelaAvariasHtml}
+                ${blocoAssinaturasHtml}
+            </div>
+        </div>
+    `;
+};
+
+window.gerarHtmlDocumentoContratoCompleto = function(modelo, dadosContrato, listaAvarias) {
+    const bodyHtml = window.gerarHtmlLayoutContratoPadrao(modelo, dadosContrato, listaAvarias);
+    const titulo = (modelo && modelo.nome) ? `Contrato - ${modelo.nome}` : 'Contrato de Locação';
+    return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>${_escHtmlProp(titulo)} - América Rental</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 18px; background: #f1f5f9; font-family: Arial, Helvetica, sans-serif; }
+        .print-Wrapper { background: #fff; max-width: 880px; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .no-print-bar { max-width: 880px; margin: 0 auto 14px auto; display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: #fff; padding: 10px 16px; border-radius: 8px; }
+        @media print {
+            body { background: #fff; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .print-Wrapper { box-shadow: none; max-width: 100%; }
+            .america-contrato-sheet { border: none !important; padding: 10px 14px !important; max-width: 100% !important; }
+            .no-print-bar { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print-bar">
+        <div style="font-size:13px; font-weight:700;">📄 Visualização de Impressão — ${_escHtmlProp(titulo)} (Com Tabela de Valores de Avarias na Última Página)</div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="window.print()" style="background:#7048e8; color:#fff; border:none; padding:7px 16px; border-radius:6px; cursor:pointer; font-weight:700; font-size:12px;">🖨️ Imprimir / Salvar PDF</button>
+            <button onclick="window.close()" style="background:#475569; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:12px;">Fechar</button>
+        </div>
+    </div>
+    <div class="print-Wrapper">
+        ${bodyHtml}
+    </div>
+</body>
+</html>`;
+};
+
+window.gerarHtmlContratoParaPropostaObj = async function(pObj, documentoCompleto = false) {
+    if (!pObj) return '';
+    const [modelos, avarias, clientes] = await Promise.all([
+        apiGet('/comercial/modelos-contrato').catch(() => []),
+        apiGet('/comercial/valores-avarias').catch(() => []),
+        (Array.isArray(_clientesCache) && _clientesCache.length > 0) ? Promise.resolve(_clientesCache) : apiGet('/clientes').catch(() => [])
+    ]);
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
+    const tipoAlvo = norm(pObj.tipo || pObj.modelo_impressao || 'OBRA MENSAL');
+    let modelo = (modelos || []).find(m => norm(m.codigo_tipo) === tipoAlvo || norm(m.nome) === tipoAlvo);
+    if (!modelo && tipoAlvo.startsWith('OBRA')) {
+        modelo = (modelos || []).find(m => norm(m.codigo_tipo) === 'OBRA MENSAL' || norm(m.nome).startsWith('OBRA'));
+    }
+    if (!modelo) modelo = (modelos || [])[0] || { nome: tipoAlvo, codigo_tipo: tipoAlvo, titulo_contrato: `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${tipoAlvo}`, texto_contrato: '' };
+
+    const cliNomeNorm = norm(pObj.cliente_nome);
+    const clientObj = (clientes || []).find(c => norm(c.nome_razao_social) === cliNomeNorm || norm(c.nome_fantasia) === cliNomeNorm) || null;
+    let contatoObj = null;
+    if (clientObj && pObj.contato_nome) {
+        try {
+            const cts = await apiGet(`/contatos?cliente_id=${clientObj.id}`).catch(() => []);
+            const ctNorm = norm(pObj.contato_nome);
+            contatoObj = (cts || []).find(ct => norm(ct.nome) === ctNorm) || (cts || [])[0] || null;
+        } catch (_) {}
+    }
+    let intervenienteObj = null;
+    const interNome = pObj.interveniente_nome || (clientObj && clientObj.cliente_centralizador) || '';
+    if (interNome) {
+        const interNorm = norm(interNome);
+        intervenienteObj = (clientes || []).find(c => norm(c.nome_razao_social) === interNorm || norm(c.nome_fantasia) === interNorm) || { nome_razao_social: interNome };
+    }
+
+    const dadosContrato = { proposta: pObj, cliente: clientObj, contato: contatoObj, interveniente: intervenienteObj };
+    return documentoCompleto
+        ? window.gerarHtmlDocumentoContratoCompleto(modelo, dadosContrato, avarias)
+        : window.gerarHtmlLayoutContratoPadrao(modelo, dadosContrato, avarias);
+};
+
+window.imprimirContratoComModelo = async function(pObj) {
+    Swal.fire({ title: 'Gerando Contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        const htmlDoc = await window.gerarHtmlContratoParaPropostaObj(pObj, true);
+        Swal.close();
+        const win = window.open('', '_blank', 'width=980,height=820');
+        win.document.write(htmlDoc);
+        win.document.close();
+        win.focus();
+    } catch (e) {
+        Swal.close();
+        Swal.fire('Erro', 'Não foi possível gerar a impressão do contrato: ' + e.message, 'error');
+    }
+};
+
+window._modelosContratoList = [];
+window._modeloContratoAtivo = null;
+window._mcCategoriaMnemonicoAtiva = 'TODOS';
+
 window._renderModelosContratoInt = async function() {
     const container = document.getElementById('prop-view-modelos-contrato');
     if (!container) return;
 
-    Swal.fire({
-        title: 'Carregando Modelos e Cláusulas...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
-    try {
-        window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
-        window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
-        Swal.close();
-    } catch (e) {
-        Swal.close();
-        console.error('[CONTRATOS] Erro ao carregar dados:', e);
-        Swal.fire('Erro', 'Erro ao carregar dados de modelos/cláusulas: ' + e.message, 'error');
-    }
-
-    _renderModelosContratoBaseLayout();
-};
-
-function _renderModelosContratoBaseLayout() {
-    const container = document.getElementById('prop-view-modelos-contrato');
-    if (!container) return;
-
     container.innerHTML = `
-        <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter', sans-serif;">
-            
-            <!-- Toolbar -->
-            <div id="prop-toolbar-modelos" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
-                
-                <!-- Badge Lado Esquerdo: Dropdown de Navegação -->
-                <div class="saas-dropdown-container">
-                    <div class="saas-nav-item active" id="tab-prop-lista" onclick="switchPropostaTab('lista')" style="display: flex; align-items: center; gap: 0.25rem;">
-                        <i class="ph ph-list-bullets"></i> Lista de Propostas <i class="ph ph-caret-down" style="font-size: 0.8rem; opacity: 0.7;"></i>
+        <div style="font-family:'Inter', sans-serif; background:#f8fafc; padding:0.75rem; border-radius:14px; min-height:820px; box-sizing:border-box;">
+            <!-- Header Card -->
+            <div id="prop-toolbar-modelos" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem 1.25rem; margin-bottom:0.85rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:40px; height:40px; border-radius:10px; background:#ede9fe; color:#7048e8; display:flex; align-items:center; justify-content:center; font-size:1.35rem;">
+                        <i class="ph ph-file-doc"></i>
                     </div>
-                    <div class="saas-dropdown-menu">
-                        <div class="saas-dropdown-item" onclick="abrirFormProposta(null); event.stopPropagation();">
-                            <i class="ph ph-pencil-simple"></i> Nova Proposta
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-cliente'); event.stopPropagation();">
-                            <i class="ph ph-user-plus"></i> Clientes
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('cadastro-contatos'); event.stopPropagation();" style="display:none !important;">
-                            <i class="ph ph-identification-card"></i> Contatos
-                        </div>
-                        <div class="saas-dropdown-item" onclick="switchPropostaTab('enderecos'); event.stopPropagation();">
-                            <i class="ph ph-map-pin"></i> Endereços
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-cadastro-eventos" onclick="switchPropostaTab('cadastro-eventos'); event.stopPropagation();">
-                            <i class="ph ph-calendar-star"></i> Eventos
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-servicos-precificacao" onclick="switchPropostaTab('servicos-precificacao'); event.stopPropagation();">
-                            <i class="ph ph-calculator"></i> Precificação de Serviços
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-modelos-propostas" onclick="switchPropostaTab('modelos-propostas'); event.stopPropagation();">
-                            <i class="ph ph-files"></i> Modelos Propostas
-                        </div>
-                        <div class="saas-dropdown-item" id="tab-prop-modelos-contrato" onclick="switchPropostaTab('modelos-contrato'); event.stopPropagation();">
-                            <i class="ph ph-file-text"></i> Modelos de Contrato
-                        </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#1e293b;">Modelos de Contratos</h3>
+                        <p style="margin:2px 0 0 0; font-size:0.78rem; color:#64748b;">
+                            1 modelo para cada tipo de contrato (exceto Avaria e Venda) + Interveniente · Topo com logo da empresa · Mnemônicos clicáveis · Última página com Tabela de Valores de Avarias
+                        </p>
                     </div>
                 </div>
-                
-                <!-- Lado Direito -->
-                <div style="display:flex; gap:0.4rem; align-items:center;">
-                    <button onclick="window._renderModelosContratoInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; outline:none;" onmouseover="this.style.background='#cbd5e1'" onmouseout="this.style.background='#e2e8f0'">
-                        <i class="ph ph-arrows-clockwise" style="font-size:1.15rem;"></i>
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="window.restaurarTextoPadraoModeloContratoAtivo()" title="Restaurar o texto padrão de fábrica deste contrato" style="background:#fff; color:#475569; border:1px solid #cbd5e1; padding:0.45rem 0.9rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-arrow-counter-clockwise"></i> Restaurar Padrão
+                    </button>
+                    <button type="button" onclick="window.imprimirModeloContratoAtivo()" style="background:#0f172a; color:#fff; border:none; padding:0.45rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-printer"></i> Visualizar / Imprimir PDF
+                    </button>
+                    <button type="button" onclick="window.salvarModeloContratoAtivo()" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 1.05rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 6px rgba(22,163,74,0.25);">
+                        <i class="ph ph-floppy-disk"></i> Salvar Modelo
+                    </button>
+                    <button type="button" onclick="window._renderModelosContratoInt()" title="Recarregar Modelos" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
                     </button>
                 </div>
             </div>
-            
-            <div style="padding:1.5rem; box-sizing:border-box;">
-                <!-- Subtabs -->
-                <div style="display:flex; gap:1.5rem; border-bottom:2px solid #e2e8f0; margin-bottom:1.5rem; padding-bottom:0.25rem;">
-                    <span id="subtab-modelos" onclick="switchModelosSubtab('modelos')" style="font-size:0.88rem; font-weight:700; color:#4f46e5; cursor:pointer; border-bottom:2px solid #4f46e5; padding:0.5rem 0.25rem; margin-bottom:-6px; transition:all 0.2s;">
-                        Modelos de Contrato <i class="ph ph-file-text"></i>
-                    </span>
-                    <span id="subtab-textos" onclick="switchModelosSubtab('textos')" style="font-size:0.88rem; font-weight:700; color:#64748b; cursor:pointer; padding:0.5rem 0.25rem; transition:all 0.2s;">
-                        Textos Legais (Cláusulas) <i class="ph ph-shield-check"></i>
-                    </span>
+
+            <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Editor + Mnemônicos + Preview com Tabela de Avarias) -->
+            <div style="display:grid; grid-template-columns: 260px 1fr; gap:0.85rem; align-items:start;">
+                <!-- Coluna Esquerda: Tipos de Contrato -->
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:60px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.55rem;">
+                        <span style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">
+                            <i class="ph ph-folders" style="color:#7048e8;"></i> Tipos de Contrato
+                        </span>
+                        <span id="mc-count-badge" style="background:#ede9fe; color:#6d28d9; font-size:0.72rem; font-weight:800; padding:2px 8px; border-radius:999px;">0</span>
+                    </div>
+                    <input id="mc-sidebar-search" type="text" placeholder="🔍 Filtrar tipo de contrato..." oninput="window.filtrarListaSidebarModelosContrato()"
+                        style="width:100%; height:34px; padding:0 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.8rem; margin-bottom:0.65rem; box-sizing:border-box; outline:none; text-transform:none;">
+                    <div id="mc-sidebar-list" style="display:flex; flex-direction:column; gap:0.35rem; max-height:660px; overflow-y:auto;">
+                        <div style="text-align:center; padding:1.5rem; color:#94a3b8; font-size:0.82rem;">Carregando modelos...</div>
+                    </div>
                 </div>
 
-                <!-- PANEL: MODELOS -->
-                <div id="panel-modelos-contrato" style="display:flex; gap:1.5rem; flex-wrap:wrap;">
-                    <!-- Left Column: List -->
-                    <div style="flex: 0 0 320px; background:white; padding:1.25rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                            <h3 style="font-size:0.95rem; font-weight:700; color:#1e293b; margin:0;">Meus Modelos</h3>
-                            <button onclick="criarNovoModeloContrato()" style="background:#4f46e5; color:white; border:none; padding:0.4rem 0.75rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.78rem; display:flex; align-items:center; gap:4px; height:28px;">
-                                <i class="ph ph-plus"></i> Novo
+                <!-- Coluna Direita: Editor + Mnemônicos + Preview -->
+                <div style="display:flex; flex-direction:column; gap:0.85rem;">
+                    <div id="mc-editor-card" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="text-align:center; padding:2rem; color:#94a3b8;">Selecione um tipo de contrato ao lado para editar.</div>
+                    </div>
+
+                    <!-- Preview Completo do Contrato + Última Página (Tabela de Valores de Avarias) -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.55rem; border-bottom:1px solid #f1f5f9; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <h4 style="margin:0; font-size:0.92rem; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                                    <i class="ph ph-eye" style="color:#7048e8;"></i> Pré-visualização do Contrato (Com Topo da Empresa e Última Página de Valores de Avarias)
+                                </h4>
+                                <span style="font-size:0.75rem; color:#64748b;">A última página exibe automaticamente todos os itens cadastrados em <b>Comercial → Administração → Valores de Avarias</b>.</span>
+                            </div>
+                            <button type="button" onclick="window.imprimirModeloContratoAtivo()" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:0.4rem 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px;">
+                                <i class="ph ph-printer"></i> Abrir em Tela Cheia / PDF
                             </button>
                         </div>
-                        <div id="modelos-lista-container" style="display:flex; flex-direction:column; gap:0.5rem; max-height:600px; overflow-y:auto;">
-                            <!-- Filled dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- Right Column: Editor -->
-                    <div id="modelo-editor-container" style="flex:1; min-width:400px; display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
-                        <!-- Content loaded dynamically -->
-                    </div>
-                    <div id="modelo-editor-empty" style="flex:1; min-width:400px; background:white; padding:3rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); text-align:center; color:#64748b; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem;">
-                        <i class="ph ph-file-text" style="font-size:3rem; color:#cbd5e1;"></i>
-                        <p style="margin:0; font-weight:600; font-size:0.92rem;">Nenhum modelo selecionado.</p>
-                        <p style="margin:0; font-size:0.8rem; color:#94a3b8;">Escolha um modelo na lista à esquerda ou crie um novo para editá-lo.</p>
-                    </div>
-                </div>
-
-                <!-- PANEL: TEXTOS LEGAIS -->
-                <div id="panel-textos-legais" style="display:none; background:white; padding:1.5rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 2px 4px rgba(0,0,0,0.02); box-sizing:border-box;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
-                        <div>
-                            <h3 style="font-size:1.05rem; font-weight:700; color:#1e293b; margin:0;">Textos Legais Cadastrados</h3>
-                            <p style="margin:0.25rem 0 0 0; font-size:0.78rem; color:#64748b;">Cláusulas e termos do ERP que podem ser adicionados aos seus modelos de contrato.</p>
-                        </div>
-                        <button onclick="abrirModalTextoLegal(null)" style="background:#4f46e5; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:flex; align-items:center; gap:6px; height:32px;">
-                            <i class="ph ph-plus"></i> Novo Texto Legal
-                        </button>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table class="saas-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.82rem;">
-                            <thead>
-                                <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0;">
-                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:80px;">Código</th>
-                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:220px;">Descrição</th>
-                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569;">Resumo do Texto</th>
-                                    <th style="padding:0.75rem 1rem; font-weight:700; color:#475569; width:100px; text-align:center;">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="textos-legais-tbody">
-                                <!-- Filled dynamically -->
-                            </tbody>
-                        </table>
+                        <div id="mc-live-preview" style="background:#eef2f6; padding:18px; border-radius:10px; border:1px solid #cbd5e1; overflow-x:auto;"></div>
                     </div>
                 </div>
             </div>
         </div>
     `;
-
-    // Render Left List of Models
-    const listContainer = document.getElementById('modelos-lista-container');
-    if (listContainer) {
-        listContainer.innerHTML = '';
-        if (window._modelosContratoList.length === 0) {
-            listContainer.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#94a3b8; font-size:0.8rem; font-style:italic;">Nenhum modelo cadastrado.</div>';
-        } else {
-            window._modelosContratoList.forEach(m => {
-                const isActive = window._activeModel && window._activeModel.id === m.id;
-                const row = document.createElement('div');
-                row.className = 'modelo-item-row';
-                row.style.cssText = `
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 0.65rem 0.85rem;
-                    border: 1px solid ${isActive ? '#c7d2fe' : '#e2e8f0'};
-                    background: ${isActive ? '#f5f7ff' : 'white'};
-                    border-radius: 6px;
-                    cursor: pointer;
-                    transition: all 0.15s;
-                    margin-bottom: 0.25rem;
-                `;
-                row.innerHTML = `
-                    <span style="font-size:0.82rem; font-weight:600; color:${isActive ? '#4338ca' : '#334155'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" onclick="selecionarModeloContrato(${m.id})">
-                        ${m.nome}
-                    </span>
-                    <div style="display:flex; gap:6px; align-items:center;">
-                        <i class="ph ph-trash" title="Excluir Modelo" onclick="excluirModeloContrato(${m.id}); event.stopPropagation();" style="font-size:0.95rem; color:#ef4444; cursor:pointer; opacity:0.75; padding:2px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.75"></i>
-                    </div>
-                `;
-                listContainer.appendChild(row);
-            });
-        }
-    }
-    
-    // Render Legal Texts table
-    _renderTextosLegaisTable();
-    
-    if (window._activeModel) {
-        window.selecionarModeloContrato(window._activeModel.id);
-    }
-
-    // Rolagem imediata e precisa para fixar o header (prop-toolbar-modelos)
-    setTimeout(() => {
-        const toolbar = document.getElementById('prop-toolbar-modelos');
-        if (toolbar && toolbar.offsetParent !== null) {
-            const targetY = toolbar.getBoundingClientRect().top + window.scrollY;
-            window.scrollTo({ top: targetY });
-        }
-    }, 50);
-}
-
-window.switchModelosSubtab = function(subtab) {
-    const tabModelos = document.getElementById('subtab-modelos');
-    const tabTextos = document.getElementById('subtab-textos');
-    const panelModelos = document.getElementById('panel-modelos-contrato');
-    const panelTextos = document.getElementById('panel-textos-legais');
-
-    if (subtab === 'modelos') {
-        tabModelos.style.color = '#4f46e5';
-        tabModelos.style.borderBottom = '2px solid #4f46e5';
-        tabTextos.style.color = '#64748b';
-        tabTextos.style.borderBottom = 'none';
-        panelModelos.style.display = 'flex';
-        panelTextos.style.display = 'none';
-    } else {
-        tabTextos.style.color = '#4f46e5';
-        tabTextos.style.borderBottom = '2px solid #4f46e5';
-        tabModelos.style.color = '#64748b';
-        tabModelos.style.borderBottom = 'none';
-        panelModelos.style.display = 'none';
-        panelTextos.style.display = 'block';
-        _renderTextosLegaisTable();
-    }
-};
-
-function _renderLeftListActiveOnly(activeId) {
-    document.querySelectorAll('.modelo-item-row').forEach(row => {
-        row.style.background = 'white';
-        row.style.borderColor = '#e2e8f0';
-        const span = row.querySelector('span');
-        if (span) span.style.color = '#334155';
-    });
-    
-    const rows = document.querySelectorAll('.modelo-item-row');
-    rows.forEach(row => {
-        const span = row.querySelector('span');
-        if (span && span.getAttribute('onclick') && span.getAttribute('onclick').includes(activeId)) {
-            row.style.background = '#f5f7ff';
-            row.style.borderColor = '#c7d2fe';
-            span.style.color = '#4338ca';
-        }
-    });
-}
-
-window.selecionarModeloContrato = function(id) {
-    const model = window._modelosContratoList.find(m => m.id === id);
-    if (!model) return;
-    
-    window._activeModel = model;
-    window._activeModelCaputs = JSON.parse(model.caputs || '[]');
-    
-    // Show editor
-    document.getElementById('modelo-editor-empty').style.display = 'none';
-    const editor = document.getElementById('modelo-editor-container');
-    editor.style.display = 'block';
-    
-    editor.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
-            <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Editar Modelo de Contrato</h3>
-            <div style="display:flex; gap:8px;">
-                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0 10px; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.75rem; display:flex; align-items:center; gap:5px; height:26px;">
-                    <i class="ph ph-floppy-disk"></i> Salvar Alterações
-                </button>
-            </div>
-        </div>
-
-        <div style="margin-bottom:1.25rem;">
-            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Nome do Modelo *</label>
-            <input type="text" id="editor-modelo-nome" value="${model.nome}" style="background:white; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.75rem; height:26px; width:100%; box-sizing:border-box; outline:none;">
-        </div>
-
-        <div>
-            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Estrutura do Contrato (Arrastar para reordenar)</label>
-            
-            <!-- Adicionar Caputs Buttons -->
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
-                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
-                </button>
-                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
-                </button>
-                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
-                </button>
-                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
-                </button>
-                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
-                </button>
-            </div>
-
-            <!-- List of blocks -->
-            <div id="editor-blocos-list" style="display:flex; flex-direction:column; gap:0.75rem; min-height:100px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:0.75rem; box-sizing:border-box;">
-                <!-- Block items rendered here -->
-            </div>
-        </div>
-    `;
-
-    _renderEditorBlocksList();
-    _renderLeftListActiveOnly(id);
-};
-
-function _renderEditorBlocksList() {
-    const listContainer = document.getElementById('editor-blocos-list');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = '';
-    const caputs = window._activeModelCaputs || [];
-
-    if (caputs.length === 0) {
-        listContainer.innerHTML = `
-            <div style="text-align:center; padding:2rem; color:#94a3b8; font-size:0.8rem; font-style:italic;">
-                Nenhuma cláusula adicionada. Clique nos botões acima para estruturar o seu contrato.
-            </div>
-        `;
-        return;
-    }
-
-    caputs.forEach((cpt, idx) => {
-        const item = document.createElement('div');
-        item.className = 'editor-block-item';
-        item.setAttribute('draggable', 'true');
-        item.style.cssText = `
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 0.85rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-            cursor: grab;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            position: relative;
-        `;
-
-        // Drag events
-        item.ondragstart = (e) => {
-            e.dataTransfer.setData("text/plain", idx);
-            item.style.opacity = '0.5';
-        };
-        item.ondragend = () => {
-            item.style.opacity = '1';
-        };
-        item.ondragover = (e) => {
-            e.preventDefault();
-        };
-        item.ondrop = (e) => {
-            e.preventDefault();
-            const sourceIndex = parseInt(e.dataTransfer.getData("text/plain"));
-            if (sourceIndex !== idx && !isNaN(sourceIndex)) {
-                const dragged = window._activeModelCaputs.splice(sourceIndex, 1)[0];
-                window._activeModelCaputs.splice(idx, 0, dragged);
-                _renderEditorBlocksList();
-            }
-        };
-
-        let badgeColor = '#4b5563';
-        if (cpt.tipo === 'CONTRATANTE') badgeColor = '#2563eb';
-        else if (cpt.tipo === 'CONTRATADO') badgeColor = '#059669';
-        else if (cpt.tipo === 'VALORES') badgeColor = '#d97706';
-        else if (cpt.tipo === 'TEXTO_LEGAL') badgeColor = '#7c3aed';
-
-        let innerContent = '';
-        if (cpt.tipo === 'TEXTO_LEGAL') {
-            const options = window._textosLegaisList.map(tl => `
-                <option value="${tl.id}" ${Number(cpt.textoLegalId) === tl.id ? 'selected' : ''}>[${tl.codigo}] ${tl.descricao}</option>
-            `).join('');
-            innerContent = `
-                <div style="margin-top:0.25rem;">
-                    <label style="display:block; font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:2px;">Selecionar Texto Legal:</label>
-                    <select onchange="window.updateCaputTextoLegal(${idx}, this.value)" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box;">
-                        <option value="">-- Selecione a Cláusula --</option>
-                        ${options}
-                    </select>
-                </div>
-            `;
-        } else {
-            innerContent = `
-                <div style="margin-top:0.25rem;">
-                    <textarea oninput="window.updateCaputConteudo(${idx}, this.value)" style="width:100%; min-height:80px; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; font-family:sans-serif; box-sizing:border-box; resize:vertical;">${cpt.conteudo || ''}</textarea>
-                </div>
-            `;
-        }
-
-        item.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.35rem; pointer-events:none;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <i class="ph ph-dots-six-vertical" style="font-size:1.15rem; color:#94a3b8; cursor:grab;"></i>
-                    <span style="font-size:0.78rem; font-weight:700; color:${badgeColor}; background:${badgeColor}15; padding:2px 8px; border-radius:4px;">
-                        ${cpt.tipo}
-                    </span>
-                    <span style="font-size:0.82rem; font-weight:700; color:#334155; pointer-events:auto;">
-                        Cláusula ${idx + 1}ª: 
-                        <input type="text" value="${cpt.titulo || ''}" oninput="window.updateCaputTitulo(${idx}, this.value)" style="border:none; border-bottom:1px dashed #cbd5e1; font-size:0.82rem; font-weight:700; color:#334155; padding:1px 4px; outline:none; width:180px;">
-                    </span>
-                </div>
-                <div style="display:flex; gap:6px; align-items:center; pointer-events:auto;">
-                    <button onclick="window.moverCaputDoModelo(${idx}, -1)" title="Mover para Cima" style="background:#f1f5f9; border:none; padding:4px 6px; border-radius:4px; cursor:pointer;"><i class="ph ph-arrow-up" style="font-size:0.8rem;"></i></button>
-                    <button onclick="window.moverCaputDoModelo(${idx}, 1)" title="Mover para Baixo" style="background:#f1f5f9; border:none; padding:4px 6px; border-radius:4px; cursor:pointer;"><i class="ph ph-arrow-down" style="font-size:0.8rem;"></i></button>
-                    <button onclick="window.removerCaputDoModelo(${idx})" title="Remover Cláusula" style="background:#fee2e2; color:#ef4444; border:none; padding:4px 6px; border-radius:4px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="ph ph-trash" style="font-size:0.88rem;"></i></button>
-                </div>
-            </div>
-            <div style="pointer-events:auto;">
-                ${innerContent}
-            </div>
-        `;
-
-        listContainer.appendChild(item);
-    });
-}
-
-window.updateCaputTitulo = function(idx, val) {
-    if (window._activeModelCaputs[idx]) {
-        window._activeModelCaputs[idx].titulo = val;
-    }
-};
-
-window.updateCaputConteudo = function(idx, val) {
-    if (window._activeModelCaputs[idx]) {
-        window._activeModelCaputs[idx].conteudo = val;
-    }
-};
-
-window.updateCaputTextoLegal = function(idx, val) {
-    if (window._activeModelCaputs[idx]) {
-        window._activeModelCaputs[idx].textoLegalId = val;
-    }
-};
-
-window.adicionarCaputAoModelo = function(tipo) {
-    if (!window._activeModelCaputs) window._activeModelCaputs = [];
-    
-    let defaultTitle = '';
-    let defaultContent = '';
-    
-    if (tipo === 'CONTRATANTE') {
-        defaultTitle = 'CONTRATANTE';
-        defaultContent = 'CONTRATANTE: {{CLIENTE_RAZAO}}, inscrito(a) no CNPJ/CPF sob nº {{CLIENTE_CNPJ}}, com sede/endereço de instalação em {{CLIENTE_ENDERECO}}.';
-    } else if (tipo === 'CONTRATADO') {
-        defaultTitle = 'CONTRATADO';
-        defaultContent = 'CONTRATADO: AMERICA RENTAL EQUIPAMENTOS LTDA, inscrita no CNPJ sob nº 02.089.969/0001-06, com sede na Rua Bom Jardim, 201 - Residencial Parque Cumbica, Guarulhos - SP.';
-    } else if (tipo === 'VALORES') {
-        defaultTitle = 'DO VALOR E CONDIÇÕES';
-        defaultContent = 'Os valores locatícios dos equipamentos e serviços estão detalhados na proposta comercial. O montante estimado é de {{VALOR_TOTAL}} ({{VALOR_EXTENSO}}), faturado de acordo com a tabela de preços {{TABELA_PRECO}} e condições de pagamento pactuadas em {{CONDICAO_PAGAMENTO}}.';
-    } else if (tipo === 'TEXTO_LEGAL') {
-        defaultTitle = 'DADOS LEGAIS';
-    } else {
-        defaultTitle = 'CLÁUSULA PERSONALIZADA';
-        defaultContent = 'Texto da cláusula personalizada...';
-    }
-    
-    const newCaput = {
-        id: "cpt_" + Date.now() + "_" + Math.floor(Math.random()*1000),
-        tipo: tipo,
-        titulo: defaultTitle,
-        conteudo: defaultContent
-    };
-    
-    if (tipo === 'TEXTO_LEGAL') {
-        newCaput.textoLegalId = '';
-    }
-    
-    window._activeModelCaputs.push(newCaput);
-    _renderEditorBlocksList();
-};
-
-window.removerCaputDoModelo = function(index) {
-    window._activeModelCaputs.splice(index, 1);
-    _renderEditorBlocksList();
-};
-
-window.moverCaputDoModelo = function(index, direcao) {
-    const newIndex = index + direcao;
-    if (newIndex < 0 || newIndex >= window._activeModelCaputs.length) return;
-    
-    const temp = window._activeModelCaputs[index];
-    window._activeModelCaputs[index] = window._activeModelCaputs[newIndex];
-    window._activeModelCaputs[newIndex] = temp;
-    
-    _renderEditorBlocksList();
-};
-
-window.salvarModeloContrato = async function() {
-    const nome = document.getElementById('editor-modelo-nome').value.trim();
-    if (!nome) {
-        Swal.fire('Aviso', 'Por favor, insira o nome do modelo.', 'warning');
-        return;
-    }
-
-    Swal.fire({
-        title: 'Salvando modelo...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
 
     try {
-        const body = {
-            nome: nome,
-            caputs: window._activeModelCaputs
-        };
-        
-        if (window._activeModel.id === 'NEW') {
-            const res = await apiPost('/comercial/modelos-contrato', body);
-            if (res && res.success) {
-                Swal.fire('Sucesso', 'Modelo criado com sucesso!', 'success');
-                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
-                const newModel = window._modelosContratoList.find(m => m.id === res.id);
-                if (newModel) {
-                    window.selecionarModeloContrato(newModel.id);
-                } else {
-                    window._activeModel = null;
-                }
-            } else {
-                throw new Error(res.error || 'Erro desconhecido');
-            }
+        const [rows, avarias] = await Promise.all([
+            apiGet('/comercial/modelos-contrato').catch(() => []),
+            apiGet('/comercial/valores-avarias').catch(() => [])
+        ]);
+        window._valoresAvariasList = Array.isArray(avarias) ? avarias : [];
+        const ordemPadrao = ['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'ADITIVO', 'EQUIPAMENTOS', 'INTERVENIENTE'];
+        const proibidos = new Set(['AVARIA', 'AVARIAS', 'PROPOSTA AVARIAS', 'VENDA', 'VENDAS', 'PROPOSTA VENDA']);
+
+        window._modelosContratoList = (Array.isArray(rows) ? rows : [])
+            .filter(r => {
+                const k = String(r.codigo_tipo || r.nome || '').trim().toUpperCase();
+                return !proibidos.has(k);
+            })
+            .sort((a, b) => {
+                const ka = String(a.codigo_tipo || a.nome || '').trim().toUpperCase();
+                const kb = String(b.codigo_tipo || b.nome || '').trim().toUpperCase();
+                const ia = ordemPadrao.indexOf(ka);
+                const ib = ordemPadrao.indexOf(kb);
+                return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+            });
+        window._comercialModelosContrato = window._modelosContratoList;
+
+        const badge = document.getElementById('mc-count-badge');
+        if (badge) badge.textContent = String(window._modelosContratoList.length);
+
+        if (window._modelosContratoList.length > 0) {
+            const curId = window._modeloContratoAtivo && window._modeloContratoAtivo.id;
+            const found = window._modelosContratoList.find(x => x.id === curId) || window._modelosContratoList[0];
+            window.selecionarModeloContrato(found.id);
         } else {
-            const res = await apiPut(`/comercial/modelos-contrato/${window._activeModel.id}`, body);
-            if (res && res.success) {
-                Swal.fire('Sucesso', 'Modelo atualizado com sucesso!', 'success');
-                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
-                const updated = window._modelosContratoList.find(m => m.id === window._activeModel.id);
-                if (updated) window._activeModel = updated;
-            } else {
-                throw new Error(res.error || 'Erro desconhecido');
-            }
-        }
-        
-        window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
-        
-        _renderModelosContratoBaseLayout();
-        if (window._activeModel) {
-            window.selecionarModeloContrato(window._activeModel.id);
+            window.filtrarListaSidebarModelosContrato();
         }
     } catch (e) {
-        console.error(e);
-        Swal.fire('Erro', 'Erro ao salvar modelo: ' + e.message, 'error');
+        console.error('[MODELOS_CONTRATO] Erro ao carregar:', e);
     }
 };
 
-window.criarNovoModeloContrato = function() {
-    window._activeModel = { id: 'NEW', nome: 'Novo Modelo' };
-    window._activeModelCaputs = [];
-    
-    document.getElementById('modelo-editor-empty').style.display = 'none';
-    const editor = document.getElementById('modelo-editor-container');
-    editor.style.display = 'block';
-    
-    editor.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:0.75rem; margin-bottom:1.25rem;">
-            <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">Criar Novo Modelo de Contrato</h3>
-            <div style="display:flex; gap:8px;">
-                <button onclick="salvarModeloContrato()" style="background:#16a34a; color:white; border:none; padding:0 10px; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.75rem; display:flex; align-items:center; gap:5px; height:26px;">
-                    <i class="ph ph-floppy-disk"></i> Salvar Modelo
-                </button>
+window.filtrarListaSidebarModelosContrato = function() {
+    const listEl = document.getElementById('mc-sidebar-list');
+    if (!listEl) return;
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(document.getElementById('mc-sidebar-search')?.value || '');
+    const filtrados = (window._modelosContratoList || []).filter(m =>
+        !q || norm(m.nome).includes(q) || norm(m.codigo_tipo).includes(q)
+    );
+    if (!filtrados.length) {
+        listEl.innerHTML = '<div style="text-align:center; padding:1.2rem; color:#94a3b8; font-size:0.8rem;">Nenhum modelo encontrado.</div>';
+        return;
+    }
+    const activeId = window._modeloContratoAtivo?.id;
+    listEl.innerHTML = filtrados.map(m => {
+        const isAtivo = Number(m.id) === Number(activeId);
+        const nomeExib = _escHtmlProp(String(m.nome || m.codigo_tipo || '').toUpperCase());
+        return `
+            <div onclick="window.selecionarModeloContrato(${m.id})"
+                style="padding:0.65rem 0.75rem; border-radius:8px; cursor:pointer; border:1px solid ${isAtivo ? '#7048e8' : '#e2e8f0'}; background:${isAtivo ? '#f5f3ff' : '#fff'}; transition:all 0.15s; display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:0.82rem; font-weight:800; color:${isAtivo ? '#5b21b6' : '#1e293b'}; letter-spacing:0.02em;">${nomeExib}</span>
+                <i class="ph ph-caret-right" style="color:${isAtivo ? '#7048e8' : '#cbd5e1'}; font-size:0.9rem;"></i>
             </div>
+        `;
+    }).join('');
+};
+
+window.selecionarModeloContrato = function(id) {
+    const found = (window._modelosContratoList || []).find(m => Number(m.id) === Number(id));
+    if (!found) return;
+    window._modeloContratoAtivo = JSON.parse(JSON.stringify(found));
+    window.filtrarListaSidebarModelosContrato();
+    window._renderEditorModeloContratoAtivo();
+    window.atualizarPreviewModeloContratoAtivo();
+};
+
+window._renderEditorModeloContratoAtivo = function() {
+    const card = document.getElementById('mc-editor-card');
+    const m = window._modeloContratoAtivo;
+    if (!card || !m) return;
+
+    const categorias = ['TODOS', 'Contrato', 'Cliente', 'Contato', 'Interveniente', 'Período e Local', 'Produtos e Valores'];
+
+    card.innerHTML = `
+        <!-- Topo Fixo do Contrato com Logo da Empresa -->
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:10px 14px; margin-bottom:0.85rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:260px;">
+                <img src="/assets/logo-header.png" alt="Logo América Rental" style="height:54px; max-width:340px; object-fit:contain; background:#fff; padding:4px 8px; border-radius:6px; border:1px solid #e2e8f0;">
+                <div>
+                    <div style="font-size:0.78rem; font-weight:800; color:#0f172a;">Topo Padrão do Contrato com Logo da Empresa</div>
+                    <div style="font-size:0.72rem; color:#64748b;">Exibido automaticamente no cabeçalho do contrato e no Anexo I (Tabela de Valores de Avarias).</div>
+                </div>
+            </div>
+            <span style="background:#ede9fe; color:#5b21b6; font-weight:800; font-size:0.76rem; padding:4px 10px; border-radius:999px;">
+                Tipo: ${_escHtmlProp(m.codigo_tipo || m.nome)}
+            </span>
         </div>
 
-        <div style="margin-bottom:1.25rem;">
-            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Nome do Modelo *</label>
-            <input type="text" id="editor-modelo-nome" value="Novo Modelo" style="background:white; border:1px solid #cbd5e1; border-radius:4px; padding:2px 6px; font-size:0.75rem; height:26px; width:100%; box-sizing:border-box; outline:none;">
+        <!-- Campo Título do Contrato -->
+        <div style="margin-bottom:0.85rem;">
+            <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Título do Contrato (Aceita mnemônicos como {{NUMERO_CONTRATO}})</label>
+            <input type="text" id="mc-edit-titulo" value="${_escHtmlProp(m.titulo_contrato || '')}"
+                oninput="window._onInputCamposModeloContratoAtivo()"
+                placeholder="Ex: CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${_escHtmlProp(m.nome)}"
+                style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.85rem; font-weight:700; color:#0f172a; box-sizing:border-box; text-transform:none;">
         </div>
 
+        <!-- Painel de Mnemônicos (Todos os campos da tela de Contrato) -->
+        <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:0.75rem 0.9rem; margin-bottom:0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.55rem;">
+                <div>
+                    <div style="font-size:0.8rem; font-weight:800; color:#4c1d95; display:flex; align-items:center; gap:5px;">
+                        <i class="ph ph-brackets-curly"></i> Mnemônicos dos Campos do Contrato (Clique para inserir no texto)
+                    </div>
+                    <div style="font-size:0.72rem; color:#6d28d9;">Posicione o cursor na caixa de texto abaixo e clique em qualquer mnemônico para adicioná-lo ao contrato.</div>
+                </div>
+                <input type="text" id="mc-mnemonico-search" placeholder="🔍 Buscar campo ou mnemônico..."
+                    oninput="window.renderizarChipsMnemonicosContrato()"
+                    style="width:240px; height:30px; padding:0 0.6rem; border:1px solid #c4b5fd; border-radius:6px; font-size:0.78rem; background:#fff; outline:none; text-transform:none;">
+            </div>
+            <div id="mc-mnemonico-cat-bar" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:0.55rem;">
+                ${categorias.map(cat => `
+                    <button type="button" onclick="window.selecionarCategoriaMnemonicoContrato('${cat}')"
+                        data-mc-cat="${cat}"
+                        style="padding:3px 9px; border-radius:999px; font-size:0.72rem; font-weight:700; cursor:pointer; border:1px solid ${window._mcCategoriaMnemonicoAtiva === cat ? '#7048e8' : '#c4b5fd'}; background:${window._mcCategoriaMnemonicoAtiva === cat ? '#7048e8' : '#fff'}; color:${window._mcCategoriaMnemonicoAtiva === cat ? '#fff' : '#4c1d95'};">
+                        ${cat}
+                    </button>
+                `).join('')}
+            </div>
+            <div id="mc-mnemonicos-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:145px; overflow-y:auto; padding:2px;"></div>
+        </div>
+
+        <!-- Campo para digitar o texto do contrato -->
         <div>
-            <label style="font-weight:600; font-size:0.7rem; color:#475569; display:block; margin-bottom:2px; text-transform:none;">Estrutura do Contrato (Arrastar para reordenar)</label>
-            
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; background:#f8fafc; padding:0.5rem; border-radius:8px; border:1px solid #e2e8f0;">
-                <button onclick="adicionarCaputAoModelo('CONTRATANTE')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-user-circle-plus" style="color:#2563eb;"></i> + Contratante
-                </button>
-                <button onclick="adicionarCaputAoModelo('CONTRATADO')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-buildings" style="color:#059669;"></i> + Contratado
-                </button>
-                <button onclick="adicionarCaputAoModelo('VALORES')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-currency-dollar" style="color:#d97706;"></i> + Valores
-                </button>
-                <button onclick="adicionarCaputAoModelo('TEXTO_LEGAL')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-shield-check" style="color:#7c3aed;"></i> + Texto Legal
-                </button>
-                <button onclick="adicionarCaputAoModelo('CUSTOM')" style="background:white; border:1px solid #cbd5e1; color:#334155; padding:0 10px; border-radius:4px; font-size:0.75rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px; height:26px;">
-                    <i class="ph ph-plus" style="color:#4b5563;"></i> + Personalizada
-                </button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="font-size:0.78rem; font-weight:800; color:#1e293b;">
+                    <i class="ph ph-article" style="color:#7048e8;"></i> Texto do Contrato
+                </label>
+                <span style="font-size:0.72rem; color:#64748b;">A última página (Anexo I — Tabela de Valores de Avarias) é anexada automaticamente ao final do contrato.</span>
             </div>
-
-            <div id="editor-blocos-list" style="display:flex; flex-direction:column; gap:0.75rem; min-height:100px; background:#f8fafc; border:2px dashed #cbd5e1; border-radius:8px; padding:0.75rem; box-sizing:border-box;">
-                <!-- Block items -->
-            </div>
+            <textarea id="mc-edit-texto" rows="20"
+                oninput="window._onInputCamposModeloContratoAtivo()"
+                placeholder="Digite aqui o texto completo do contrato e clique nos mnemônicos acima para inserir os campos..."
+                style="width:100%; padding:0.85rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.84rem; font-family:'Inter', monospace; line-height:1.55; color:#0f172a; box-sizing:border-box; resize:vertical; text-transform:none;">${_escHtmlProp(m.texto_contrato || '')}</textarea>
         </div>
     `;
-    
-    _renderEditorBlocksList();
+
+    window.renderizarChipsMnemonicosContrato();
 };
 
-window.excluirModeloContrato = async function(id) {
-    const model = window._modelosContratoList.find(m => m.id === id);
-    if (!model) return;
+window.selecionarCategoriaMnemonicoContrato = function(cat) {
+    window._mcCategoriaMnemonicoAtiva = cat || 'TODOS';
+    document.querySelectorAll('#mc-mnemonico-cat-bar button[data-mc-cat]').forEach(btn => {
+        const isAtiva = btn.getAttribute('data-mc-cat') === window._mcCategoriaMnemonicoAtiva;
+        btn.style.background = isAtiva ? '#7048e8' : '#fff';
+        btn.style.color = isAtiva ? '#fff' : '#4c1d95';
+        btn.style.borderColor = isAtiva ? '#7048e8' : '#c4b5fd';
+    });
+    window.renderizarChipsMnemonicosContrato();
+};
 
-    const confirm = await Swal.fire({
-        title: 'Excluir modelo?',
-        text: `Deseja realmente excluir o modelo "${model.nome}"?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sim, excluir!',
-        cancelButtonText: 'Cancelar'
+window.renderizarChipsMnemonicosContrato = function() {
+    const box = document.getElementById('mc-mnemonicos-chips-container');
+    if (!box) return;
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(document.getElementById('mc-mnemonico-search')?.value || '');
+    const cat = window._mcCategoriaMnemonicoAtiva || 'TODOS';
+
+    const lista = (window.CONTRATO_MNEMONICOS_CATALOGO || []).filter(item => {
+        if (cat !== 'TODOS' && item.categoria !== cat) return false;
+        if (!q) return true;
+        return norm(item.tag).includes(q) || norm(item.label).includes(q) || norm(item.categoria).includes(q);
     });
 
-    if (confirm.isConfirmed) {
-        Swal.fire({
-            title: 'Excluindo modelo...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        try {
-            const res = await apiDelete(`/comercial/modelos-contrato/${id}`);
-            if (res && res.success) {
-                Swal.fire('Excluído!', 'O modelo foi excluído.', 'success');
-                window._modelosContratoList = await apiGet('/comercial/modelos-contrato') || [];
-                window._comercialModelosContrato = await apiGet('/comercial/modelos-contrato') || [];
-                if (window._activeModel && window._activeModel.id === id) {
-                    window._activeModel = null;
-                    document.getElementById('modelo-editor-container').style.display = 'none';
-                    document.getElementById('modelo-editor-empty').style.display = 'flex';
-                }
-                _renderModelosContratoBaseLayout();
-            } else {
-                throw new Error(res.error || 'Erro desconhecido');
-            }
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Erro', 'Erro ao excluir modelo: ' + e.message, 'error');
-        }
-    }
-};
-
-function _renderTextosLegaisTable() {
-    const tbody = document.getElementById('textos-legais-tbody');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-    if (window._textosLegaisList.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="4" style="text-align:center; padding:1.5rem; color:#94a3b8; font-style:italic;">
-                    Nenhum texto legal cadastrado.
-                </td>
-            </tr>
-        `;
+    if (!lista.length) {
+        box.innerHTML = '<span style="font-size:0.75rem; color:#64748b; padding:4px;">Nenhum mnemônico encontrado para este filtro.</span>';
         return;
     }
 
-    window._textosLegaisList.forEach(tl => {
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid #f1f5f9';
-        
-        const maxLen = 120;
-        const textPreview = tl.texto_legal.length > maxLen ? tl.texto_legal.substring(0, maxLen) + '...' : tl.texto_legal;
-        
-        tr.innerHTML = `
-            <td style="padding:0.75rem 1rem; color:#334155; font-weight:600;">${tl.codigo}</td>
-            <td style="padding:0.75rem 1rem; color:#334155; font-weight:700;">${tl.descricao}</td>
-            <td style="padding:0.75rem 1rem; color:#64748b; max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${tl.texto_legal.replace(/"/g, '&quot;')}">${textPreview}</td>
-            <td style="padding:0.75rem 1rem; text-align:center;">
-                <div style="display:inline-flex; gap:8px;">
-                    <i class="ph ph-pencil-simple" title="Editar Texto" onclick="abrirModalTextoLegal(${tl.id})" style="font-size:1.1rem; color:#4f46e5; cursor:pointer; opacity:0.8;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8"></i>
-                    <i class="ph ph-trash" title="Excluir Texto" onclick="excluirTextoLegal(${tl.id})" style="font-size:1.1rem; color:#ef4444; cursor:pointer; opacity:0.8;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8"></i>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
+    box.innerHTML = lista.map(item => `
+        <button type="button" onclick="window.inserirMnemonicoNoTextoContrato('${item.tag}')"
+            title="Clique para inserir ${_escHtmlProp(item.tag)} (${_escHtmlProp(item.label)})"
+            style="background:#fff; border:1px solid #c4b5fd; border-radius:6px; padding:4px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; color:#1e293b; transition:all 0.12s;"
+            onmouseover="this.style.background='#ede9fe'; this.style.borderColor='#7048e8'"
+            onmouseout="this.style.background='#fff'; this.style.borderColor='#c4b5fd'">
+            <code style="font-weight:800; color:#5b21b6; font-size:0.73rem;">${_escHtmlProp(item.tag)}</code>
+            <span style="color:#475569; font-size:0.72rem;">${_escHtmlProp(item.label)}</span>
+        </button>
+    `).join('');
+};
 
-window.abrirModalTextoLegal = async function(id) {
-    const isEdit = id !== null;
-    let tl = { codigo: '', descricao: '', texto_legal: '' };
-    
-    if (isEdit) {
-        tl = window._textosLegaisList.find(x => x.id === id);
-        if (!tl) return;
-    } else {
-        const maxCode = window._textosLegaisList.reduce((max, item) => item.codigo > max ? item.codigo : max, 0);
-        tl.codigo = maxCode + 1;
-    }
+window.inserirMnemonicoNoTextoContrato = function(tag) {
+    const textarea = document.getElementById('mc-edit-texto');
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    const val = textarea.value;
+    textarea.value = val.slice(0, start) + tag + val.slice(end);
+    textarea.focus();
+    const newPos = start + tag.length;
+    textarea.setSelectionRange(newPos, newPos);
+    window._onInputCamposModeloContratoAtivo();
+};
 
-    const { value: formValues } = await Swal.fire({
-        title: isEdit ? 'Editar Texto Legal' : 'Novo Texto Legal',
-        html: `
-            <div style="text-align:left; font-family:'Inter', sans-serif;">
-                <div style="margin-bottom:0.75rem;">
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Código</label>
-                    <input id="swal-tl-codigo" type="number" class="swal2-input" value="${tl.codigo}" style="width:100%; margin:0; height:36px; font-size:0.85rem;" ${isEdit ? 'disabled' : ''}>
-                </div>
-                <div style="margin-bottom:0.75rem;">
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Descrição / Identificação *</label>
-                    <input id="swal-tl-descricao" type="text" class="swal2-input" value="${tl.descricao}" style="width:100%; margin:0; height:36px; font-size:0.85rem;" placeholder="Ex: Proposta Evento">
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:0.25rem;">Texto Legal / Cláusula Contratual *</label>
-                    <textarea id="swal-tl-texto" class="swal2-textarea" style="width:100%; margin:0; height:180px; font-size:0.85rem; font-family:sans-serif; box-sizing:border-box; padding:8px;" placeholder="Digite o texto legal completo...">${tl.texto_legal}</textarea>
-                </div>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Confirmar',
-        cancelButtonText: 'Cancelar',
-        preConfirm: () => {
-            return {
-                codigo: document.getElementById('swal-tl-codigo').value,
-                descricao: document.getElementById('swal-tl-descricao').value.trim(),
-                texto_legal: document.getElementById('swal-tl-texto').value.trim()
-            }
-        }
-    });
+window._onInputCamposModeloContratoAtivo = function() {
+    const m = window._modeloContratoAtivo;
+    if (!m) return;
+    const inpTit = document.getElementById('mc-edit-titulo');
+    const inpTxt = document.getElementById('mc-edit-texto');
+    if (inpTit) m.titulo_contrato = inpTit.value;
+    if (inpTxt) m.texto_contrato = inpTxt.value;
+    window.atualizarPreviewModeloContratoAtivo();
+};
 
-    if (formValues) {
-        if (!formValues.descricao || !formValues.texto_legal) {
-            Swal.fire('Erro', 'Descrição e Texto Legal são obrigatórios.', 'error');
-            return;
-        }
+window.atualizarPreviewModeloContratoAtivo = function() {
+    const previewEl = document.getElementById('mc-live-preview');
+    const m = window._modeloContratoAtivo;
+    if (!previewEl || !m) return;
+    previewEl.innerHTML = window.gerarHtmlLayoutContratoPadrao(m, null, window._valoresAvariasList || []);
+};
 
-        Swal.fire({
-            title: 'Salvando...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
+window.salvarModeloContratoAtivo = async function() {
+    const m = window._modeloContratoAtivo;
+    if (!m || !m.id) return;
+    window._onInputCamposModeloContratoAtivo();
+    try {
+        const res = await apiPut(`/comercial/modelos-contrato/${m.id}`, {
+            nome: m.nome,
+            codigo_tipo: m.codigo_tipo || m.nome,
+            titulo_contrato: m.titulo_contrato || '',
+            texto_contrato: m.texto_contrato || '',
+            caputs: m.caputs || '[]'
         });
-
-        try {
-            if (isEdit) {
-                const res = await apiPut(`/comercial/textos-legais/${id}`, {
-                    descricao: formValues.descricao,
-                    texto_legal: formValues.texto_legal
-                });
-                if (res && res.success) {
-                    Swal.fire('Sucesso', 'Texto legal atualizado!', 'success');
-                } else {
-                    throw new Error(res.error || 'Erro desconhecido');
-                }
+        if (res && res.success) {
+            const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
+            if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
+            window._comercialModelosContrato = window._modelosContratoList;
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`Modelo de contrato "${m.nome}" salvo com sucesso!`);
             } else {
-                const res = await apiPost('/comercial/textos-legais', formValues);
-                if (res && res.success) {
-                    Swal.fire('Sucesso', 'Texto legal cadastrado!', 'success');
-                } else {
-                    throw new Error(res.error || 'Erro desconhecido');
-                }
+                Swal.fire('Salvo!', 'Modelo de contrato atualizado com sucesso.', 'success');
             }
-            window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
-            _renderTextosLegaisTable();
-            
-            if (window._activeModel) {
-                _renderEditorBlocksList();
-            }
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Erro', 'Erro ao salvar texto legal: ' + e.message, 'error');
+        } else {
+            Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar o modelo de contrato.', 'error');
         }
+    } catch (e) {
+        Swal.fire('Erro', 'Erro ao salvar modelo de contrato: ' + e.message, 'error');
     }
 };
 
-window.excluirTextoLegal = async function(id) {
-    const tl = window._textosLegaisList.find(x => x.id === id);
-    if (!tl) return;
-
-    const confirm = await Swal.fire({
-        title: 'Excluir texto legal?',
-        text: `Deseja realmente excluir a cláusula "${tl.descricao}"?`,
-        icon: 'warning',
+window.restaurarTextoPadraoModeloContratoAtivo = async function() {
+    const m = window._modeloContratoAtivo;
+    if (!m || !m.id) return;
+    const conf = await Swal.fire({
+        title: `Restaurar modelo "${m.nome}"?`,
+        text: 'O título e o texto deste contrato voltarão para o modelo padrão de fábrica.',
+        icon: 'question',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Sim, excluir!',
+        confirmButtonColor: '#7048e8',
+        confirmButtonText: 'Sim, restaurar padrão',
         cancelButtonText: 'Cancelar'
     });
-
-    if (confirm.isConfirmed) {
-        Swal.fire({
-            title: 'Excluindo...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
-
-        try {
-            const res = await apiDelete(`/comercial/textos-legais/${id}`);
-            if (res && res.success) {
-                Swal.fire('Excluído!', 'O texto legal foi removido.', 'success');
-                window._textosLegaisList = await apiGet('/comercial/textos-legais') || [];
-                _renderTextosLegaisTable();
-                if (window._activeModel) {
-                    _renderEditorBlocksList();
-                }
-            } else {
-                throw new Error(res.error || 'Erro desconhecido');
+    if (!conf.isConfirmed) return;
+    try {
+        const res = await apiPost(`/comercial/modelos-contrato/${m.id}/restaurar-padrao`, {});
+        if (res && res.success) {
+            m.titulo_contrato = res.titulo_contrato || m.titulo_contrato;
+            m.texto_contrato = res.texto_contrato || m.texto_contrato;
+            const idx = (window._modelosContratoList || []).findIndex(x => Number(x.id) === Number(m.id));
+            if (idx >= 0) window._modelosContratoList[idx] = JSON.parse(JSON.stringify(m));
+            window._renderEditorModeloContratoAtivo();
+            window.atualizarPreviewModeloContratoAtivo();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Texto padrão restaurado com sucesso!');
             }
-        } catch (e) {
-            console.error(e);
-            Swal.fire('Erro', 'Erro ao excluir: ' + e.message, 'error');
+        } else {
+            Swal.fire('Aviso', (res && res.error) || 'Não foi possível restaurar o texto padrão.', 'warning');
         }
+    } catch (e) {
+        Swal.fire('Erro', 'Falha ao restaurar padrão: ' + e.message, 'error');
     }
+};
+
+window.imprimirModeloContratoAtivo = function() {
+    const m = window._modeloContratoAtivo;
+    if (!m) return;
+    window._onInputCamposModeloContratoAtivo();
+    const win = window.open('', '_blank', 'width=980,height=820');
+    win.document.write(window.gerarHtmlDocumentoContratoCompleto(m, null, window._valoresAvariasList || []));
+    win.document.close();
+    win.focus();
 };
 
 // ══════════════════════════════════════════════════════════════════════════

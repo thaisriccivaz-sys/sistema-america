@@ -847,6 +847,7 @@ const BREADCRUMB_MAP = {
     'comercial-tabela-precos': { path: 'Comercial → Administração → Tabela Preços', code: 'COM008' },
     'estoque-equipamentos': { path: 'Comercial → Administração → Equipamentos', code: 'COM012' },
     'comercial-valores-avarias': { path: 'Comercial → Administração → Valores de Avarias', code: 'COM013' },
+    'comercial-modelos-contrato': { path: 'Comercial → Administração → Modelos de Contratos', code: 'COM014' },
     'comercial-servicos-precificacao': { path: 'Diretoria → Precificação de Serviços', code: 'DIR015' },
     // Administrativo
     'licencas': { path: 'Licenças', code: 'ADM001' },
@@ -1034,6 +1035,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-tabela-precos'] === undefined) mapPerms['comercial-tabela-precos'] = true;
             if (mapPerms['estoque-equipamentos'] === undefined) mapPerms['estoque-equipamentos'] = true;
             if (mapPerms['comercial-valores-avarias'] === undefined) mapPerms['comercial-valores-avarias'] = true;
+            if (mapPerms['comercial-modelos-contrato'] === undefined) mapPerms['comercial-modelos-contrato'] = true;
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
             if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
         }
@@ -1365,6 +1367,7 @@ const TAB_META = {
     'comercial-tabela-precos': { color: '#7048e8', icon: 'ph-table', title: 'Tabela Preços' },
     'estoque-equipamentos': { color: '#7048e8', icon: 'ph-cube', title: 'Equipamentos' },
     'comercial-valores-avarias': { color: '#7048e8', icon: 'ph-warning-octagon', title: 'Valores de Avarias' },
+    'comercial-modelos-contrato': { color: '#7048e8', icon: 'ph-file-doc', title: 'Modelos de Contratos' },
     'comercial-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Endereços' },
     'comercial-clientes': { color: '#7048e8', icon: 'ph-user-plus', title: 'Clientes' },
     'comercial-contatos': { color: '#7048e8', icon: 'ph-address-book', title: 'Contatos' },
@@ -1481,6 +1484,7 @@ window.navigateToTab = function (tabId) {
         'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-tabela-precos': 'tabela-precos',
         'comercial-valores-avarias': 'valores-avarias',
+        'comercial-modelos-contrato': 'modelos-contrato',
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',
@@ -1727,6 +1731,7 @@ function navigateTo(target) {
         'comercial-modelos-propostas': 'modelos-propostas',
         'comercial-tabela-precos': 'tabela-precos',
         'comercial-valores-avarias': 'valores-avarias',
+        'comercial-modelos-contrato': 'modelos-contrato',
         'comercial-enderecos': 'enderecos',
         'comercial-clientes': 'cadastro-cliente',
         'comercial-contatos': 'cadastro-contatos',
