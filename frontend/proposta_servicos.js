@@ -11,23 +11,32 @@
     const fmtBRL = (n) => Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
-    window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'EQUIPAMENTOS', 'EQUIPAMENTO'];
-    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = [];
+    window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EQUIPAMENTOS', 'EQUIPAMENTO', 'ADITIVO'];
+
+    const tipoProprioProposta = (tipo) => {
+        const raw = (tipo !== undefined && tipo !== null) ? tipo : (document.getElementById('prop-tipo')?.value || '');
+        return String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    };
 
     const tipoLimpo = (tipo) => {
         if (typeof window.obterTipoEfetivoProposta === 'function') {
             return window.obterTipoEfetivoProposta(tipo);
         }
-        const raw = tipo !== undefined ? tipo : (document.getElementById('prop-tipo')?.value || '');
-        return String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        return tipoProprioProposta(tipo);
     };
 
-    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal (inclusive Aditivo de Obra) */
+    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal (não é obrigatório em EQUIPAMENTOS nem em ADITIVO) */
     window.tipoPropostaServicoObrigatorio = function (tipo) {
+        const proprio = tipoProprioProposta(tipo);
+        const atualDom = tipoProprioProposta();
+        if (proprio === 'ADITIVO' || atualDom === 'ADITIVO' || proprio === 'EQUIPAMENTOS' || proprio === 'EQUIPAMENTO' || atualDom === 'EQUIPAMENTOS' || atualDom === 'EQUIPAMENTO') {
+            return false;
+        }
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tipoLimpo(tipo));
     };
 
-    /* O quadro de Serviços aparece somente em OBRA (não aparece em EVENTO nem EQUIPAMENTOS) */
+    /* O quadro de Serviços aparece em OBRA, EQUIPAMENTOS e ADITIVO de Obra/Equipamentos */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
@@ -154,7 +163,7 @@
                         style="${inputCss}">
                 </div>
                 <div>
-                    <label class="prop-lbl" id="prop-serv-valor-lbl">${fobInicial ? 'Valor (R$) — FOB' : 'Valor (R$) *'}</label>
+                    <label class="prop-lbl" id="prop-serv-valor-lbl">${fobInicial ? 'Valor (R$) — FOB' : (obrigatorio ? 'Valor (R$) *' : 'Valor (R$)')}</label>
                     <input type="text" inputmode="numeric" id="prop-serv-valor" ${fobInicial ? 'disabled value="FOB"' : 'value="0,00" placeholder="0,00"'}
                         onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
                         onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);"
