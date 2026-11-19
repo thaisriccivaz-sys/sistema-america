@@ -1343,6 +1343,9 @@ function renderTelaPropostas() {
             <!-- VIEW: TABELA DE PREÇOS -->
             <div id="prop-view-tabela-precos" style="display:${_currentPropostaTab === 'tabela-precos' ? 'block' : 'none'};"></div>
 
+            <!-- VIEW: VALORES DE AVARIAS -->
+            <div id="prop-view-valores-avarias" style="display:${_currentPropostaTab === 'valores-avarias' ? 'block' : 'none'};"></div>
+
         </div>
     `;
 
@@ -1364,6 +1367,8 @@ function renderTelaPropostas() {
         _renderModelosPropostasInt();
     } else if (_currentPropostaTab === 'tabela-precos') {
         window._renderTabelaPrecosInt();
+    } else if (_currentPropostaTab === 'valores-avarias') {
+        window._renderValoresAvariasInt();
     }
 
     setTimeout(() => {
@@ -1739,6 +1744,7 @@ window.switchPropostaTab = function(tab) {
     const viewModelosContrato = document.getElementById('prop-view-modelos-contrato');
     const viewModelosPropostas = document.getElementById('prop-view-modelos-propostas');
     const viewTabelaPrecos = document.getElementById('prop-view-tabela-precos');
+    const viewValoresAvarias = document.getElementById('prop-view-valores-avarias');
     const tabLista = document.getElementById('tab-prop-lista');
     const tabForm = document.getElementById('tab-prop-form');
     const tabCadastroCliente = document.getElementById('tab-prop-cadastro-cliente');
@@ -1794,6 +1800,9 @@ window.switchPropostaTab = function(tab) {
         if (tab === 'tabela-precos' && viewTabelaPrecos.innerHTML.trim() === '') {
             window._renderTabelaPrecosInt();
         }
+        if (tab === 'valores-avarias' && viewValoresAvarias && viewValoresAvarias.innerHTML.trim() === '') {
+            window._renderValoresAvariasInt();
+        }
 
         viewLista.style.display = tab === 'lista' ? 'block' : 'none';
         viewForm.style.display = tab === 'form' ? 'block' : 'none';
@@ -1805,6 +1814,7 @@ window.switchPropostaTab = function(tab) {
         viewModelosContrato.style.display = tab === 'modelos-contrato' ? 'block' : 'none';
         viewModelosPropostas.style.display = tab === 'modelos-propostas' ? 'block' : 'none';
         viewTabelaPrecos.style.display = tab === 'tabela-precos' ? 'block' : 'none';
+        if (viewValoresAvarias) viewValoresAvarias.style.display = tab === 'valores-avarias' ? 'block' : 'none';
 
         // Update active class in SaaS Header
         document.querySelectorAll('.saas-nav-item, .saas-dropdown-item').forEach(item => {
@@ -23807,6 +23817,618 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
         } catch (e) {
             Swal.fire('Erro', 'Falha ao salvar equipamento na tabela.', 'error');
         }
+    }
+};
+
+/* ── TELA: VALORES DE AVARIAS (Comercial → Administração → Valores de Avarias) ── */
+window._comercialValoresAvariasData = window._comercialValoresAvariasData || [];
+window._CATEGORIAS_AVARIAS_PADRAO = [
+    'Acessório',
+    'Avaria',
+    'Brinquedos',
+    'Container',
+    'Contenção',
+    'Estruturas',
+    'Lavatórios',
+    'Mictório',
+    'Mobiliário',
+    'PCD',
+    'Pisos',
+    'Serviços',
+    'Tenda',
+    'Trailer',
+    'VAC',
+    'VIP'
+];
+window._FONTES_AVARIAS_PADRAO = [
+    'Pacote Obra',
+    'Próprio Avulso',
+    'Parceiros'
+];
+
+window._normTextoAvaria = function(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+};
+
+window._obterOpcoesCategoriaAvaria = function() {
+    const mapOpcoes = new Map();
+    (window._CATEGORIAS_AVARIAS_PADRAO || []).forEach(c => {
+        const k = window._normTextoAvaria(c);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, c);
+    });
+    (window._equipamentosEstoqueData || []).forEach(eq => {
+        const g = String(eq.grupo_produto || '').trim();
+        const k = window._normTextoAvaria(g);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, g);
+    });
+    (window._comercialValoresAvariasData || []).forEach(it => {
+        const c = String(it.categoria || '').trim();
+        const k = window._normTextoAvaria(c);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, c);
+    });
+    return Array.from(mapOpcoes.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+};
+
+window._obterOpcoesFonteAvaria = function() {
+    const mapOpcoes = new Map();
+    (window._FONTES_AVARIAS_PADRAO || []).forEach(f => {
+        const k = window._normTextoAvaria(f);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
+    });
+    (window._equipamentosEstoqueData || []).forEach(eq => {
+        const f = String(eq.fonte_fornecimento || '').trim();
+        const k = window._normTextoAvaria(f);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
+    });
+    (window._comercialValoresAvariasData || []).forEach(it => {
+        const f = String(it.fonte_fornecimento || '').trim();
+        const k = window._normTextoAvaria(f);
+        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
+    });
+    return Array.from(mapOpcoes.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+};
+
+window.carregarValoresAvariasComercial = async function() {
+    try {
+        const rows = await apiGet('/comercial/valores-avarias');
+        window._comercialValoresAvariasData = Array.isArray(rows) ? rows : [];
+    } catch (e) {
+        console.warn('[ValoresAvarias] Erro ao carregar:', e);
+        window._comercialValoresAvariasData = [];
+    }
+    return window._comercialValoresAvariasData;
+};
+
+window._renderValoresAvariasInt = async function() {
+    const container = document.getElementById('prop-view-valores-avarias');
+    if (!container) return;
+
+    const prevFiltroNome = document.getElementById('avaria-filtro-nome')?.value || '';
+    const prevFiltroCat = document.getElementById('avaria-filtro-categoria')?.value || '';
+    const prevFiltroFonte = document.getElementById('avaria-filtro-fonte')?.value || '';
+
+    await window.carregarValoresAvariasComercial();
+    const itens = window._comercialValoresAvariasData || [];
+
+    container.innerHTML = `
+        <div style="font-family:'Inter', sans-serif; background:#f8fafc; padding:1px 0.75rem 1.25rem 0.75rem; border-radius:14px; min-height:780px; box-sizing:border-box;">
+            <!-- Toolbar -->
+            <div id="prop-toolbar-valores-avarias" style="display:flex; justify-content:space-between; align-items:center; margin-top:-10px; margin-bottom:0.85rem; background:#fff; padding:0.65rem 1rem; border-radius:10px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:0; z-index:997; flex-wrap:wrap; gap:0.5rem;">
+                <div style="display:flex; align-items:center; gap:0.65rem;">
+                    <div style="width:38px; height:38px; border-radius:10px; background:linear-gradient(135deg,#7048e8,#5f3dc4); display:flex; align-items:center; justify-content:center; color:#fff;">
+                        <i class="ph ph-warning-octagon" style="font-size:1.3rem;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">Valores de Avarias</h3>
+                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Cadastre e gerencie os valores de avarias por categoria e fonte de fornecimento</p>
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    <button type="button" onclick="window.baixarExcelValoresAvarias()" style="background:#0284c7; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
+                        <i class="ph ph-download-simple" style="font-size:1.05rem;"></i> Baixar Excel
+                    </button>
+                    <label style="background:#10b981; color:#fff; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.25); margin:0;">
+                        <i class="ph ph-file-xls" style="font-size:1.05rem;"></i> Importar Planilha
+                        <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="window.importarPlanilhaValoresAvarias(this)">
+                    </label>
+                    <button type="button" onclick="window._renderValoresAvariasInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card: Adicionar Novo Valor de Avaria -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1rem; margin-bottom:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div style="font-size:0.78rem; font-weight:800; color:#5f3dc4; margin-bottom:0.65rem; display:flex; align-items:center; gap:6px;">
+                    <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Adicionar Valor de Avaria
+                </div>
+                <div style="display:grid; grid-template-columns: minmax(220px, 2fr) minmax(170px, 1.2fr) minmax(170px, 1.2fr) minmax(130px, 0.9fr) auto; gap:0.65rem; align-items:end;">
+                    <div>
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome *</label>
+                        <input type="text" id="avaria-novo-nome" placeholder="Digite o nome da avaria..." autocomplete="off"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorAvaria();}"
+                            style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                    </div>
+                    <div style="position:relative;">
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Categoria</label>
+                        <input type="text" id="avaria-novo-categoria" placeholder="Digite ou selecione a categoria..." autocomplete="off"
+                            onfocus="window.abrirComboValorAvaria('novo-categoria', false)"
+                            oninput="window.abrirComboValorAvaria('novo-categoria', true)"
+                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('novo-categoria', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
+                        <div id="avaria-combo-novo-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:210px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
+                    </div>
+                    <div style="position:relative;">
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
+                        <input type="text" id="avaria-novo-fonte" placeholder="Digite ou selecione a fonte..." autocomplete="off"
+                            onfocus="window.abrirComboValorAvaria('novo-fonte', false)"
+                            oninput="window.abrirComboValorAvaria('novo-fonte', true)"
+                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('novo-fonte', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
+                        <div id="avaria-combo-novo-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:210px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Valor (R$) *</label>
+                        <input type="number" step="0.01" min="0" id="avaria-novo-valor" placeholder="0,00"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorAvaria();}"
+                            style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-align:right; font-weight:700;">
+                    </div>
+                    <div>
+                        <button type="button" onclick="window.adicionarItemValorAvaria()"
+                            style="height:36px; background:#7048e8; color:#fff; border:none; padding:0 1.1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
+                            <i class="ph ph-plus-bold"></i> Adicionar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Filtros (Nome, Categoria, Fonte de Fornecimento) -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
+                <div style="display:grid; grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.2fr) minmax(180px, 1.2fr) auto; gap:0.65rem; align-items:end;">
+                    <div>
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Buscar por Nome</label>
+                        <input type="text" id="avaria-filtro-nome" placeholder="🔍 Digite para filtrar por nome..." autocomplete="off"
+                            value="${_escHtmlProp(prevFiltroNome)}"
+                            oninput="window.filtrarTabelaValoresAvarias()"
+                            style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                    </div>
+                    <div style="position:relative;">
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtro de Categoria</label>
+                        <input type="text" id="avaria-filtro-categoria" placeholder="Todas (Digite ou selecione)..." autocomplete="off"
+                            value="${_escHtmlProp(prevFiltroCat)}"
+                            onfocus="window.abrirComboValorAvaria('filtro-categoria', false)"
+                            oninput="window.abrirComboValorAvaria('filtro-categoria', true); window.filtrarTabelaValoresAvarias();"
+                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('filtro-categoria', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
+                        <div id="avaria-combo-filtro-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
+                    </div>
+                    <div style="position:relative;">
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtro de Fonte de Fornecimento</label>
+                        <input type="text" id="avaria-filtro-fonte" placeholder="Todas (Digite ou selecione)..." autocomplete="off"
+                            value="${_escHtmlProp(prevFiltroFonte)}"
+                            onfocus="window.abrirComboValorAvaria('filtro-fonte', false)"
+                            oninput="window.abrirComboValorAvaria('filtro-fonte', true); window.filtrarTabelaValoresAvarias();"
+                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('filtro-fonte', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
+                        <div id="avaria-combo-filtro-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
+                    </div>
+                    <div>
+                        <button type="button" onclick="window.limparFiltrosValoresAvarias()"
+                            style="height:36px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                            <i class="ph ph-x-circle"></i> Limpar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Valores de Avarias -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div style="padding:0.6rem 1rem; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.78rem; font-weight:700; color:#475569;">Itens Cadastrados</span>
+                    <span id="avarias-contador-itens" style="font-size:0.75rem; font-weight:700; color:#7048e8; background:#ede9fe; padding:2px 10px; border-radius:999px;">${itens.length} item(ns)</span>
+                </div>
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
+                            <th style="padding:10px 14px;">Nome</th>
+                            <th style="padding:10px 12px; width:190px;">Categoria</th>
+                            <th style="padding:10px 12px; width:210px;">Fonte de Fornecimento</th>
+                            <th style="padding:10px 12px; width:165px; text-align:right;">Valor (R$)</th>
+                            <th style="padding:10px 12px; width:120px; text-align:center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="avarias-itens-tbody">
+                        ${itens.length === 0 ? `
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                    Nenhum valor de avaria cadastrado. Utilize os campos acima para <strong>Adicionar</strong> ou clique em <strong>Importar Planilha</strong>.
+                                </td>
+                            </tr>
+                        ` : itens.map(item => `
+                            <tr class="avaria-row-item"
+                                data-nome="${_escHtmlProp(window._normTextoAvaria(item.nome))}"
+                                data-categoria="${_escHtmlProp(window._normTextoAvaria(item.categoria))}"
+                                data-fonte="${_escHtmlProp(window._normTextoAvaria(item.fonte_fornecimento))}"
+                                style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:8px 14px; font-weight:600; color:#1e293b;">
+                                    ${_escHtmlProp(item.nome || '—')}
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    ${item.categoria ? `<span style="font-size:0.73rem; font-weight:700; padding:3px 9px; border-radius:999px; background:#ede9fe; color:#6d28d9; display:inline-block;">${_escHtmlProp(item.categoria)}</span>` : '<span style="color:#94a3b8;">—</span>'}
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    ${item.fonte_fornecimento ? `<span style="font-size:0.73rem; font-weight:700; padding:3px 9px; border-radius:6px; background:#f1f5f9; color:#334155; display:inline-block;">${_escHtmlProp(item.fonte_fornecimento)}</span>` : '<span style="color:#94a3b8;">—</span>'}
+                                </td>
+                                <td style="padding:8px 12px; text-align:right;">
+                                    <input type="number" step="0.01" id="avaria-val-${item.id}" value="${Number(item.valor || 0).toFixed(2)}"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); window.salvarValorLinhaAvaria(${item.id});}"
+                                        style="width:125px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
+                                    <button type="button" onclick="window.salvarValorLinhaAvaria(${item.id})" title="Salvar Valor"
+                                        style="background:#dcfce7; color:#166534; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
+                                        <i class="ph ph-check" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.abrirModalEditarValorAvaria(${item.id})" title="Editar Item"
+                                        style="background:#e0f2fe; color:#0369a1; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
+                                        <i class="ph ph-pencil-simple" style="font-size:0.95rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.excluirItemValorAvaria(${item.id})" title="Excluir Item"
+                                        style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    if (prevFiltroNome || prevFiltroCat || prevFiltroFonte) {
+        window.filtrarTabelaValoresAvarias();
+    }
+};
+
+window._getComboAvariaConfig = function(tipo) {
+    const map = {
+        'novo-categoria': { inputId: 'avaria-novo-categoria', listId: 'avaria-combo-novo-categoria', isFiltro: false, isFonte: false },
+        'novo-fonte': { inputId: 'avaria-novo-fonte', listId: 'avaria-combo-novo-fonte', isFiltro: false, isFonte: true },
+        'filtro-categoria': { inputId: 'avaria-filtro-categoria', listId: 'avaria-combo-filtro-categoria', isFiltro: true, isFonte: false, labelTodos: 'Todas as Categorias' },
+        'filtro-fonte': { inputId: 'avaria-filtro-fonte', listId: 'avaria-combo-filtro-fonte', isFiltro: true, isFonte: true, labelTodos: 'Todas as Fontes' },
+        'swal-categoria': { inputId: 'swal-avaria-categoria', listId: 'avaria-combo-swal-categoria', isFiltro: false, isFonte: false },
+        'swal-fonte': { inputId: 'swal-avaria-fonte', listId: 'avaria-combo-swal-fonte', isFiltro: false, isFonte: true }
+    };
+    return map[tipo] || null;
+};
+
+window.fecharCombosValoresAvarias = function(excetoListId) {
+    [
+        'avaria-combo-novo-categoria',
+        'avaria-combo-novo-fonte',
+        'avaria-combo-filtro-categoria',
+        'avaria-combo-filtro-fonte',
+        'avaria-combo-swal-categoria',
+        'avaria-combo-swal-fonte'
+    ].forEach(id => {
+        if (id !== excetoListId) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+    });
+};
+
+window.abrirComboValorAvaria = function(tipo, filtrarPorDigitado) {
+    const cfg = window._getComboAvariaConfig(tipo);
+    if (!cfg) return;
+    const inp = document.getElementById(cfg.inputId);
+    const listEl = document.getElementById(cfg.listId);
+    if (!inp || !listEl) return;
+
+    window.fecharCombosValoresAvarias(cfg.listId);
+
+    const todasOpcoes = cfg.isFonte ? window._obterOpcoesFonteAvaria() : window._obterOpcoesCategoriaAvaria();
+    const termo = filtrarPorDigitado ? window._normTextoAvaria(inp.value) : '';
+    const opcoesFiltradas = termo
+        ? todasOpcoes.filter(op => window._normTextoAvaria(op).includes(termo))
+        : todasOpcoes;
+
+    let html = '';
+    if (cfg.isFiltro) {
+        html += `
+            <div onmousedown="window.selecionarOpcaoComboValorAvaria(event, '${tipo}', '')"
+                style="padding:8px 12px; font-size:0.8rem; font-weight:700; color:#5f3dc4; border-bottom:1px solid #f1f5f9; cursor:pointer; background:#f8fafc;">
+                ${_escHtmlProp(cfg.labelTodos)}
+            </div>
+        `;
+    }
+
+    if (opcoesFiltradas.length === 0) {
+        html += `<div style="padding:9px 12px; font-size:0.78rem; color:#64748b;">${cfg.isFiltro ? 'Nenhuma opção encontrada.' : 'Pressione Enter ou continue digitando para usar este valor.'}</div>`;
+    } else {
+        html += opcoesFiltradas.map(op => `
+            <div onmousedown="window.selecionarOpcaoComboValorAvaria(event, '${tipo}', '${_escHtmlProp(op).replace(/'/g, "\\'")}')"
+                style="padding:8px 12px; font-size:0.81rem; color:#1e293b; border-bottom:1px solid #f8fafc; cursor:pointer;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                ${_escHtmlProp(op)}
+            </div>
+        `).join('');
+    }
+
+    listEl.innerHTML = html;
+    listEl.style.display = 'block';
+};
+
+window.selecionarOpcaoComboValorAvaria = function(event, tipo, valor) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const cfg = window._getComboAvariaConfig(tipo);
+    if (!cfg) return;
+    const inp = document.getElementById(cfg.inputId);
+    const listEl = document.getElementById(cfg.listId);
+    if (inp) inp.value = valor;
+    if (listEl) listEl.style.display = 'none';
+    if (cfg.isFiltro) {
+        window.filtrarTabelaValoresAvarias();
+    }
+};
+
+document.addEventListener('click', (ev) => {
+    const insideCombo = ev.target.closest && ev.target.closest('#prop-view-valores-avarias, .swal2-container');
+    if (!insideCombo) {
+        window.fecharCombosValoresAvarias();
+        return;
+    }
+    const isInputOrCaret = ev.target.matches && ev.target.matches('#avaria-novo-categoria, #avaria-novo-fonte, #avaria-filtro-categoria, #avaria-filtro-fonte, #swal-avaria-categoria, #swal-avaria-fonte, .ph-caret-down');
+    if (!isInputOrCaret) {
+        window.fecharCombosValoresAvarias();
+    }
+});
+
+window.filtrarTabelaValoresAvarias = function() {
+    const qNome = window._normTextoAvaria(document.getElementById('avaria-filtro-nome')?.value || '');
+    const qCat = window._normTextoAvaria(document.getElementById('avaria-filtro-categoria')?.value || '');
+    const qFonte = window._normTextoAvaria(document.getElementById('avaria-filtro-fonte')?.value || '');
+
+    let visiveis = 0;
+    const rows = document.querySelectorAll('#avarias-itens-tbody .avaria-row-item');
+    rows.forEach(tr => {
+        const dNome = tr.getAttribute('data-nome') || '';
+        const dCat = tr.getAttribute('data-categoria') || '';
+        const dFonte = tr.getAttribute('data-fonte') || '';
+        const okNome = !qNome || dNome.includes(qNome);
+        const okCat = !qCat || dCat.includes(qCat);
+        const okFonte = !qFonte || dFonte.includes(qFonte);
+        const mostrar = okNome && okCat && okFonte;
+        tr.style.display = mostrar ? '' : 'none';
+        if (mostrar) visiveis++;
+    });
+
+    const countEl = document.getElementById('avarias-contador-itens');
+    if (countEl) {
+        const total = (window._comercialValoresAvariasData || []).length;
+        countEl.textContent = (qNome || qCat || qFonte) ? `${visiveis} de ${total} item(ns)` : `${total} item(ns)`;
+    }
+};
+
+window.limparFiltrosValoresAvarias = function() {
+    ['avaria-filtro-nome', 'avaria-filtro-categoria', 'avaria-filtro-fonte'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    window.fecharCombosValoresAvarias();
+    window.filtrarTabelaValoresAvarias();
+};
+
+window.adicionarItemValorAvaria = async function() {
+    const inpNome = document.getElementById('avaria-novo-nome');
+    const inpCat = document.getElementById('avaria-novo-categoria');
+    const inpFonte = document.getElementById('avaria-novo-fonte');
+    const inpVal = document.getElementById('avaria-novo-valor');
+
+    const nome = (inpNome?.value || '').trim();
+    const categoria = (inpCat?.value || '').trim();
+    const fonte_fornecimento = (inpFonte?.value || '').trim();
+    const valor = parseFloat(inpVal?.value || '0') || 0;
+
+    if (!nome) {
+        Swal.fire('Atenção', 'Informe o nome da avaria.', 'warning');
+        inpNome?.focus();
+        return;
+    }
+
+    try {
+        await apiPost('/comercial/valores-avarias', {
+            nome,
+            categoria,
+            fonte_fornecimento,
+            valor
+        });
+        if (inpNome) inpNome.value = '';
+        if (inpVal) inpVal.value = '';
+        await window._renderValoresAvariasInt();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Valor de avaria adicionado com sucesso!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Não foi possível adicionar o valor de avaria.', 'error');
+    }
+};
+
+window.salvarValorLinhaAvaria = async function(id) {
+    const inp = document.getElementById(`avaria-val-${id}`);
+    const valor = parseFloat(inp?.value || '0') || 0;
+    try {
+        await apiPut(`/comercial/valores-avarias/${id}`, { valor });
+        const item = (window._comercialValoresAvariasData || []).find(x => Number(x.id) === Number(id));
+        if (item) item.valor = valor;
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Valor atualizado com sucesso!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Não foi possível atualizar o valor.', 'error');
+    }
+};
+
+window.abrirModalEditarValorAvaria = async function(id) {
+    const item = (window._comercialValoresAvariasData || []).find(x => Number(x.id) === Number(id));
+    if (!item) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Editar Valor de Avaria',
+        width: 520,
+        html: `
+            <div style="text-align:left; display:flex; flex-direction:column; gap:12px; font-size:0.85rem;">
+                <div>
+                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Nome *</label>
+                    <input type="text" id="swal-avaria-nome" value="${_escHtmlProp(item.nome || '')}"
+                        style="width:100%; height:38px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
+                </div>
+                <div style="position:relative;">
+                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Categoria</label>
+                    <input type="text" id="swal-avaria-categoria" value="${_escHtmlProp(item.categoria || '')}" autocomplete="off"
+                        onfocus="window.abrirComboValorAvaria('swal-categoria', false)"
+                        oninput="window.abrirComboValorAvaria('swal-categoria', true)"
+                        style="width:100%; height:38px; padding:0 28px 0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
+                    <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('swal-categoria', false)" style="position:absolute; right:10px; bottom:11px; color:#64748b; cursor:pointer;"></i>
+                    <div id="avaria-combo-swal-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:180px; overflow-y:auto; z-index:2050; box-shadow:0 8px 20px rgba(15,23,42,0.15);"></div>
+                </div>
+                <div style="position:relative;">
+                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Fonte de Fornecimento</label>
+                    <input type="text" id="swal-avaria-fonte" value="${_escHtmlProp(item.fonte_fornecimento || '')}" autocomplete="off"
+                        onfocus="window.abrirComboValorAvaria('swal-fonte', false)"
+                        oninput="window.abrirComboValorAvaria('swal-fonte', true)"
+                        style="width:100%; height:38px; padding:0 28px 0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
+                    <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('swal-fonte', false)" style="position:absolute; right:10px; bottom:11px; color:#64748b; cursor:pointer;"></i>
+                    <div id="avaria-combo-swal-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:180px; overflow-y:auto; z-index:2050; box-shadow:0 8px 20px rgba(15,23,42,0.15);"></div>
+                </div>
+                <div>
+                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Valor (R$) *</label>
+                    <input type="number" step="0.01" id="swal-avaria-valor" value="${Number(item.valor || 0).toFixed(2)}"
+                        style="width:100%; height:38px; padding:0 10px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; box-sizing:border-box;">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Salvar Alterações',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const nome = (document.getElementById('swal-avaria-nome')?.value || '').trim();
+            if (!nome) {
+                Swal.showValidationMessage('Informe o nome da avaria.');
+                return false;
+            }
+            return {
+                nome,
+                categoria: (document.getElementById('swal-avaria-categoria')?.value || '').trim(),
+                fonte_fornecimento: (document.getElementById('swal-avaria-fonte')?.value || '').trim(),
+                valor: parseFloat(document.getElementById('swal-avaria-valor')?.value || '0') || 0
+            };
+        }
+    });
+
+    if (formValues) {
+        try {
+            await apiPut(`/comercial/valores-avarias/${id}`, formValues);
+            await window._renderValoresAvariasInt();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Item atualizado com sucesso!');
+            }
+        } catch (e) {
+            Swal.fire('Erro', e.message || 'Falha ao atualizar item.', 'error');
+        }
+    }
+};
+
+window.excluirItemValorAvaria = async function(id) {
+    const conf = await Swal.fire({
+        title: 'Excluir valor de avaria?',
+        text: 'Deseja remover este item da tabela de valores de avarias?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        await apiDelete(`/comercial/valores-avarias/${id}`);
+        await window._renderValoresAvariasInt();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Item removido com sucesso!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Não foi possível excluir o item.', 'error');
+    }
+};
+
+window.baixarExcelValoresAvarias = async function() {
+    try {
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const baseUrl = (typeof API_URL !== 'undefined' ? API_URL : '/api');
+        const resp = await fetch(`${baseUrl}/comercial/valores-avarias/exportar`, {
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + tok }
+        });
+        if (!resp.ok) {
+            let errMsg = 'Falha ao baixar planilha de valores de avarias';
+            try {
+                const j = await resp.json();
+                if (j && j.error) errMsg = j.error;
+            } catch (e) {}
+            throw new Error(errMsg);
+        }
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Valores_de_Avarias.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+        Swal.fire('Erro', e.message || 'Não foi possível baixar o Excel de valores de avarias.', 'error');
+    }
+};
+
+window.importarPlanilhaValoresAvarias = async function(inputEl) {
+    const file = inputEl?.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('arquivo', file);
+
+    Swal.fire({
+        title: 'Importando Planilha...',
+        text: 'Atualizando valores de avarias em massa...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    try {
+        const tok = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const baseUrl = (typeof API_URL !== 'undefined' ? API_URL : '/api');
+        const resp = await fetch(`${baseUrl}/comercial/valores-avarias/importar`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + tok },
+            body: formData
+        });
+        const resJson = await resp.json();
+        if (!resp.ok) throw new Error(resJson.error || 'Erro ao importar planilha');
+        Swal.close();
+        await window._renderValoresAvariasInt();
+        Swal.fire(
+            'Sucesso',
+            `Planilha importada com sucesso! ${resJson.total_processados || 0} item(ns) processado(s) (${resJson.atualizados || 0} atualizado(s), ${resJson.inseridos || 0} novo(s)).`,
+            'success'
+        );
+    } catch (e) {
+        Swal.close();
+        Swal.fire('Erro', e.message || 'Falha ao importar planilha de valores de avarias.', 'error');
+    } finally {
+        inputEl.value = '';
     }
 };
 

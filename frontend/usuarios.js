@@ -77,6 +77,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
     { modulo: 'Comercial', pagina_id: 'comercial-tabela-precos', pagina_nome: 'Tabela Preços', icone: 'ph-table' },
     { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
+    { modulo: 'Comercial', pagina_id: 'comercial-valores-avarias', pagina_nome: 'Valores de Avarias', icone: 'ph-warning-octagon' },
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
     { modulo: 'Comercial', pagina_id: 'comercial-contratos', pagina_nome: 'Contratos', icone: 'ph-files' },
@@ -687,7 +688,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-tabela-precos', 'estoque-equipamentos'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
+        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',

@@ -50702,6 +50702,315 @@ app.delete('/api/comercial/tabelas-preco/item/:id', authenticateToken, (req, res
   });
 });
 
+// ============================================================
+// MÓDULO: COMERCIAL → ADMINISTRAÇÃO → VALORES DE AVARIAS
+// ============================================================
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS comercial_valores_avarias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    categoria TEXT DEFAULT '',
+    fonte_fornecimento TEXT DEFAULT '',
+    valor REAL DEFAULT 0,
+    r2_key TEXT DEFAULT NULL,
+    criado_por TEXT DEFAULT '',
+    atualizado_por TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+});
+
+// GET /api/comercial/valores-avarias - Listar todos os valores de avarias
+app.get('/api/comercial/valores-avarias', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_valores_avarias ORDER BY nome COLLATE NOCASE ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST /api/comercial/valores-avarias - Adicionar novo valor de avaria
+app.post('/api/comercial/valores-avarias', authenticateToken, (req, res) => {
+  const { nome, categoria, fonte_fornecimento, valor } = req.body || {};
+  const nomeClean = String(nome || '').replace(/\s+/g, ' ').trim();
+  if (!nomeClean) return res.status(400).json({ error: 'O nome da avaria é obrigatório.' });
+  const catClean = String(categoria || '').replace(/\s+/g, ' ').trim();
+  const fonteClean = String(fonte_fornecimento || '').replace(/\s+/g, ' ').trim();
+  const valNum = parseFloat(String(valor ?? '0').replace(',', '.')) || 0;
+  const usuario = req.user?.nome || req.user?.username || 'Sistema';
+  const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+  db.run(
+    `INSERT INTO comercial_valores_avarias (nome, categoria, fonte_fornecimento, valor, criado_por, atualizado_por, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [nomeClean, catClean, fonteClean, valNum, usuario, usuario, agora, agora],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, id: this.lastID });
+    }
+  );
+});
+
+// PUT /api/comercial/valores-avarias/:id - Atualizar valor de avaria
+app.put('/api/comercial/valores-avarias/:id', authenticateToken, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  const { nome, categoria, fonte_fornecimento, valor } = req.body || {};
+  const usuario = req.user?.nome || req.user?.username || 'Sistema';
+  const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+  db.get('SELECT * FROM comercial_valores_avarias WHERE id = ?', [id], (errRow, row) => {
+    if (errRow) return res.status(500).json({ error: errRow.message });
+    if (!row) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const nomeFinal = nome !== undefined ? String(nome || '').replace(/\s+/g, ' ').trim() : row.nome;
+    if (!nomeFinal) return res.status(400).json({ error: 'O nome da avaria é obrigatório.' });
+    const catFinal = categoria !== undefined ? String(categoria || '').replace(/\s+/g, ' ').trim() : (row.categoria || '');
+    const fonteFinal = fonte_fornecimento !== undefined ? String(fonte_fornecimento || '').replace(/\s+/g, ' ').trim() : (row.fonte_fornecimento || '');
+    const valFinal = valor !== undefined ? (parseFloat(String(valor ?? '0').replace(',', '.')) || 0) : (parseFloat(row.valor) || 0);
+
+    db.run(
+      `UPDATE comercial_valores_avarias
+       SET nome = ?, categoria = ?, fonte_fornecimento = ?, valor = ?, atualizado_por = ?, updated_at = ?
+       WHERE id = ?`,
+      [nomeFinal, catFinal, fonteFinal, valFinal, usuario, agora, id],
+      function(errUp) {
+        if (errUp) return res.status(500).json({ error: errUp.message });
+        res.json({ success: true });
+      }
+    );
+  });
+});
+
+// DELETE /api/comercial/valores-avarias/:id - Excluir valor de avaria (mantendo arquivos do R2 intactos)
+app.delete('/api/comercial/valores-avarias/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_valores_avarias WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// GET /api/comercial/valores-avarias/exportar - Baixar Excel com todos os valores de avarias cadastrados
+app.get('/api/comercial/valores-avarias/exportar', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_valores_avarias ORDER BY nome COLLATE NOCASE ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    try {
+      const XLSX = require('xlsx');
+      const header = ['ID', 'Nome', 'Categoria', 'Fonte de Fornecimento', 'Valor (R$)'];
+      const aoa = [header];
+      (rows || []).forEach(r => {
+        aoa.push([
+          r.id,
+          r.nome || '',
+          r.categoria || '',
+          r.fonte_fornecimento || '',
+          Number(r.valor || 0)
+        ]);
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [
+        { wch: 10 },
+        { wch: 48 },
+        { wch: 24 },
+        { wch: 26 },
+        { wch: 16 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'VALORES DE AVARIAS');
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="Valores_de_Avarias.xlsx"');
+      res.send(buf);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
+// POST /api/comercial/valores-avarias/importar - Importar planilha Excel (.xlsx/.xls) para atualizar/inserir valores de avarias em massa
+app.post('/api/comercial/valores-avarias/importar', authenticateToken, uploadImportEquipamentos.single('arquivo'), async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'Selecione um arquivo Excel (.xlsx) válido.' });
+    }
+
+    const usuario = req.user?.nome || req.user?.username || 'Sistema';
+    const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const XLSX = require('xlsx');
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+
+    // Backup da planilha enviada no Cloudflare R2 (regra obrigatória R2)
+    let r2KeySaved = null;
+    try {
+      const r2 = require('./utils/r2');
+      if (r2.isReady()) {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const r2Key = `Comercial/ValoresAvarias/${yyyy}/${mm}/${Date.now()}_Valores_Avarias.xlsx`;
+        await r2.uploadToR2(r2Key, req.file.buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        r2KeySaved = r2Key;
+      } else {
+        console.warn('[R2] Storage não configurado — planilha processada no banco SQLite.');
+      }
+    } catch (eR2) {
+      console.warn('[R2] Falha ao enviar planilha de avarias ao R2:', eR2.message);
+    }
+
+    const parseNumExcel = (v) => {
+      if (typeof v === 'number') return isNaN(v) ? 0 : v;
+      let s = String(v ?? '').replace(/R\$/gi, '').replace(/\s+/g, '').trim();
+      if (!s) return 0;
+      if (s.includes(',') && s.includes('.')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if (s.includes(',')) {
+        s = s.replace(',', '.');
+      }
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const sheetName = workbook.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+    if (!rows || rows.length < 2) {
+      return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
+    }
+
+    const normHeader = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const headerRow = (rows[0] || []).map(normHeader);
+
+    let colId = headerRow.findIndex(h => h === 'ID' || h === 'CODIGO' || h.startsWith('COD'));
+    let colNome = headerRow.findIndex(h => h.includes('NOME') || h.includes('AVARIA') || h.includes('EQUIPAMENTO') || h.includes('PRODUTO') || h.includes('DESCRICAO') || h.includes('ITEM'));
+    let colCat = headerRow.findIndex(h => h.includes('CATEGORIA') || h.includes('GRUPO'));
+    let colFonte = headerRow.findIndex(h => h.includes('FONTE') || h.includes('FORNECIMENTO'));
+    let colValor = headerRow.findIndex(h => h.includes('VALOR') || h.includes('PRECO') || h.includes('CUSTO'));
+
+    // Fallback posicional caso os cabeçalhos sejam personalizados
+    if (colNome < 0) {
+      if (colId === 0) {
+        colNome = 1;
+        if (colCat < 0 && headerRow.length >= 3) colCat = 2;
+        if (colFonte < 0 && headerRow.length >= 4) colFonte = 3;
+        if (colValor < 0) colValor = headerRow.length >= 5 ? 4 : headerRow.length - 1;
+      } else {
+        colNome = 0;
+        if (colCat < 0 && headerRow.length >= 2) colCat = 1;
+        if (colFonte < 0 && headerRow.length >= 3) colFonte = 2;
+        if (colValor < 0) colValor = headerRow.length >= 4 ? 3 : headerRow.length - 1;
+      }
+    }
+
+    const itensPlanilha = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || !r.some(cell => String(cell ?? '').trim() !== '')) continue;
+      const idVal = colId >= 0 ? (parseInt(String(r[colId] || '').trim(), 10) || null) : null;
+      const nomeVal = colNome >= 0 ? String(r[colNome] || '').replace(/\s+/g, ' ').trim() : '';
+      const catVal = colCat >= 0 ? String(r[colCat] || '').replace(/\s+/g, ' ').trim() : '';
+      const fonteVal = colFonte >= 0 ? String(r[colFonte] || '').replace(/\s+/g, ' ').trim() : '';
+      const valorVal = colValor >= 0 ? parseNumExcel(r[colValor]) : 0;
+
+      if (!nomeVal && !idVal) continue;
+      itensPlanilha.push({
+        id: idVal,
+        nome: nomeVal,
+        categoria: catVal,
+        fonte_fornecimento: fonteVal,
+        valor: valorVal
+      });
+    }
+
+    if (itensPlanilha.length === 0) {
+      return res.status(400).json({ error: 'Nenhum item válido encontrado na planilha.' });
+    }
+
+    db.all('SELECT * FROM comercial_valores_avarias', [], (errAll, existingRows) => {
+      if (errAll) return res.status(500).json({ error: errAll.message });
+      const byId = new Map();
+      const byName = new Map();
+      const normKey = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+      (existingRows || []).forEach(ex => {
+        byId.set(Number(ex.id), ex);
+        if (ex.nome) byName.set(normKey(ex.nome), ex);
+      });
+
+      let atualizados = 0;
+      let inseridos = 0;
+
+      const processarNext = (idx) => {
+        if (idx >= itensPlanilha.length) {
+          return res.json({
+            success: true,
+            total_processados: atualizados + inseridos,
+            atualizados,
+            inseridos
+          });
+        }
+
+        const item = itensPlanilha[idx];
+        let match = null;
+        if (item.id && byId.has(Number(item.id))) {
+          match = byId.get(Number(item.id));
+        } else if (item.nome && byName.has(normKey(item.nome))) {
+          match = byName.get(normKey(item.nome));
+        }
+
+        if (match) {
+          const nomeFinal = item.nome || match.nome;
+          const catFinal = item.categoria !== '' ? item.categoria : (match.categoria || '');
+          const fonteFinal = item.fonte_fornecimento !== '' ? item.fonte_fornecimento : (match.fonte_fornecimento || '');
+          const valFinal = item.valor;
+
+          db.run(
+            `UPDATE comercial_valores_avarias
+             SET nome = ?, categoria = ?, fonte_fornecimento = ?, valor = ?, r2_key = COALESCE(?, r2_key), atualizado_por = ?, updated_at = ?
+             WHERE id = ?`,
+            [nomeFinal, catFinal, fonteFinal, valFinal, r2KeySaved, usuario, agora, match.id],
+            (errUp) => {
+              if (!errUp) {
+                atualizados++;
+                match.nome = nomeFinal;
+                match.categoria = catFinal;
+                match.fonte_fornecimento = fonteFinal;
+                match.valor = valFinal;
+                byName.set(normKey(nomeFinal), match);
+              }
+              processarNext(idx + 1);
+            }
+          );
+        } else if (item.nome) {
+          db.run(
+            `INSERT INTO comercial_valores_avarias (nome, categoria, fonte_fornecimento, valor, r2_key, criado_por, atualizado_por, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [item.nome, item.categoria, item.fonte_fornecimento, item.valor, r2KeySaved, usuario, usuario, agora, agora],
+            function(errIns) {
+              if (!errIns && this.lastID) {
+                inseridos++;
+                const novo = {
+                  id: this.lastID,
+                  nome: item.nome,
+                  categoria: item.categoria,
+                  fonte_fornecimento: item.fonte_fornecimento,
+                  valor: item.valor
+                };
+                byId.set(Number(this.lastID), novo);
+                byName.set(normKey(item.nome), novo);
+              }
+              processarNext(idx + 1);
+            }
+          );
+        } else {
+          processarNext(idx + 1);
+        }
+      };
+
+      processarNext(0);
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 
 
