@@ -23822,70 +23822,9 @@ window.abrirModalNovoItemTabelaPreco = async function(tipoProposta) {
 
 /* ── TELA: VALORES DE AVARIAS (Comercial → Administração → Valores de Avarias) ── */
 window._comercialValoresAvariasData = window._comercialValoresAvariasData || [];
-window._CATEGORIAS_AVARIAS_PADRAO = [
-    'Acessório',
-    'Avaria',
-    'Brinquedos',
-    'Container',
-    'Contenção',
-    'Estruturas',
-    'Lavatórios',
-    'Mictório',
-    'Mobiliário',
-    'PCD',
-    'Pisos',
-    'Serviços',
-    'Tenda',
-    'Trailer',
-    'VAC',
-    'VIP'
-];
-window._FONTES_AVARIAS_PADRAO = [
-    'Pacote Obra',
-    'Próprio Avulso',
-    'Parceiros'
-];
 
 window._normTextoAvaria = function(s) {
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-};
-
-window._obterOpcoesCategoriaAvaria = function() {
-    const mapOpcoes = new Map();
-    (window._CATEGORIAS_AVARIAS_PADRAO || []).forEach(c => {
-        const k = window._normTextoAvaria(c);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, c);
-    });
-    (window._equipamentosEstoqueData || []).forEach(eq => {
-        const g = String(eq.grupo_produto || '').trim();
-        const k = window._normTextoAvaria(g);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, g);
-    });
-    (window._comercialValoresAvariasData || []).forEach(it => {
-        const c = String(it.categoria || '').trim();
-        const k = window._normTextoAvaria(c);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, c);
-    });
-    return Array.from(mapOpcoes.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-};
-
-window._obterOpcoesFonteAvaria = function() {
-    const mapOpcoes = new Map();
-    (window._FONTES_AVARIAS_PADRAO || []).forEach(f => {
-        const k = window._normTextoAvaria(f);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
-    });
-    (window._equipamentosEstoqueData || []).forEach(eq => {
-        const f = String(eq.fonte_fornecimento || '').trim();
-        const k = window._normTextoAvaria(f);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
-    });
-    (window._comercialValoresAvariasData || []).forEach(it => {
-        const f = String(it.fonte_fornecimento || '').trim();
-        const k = window._normTextoAvaria(f);
-        if (k && !mapOpcoes.has(k)) mapOpcoes.set(k, f);
-    });
-    return Array.from(mapOpcoes.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 };
 
 window.carregarValoresAvariasComercial = async function() {
@@ -23904,8 +23843,6 @@ window._renderValoresAvariasInt = async function() {
     if (!container) return;
 
     const prevFiltroNome = document.getElementById('avaria-filtro-nome')?.value || '';
-    const prevFiltroCat = document.getElementById('avaria-filtro-categoria')?.value || '';
-    const prevFiltroFonte = document.getElementById('avaria-filtro-fonte')?.value || '';
 
     await window.carregarValoresAvariasComercial();
     const itens = window._comercialValoresAvariasData || [];
@@ -23920,7 +23857,7 @@ window._renderValoresAvariasInt = async function() {
                     </div>
                     <div>
                         <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">Valores de Avarias</h3>
-                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Cadastre e gerencie os valores de avarias por categoria e fonte de fornecimento</p>
+                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Cadastre e gerencie a tabela de valores de avarias</p>
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
@@ -23942,30 +23879,12 @@ window._renderValoresAvariasInt = async function() {
                 <div style="font-size:0.78rem; font-weight:800; color:#5f3dc4; margin-bottom:0.65rem; display:flex; align-items:center; gap:6px;">
                     <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Adicionar Valor de Avaria
                 </div>
-                <div style="display:grid; grid-template-columns: minmax(220px, 2fr) minmax(170px, 1.2fr) minmax(170px, 1.2fr) minmax(130px, 0.9fr) auto; gap:0.65rem; align-items:end;">
+                <div style="display:grid; grid-template-columns: 1fr 180px auto; gap:0.65rem; align-items:end;">
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Nome *</label>
                         <input type="text" id="avaria-novo-nome" placeholder="Digite o nome da avaria..." autocomplete="off"
                             onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorAvaria();}"
                             style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
-                    </div>
-                    <div style="position:relative;">
-                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Categoria</label>
-                        <input type="text" id="avaria-novo-categoria" placeholder="Digite ou selecione a categoria..." autocomplete="off"
-                            onfocus="window.abrirComboValorAvaria('novo-categoria', false)"
-                            oninput="window.abrirComboValorAvaria('novo-categoria', true)"
-                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
-                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('novo-categoria', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
-                        <div id="avaria-combo-novo-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:210px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
-                    </div>
-                    <div style="position:relative;">
-                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Fonte de Fornecimento</label>
-                        <input type="text" id="avaria-novo-fonte" placeholder="Digite ou selecione a fonte..." autocomplete="off"
-                            onfocus="window.abrirComboValorAvaria('novo-fonte', false)"
-                            oninput="window.abrirComboValorAvaria('novo-fonte', true)"
-                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
-                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('novo-fonte', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
-                        <div id="avaria-combo-novo-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:210px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
                     </div>
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Valor (R$) *</label>
@@ -23982,9 +23901,9 @@ window._renderValoresAvariasInt = async function() {
                 </div>
             </div>
 
-            <!-- Card de Filtros (Nome, Categoria, Fonte de Fornecimento) -->
+            <!-- Card de Filtro por Nome -->
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
-                <div style="display:grid; grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.2fr) minmax(180px, 1.2fr) auto; gap:0.65rem; align-items:end;">
+                <div style="display:grid; grid-template-columns: 1fr auto; gap:0.65rem; align-items:end;">
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Buscar por Nome</label>
                         <input type="text" id="avaria-filtro-nome" placeholder="🔍 Digite para filtrar por nome..." autocomplete="off"
@@ -23992,30 +23911,10 @@ window._renderValoresAvariasInt = async function() {
                             oninput="window.filtrarTabelaValoresAvarias()"
                             style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
                     </div>
-                    <div style="position:relative;">
-                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtro de Categoria</label>
-                        <input type="text" id="avaria-filtro-categoria" placeholder="Todas (Digite ou selecione)..." autocomplete="off"
-                            value="${_escHtmlProp(prevFiltroCat)}"
-                            onfocus="window.abrirComboValorAvaria('filtro-categoria', false)"
-                            oninput="window.abrirComboValorAvaria('filtro-categoria', true); window.filtrarTabelaValoresAvarias();"
-                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
-                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('filtro-categoria', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
-                        <div id="avaria-combo-filtro-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
-                    </div>
-                    <div style="position:relative;">
-                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtro de Fonte de Fornecimento</label>
-                        <input type="text" id="avaria-filtro-fonte" placeholder="Todas (Digite ou selecione)..." autocomplete="off"
-                            value="${_escHtmlProp(prevFiltroFonte)}"
-                            onfocus="window.abrirComboValorAvaria('filtro-fonte', false)"
-                            oninput="window.abrirComboValorAvaria('filtro-fonte', true); window.filtrarTabelaValoresAvarias();"
-                            style="width:100%; height:36px; padding:0 1.8rem 0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
-                        <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('filtro-fonte', false)" style="position:absolute; right:9px; bottom:10px; color:#64748b; cursor:pointer; font-size:0.9rem;"></i>
-                        <div id="avaria-combo-filtro-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; z-index:1050; box-shadow:0 8px 20px rgba(15,23,42,0.12);"></div>
-                    </div>
                     <div>
                         <button type="button" onclick="window.limparFiltrosValoresAvarias()"
                             style="height:36px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:0 0.85rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.78rem; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                            <i class="ph ph-x-circle"></i> Limpar Filtros
+                            <i class="ph ph-x-circle"></i> Limpar Filtro
                         </button>
                     </div>
                 </div>
@@ -24031,38 +23930,28 @@ window._renderValoresAvariasInt = async function() {
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
                             <th style="padding:10px 14px;">Nome</th>
-                            <th style="padding:10px 12px; width:190px;">Categoria</th>
-                            <th style="padding:10px 12px; width:210px;">Fonte de Fornecimento</th>
-                            <th style="padding:10px 12px; width:165px; text-align:right;">Valor (R$)</th>
+                            <th style="padding:10px 12px; width:180px; text-align:right;">Valor (R$)</th>
                             <th style="padding:10px 12px; width:120px; text-align:center;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="avarias-itens-tbody">
                         ${itens.length === 0 ? `
                             <tr>
-                                <td colspan="5" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                <td colspan="3" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
                                     Nenhum valor de avaria cadastrado. Utilize os campos acima para <strong>Adicionar</strong> ou clique em <strong>Importar Planilha</strong>.
                                 </td>
                             </tr>
                         ` : itens.map(item => `
                             <tr class="avaria-row-item"
                                 data-nome="${_escHtmlProp(window._normTextoAvaria(item.nome))}"
-                                data-categoria="${_escHtmlProp(window._normTextoAvaria(item.categoria))}"
-                                data-fonte="${_escHtmlProp(window._normTextoAvaria(item.fonte_fornecimento))}"
                                 style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:8px 14px; font-weight:600; color:#1e293b;">
                                     ${_escHtmlProp(item.nome || '—')}
                                 </td>
-                                <td style="padding:8px 12px;">
-                                    ${item.categoria ? `<span style="font-size:0.73rem; font-weight:700; padding:3px 9px; border-radius:999px; background:#ede9fe; color:#6d28d9; display:inline-block;">${_escHtmlProp(item.categoria)}</span>` : '<span style="color:#94a3b8;">—</span>'}
-                                </td>
-                                <td style="padding:8px 12px;">
-                                    ${item.fonte_fornecimento ? `<span style="font-size:0.73rem; font-weight:700; padding:3px 9px; border-radius:6px; background:#f1f5f9; color:#334155; display:inline-block;">${_escHtmlProp(item.fonte_fornecimento)}</span>` : '<span style="color:#94a3b8;">—</span>'}
-                                </td>
                                 <td style="padding:8px 12px; text-align:right;">
                                     <input type="number" step="0.01" id="avaria-val-${item.id}" value="${Number(item.valor || 0).toFixed(2)}"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); window.salvarValorLinhaAvaria(${item.id});}"
-                                        style="width:125px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
+                                        style="width:135px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
                                 </td>
                                 <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
                                     <button type="button" onclick="window.salvarValorLinhaAvaria(${item.id})" title="Salvar Valor"
@@ -24086,123 +23975,19 @@ window._renderValoresAvariasInt = async function() {
         </div>
     `;
 
-    if (prevFiltroNome || prevFiltroCat || prevFiltroFonte) {
+    if (prevFiltroNome) {
         window.filtrarTabelaValoresAvarias();
     }
 };
-
-window._getComboAvariaConfig = function(tipo) {
-    const map = {
-        'novo-categoria': { inputId: 'avaria-novo-categoria', listId: 'avaria-combo-novo-categoria', isFiltro: false, isFonte: false },
-        'novo-fonte': { inputId: 'avaria-novo-fonte', listId: 'avaria-combo-novo-fonte', isFiltro: false, isFonte: true },
-        'filtro-categoria': { inputId: 'avaria-filtro-categoria', listId: 'avaria-combo-filtro-categoria', isFiltro: true, isFonte: false, labelTodos: 'Todas as Categorias' },
-        'filtro-fonte': { inputId: 'avaria-filtro-fonte', listId: 'avaria-combo-filtro-fonte', isFiltro: true, isFonte: true, labelTodos: 'Todas as Fontes' },
-        'swal-categoria': { inputId: 'swal-avaria-categoria', listId: 'avaria-combo-swal-categoria', isFiltro: false, isFonte: false },
-        'swal-fonte': { inputId: 'swal-avaria-fonte', listId: 'avaria-combo-swal-fonte', isFiltro: false, isFonte: true }
-    };
-    return map[tipo] || null;
-};
-
-window.fecharCombosValoresAvarias = function(excetoListId) {
-    [
-        'avaria-combo-novo-categoria',
-        'avaria-combo-novo-fonte',
-        'avaria-combo-filtro-categoria',
-        'avaria-combo-filtro-fonte',
-        'avaria-combo-swal-categoria',
-        'avaria-combo-swal-fonte'
-    ].forEach(id => {
-        if (id !== excetoListId) {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        }
-    });
-};
-
-window.abrirComboValorAvaria = function(tipo, filtrarPorDigitado) {
-    const cfg = window._getComboAvariaConfig(tipo);
-    if (!cfg) return;
-    const inp = document.getElementById(cfg.inputId);
-    const listEl = document.getElementById(cfg.listId);
-    if (!inp || !listEl) return;
-
-    window.fecharCombosValoresAvarias(cfg.listId);
-
-    const todasOpcoes = cfg.isFonte ? window._obterOpcoesFonteAvaria() : window._obterOpcoesCategoriaAvaria();
-    const termo = filtrarPorDigitado ? window._normTextoAvaria(inp.value) : '';
-    const opcoesFiltradas = termo
-        ? todasOpcoes.filter(op => window._normTextoAvaria(op).includes(termo))
-        : todasOpcoes;
-
-    let html = '';
-    if (cfg.isFiltro) {
-        html += `
-            <div onmousedown="window.selecionarOpcaoComboValorAvaria(event, '${tipo}', '')"
-                style="padding:8px 12px; font-size:0.8rem; font-weight:700; color:#5f3dc4; border-bottom:1px solid #f1f5f9; cursor:pointer; background:#f8fafc;">
-                ${_escHtmlProp(cfg.labelTodos)}
-            </div>
-        `;
-    }
-
-    if (opcoesFiltradas.length === 0) {
-        html += `<div style="padding:9px 12px; font-size:0.78rem; color:#64748b;">${cfg.isFiltro ? 'Nenhuma opção encontrada.' : 'Pressione Enter ou continue digitando para usar este valor.'}</div>`;
-    } else {
-        html += opcoesFiltradas.map(op => `
-            <div onmousedown="window.selecionarOpcaoComboValorAvaria(event, '${tipo}', '${_escHtmlProp(op).replace(/'/g, "\\'")}')"
-                style="padding:8px 12px; font-size:0.81rem; color:#1e293b; border-bottom:1px solid #f8fafc; cursor:pointer;"
-                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
-                ${_escHtmlProp(op)}
-            </div>
-        `).join('');
-    }
-
-    listEl.innerHTML = html;
-    listEl.style.display = 'block';
-};
-
-window.selecionarOpcaoComboValorAvaria = function(event, tipo, valor) {
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    const cfg = window._getComboAvariaConfig(tipo);
-    if (!cfg) return;
-    const inp = document.getElementById(cfg.inputId);
-    const listEl = document.getElementById(cfg.listId);
-    if (inp) inp.value = valor;
-    if (listEl) listEl.style.display = 'none';
-    if (cfg.isFiltro) {
-        window.filtrarTabelaValoresAvarias();
-    }
-};
-
-document.addEventListener('click', (ev) => {
-    const insideCombo = ev.target.closest && ev.target.closest('#prop-view-valores-avarias, .swal2-container');
-    if (!insideCombo) {
-        window.fecharCombosValoresAvarias();
-        return;
-    }
-    const isInputOrCaret = ev.target.matches && ev.target.matches('#avaria-novo-categoria, #avaria-novo-fonte, #avaria-filtro-categoria, #avaria-filtro-fonte, #swal-avaria-categoria, #swal-avaria-fonte, .ph-caret-down');
-    if (!isInputOrCaret) {
-        window.fecharCombosValoresAvarias();
-    }
-});
 
 window.filtrarTabelaValoresAvarias = function() {
     const qNome = window._normTextoAvaria(document.getElementById('avaria-filtro-nome')?.value || '');
-    const qCat = window._normTextoAvaria(document.getElementById('avaria-filtro-categoria')?.value || '');
-    const qFonte = window._normTextoAvaria(document.getElementById('avaria-filtro-fonte')?.value || '');
 
     let visiveis = 0;
     const rows = document.querySelectorAll('#avarias-itens-tbody .avaria-row-item');
     rows.forEach(tr => {
         const dNome = tr.getAttribute('data-nome') || '';
-        const dCat = tr.getAttribute('data-categoria') || '';
-        const dFonte = tr.getAttribute('data-fonte') || '';
-        const okNome = !qNome || dNome.includes(qNome);
-        const okCat = !qCat || dCat.includes(qCat);
-        const okFonte = !qFonte || dFonte.includes(qFonte);
-        const mostrar = okNome && okCat && okFonte;
+        const mostrar = !qNome || dNome.includes(qNome);
         tr.style.display = mostrar ? '' : 'none';
         if (mostrar) visiveis++;
     });
@@ -24210,28 +23995,21 @@ window.filtrarTabelaValoresAvarias = function() {
     const countEl = document.getElementById('avarias-contador-itens');
     if (countEl) {
         const total = (window._comercialValoresAvariasData || []).length;
-        countEl.textContent = (qNome || qCat || qFonte) ? `${visiveis} de ${total} item(ns)` : `${total} item(ns)`;
+        countEl.textContent = qNome ? `${visiveis} de ${total} item(ns)` : `${total} item(ns)`;
     }
 };
 
 window.limparFiltrosValoresAvarias = function() {
-    ['avaria-filtro-nome', 'avaria-filtro-categoria', 'avaria-filtro-fonte'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    window.fecharCombosValoresAvarias();
+    const el = document.getElementById('avaria-filtro-nome');
+    if (el) el.value = '';
     window.filtrarTabelaValoresAvarias();
 };
 
 window.adicionarItemValorAvaria = async function() {
     const inpNome = document.getElementById('avaria-novo-nome');
-    const inpCat = document.getElementById('avaria-novo-categoria');
-    const inpFonte = document.getElementById('avaria-novo-fonte');
     const inpVal = document.getElementById('avaria-novo-valor');
 
     const nome = (inpNome?.value || '').trim();
-    const categoria = (inpCat?.value || '').trim();
-    const fonte_fornecimento = (inpFonte?.value || '').trim();
     const valor = parseFloat(inpVal?.value || '0') || 0;
 
     if (!nome) {
@@ -24243,8 +24021,6 @@ window.adicionarItemValorAvaria = async function() {
     try {
         await apiPost('/comercial/valores-avarias', {
             nome,
-            categoria,
-            fonte_fornecimento,
             valor
         });
         if (inpNome) inpNome.value = '';
@@ -24279,31 +24055,13 @@ window.abrirModalEditarValorAvaria = async function(id) {
 
     const { value: formValues } = await Swal.fire({
         title: 'Editar Valor de Avaria',
-        width: 520,
+        width: 480,
         html: `
             <div style="text-align:left; display:flex; flex-direction:column; gap:12px; font-size:0.85rem;">
                 <div>
                     <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Nome *</label>
                     <input type="text" id="swal-avaria-nome" value="${_escHtmlProp(item.nome || '')}"
                         style="width:100%; height:38px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
-                </div>
-                <div style="position:relative;">
-                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Categoria</label>
-                    <input type="text" id="swal-avaria-categoria" value="${_escHtmlProp(item.categoria || '')}" autocomplete="off"
-                        onfocus="window.abrirComboValorAvaria('swal-categoria', false)"
-                        oninput="window.abrirComboValorAvaria('swal-categoria', true)"
-                        style="width:100%; height:38px; padding:0 28px 0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
-                    <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('swal-categoria', false)" style="position:absolute; right:10px; bottom:11px; color:#64748b; cursor:pointer;"></i>
-                    <div id="avaria-combo-swal-categoria" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:180px; overflow-y:auto; z-index:2050; box-shadow:0 8px 20px rgba(15,23,42,0.15);"></div>
-                </div>
-                <div style="position:relative;">
-                    <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Fonte de Fornecimento</label>
-                    <input type="text" id="swal-avaria-fonte" value="${_escHtmlProp(item.fonte_fornecimento || '')}" autocomplete="off"
-                        onfocus="window.abrirComboValorAvaria('swal-fonte', false)"
-                        oninput="window.abrirComboValorAvaria('swal-fonte', true)"
-                        style="width:100%; height:38px; padding:0 28px 0 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none;">
-                    <i class="ph ph-caret-down" onclick="window.abrirComboValorAvaria('swal-fonte', false)" style="position:absolute; right:10px; bottom:11px; color:#64748b; cursor:pointer;"></i>
-                    <div id="avaria-combo-swal-fonte" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:180px; overflow-y:auto; z-index:2050; box-shadow:0 8px 20px rgba(15,23,42,0.15);"></div>
                 </div>
                 <div>
                     <label style="display:block; font-weight:700; margin-bottom:4px; color:#334155;">Valor (R$) *</label>
@@ -24323,8 +24081,6 @@ window.abrirModalEditarValorAvaria = async function(id) {
             }
             return {
                 nome,
-                categoria: (document.getElementById('swal-avaria-categoria')?.value || '').trim(),
-                fonte_fornecimento: (document.getElementById('swal-avaria-fonte')?.value || '').trim(),
                 valor: parseFloat(document.getElementById('swal-avaria-valor')?.value || '0') || 0
             };
         }

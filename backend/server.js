@@ -50795,14 +50795,12 @@ app.get('/api/comercial/valores-avarias/exportar', authenticateToken, (req, res)
     if (err) return res.status(500).json({ error: err.message });
     try {
       const XLSX = require('xlsx');
-      const header = ['ID', 'Nome', 'Categoria', 'Fonte de Fornecimento', 'Valor (R$)'];
+      const header = ['ID', 'Nome', 'Valor (R$)'];
       const aoa = [header];
       (rows || []).forEach(r => {
         aoa.push([
           r.id,
           r.nome || '',
-          r.categoria || '',
-          r.fonte_fornecimento || '',
           Number(r.valor || 0)
         ]);
       });
@@ -50810,10 +50808,8 @@ app.get('/api/comercial/valores-avarias/exportar', authenticateToken, (req, res)
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       ws['!cols'] = [
         { wch: 10 },
-        { wch: 48 },
-        { wch: 24 },
-        { wch: 26 },
-        { wch: 16 }
+        { wch: 52 },
+        { wch: 18 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, 'VALORES DE AVARIAS');
       const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -50871,7 +50867,7 @@ app.post('/api/comercial/valores-avarias/importar', authenticateToken, uploadImp
 
     const sheetName = workbook.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
-    if (!rows || rows.length < 2) {
+    if (!rows || rows.length < 1) {
       return res.status(400).json({ error: 'A planilha enviada não contém linhas de dados.' });
     }
 
@@ -50880,41 +50876,41 @@ app.post('/api/comercial/valores-avarias/importar', authenticateToken, uploadImp
 
     let colId = headerRow.findIndex(h => h === 'ID' || h === 'CODIGO' || h.startsWith('COD'));
     let colNome = headerRow.findIndex(h => h.includes('NOME') || h.includes('AVARIA') || h.includes('EQUIPAMENTO') || h.includes('PRODUTO') || h.includes('DESCRICAO') || h.includes('ITEM'));
-    let colCat = headerRow.findIndex(h => h.includes('CATEGORIA') || h.includes('GRUPO'));
-    let colFonte = headerRow.findIndex(h => h.includes('FONTE') || h.includes('FORNECIMENTO'));
     let colValor = headerRow.findIndex(h => h.includes('VALOR') || h.includes('PRECO') || h.includes('CUSTO'));
 
-    // Fallback posicional caso os cabeçalhos sejam personalizados
-    if (colNome < 0) {
-      if (colId === 0) {
+    let startRowIdx = 1;
+    if (colNome < 0 && colValor < 0 && colId < 0) {
+      // Planilha sem linha de cabeçalho
+      startRowIdx = 0;
+      const firstNonEmpty = rows.find(r => r && r.some(c => String(c ?? '').trim() !== '')) || [];
+      if (firstNonEmpty.length >= 3 && /^\d+$/.test(String(firstNonEmpty[0] || '').trim())) {
+        colId = 0;
         colNome = 1;
-        if (colCat < 0 && headerRow.length >= 3) colCat = 2;
-        if (colFonte < 0 && headerRow.length >= 4) colFonte = 3;
-        if (colValor < 0) colValor = headerRow.length >= 5 ? 4 : headerRow.length - 1;
+        colValor = firstNonEmpty.length - 1;
       } else {
+        colId = -1;
         colNome = 0;
-        if (colCat < 0 && headerRow.length >= 2) colCat = 1;
-        if (colFonte < 0 && headerRow.length >= 3) colFonte = 2;
-        if (colValor < 0) colValor = headerRow.length >= 4 ? 3 : headerRow.length - 1;
+        colValor = firstNonEmpty.length >= 2 ? firstNonEmpty.length - 1 : 1;
       }
+    } else {
+      if (colNome < 0) colNome = colId === 0 ? 1 : 0;
+      if (colValor < 0) colValor = headerRow.length - 1;
     }
 
     const itensPlanilha = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = startRowIdx; i < rows.length; i++) {
       const r = rows[i];
       if (!r || !r.some(cell => String(cell ?? '').trim() !== '')) continue;
       const idVal = colId >= 0 ? (parseInt(String(r[colId] || '').trim(), 10) || null) : null;
       const nomeVal = colNome >= 0 ? String(r[colNome] || '').replace(/\s+/g, ' ').trim() : '';
-      const catVal = colCat >= 0 ? String(r[colCat] || '').replace(/\s+/g, ' ').trim() : '';
-      const fonteVal = colFonte >= 0 ? String(r[colFonte] || '').replace(/\s+/g, ' ').trim() : '';
       const valorVal = colValor >= 0 ? parseNumExcel(r[colValor]) : 0;
 
       if (!nomeVal && !idVal) continue;
       itensPlanilha.push({
         id: idVal,
         nome: nomeVal,
-        categoria: catVal,
-        fonte_fornecimento: fonteVal,
+        categoria: '',
+        fonte_fornecimento: '',
         valor: valorVal
       });
     }
