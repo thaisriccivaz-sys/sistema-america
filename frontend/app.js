@@ -16456,8 +16456,13 @@ async function checkUserNotificacoes() {
                     bg = '#dcfce7'; color = '#16a34a'; icon = 'ph-check-circle'; titulo = 'PROPOSTA PRÉ APROVADA'; navTarget = 'comercial-propostas';
                 } else if (notif.tipo === 'proposta_assinada_assinafy') {
                     const ehCtrPop = Boolean(dados && dados.eh_contrato);
-                    bg = '#dcfce7'; color = '#15803d'; icon = 'ph-seal-check';
-                    titulo = ehCtrPop ? 'CONTRATO ASSINADO (ASSINAFY)' : 'PROPOSTA ASSINADA (ASSINAFY)';
+                    const ehParcialPop = Boolean(dados && dados.assinatura_parcial);
+                    bg = ehParcialPop ? '#fffbeb' : '#dcfce7';
+                    color = ehParcialPop ? '#d97706' : '#15803d';
+                    icon = ehParcialPop ? 'ph-clock-countdown' : 'ph-seal-check';
+                    titulo = ehParcialPop
+                        ? 'ASSINATURA PARCIAL DE CONTRATO'
+                        : (ehCtrPop ? 'CONTRATO ASSINADO POR TODAS AS PARTES' : 'PROPOSTA ASSINADA (ASSINAFY)');
                     navTarget = ehCtrPop ? 'comercial-contratos' : 'comercial-propostas';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
@@ -16755,15 +16760,24 @@ async function checkUserNotificacoes() {
                     `;
                 } else if (notif.tipo === 'proposta_assinada_assinafy') {
                     const ehCtrPop = Boolean(dados && dados.eh_contrato);
-                    contentHTML = ehCtrPop ? `
-                        <div style="font-weight:800;font-size:1.12rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
-                            <i class="ph ${icon}"></i> CONTRATO Nº ${dados.numero_contrato || dados.numero_proposta || '—'} ASSINADO
+                    const ehParcialPop = Boolean(dados && dados.assinatura_parcial);
+                    contentHTML = ehParcialPop ? `
+                        <div style="font-weight:800;font-size:1.08rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> ASSINATURA PARCIAL — CONTRATO Nº ${dados.numero_contrato || dados.numero_proposta || '—'}
+                        </div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número do contrato:</b> ${dados.numero_contrato || '—'} (Proposta Nº ${dados.numero_proposta || dados.codigo || '—'})</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Progresso:</b> ${dados.assinados_count || 1} de ${dados.total_signatarios || 2} assinaturas realizadas</div>
+                        <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;"><b>Assinado por:</b> ${dados.contato_nome || '—'}</div>
+                    ` : (ehCtrPop ? `
+                        <div style="font-weight:800;font-size:1.08rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+                            <i class="ph ${icon}"></i> CONTRATO Nº ${dados.numero_contrato || dados.numero_proposta || '—'} ASSINADO POR TODAS AS PARTES
                         </div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Número do contrato:</b> ${dados.numero_contrato || '—'} (Proposta Nº ${dados.numero_proposta || dados.codigo || '—'})</div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Situação:</b> CONTRATO ASSINADO - Ativo</div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Tipo:</b> ${dados.tipo_proposta || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
-                        <div style="color:#0f172a;font-size:0.9rem;"><b>Assinado por:</b> ${dados.contato_nome || '—'}</div>
+                        <div style="color:#0f172a;font-size:0.9rem;"><b>Signatário(s):</b> ${dados.contato_nome || '—'}</div>
                     ` : `
                         <div style="font-weight:800;font-size:1.12rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
                             <i class="ph ${icon}"></i> PROPOSTA DE ${(dados.tipo_proposta || 'ADITIVO').toUpperCase()} ASSINADA
@@ -16772,7 +16786,7 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Tipo:</b> ${dados.tipo_proposta || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;"><b>Assinado por:</b> ${dados.contato_nome || '—'}</div>
-                    `;
+                    `);
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">

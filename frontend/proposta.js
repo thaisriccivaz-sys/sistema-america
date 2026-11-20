@@ -1040,6 +1040,87 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
     }
 };
 
+window.sincronizarAssinaturaDigitalQuadroContrato = async function(silencioso = false) {
+    if (!_propostasEditandoId) {
+        if (!silencioso && typeof Swal !== 'undefined') {
+            Swal.fire('Atenção', 'Salve ou abra um contrato antes de atualizar o status da assinatura digital.', 'info');
+        }
+        return;
+    }
+    const btn = document.getElementById('btn-atualizar-quadro-assinatura-digital');
+    const htmlOrig = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="ph ph-spinner ph-spin" style="font-size:0.9rem;"></i> Atualizando...`;
+    }
+    try {
+        await apiPost('/propostas/' + _propostasEditandoId + '/sync-assinafy', {});
+        await carregarPropostas();
+        const propAtual = (_propostasData || []).find(x => Number(x.id) === Number(_propostasEditandoId)) || null;
+        if (propAtual) {
+            window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(propAtual);
+            window.atualizarQuadroAssinaturaDigitalDom();
+            const selFase = document.getElementById('prop-fase');
+            const sitCtr = window.obterSituacaoContratoInicial(propAtual);
+            if (selFase && window._isModoContratosComercial && sitCtr) {
+                if (!Array.from(selFase.options).some(o => o.value === sitCtr)) {
+                    const optTmp = document.createElement('option');
+                    optTmp.value = sitCtr;
+                    optTmp.textContent = sitCtr;
+                    selFase.appendChild(optTmp);
+                }
+                selFase.value = sitCtr;
+                if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                    window.atualizarBadgeSituacaoContratoForm(sitCtr);
+                }
+            }
+            if (!silencioso && typeof Swal !== 'undefined') {
+                const sigs = window._propSignatariosContratoDraft || [];
+                const qtdAssin = sigs.filter(s => String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em)).length;
+                const msgResumo = sigs.length > 0
+                    ? `${qtdAssin} de ${sigs.length} assinatura(s) concluída(s)`
+                    : (propAtual.assinafy_status || 'Verificado');
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: qtdAssin > 0 && qtdAssin === sigs.length ? 'success' : 'info',
+                    title: `Assinatura atualizada: ${msgResumo}`,
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            }
+        }
+    } catch (e) {
+        console.warn('[SYNC ASSINAFY QUADRO] Erro:', e);
+        if (!silencioso && typeof Swal !== 'undefined') {
+            Swal.fire('Erro', 'Não foi possível verificar o status no Assinafy: ' + (e.message || 'Erro de conexão'), 'error');
+        }
+    } finally {
+        const btnFim = document.getElementById('btn-atualizar-quadro-assinatura-digital');
+        if (btnFim) {
+            btnFim.disabled = false;
+            btnFim.innerHTML = htmlOrig || `<i class="ph ph-arrows-clockwise" style="font-size:0.9rem;"></i> Atualizar`;
+        }
+    }
+};
+
+// Verificação automática de 15 em 15 minutos no frontend (sincroniza contrato/proposta aberta ou tela de Assinaturas)
+if (!window._assinafyAutoRefreshInterval15m) {
+    window._assinafyAutoRefreshInterval15m = setInterval(async () => {
+        try {
+            if (_propostasEditandoId && document.getElementById('prop-secao-assinatura-digital')) {
+                const propAberta = (_propostasData || []).find(x => Number(x.id) === Number(_propostasEditandoId));
+                if (propAberta && propAberta.assinafy_doc_id && String(propAberta.assinafy_status || '').toLowerCase() !== 'assinado') {
+                    await window.sincronizarAssinaturaDigitalQuadroContrato(true);
+                }
+            }
+            if (document.getElementById('assinaturas-comercial-tbody')) {
+                await window.renderTelaAssinaturasComercial(true);
+            }
+        } catch (_) {}
+    }, 15 * 60 * 1000);
+}
+
 window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = false) {
     if (!usarDraft || !Array.isArray(window._propSignatariosContratoDraft)) {
         window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(prop);
@@ -4531,9 +4612,14 @@ function _renderFormPropostaInt() {
                                 <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital
                                 <span id="prop-assinatura-digital-count-badge" style="background:#ccfbf1; color:#115e59; border:1px solid #5eead4; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${window.obterListaSignatariosProposta(prop).length} signatário(s)</span>
                             </h4>
-                            <button type="button" tabindex="-1" style="background:#ccfbf1; border:1px solid #5eead4; color:#0f766e; width:26px; height:26px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
-                                <i id="prop-caret-assinatura_digital" class="ph ph-caret-down" style="font-size:0.95rem; transition:transform 0.2s; transform:${window._contratoSecoesAbertas.assinatura_digital ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
-                            </button>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button type="button" id="btn-atualizar-quadro-assinatura-digital" onclick="event.stopPropagation(); window.sincronizarAssinaturaDigitalQuadroContrato(false);" title="Verificar agora no Assinafy se algum signatário assinou o contrato" style="background:#0284c7; color:#ffffff; border:none; padding:4px 10px; border-radius:6px; font-weight:700; font-size:0.74rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
+                                    <i class="ph ph-arrows-clockwise" style="font-size:0.9rem;"></i> Atualizar
+                                </button>
+                                <button type="button" tabindex="-1" style="background:#ccfbf1; border:1px solid #5eead4; color:#0f766e; width:26px; height:26px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                    <i id="prop-caret-assinatura_digital" class="ph ph-caret-down" style="font-size:0.95rem; transition:transform 0.2s; transform:${window._contratoSecoesAbertas.assinatura_digital ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
+                            </div>
                         </div>
                         <div id="prop-secao-assinatura_digital-body" style="display:${window._contratoSecoesAbertas.assinatura_digital ? 'block' : 'none'}; margin-top:0.6rem;">
                             <div id="prop-quadro-assinatura-digital-conteudo">
@@ -9979,6 +10065,7 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
                         <select id="assinaturas-comercial-status" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
                             <option value="">Todas as Situações</option>
                             <option value="AGUARDANDO">Aguardando Assinatura</option>
+                            <option value="PARCIAL">Assinatura parcial realizada</option>
                             <option value="ASSINADO">Assinado</option>
                             <option value="REPROVADA">Reprovada</option>
                         </select>
@@ -10081,8 +10168,10 @@ window.filtrarTabelaAssinaturasComercial = function() {
     }
 
     const lista = todosItens.filter(item => {
+        const ehParcialItem = Boolean(item.foi_assinado_parcial || String(item.situacao_assinatura || '').toUpperCase().includes('PARCIAL'));
         if (filtroTipoDoc && String(item.tipo_documento || '').toUpperCase() !== filtroTipoDoc) return false;
-        if (filtroStatus === 'AGUARDANDO' && item.foi_assinado) return false;
+        if (filtroStatus === 'AGUARDANDO' && (item.foi_assinado || ehParcialItem)) return false;
+        if (filtroStatus === 'PARCIAL' && !ehParcialItem) return false;
         if (filtroStatus === 'ASSINADO' && !item.foi_assinado) return false;
         if (filtroStatus === 'REPROVADA' && !String(item.situacao_assinatura || '').toUpperCase().includes('REPROVAD')) return false;
         if (!termo) return true;
@@ -10126,14 +10215,32 @@ window.filtrarTabelaAssinaturasComercial = function() {
             ? window.formatarNomeClienteComIcone(item.cliente_nome || '')
             : (item.cliente_nome || '—');
         const sitUpper = String(item.situacao_assinatura || '').toUpperCase();
+        const ehParcial = Boolean(item.foi_assinado_parcial || sitUpper.includes('PARCIAL'));
         let badgeSit = '';
         if (sitUpper.includes('REPROVAD')) {
             badgeSit = `<span style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-x-circle"></i> ${_escHtmlProp(item.situacao_assinatura)}</span>`;
         } else if (item.foi_assinado) {
             badgeSit = `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Assinado</span>`;
+        } else if (ehParcial) {
+            badgeSit = `<span style="background:#fef3c7; color:#b45309; border:1px solid #fcd34d; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock-countdown"></i> Assinatura parcial realizada${item.resumo_parcial ? ' (' + _escHtmlProp(item.resumo_parcial) + ')' : ''}</span>`;
         } else {
             badgeSit = `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`;
         }
+        const sigsLista = Array.isArray(item.signatarios) ? item.signatarios : [];
+        const contatoColHtml = sigsLista.length > 1
+            ? `<div style="display:flex; flex-direction:column; gap:3px;">${sigsLista.map(s => {
+                const isSigAssin = String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em);
+                return `<div style="display:flex; align-items:center; gap:5px; font-size:0.76rem; line-height:1.25;">
+                    <i class="ph ${isSigAssin ? 'ph-check-circle' : 'ph-clock'}" style="color:${isSigAssin ? '#16a34a' : '#d97706'}; font-size:0.9rem; flex-shrink:0;" title="${isSigAssin ? 'Assinado' : 'Aguardando Assinatura'}"></i>
+                    <span style="font-weight:700; color:#0f172a;">${_escHtmlProp(s.nome || '—')}</span>
+                    <span style="font-size:0.68rem; color:#64748b; font-weight:600;">(${_escHtmlProp(s.tipo || 'Signatário')})</span>
+                </div>`;
+            }).join('')}</div>`
+            : _escHtmlProp(item.contato_nome || '—');
+        const sigsAssinadosComData = sigsLista.filter(s => (String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em)) && s.assinado_em);
+        const dataAssinaturaColHtml = sigsAssinadosComData.length > 1
+            ? `<div style="display:flex; flex-direction:column; gap:4px;">${sigsAssinadosComData.map(s => fmtDataHoraDuasLinhas(s.assinado_em, '#15803d', '#16a34a')).join('<div style="border-top:1px dashed #cbd5e1; margin:1px 0;"></div>')}</div>`
+            : (item.assinado_em ? fmtDataHoraDuasLinhas(item.assinado_em, '#15803d', '#16a34a') : (sigsAssinadosComData.length === 1 ? fmtDataHoraDuasLinhas(sigsAssinadosComData[0].assinado_em, '#d97706', '#b45309') : '<span style="color:#94a3b8;">—</span>'));
         const ehContratoDoc = String(item.tipo_documento || '').toUpperCase() === 'CONTRATO';
         const numContratoItem = String(item.contrato || (ehContratoDoc ? item.codigo : '') || '').trim();
         const numPropostaItem = String(item.codigo_proposta || (!ehContratoDoc ? item.codigo : '') || '').trim();
@@ -10154,10 +10261,10 @@ window.filtrarTabelaAssinaturasComercial = function() {
                         <i class="ph ph-envelope-simple" style="font-size:0.85rem;"></i> ${_escHtmlProp((item.email_enviado || '—').toLowerCase())}
                     </div>
                 </td>
-                <td style="padding:10px 12px; min-width:210px; width:19%; font-weight:600; color:#334155;">${_escHtmlProp(item.contato_nome || '—')}</td>
+                <td style="padding:10px 12px; min-width:210px; width:19%; font-weight:600; color:#334155;">${contatoColHtml}</td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${fmtDataHoraDuasLinhas(item.enviado_em, '#334155', '#64748b')}</td>
                 <td style="padding:10px 12px; white-space:nowrap;">${badgeSit}</td>
-                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${item.assinado_em ? fmtDataHoraDuasLinhas(item.assinado_em, '#15803d', '#16a34a') : '<span style="color:#94a3b8;">—</span>'}</td>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${dataAssinaturaColHtml}</td>
                 <td style="padding:10px 12px; text-align:center; white-space:nowrap;">
                     <div style="display:inline-flex; align-items:center; gap:6px;">
                         <button type="button" onclick="window.visualizarPdfAssinaturaComercial(${item.id})" title="Conferir Documento / PDF Assinafy" style="background:#0d9488; color:#fff; border:none; padding:0 10px; height:30px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; font-weight:700;"><i class="ph ph-eye" style="font-size:0.95rem;"></i> Conferir</button>
