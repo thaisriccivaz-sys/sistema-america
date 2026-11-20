@@ -10334,6 +10334,29 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
     }
 };
 
+window.filtrarAssinaturasPorKpiCard = function(tipoCard) {
+    const selTipoDoc = document.getElementById('assinaturas-comercial-tipo-doc');
+    const selStatus = document.getElementById('assinaturas-comercial-status');
+    const tipoAtual = (selTipoDoc?.value || '').toUpperCase().trim();
+    const statusAtual = (selStatus?.value || '').toUpperCase().trim();
+
+    if (tipoCard === 'TOTAL') {
+        if (selTipoDoc) selTipoDoc.value = '';
+        if (selStatus) selStatus.value = '';
+    } else if (tipoCard === 'PROPOSTA' || tipoCard === 'CONTRATO') {
+        if (selTipoDoc) {
+            selTipoDoc.value = (tipoAtual === tipoCard && !statusAtual) ? '' : tipoCard;
+        }
+        if (selStatus) selStatus.value = '';
+    } else if (tipoCard === 'AGUARDANDO' || tipoCard === 'ASSINADO') {
+        if (selTipoDoc) selTipoDoc.value = '';
+        if (selStatus) {
+            selStatus.value = (statusAtual === tipoCard && !tipoAtual) ? '' : tipoCard;
+        }
+    }
+    window.filtrarTabelaAssinaturasComercial();
+};
+
 window.filtrarTabelaAssinaturasComercial = function() {
     const tbody = document.getElementById('assinaturas-comercial-tbody');
     if (!tbody) return;
@@ -10350,25 +10373,32 @@ window.filtrarTabelaAssinaturasComercial = function() {
         const totCtr = todosItens.filter(x => String(x.tipo_documento || '').toUpperCase() === 'CONTRATO').length;
         const totAssin = todosItens.filter(x => x.foi_assinado).length;
         const totPend = todosItens.filter(x => !x.foi_assinado && !String(x.situacao_assinatura || '').toUpperCase().includes('REPROVAD')).length;
+
+        const isAtivoTotal = !filtroTipoDoc && !filtroStatus;
+        const isAtivoProp = filtroTipoDoc === 'PROPOSTA' && !filtroStatus;
+        const isAtivoCtr = filtroTipoDoc === 'CONTRATO' && !filtroStatus;
+        const isAtivoAguard = filtroStatus === 'AGUARDANDO' && !filtroTipoDoc;
+        const isAtivoAssin = filtroStatus === 'ASSINADO' && !filtroTipoDoc;
+
         kpiEl.innerHTML = `
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.74rem; font-weight:700; color:#64748b; text-transform:uppercase;">Total Enviados</span>
+            <div onclick="window.filtrarAssinaturasPorKpiCard('TOTAL')" title="Clique para exibir todos os documentos enviados" style="background:${isAtivoTotal ? '#f1f5f9' : '#fff'}; border:${isAtivoTotal ? '2px solid #0f172a' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:all 0.15s; box-shadow:${isAtivoTotal ? '0 2px 8px rgba(15,23,42,0.12)' : 'none'};" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                <span style="font-size:0.74rem; font-weight:800; color:#475569; text-transform:uppercase;">Total Enviados</span>
                 <span style="font-size:1.1rem; font-weight:800; color:#0f172a;">${totEnv}</span>
             </div>
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.74rem; font-weight:700; color:#6d28d9; text-transform:uppercase;">Propostas</span>
+            <div onclick="window.filtrarAssinaturasPorKpiCard('PROPOSTA')" title="Clique para filtrar apenas Propostas" style="background:${isAtivoProp ? '#f5f3ff' : '#fff'}; border:${isAtivoProp ? '2px solid #6d28d9' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:all 0.15s; box-shadow:${isAtivoProp ? '0 2px 8px rgba(109,40,217,0.15)' : 'none'};" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                <span style="font-size:0.74rem; font-weight:800; color:#6d28d9; text-transform:uppercase;">Propostas</span>
                 <span style="font-size:1.1rem; font-weight:800; color:#6d28d9;">${totProp}</span>
             </div>
-            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.74rem; font-weight:700; color:#b45309; text-transform:uppercase;">Contratos</span>
+            <div onclick="window.filtrarAssinaturasPorKpiCard('CONTRATO')" title="Clique para filtrar apenas Contratos" style="background:${isAtivoCtr ? '#fffbeb' : '#fff'}; border:${isAtivoCtr ? '2px solid #b45309' : '1px solid #e2e8f0'}; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:all 0.15s; box-shadow:${isAtivoCtr ? '0 2px 8px rgba(180,83,9,0.15)' : 'none'};" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                <span style="font-size:0.74rem; font-weight:800; color:#b45309; text-transform:uppercase;">Contratos</span>
                 <span style="font-size:1.1rem; font-weight:800; color:#b45309;">${totCtr}</span>
             </div>
-            <div style="background:#fff; border:1px solid #bae6fd; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.74rem; font-weight:700; color:#0369a1; text-transform:uppercase;">Aguardando</span>
+            <div onclick="window.filtrarAssinaturasPorKpiCard('AGUARDANDO')" title="Clique para filtrar documentos Aguardando Assinatura" style="background:${isAtivoAguard ? '#e0f2fe' : '#fff'}; border:${isAtivoAguard ? '2px solid #0284c7' : '1px solid #bae6fd'}; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:all 0.15s; box-shadow:${isAtivoAguard ? '0 2px 8px rgba(2,132,199,0.18)' : 'none'};" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                <span style="font-size:0.74rem; font-weight:800; color:#0369a1; text-transform:uppercase;">Aguardando</span>
                 <span style="font-size:1.1rem; font-weight:800; color:#0369a1;">${totPend}</span>
             </div>
-            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.74rem; font-weight:700; color:#15803d; text-transform:uppercase;">Assinados</span>
+            <div onclick="window.filtrarAssinaturasPorKpiCard('ASSINADO')" title="Clique para filtrar documentos Assinados" style="background:${isAtivoAssin ? '#dcfce7' : '#f0fdf4'}; border:${isAtivoAssin ? '2px solid #15803d' : '1px solid #86efac'}; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; transition:all 0.15s; box-shadow:${isAtivoAssin ? '0 2px 8px rgba(21,128,61,0.18)' : 'none'};" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                <span style="font-size:0.74rem; font-weight:800; color:#15803d; text-transform:uppercase;">Assinados</span>
                 <span style="font-size:1.1rem; font-weight:800; color:#15803d;">${totAssin}</span>
             </div>
         `;
@@ -10376,11 +10406,12 @@ window.filtrarTabelaAssinaturasComercial = function() {
 
     const lista = todosItens.filter(item => {
         const ehParcialItem = Boolean(item.foi_assinado_parcial || String(item.situacao_assinatura || '').toUpperCase().includes('PARCIAL'));
+        const ehReprovadoItem = String(item.situacao_assinatura || '').toUpperCase().includes('REPROVAD');
         if (filtroTipoDoc && String(item.tipo_documento || '').toUpperCase() !== filtroTipoDoc) return false;
-        if (filtroStatus === 'AGUARDANDO' && (item.foi_assinado || ehParcialItem)) return false;
+        if (filtroStatus === 'AGUARDANDO' && (item.foi_assinado || ehReprovadoItem)) return false;
         if (filtroStatus === 'PARCIAL' && !ehParcialItem) return false;
         if (filtroStatus === 'ASSINADO' && !item.foi_assinado) return false;
-        if (filtroStatus === 'REPROVADA' && !String(item.situacao_assinatura || '').toUpperCase().includes('REPROVAD')) return false;
+        if (filtroStatus === 'REPROVADA' && !ehReprovadoItem) return false;
         if (!termo) return true;
         return [
             item.codigo,
@@ -10440,7 +10471,6 @@ window.filtrarTabelaAssinaturasComercial = function() {
                 return `<div style="display:flex; align-items:center; gap:5px; font-size:0.76rem; line-height:1.25;">
                     <i class="ph ${isSigAssin ? 'ph-check-circle' : 'ph-clock'}" style="color:${isSigAssin ? '#16a34a' : '#d97706'}; font-size:0.9rem; flex-shrink:0;" title="${isSigAssin ? 'Assinado' : 'Aguardando Assinatura'}"></i>
                     <span style="font-weight:700; color:#0f172a;">${_escHtmlProp(s.nome || '—')}</span>
-                    <span style="font-size:0.68rem; color:#64748b; font-weight:600;">(${_escHtmlProp(s.tipo || 'Signatário')})</span>
                 </div>`;
             }).join('')}</div>`
             : _escHtmlProp(item.contato_nome || '—');
