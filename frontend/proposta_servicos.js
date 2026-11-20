@@ -88,7 +88,7 @@
         const obrig = window.tipoPropostaServicoObrigatorio(tipo);
         const tit = document.getElementById('prop-servicos-titulo');
         const hint = document.getElementById('prop-servicos-hint');
-        if (tit) tit.textContent = obrig ? 'Serviços da Proposta *' : 'Serviços da Proposta';
+        if (tit) tit.textContent = obrig ? 'Serviços*' : 'Serviços';
         if (hint) hint.textContent = '';
         window.alternarFreteFobServicoProposta();
     };
@@ -116,13 +116,21 @@
         const visivel = window.tipoPropostaUsaServicos(tipo);
         const obrigatorio = window.tipoPropostaServicoObrigatorio(tipo);
         const fobInicial = false;
+        const isModoCtr = window._modoTelaComercial === 'contrato';
+        const servAberto = !isModoCtr || Boolean(window._contratoSecoesAbertas && window._contratoSecoesAbertas.servicos);
         return `
         <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-            <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços da Proposta *' : 'Serviços da Proposta'}</span>
-                <span id="prop-servicos-hint" style="display:none;"></span>
-            </h4>
+            <div onclick="if(window._modoTelaComercial==='contrato' && typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${isModoCtr ? 'pointer' : 'default'}; user-select:none;">
+                <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços*' : 'Serviços'}</span>
+                    <span id="prop-servicos-hint" style="display:none;"></span>
+                </h4>
+                <button type="button" onclick="if(typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" title="Abrir / Fechar Serviços" style="display:${isModoCtr ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
+                    <i id="prop-caret-servicos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(isModoCtr && servAberto) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                </button>
+            </div>
 
+            <div id="prop-secao-servicos-body" style="display:${servAberto ? 'block' : 'none'}; margin-top:0.45rem;">
             <div style="display:grid; grid-template-columns:2fr 2.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
                 <div>
                     <label class="prop-lbl">Serviço</label>
@@ -194,6 +202,7 @@
                         <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>
                     </tbody>
                 </table>
+            </div>
             </div>
         </div>`;
     };

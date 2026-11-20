@@ -42674,7 +42674,18 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const assinaturaMimeFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_mime_type || null);
       const aceiteEmFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.aceite_publico_em || null);
       const aprovadoPorFinal = d.acao_estornar ? null : (isAgoraAprovada ? (oldRow.aprovado_por || nomeAutorAcao) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_por || null)));
-      const aprovadoEmFinal = d.acao_estornar ? null : (isAgoraAprovada ? (oldRow.aprovado_em || agora) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_em || null)));
+      let aprovadoEmFinal = d.acao_estornar ? null : (isAgoraAprovada ? (oldRow.aprovado_em || agora) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_em || null)));
+      if (d.modo_contrato) {
+        const dtEmissaoReq = String(d.data_cadastro || '').trim();
+        const dtEmissaoOld = String(oldRow.aprovado_em || '').trim().substring(0, 10);
+        if (dtEmissaoReq && /^\d{4}-\d{2}-\d{2}$/.test(dtEmissaoReq) && dtEmissaoReq !== dtEmissaoOld) {
+          const sufixoHora = String(oldRow.aprovado_em || '').length > 10 ? String(oldRow.aprovado_em).substring(10) : (' ' + agora.substring(11));
+          aprovadoEmFinal = dtEmissaoReq + sufixoHora;
+        }
+        d.data_cadastro = oldRow.data_cadastro || d.data_cadastro;
+        if (!d.validade_proposta && oldRow.validade_proposta) d.validade_proposta = oldRow.validade_proposta;
+        if (!d.previsao_fechamento && oldRow.previsao_fechamento) d.previsao_fechamento = oldRow.previsao_fechamento;
+      }
 
       const sitContratoFinal = d.situacao_contrato !== undefined
         ? d.situacao_contrato

@@ -1679,6 +1679,11 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
     if (_propostasEditandoId && Array.isArray(_propostasData)) {
         const propAtualDb = _propostasData.find(p => Number(p.id) === Number(_propostasEditandoId));
+        if (propAtualDb && m === 'contrato') {
+            const inpDtCadCtr = document.getElementById('prop-data-cadastro');
+            const dtEmissaoCtr = String(propAtualDb.aprovado_em || '').trim().substring(0, 10) || propAtualDb.data_cadastro || '';
+            if (inpDtCadCtr && dtEmissaoCtr) inpDtCadCtr.value = dtEmissaoCtr;
+        }
         if (propAtualDb && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propAtualDb)) {
             const selFaseRest = document.getElementById('prop-fase');
             if (selFaseRest && m !== 'contrato') {
@@ -2755,6 +2760,26 @@ function _renderFormPropostaInt() {
 
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
+    const isModoContratoRender = window._modoTelaComercial === 'contrato';
+    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false };
+    window.toggleSecaoContratoAccordion = function(chave, event) {
+        if (event) event.stopPropagation();
+        if (window._modoTelaComercial !== 'contrato') return;
+        window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false };
+        const bodyEl = document.getElementById('prop-secao-' + chave + '-body');
+        const caretEl = document.getElementById('prop-caret-' + chave);
+        if (!bodyEl) return;
+        const estavaAberto = bodyEl.style.display !== 'none';
+        const novoEstado = !estavaAberto;
+        window._contratoSecoesAbertas[chave] = novoEstado;
+        bodyEl.style.display = novoEstado ? 'block' : 'none';
+        if (caretEl) {
+            caretEl.style.transform = novoEstado ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+    };
+    const dataCadastroValorForm = isModoContratoRender
+        ? (String(v('aprovado_em') || '').trim().substring(0, 10) || v('data_cadastro') || hoje)
+        : (v('data_cadastro') || hoje);
 
     container.innerHTML = `
         <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0;">
@@ -2916,18 +2941,18 @@ function _renderFormPropostaInt() {
                     <div id="prop-campos-dependentes-tipo" onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
 
                     <!-- Linha 2: Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
-                            <input type="date" id="prop-data-cadastro" value="${v('data_cadastro') || hoje}" onchange="window.calcularPrevisaoFechamento()"
+                            <input type="date" id="prop-data-cadastro" value="${dataCadastroValorForm}" onchange="window.calcularPrevisaoFechamento()"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
-                        <div>
+                        <div id="prop-col-validade" style="display:${window._modoTelaComercial === 'contrato' ? 'none' : 'block'};">
                             <label class="prop-lbl">Validade da Proposta</label>
                             <input type="date" id="prop-validade-proposta" value="${v('validade_proposta') || umaSemanaDepois}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
-                        <div>
+                        <div id="prop-col-previsao" style="display:${window._modoTelaComercial === 'contrato' ? 'none' : 'block'};">
                             <label class="prop-lbl">Previsão Fechamento *</label>
                             <input type="date" id="prop-previsao" value="${v('previsao_fechamento') || umaSemanaDepois}"
                                 style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
@@ -3134,9 +3159,15 @@ function _renderFormPropostaInt() {
 
                     <!-- Seção: Período e Condições -->
                     <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-                        <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
-                        </h4>
+                        <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
+                            <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                                <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
+                            </h4>
+                            <button type="button" onclick="window.toggleSecaoContratoAccordion('periodo', event)" title="Abrir / Fechar Período e Condições" style="display:${window._modoTelaComercial === 'contrato' ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #86efac; background:#dcfce7; color:#166534; cursor:pointer;">
+                                <i id="prop-caret-periodo" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._modoTelaComercial === 'contrato' && window._contratoSecoesAbertas && window._contratoSecoesAbertas.periodo) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                            </button>
+                        </div>
+                        <div id="prop-secao-periodo-body" style="display:${(window._modoTelaComercial !== 'contrato' || (window._contratoSecoesAbertas && window._contratoSecoesAbertas.periodo)) ? 'block' : 'none'}; margin-top:0.45rem;">
                         <div id="prop-periodo-condicoes-grid" style="display:grid; grid-template-columns:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '0.85fr 1.1fr 1.8fr' : '1fr 1fr 0.75fr 1.6fr'}; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
                             <div id="prop-wrapper-periodo-ini">
                                 <label class="prop-lbl" id="prop-lbl-periodo-ini">${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'Previsão de Entrega *' : 'Período Início *'}</label>
@@ -3241,15 +3272,16 @@ function _renderFormPropostaInt() {
                                 <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
                             </div>
                         </div>
+                        </div>
                     </div>
 
-                    <!-- Seção: Produtos da Proposta -->
+                    <!-- Seção: Produtos -->
                     <div id="prop-secao-produtos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-                        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0 0 0.45rem;">
+                        <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos da Proposta
+                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos
                             </h4>
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" onclick="event.stopPropagation();">
                                 <button type="button" id="btn-prop-comparar-valores" onclick="if(typeof window.abrirModalCompararValoresProposta === 'function') window.abrirModalCompararValoresProposta(event);" disabled
                                     style="display:inline-flex; align-items:center; gap:5px; font-size:0.77rem; font-weight:700; color:#94a3b8; background:#e2e8f0; border:1px solid #cbd5e1; padding:3px 10px; border-radius:6px; cursor:not-allowed; user-select:none; height:26px; box-sizing:border-box; transition:all 0.15s;"
                                     title="Selecione um cliente que possua proposta anterior para comparar valores">
@@ -3260,8 +3292,12 @@ function _renderFormPropostaInt() {
                                     <input type="checkbox" id="prop-comparativa" ${Number(v('proposta_comparativa')) === 1 ? 'checked' : ''} onchange="if(!this.checked) window._propProdutosAprovadosAtual = []; if(typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();" style="width:15px; height:15px; accent-color:#1d4ed8; cursor:pointer;">
                                     <span>Proposta comparativa</span>
                                 </label>
+                                <button type="button" onclick="window.toggleSecaoContratoAccordion('produtos', event)" title="Abrir / Fechar Produtos" style="display:${window._modoTelaComercial === 'contrato' ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #fcd34d; background:#fef08a; color:#854d0e; cursor:pointer;">
+                                    <i id="prop-caret-produtos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._modoTelaComercial === 'contrato' && window._contratoSecoesAbertas && window._contratoSecoesAbertas.produtos) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
                             </div>
                         </div>
+                        <div id="prop-secao-produtos-body" style="display:${(window._modoTelaComercial !== 'contrato' || (window._contratoSecoesAbertas && window._contratoSecoesAbertas.produtos)) ? 'block' : 'none'}; margin-top:0.45rem;">
                         
                         <!-- Inputs para adicionar produto -->
                         <div id="prop-prod-add-grid" style="display:grid; grid-template-columns:2fr 2.5fr 0.8fr; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
@@ -3441,9 +3477,10 @@ function _renderFormPropostaInt() {
                                 </tbody>
                             </table>
                         </div>
+                        </div>
                     </div>
 
-                    <!-- Seção: Serviços da Proposta (somente OBRA MENSAL / QUINZENAL / SEMANAL) -->
+                    <!-- Seção: Serviços (somente OBRA MENSAL / QUINZENAL / SEMANAL) -->
                     ${typeof window.htmlBlocoServicosProposta === 'function' ? window.htmlBlocoServicosProposta(v('tipo')) : ''}
 
                     <!-- Seção: Adicionais de Logística (Zona & KM) - Oculta conforme solicitação -->
@@ -26252,7 +26289,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{ATENDENTE}}': String(p.atendente_nome || p.atendente || window.obterNomeUsuarioLogado() || 'Thais Ricci').trim(),
         '{{REPRESENTANTE}}': String(p.representante || p.atendente_nome || p.atendente || 'Thais Ricci').trim(),
         '{{LOCAL_FILIAL}}': String(p.local || 'AMERICA RENTAL').trim(),
-        '{{DATA_CADASTRO}}': fmtDataBr(p.data_cadastro || dataAtualBr),
+        '{{DATA_CADASTRO}}': fmtDataBr(p.aprovado_em || p.data_cadastro || dataAtualBr),
         '{{VALIDADE_PROPOSTA}}': fmtDataBr(p.validade_proposta || dataAtualBr),
         '{{PREVISAO_FECHAMENTO}}': fmtDataBr(p.previsao_fechamento || dataAtualBr),
         '{{SITUACAO_CONTRATO}}': String(p.situacao_contrato || 'AGUARDANDO ASSINATURA').trim(),
