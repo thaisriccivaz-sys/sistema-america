@@ -2832,11 +2832,11 @@ window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOv
         const chaveCtr = (tabIdOverride && tabIdOverride !== 'contrato') ? String(tabIdOverride) : (typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('contrato') : 'comercial-contratos');
         const tabCtr = tabsArr.find(t => t && t.tabId === chaveCtr) || tabsArr.find(t => t && t.target === 'comercial-contratos' && t.active) || tabsArr.find(t => t && t.target === 'comercial-contratos');
         if (!tabCtr) return;
-        const snapCtr = window._snapshotsFormComercial && (window._snapshotsFormComercial[tabCtr.tabId] || window._snapshotsFormComercial['contrato']);
+        const snapCtr = window._snapshotsFormComercial && window._snapshotsFormComercial[tabCtr.tabId];
         const isTabAtivaCtr = Boolean(tabCtr.active) && window._modoTelaComercial === 'contrato';
         const idRefCtr = isTabAtivaCtr
-            ? (_propostasEditandoId || (snapCtr && snapCtr.editandoId) || window._propostasEditandoId_contrato || null)
-            : ((snapCtr && snapCtr.editandoId) || window._propostasEditandoId_contrato || _propostasEditandoId || null);
+            ? (_propostasEditandoId || (snapCtr && snapCtr.editandoId) || null)
+            : ((snapCtr && snapCtr.editandoId) || null);
 
         let numCtr = '';
         if (codigoOverride) {
@@ -2978,27 +2978,27 @@ window.switchPropostaTab = function(tab) {
     const formElAtu = document.getElementById('form-proposta');
     const modoDomAtu = formElAtu ? formElAtu.getAttribute('data-modo-comercial') : '';
     const tabKeyDomAtu = formElAtu ? formElAtu.getAttribute('data-tab-key') : '';
-    if (modoDomAtu === 'contrato' || modoDomAtu === 'proposta') {
-        window.salvarSnapshotEstadoFormComercial(modoDomAtu, tabKeyDomAtu || undefined);
+    if ((modoDomAtu === 'contrato' || modoDomAtu === 'proposta') && tabKeyDomAtu) {
+        window.salvarSnapshotEstadoFormComercial(modoDomAtu, tabKeyDomAtu);
     }
     if (tab === 'contratos') {
         const chaveAlvoCtr = window._obterChaveSnapshotComercial('contrato');
-        if (modoAnterior !== 'contrato' || modoDomAtu !== 'contrato' || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoCtr)) {
+        if (modoAnterior !== 'contrato' || modoDomAtu !== 'contrato' || tabKeyDomAtu !== chaveAlvoCtr) {
             mudouModoComercial = true;
         }
         window._modoTelaComercial = 'contrato';
         const snapAlvoCtr = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoCtr];
-        _propostasEditandoId = snapAlvoCtr ? (snapAlvoCtr.editandoId || null) : (window._propostasEditandoId_contrato || null);
+        _propostasEditandoId = snapAlvoCtr ? (snapAlvoCtr.editandoId || null) : null;
         window._propostasEditandoId_contrato = _propostasEditandoId;
         tab = 'form';
     } else if (tab === 'propostas') {
         const chaveAlvoProp = window._obterChaveSnapshotComercial('proposta');
-        if (modoAnterior === 'contrato' || modoDomAtu !== 'proposta' || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoProp)) {
+        if (modoAnterior === 'contrato' || modoDomAtu !== 'proposta' || tabKeyDomAtu !== chaveAlvoProp) {
             mudouModoComercial = true;
         }
         window._modoTelaComercial = 'proposta';
         const snapAlvo = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoProp];
-        _propostasEditandoId = snapAlvo ? (snapAlvo.editandoId || null) : (window._propostasEditandoId_proposta || null);
+        _propostasEditandoId = snapAlvo ? (snapAlvo.editandoId || null) : null;
         window._propostasEditandoId_proposta = _propostasEditandoId;
         tab = 'form';
     } else if (tab === 'form') {
@@ -3006,13 +3006,11 @@ window.switchPropostaTab = function(tab) {
             ? window.sincronizarModoComercialComAbaAtiva()
             : modoAnterior;
         const chaveAlvoForm = window._obterChaveSnapshotComercial(modoSinc);
-        if (modoSinc !== modoAnterior || (modoDomAtu && modoDomAtu !== modoSinc) || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoForm)) {
+        if (modoSinc !== modoAnterior || (modoDomAtu && modoDomAtu !== modoSinc) || tabKeyDomAtu !== chaveAlvoForm) {
             mudouModoComercial = true;
         }
         const snapForm = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoForm];
-        _propostasEditandoId = snapForm
-            ? (snapForm.editandoId || null)
-            : (modoSinc === 'contrato' ? (window._propostasEditandoId_contrato || null) : (window._propostasEditandoId_proposta || null));
+        _propostasEditandoId = snapForm ? (snapForm.editandoId || null) : null;
     }
     _currentPropostaTab = tab;
     
@@ -3044,11 +3042,17 @@ window.switchPropostaTab = function(tab) {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
                     if (!_propostasEditandoId) window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
+                    if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+                        window.salvarSnapshotEstadoFormComercial(modoNovo);
+                    }
                 }
             } else if (viewForm.innerHTML.trim() === '') {
                 if (!window.restaurarSnapshotEstadoFormComercial(modoNovo)) {
                     if (!_propostasEditandoId) window._resetarEstadoMemoriaFormComercial(modoNovo);
                     _renderFormPropostaInt();
+                    if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+                        window.salvarSnapshotEstadoFormComercial(modoNovo);
+                    }
                 }
             } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
                 window.verificarBloqueioFaturamentoProposta();
@@ -9923,7 +9927,12 @@ window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
     window._modoTelaComercial = 'contrato';
     _propostasEditandoId = targetId;
     if (!jaEstaNaAbaContrato && typeof window.navigateTo === 'function') {
-        window.navigateTo('comercial-contratos');
+        window._abrindoRegistroEspecificoComercial = true;
+        try {
+            window.navigateTo('comercial-contratos');
+        } finally {
+            window._abrindoRegistroEspecificoComercial = false;
+        }
     }
     const chaveSnapCtr = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('contrato') : 'comercial-contratos';
     if (window._snapshotsFormComercial) {
@@ -9967,7 +9976,12 @@ window.abrirPropostaDiretoId = async function(id, forcarNovaAba = false) {
     window._propostasEditandoId_proposta = targetId;
     _propostasEditandoId = targetId;
     if (!jaEstaNaAbaProposta && typeof window.navigateTo === 'function') {
-        window.navigateTo('comercial-proposta');
+        window._abrindoRegistroEspecificoComercial = true;
+        try {
+            window.navigateTo('comercial-proposta');
+        } finally {
+            window._abrindoRegistroEspecificoComercial = false;
+        }
     }
     await carregarPropostas();
     const encontrada = (_propostasData || []).find(p => Number(p.id) === targetId)

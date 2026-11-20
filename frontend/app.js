@@ -1679,6 +1679,12 @@ function navigateTo(target) {
             if (window._snapshotsFormComercial) {
                 delete window._snapshotsFormComercial[newTabId];
             }
+            if (!window._abrindoRegistroEspecificoComercial) {
+                window._propostasEditandoId_proposta = null;
+                if (typeof window._resetarEstadoMemoriaFormComercial === 'function') {
+                    window._resetarEstadoMemoriaFormComercial('proposta');
+                }
+            }
             appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
         } else if (target === 'comercial-contratos') {
@@ -1694,6 +1700,12 @@ function navigateTo(target) {
             if (window._snapshotsFormComercial) {
                 delete window._snapshotsFormComercial[newTabId];
                 delete window._snapshotsFormComercial['contrato'];
+            }
+            if (!window._abrindoRegistroEspecificoComercial) {
+                window._propostasEditandoId_contrato = null;
+                if (typeof window._resetarEstadoMemoriaFormComercial === 'function') {
+                    window._resetarEstadoMemoriaFormComercial('contrato');
+                }
             }
             appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
