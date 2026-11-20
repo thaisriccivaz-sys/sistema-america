@@ -44903,6 +44903,7 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 db.serialize(() => {
   db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
   db.run("ALTER TABLE clientes ADD COLUMN ramo_atividade TEXT", () => {});
+  db.run("ALTER TABLE clientes ADD COLUMN tipo_vinculo_grupo TEXT", () => {});
   // Migrar ramo_atividade já cadastrado em contatos para o respectivo cliente quando vazio
   db.run(`UPDATE clientes SET ramo_atividade = (
     SELECT ct.ramo_atividade FROM contatos ct
@@ -46713,15 +46714,15 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
     const insertClient = (codigo) => {
       db.run(`INSERT INTO clientes (
         codigo, data_cadastro, inativo, cpf_cnpj, inscricao_estadual, inscricao_municipal,
-        rg, data_nascimento, grupo_clientes, cliente_centralizador, nome_razao_social,
+        rg, data_nascimento, grupo_clientes, cliente_centralizador, tipo_vinculo_grupo, nome_razao_social,
         nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
         pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
         celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
         observacoes, ramo_atividade, criado_por, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
-        d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+        d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.tipo_vinculo_grupo || '', d.nome_razao_social,
         d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
         d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
         d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
@@ -46784,7 +46785,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
   db.get(
-    'SELECT id, codigo, cpf_cnpj, nome_razao_social, ramo_atividade FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
+    'SELECT id, codigo, cpf_cnpj, nome_razao_social, ramo_atividade, tipo_vinculo_grupo FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
     [req.params.id, req.params.id, req.params.id],
     (curErr, curRow) => {
       if (curErr) return res.status(500).json({ error: curErr.message });
@@ -46794,7 +46795,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
       const proceedUpdate = () => {
         db.run(`UPDATE clientes SET
           data_cadastro=?, inativo=?, cpf_cnpj=?, inscricao_estadual=?, inscricao_municipal=?,
-          rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, nome_razao_social=?,
+          rg=?, data_nascimento=?, grupo_clientes=?, cliente_centralizador=?, tipo_vinculo_grupo=?, nome_razao_social=?,
           nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
           pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
           celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
@@ -46802,7 +46803,9 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
           WHERE id=?`,
         [
           d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
-          d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
+          d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador,
+          d.tipo_vinculo_grupo !== undefined ? (d.tipo_vinculo_grupo || '') : (curRow.tipo_vinculo_grupo || ''),
+          d.nome_razao_social,
           d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
           d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
           d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
@@ -46850,29 +46853,41 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   );
 });
 
-// PATCH /api/clientes/vincular-centralizador - Vincula cliente_centralizador ao cliente interveniente/grupo
+// PATCH /api/clientes/vincular-centralizador - Vincula ou desvincula cliente_centralizador ao cliente interveniente/grupo
 app.patch('/api/clientes/vincular-centralizador', authenticateToken, (req, res) => {
-  const { interveniente_id, interveniente_nome, centralizador_id, centralizador_nome } = req.body || {};
+  const { interveniente_id, interveniente_nome, centralizador_id, centralizador_nome, tipo_vinculo_grupo, desvincular } = req.body || {};
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
   const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').replace(/^\d+\s*-\s*/, '').trim();
 
   const nomeIntLimpo = norm(interveniente_nome);
   const nomeCentLimpo = norm(centralizador_nome);
   if (!interveniente_id && !nomeIntLimpo) {
-    return res.status(400).json({ error: 'Informe o cliente interveniente.' });
+    return res.status(400).json({ error: 'Informe o cliente interveniente ou do grupo.' });
   }
-  if (!centralizador_id && !nomeCentLimpo) {
+  if (!desvincular && !centralizador_id && !nomeCentLimpo) {
     return res.status(400).json({ error: 'Informe o cliente centralizador.' });
   }
 
-  db.all('SELECT id, codigo, nome_razao_social, nome_fantasia, cliente_centralizador FROM clientes', [], (err, rows) => {
+  db.all('SELECT id, codigo, nome_razao_social, nome_fantasia, cliente_centralizador, tipo_vinculo_grupo FROM clientes', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     const normLow = (s) => norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const intLow = normLow(nomeIntLimpo);
     const centLow = normLow(nomeCentLimpo);
 
     const cliInt = (rows || []).find(r => (interveniente_id && Number(r.id) === Number(interveniente_id)) || (intLow && (normLow(r.nome_razao_social) === intLow || normLow(r.nome_fantasia) === intLow)));
-    if (!cliInt) return res.status(404).json({ error: 'Cliente interveniente não encontrado.' });
+    if (!cliInt) return res.status(404).json({ error: 'Cliente não encontrado.' });
+
+    if (desvincular) {
+      db.run(
+        'UPDATE clientes SET cliente_centralizador = ?, tipo_vinculo_grupo = ?, atualizado_em = ? WHERE id = ?',
+        ['', '', agora, cliInt.id],
+        function(upErr) {
+          if (upErr) return res.status(500).json({ error: upErr.message });
+          res.json({ success: true, interveniente_id: cliInt.id, cliente_centralizador: '', tipo_vinculo_grupo: '' });
+        }
+      );
+      return;
+    }
 
     const cliCent = (rows || []).find(r => (centralizador_id && Number(r.id) === Number(centralizador_id)) || (centLow && (normLow(r.nome_razao_social) === centLow || normLow(r.nome_fantasia) === centLow)));
     if (cliCent && Number(cliCent.id) === Number(cliInt.id)) {
@@ -46882,16 +46897,18 @@ app.patch('/api/clientes/vincular-centralizador', authenticateToken, (req, res) 
     const valorCentralizador = cliCent
       ? (cliCent.codigo ? `${cliCent.codigo} - ${cliCent.nome_razao_social}` : cliCent.nome_razao_social)
       : nomeCentLimpo;
+    const tipoVincFinal = tipo_vinculo_grupo !== undefined ? String(tipo_vinculo_grupo || '') : (cliInt.tipo_vinculo_grupo || 'Cliente Interveniente');
 
     db.run(
-      'UPDATE clientes SET cliente_centralizador = ?, atualizado_em = ? WHERE id = ?',
-      [valorCentralizador, agora, cliInt.id],
+      'UPDATE clientes SET cliente_centralizador = ?, tipo_vinculo_grupo = ?, atualizado_em = ? WHERE id = ?',
+      [valorCentralizador, tipoVincFinal, agora, cliInt.id],
       function(upErr) {
         if (upErr) return res.status(500).json({ error: upErr.message });
         res.json({
           success: true,
           interveniente_id: cliInt.id,
-          cliente_centralizador: valorCentralizador
+          cliente_centralizador: valorCentralizador,
+          tipo_vinculo_grupo: tipoVincFinal
         });
       }
     );

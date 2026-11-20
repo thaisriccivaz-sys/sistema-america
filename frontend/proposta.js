@@ -6464,19 +6464,29 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                 <span id="modal-acc-grupo-intervenientes-arrow" style="transition:transform 0.2s;">▼</span>
                             </div>
                             <div id="modal-acc-grupo-intervenientes" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:0.85rem; flex-wrap:wrap; gap:0.5rem;">
+                                    <button type="button" onclick="window.abrirModalVincularClienteGrupoInterveniente('modal')" style="background:#2563eb; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; font-weight:600; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; height:28px;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                                        <i class="ph ph-link" style="font-size:0.95rem;"></i> Vincular Cliente Existente
+                                    </button>
+                                    <button type="button" onclick="window.criarNovoClienteVinculadoQuadro('modal')" title="Cadastrar novo cliente e já vincular em Clientes Grupo e Intervenientes" style="background:#eab308; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; height:28px;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:800;"></i> Novo Cliente
+                                    </button>
+                                </div>
                                 <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                                     <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                         <thead>
                                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">
-                                                <th style="padding:0.75rem 1rem; font-weight:700; width:12%; white-space:nowrap;">Código</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700; width:38%;">Nome / Razão Social</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700; width:20%; white-space:nowrap;">CPF / CNPJ</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%; white-space:nowrap;">Telefone / Celular</th>
-                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%;">E-mail</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:10%; white-space:nowrap;">Código</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:32%;">Nome / Razão Social</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%; white-space:nowrap;">Tipo de Vínculo</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:16%; white-space:nowrap;">CPF / CNPJ</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:13%; white-space:nowrap;">Telefone / Celular</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:10%;">E-mail</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:4%; text-align:center;">Ações</th>
                                             </tr>
                                         </thead>
                                         <tbody id="modal-cli-grupo-intervenientes-tbody">
-                                            <tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
+                                            <tr><td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -7183,6 +7193,21 @@ window.modalSalvarCliente = async function(clientId) {
         cnae: document.getElementById('modal-cli-f-cnae')?.value || ''
     };
 
+    let centModalVal = (document.getElementById('modal-cli-centralizador')?.value || '').trim();
+    let tipoVinculoModal = window._criarIntervenienteParaContrato
+        ? 'Cliente Interveniente'
+        : (window._tipoVinculoGrupoNovoCliente || '');
+
+    if (!clientId && typeof window.perguntarVinculoClienteNomeParecido === 'function') {
+        const respVinc = await window.perguntarVinculoClienteNomeParecido(razaoSocial, nomeFantasia, centModalVal, tipoVinculoModal, clientId);
+        if (!respVinc || !respVinc.confirmado) return;
+        tipoVinculoModal = respVinc.tipo_vinculo_grupo || 'Cliente Base';
+        centModalVal = respVinc.cliente_centralizador || '';
+        const inpCentDom = document.getElementById('modal-cli-centralizador');
+        if (inpCentDom) inpCentDom.value = centModalVal;
+    }
+    window._tipoVinculoGrupoNovoCliente = '';
+
     const payload = {
         codigo: document.getElementById('modal-cli-codigo')?.value || null,
         data_cadastro: document.getElementById('modal-cli-data-cadastro')?.value || '',
@@ -7193,7 +7218,8 @@ window.modalSalvarCliente = async function(clientId) {
         rg: '',
         data_nascimento: '',
         grupo_clientes: document.getElementById('modal-cli-grupo')?.value || '',
-        cliente_centralizador: document.getElementById('modal-cli-centralizador')?.value || '',
+        cliente_centralizador: centModalVal,
+        tipo_vinculo_grupo: tipoVinculoModal || undefined,
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('modal-cli-nome-fantasia')?.value || '',
         cep: document.getElementById('modal-cli-cep')?.value || '',
@@ -7250,7 +7276,13 @@ window.modalSalvarCliente = async function(clientId) {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(clientId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
             }
-            if (window._criarIntervenienteParaContrato) {
+            if (window._criarClienteVinculadoParaCentralizadorId) {
+                window._criarClienteVinculadoParaCentralizadorId = null;
+                await window.obterClientesCache(true).catch(() => {});
+                if (typeof window.renderTabelaClientesGrupoIntervenientes === 'function') {
+                    window.renderTabelaClientesGrupoIntervenientes('main');
+                }
+            } else if (window._criarIntervenienteParaContrato) {
                 window._criarIntervenienteParaContrato = false;
                 const propIntervInput = document.getElementById('prop-interveniente');
                 if (propIntervInput) {
@@ -12010,19 +12042,29 @@ function _renderCadastroClienteInt() {
                             <span id="acc-grupo-intervenientes-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
                         </div>
                         <div id="acc-grupo-intervenientes" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+                                <button type="button" onclick="window.abrirModalVincularClienteGrupoInterveniente('main')" style="background:#2563eb; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:600; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                                    <i class="ph ph-link" style="font-size:1rem;"></i> Vincular Cliente Existente
+                                </button>
+                                <button type="button" onclick="window.criarNovoClienteVinculadoQuadro('main')" title="Cadastrar novo cliente e já vincular em Clientes Grupo e Intervenientes" style="background:#eab308; color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-weight:700; font-size:0.83rem; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                    <i class="ph ph-plus" style="font-size:1.05rem; font-weight:800;"></i> Novo Cliente
+                                </button>
+                            </div>
                             <div style="max-height:260px; overflow-y:auto; background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                                 <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
                                     <thead>
                                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:12%; white-space:nowrap;">Código</th>
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:38%;">Nome / Razão Social</th>
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">CPF / CNPJ</th>
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Telefone / Celular</th>
-                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%;">E-mail</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:10%; white-space:nowrap;">Código</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:32%;">Nome / Razão Social</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Tipo de Vínculo</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:16%; white-space:nowrap;">CPF / CNPJ</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:13%; white-space:nowrap;">Telefone / Celular</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:10%;">E-mail</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:4%; text-align:center;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="cli-grupo-intervenientes-tbody">
-                                        <tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
+                                        <tr><td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -14769,6 +14811,19 @@ window.salvarCliente = async function() {
         cnae: document.getElementById('cli-f-cnae')?.value || ''
     };
 
+    let centMainVal = (document.getElementById('cli-centralizador')?.value || '').trim();
+    let tipoVinculoMain = window._tipoVinculoGrupoNovoCliente || '';
+
+    if (!_clienteEditandoId && typeof window.perguntarVinculoClienteNomeParecido === 'function') {
+        const respVinc = await window.perguntarVinculoClienteNomeParecido(razaoSocial, nomeFantasia, centMainVal, tipoVinculoMain, _clienteEditandoId);
+        if (!respVinc || !respVinc.confirmado) return;
+        tipoVinculoMain = respVinc.tipo_vinculo_grupo || 'Cliente Base';
+        centMainVal = respVinc.cliente_centralizador || '';
+        const inpCentMainDom = document.getElementById('cli-centralizador');
+        if (inpCentMainDom) inpCentMainDom.value = centMainVal;
+    }
+    window._tipoVinculoGrupoNovoCliente = '';
+
     const payload = {
         codigo: document.getElementById('cli-codigo')?.value || null,
         data_cadastro: document.getElementById('cli-data-cadastro')?.value || '',
@@ -14779,7 +14834,8 @@ window.salvarCliente = async function() {
         rg: '',
         data_nascimento: '',
         grupo_clientes: document.getElementById('cli-grupo')?.value || '',
-        cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+        cliente_centralizador: centMainVal,
+        tipo_vinculo_grupo: tipoVinculoMain || undefined,
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
         cep: document.getElementById('cli-cep')?.value || '',
@@ -14835,6 +14891,10 @@ window.salvarCliente = async function() {
             }
             if (window._cliAnexosPendentes && window._cliAnexosPendentes.length > 0 && _clienteEditandoId) {
                 await window.salvarAnexosCliente('main', _clienteEditandoId, true);
+            }
+            await window.obterClientesCache(true).catch(() => {});
+            if (typeof window.renderTabelaClientesGrupoIntervenientes === 'function') {
+                window.renderTabelaClientesGrupoIntervenientes('main');
             }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(_clienteEditandoId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
@@ -27765,7 +27825,7 @@ window.renderTabelaClientesGrupoIntervenientes = async function(escopo = 'main',
     const codNorm = norm(codAtual);
 
     if (!idAtual && !razaoNorm && (!codNorm || codNorm === 'auto')) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>`;
         return;
     }
 
@@ -27789,7 +27849,7 @@ window.renderTabelaClientesGrupoIntervenientes = async function(escopo = 'main',
     });
 
     if (vinculados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado a este cliente centralizador.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado a este cliente centralizador.</td></tr>`;
         return;
     }
 
@@ -27797,6 +27857,11 @@ window.renderTabelaClientesGrupoIntervenientes = async function(escopo = 'main',
         const nomeExib = typeof window.formatarNomeClienteComIcone === 'function'
             ? window.formatarNomeClienteComIcone(v, v.grupo_clientes, lista)
             : (v.nome_razao_social || v.nome_fantasia || '—');
+        const tipoVinc = String(v.tipo_vinculo_grupo || '').trim() || 'Cliente do Grupo';
+        const ehIntervBadge = tipoVinc.toLowerCase().includes('interveniente');
+        const badgeTipoHtml = ehIntervBadge
+            ? `<span style="background:#f5f3ff; color:#6d28d9; border:1px solid #c4b5fd; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap;">Cliente Interveniente</span>`
+            : `<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap;">${_escHtmlProp(tipoVinc)}</span>`;
         const clickHandler = escopo === 'modal'
             ? `window.abrirModalCadastroCliente(${v.id}, '')`
             : `window.carregarClienteParaEdicao(${v.id})`;
@@ -27804,15 +27869,461 @@ window.renderTabelaClientesGrupoIntervenientes = async function(escopo = 'main',
             <tr onclick="${clickHandler}" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste cliente / interveniente">
                 <td style="padding:0.75rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">${_escHtmlProp(v.codigo || '—')}</td>
                 <td style="padding:0.75rem 1rem; font-weight:600; color:#2563eb; text-decoration:underline;">${_escHtmlProp(nomeExib)}</td>
+                <td style="padding:0.75rem 1rem; white-space:nowrap;">${badgeTipoHtml}</td>
                 <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${_escHtmlProp(v.cpf_cnpj || '—')}</td>
                 <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${_escHtmlProp(v.celular || v.telefone || '—')}</td>
                 <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${_escHtmlProp(v.email || '—')}</td>
+                <td style="padding:0.75rem 1rem; text-align:center; white-space:nowrap;">
+                    <button type="button" onclick="event.stopPropagation(); window.desvincularClienteGrupoInterveniente(${v.id}, '${escopo}')" style="background:#ffe3e3; color:#e03131; border:none; padding:5px 8px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;" title="Desvincular este cliente do centralizador">
+                        <i class="ph ph-link-break" style="font-size:0.95rem;"></i>
+                    </button>
+                </td>
             </tr>
         `;
     }).join('');
 };
 
-window.vincularIntervenienteAoClienteCentralizador = async function(intervenienteNomeOuObj, centralizadorNomeRaw) {
+window.desvincularClienteGrupoInterveniente = async function(idCliVinc, escopo = 'main') {
+    if (!idCliVinc) return;
+    if (!confirm('Deseja desvincular este cliente da lista de Clientes Grupo e Intervenientes deste centralizador?')) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch('/api/clientes/vincular-centralizador', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+            body: JSON.stringify({ interveniente_id: idCliVinc, desvincular: true })
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (resp.ok && j && j.success) {
+            if (Array.isArray(_clientesCache)) {
+                const found = _clientesCache.find(c => Number(c.id) === Number(idCliVinc));
+                if (found) {
+                    found.cliente_centralizador = '';
+                    found.tipo_vinculo_grupo = '';
+                }
+            }
+            window.renderTabelaClientesGrupoIntervenientes(escopo);
+            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Cliente desvinculado com sucesso!');
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+window.abrirModalVincularClienteGrupoInterveniente = async function(escopo = 'main') {
+    const prefix = escopo === 'modal' ? 'modal-cli-' : 'cli-';
+    const codAtual = (document.getElementById(prefix + 'codigo')?.value || '').trim();
+    const razaoAtual = (document.getElementById(prefix + 'razao-social')?.value || '').trim();
+    const idAtual = Number((escopo === 'modal' ? window._modalClienteEditandoId : _clienteEditandoId) || 0);
+
+    if (!idAtual && !razaoAtual) {
+        window.mostrarAvisoSemFecharModal('Aviso', 'Preencha ou salve o cliente atual primeiro para poder vincular outros clientes a ele.', 'warning');
+        return;
+    }
+
+    const centralizadorLabel = (codAtual && codAtual.toUpperCase() !== 'AUTO') ? `${codAtual} - ${razaoAtual}` : razaoAtual;
+    let lista = await window.obterClientesCache(true).catch(() => []);
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    const existingOverlay = document.getElementById('custom-vincular-cli-grupo-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'custom-vincular-cli-grupo-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.52);z-index:200005;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;';
+
+    overlay.innerHTML = `
+        <div style="background:#fff;border-radius:12px;width:94%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(15,23,42,0.28);overflow:hidden;">
+            <div style="padding:1rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:1rem;font-weight:800;color:#0f172a;">Vincular em Clientes Grupo e Intervenientes</div>
+                    <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">Cliente Centralizador: <b style="color:#1e293b;">${_escHtmlProp(centralizadorLabel)}</b></div>
+                </div>
+                <button type="button" id="btn-fechar-vinc-grupo" style="background:#e2e8f0;color:#475569;border:none;width:30px;height:30px;border-radius:6px;cursor:pointer;font-weight:800;">✕</button>
+            </div>
+            <div style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.75rem;flex:1;overflow:hidden;">
+                <div style="display:grid;grid-template-columns:220px 1fr;gap:0.75rem;align-items:end;">
+                    <div>
+                        <label style="display:block;font-size:0.74rem;font-weight:700;color:#475569;margin-bottom:4px;">Tipo de Vínculo *</label>
+                        <select id="vinc-grupo-tipo-sel" style="width:100%;height:34px;padding:0 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.83rem;font-weight:700;color:#0f172a;background:#fff;">
+                            <option value="Cliente do Grupo">Cliente do Grupo</option>
+                            <option value="Cliente Interveniente">Cliente Interveniente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.74rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar Cliente para Vincular *</label>
+                        <input type="text" id="vinc-grupo-busca-inp" placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..." style="width:100%;height:34px;padding:0 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.83rem;box-sizing:border-box;outline:none;">
+                    </div>
+                </div>
+                <div style="flex:1;max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f8fafc;border-bottom:2px solid #cbd5e1;position:sticky;top:0;">
+                                <th style="padding:8px 10px;text-align:left;width:80px;">Código</th>
+                                <th style="padding:8px 10px;text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:8px 10px;text-align:left;width:150px;">CPF / CNPJ</th>
+                                <th style="padding:8px 10px;text-align:center;width:110px;">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vinc-grupo-lista-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const renderRows = (qRaw = '') => {
+        const tb = document.getElementById('vinc-grupo-lista-tbody');
+        if (!tb) return;
+        const q = norm(qRaw);
+        const qDigits = String(qRaw || '').replace(/\D/g, '');
+        const filtrados = (lista || []).filter(c => {
+            if (!c || (idAtual && Number(c.id) === Number(idAtual))) return false;
+            if (!q) return true;
+            return norm(c.codigo).includes(q) ||
+                norm(c.nome_razao_social).includes(q) ||
+                norm(c.nome_fantasia).includes(q) ||
+                (qDigits && String(c.cpf_cnpj || '').replace(/\D/g, '').includes(qDigits));
+        }).slice(0, 120);
+
+        if (!filtrados.length) {
+            tb.innerHTML = `<tr><td colspan="4" style="padding:1rem;text-align:center;color:#94a3b8;">Nenhum cliente encontrado.</td></tr>`;
+            return;
+        }
+        tb.innerHTML = filtrados.map(c => {
+            const nomeIcone = typeof window.formatarNomeClienteComIcone === 'function'
+                ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista)
+                : (c.nome_razao_social || '');
+            return `
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px 10px;font-weight:700;color:#7048e8;">${_escHtmlProp(c.codigo || '—')}</td>
+                    <td style="padding:8px 10px;font-weight:600;color:#0f172a;">${_escHtmlProp(nomeIcone)}</td>
+                    <td style="padding:8px 10px;color:#475569;">${_escHtmlProp(c.cpf_cnpj || '—')}</td>
+                    <td style="padding:8px 10px;text-align:center;">
+                        <button type="button" data-vinc-id="${c.id}" style="background:#16a34a;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:0.76rem;font-weight:700;cursor:pointer;">
+                            Vincular
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        tb.querySelectorAll('button[data-vinc-id]').forEach(btn => {
+            btn.onclick = async () => {
+                const targetCliId = Number(btn.getAttribute('data-vinc-id'));
+                const tipoVinc = document.getElementById('vinc-grupo-tipo-sel')?.value || 'Cliente do Grupo';
+                btn.disabled = true;
+                btn.textContent = 'Vinculando...';
+                await window.vincularIntervenienteAoClienteCentralizador({ id: targetCliId }, centralizadorLabel, tipoVinc, idAtual);
+                overlay.remove();
+                await window.obterClientesCache(true).catch(() => {});
+                window.renderTabelaClientesGrupoIntervenientes(escopo);
+                if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Cliente vinculado com sucesso!');
+            };
+        });
+    };
+
+    document.getElementById('btn-fechar-vinc-grupo').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    const inpBusca = document.getElementById('vinc-grupo-busca-inp');
+    if (inpBusca) {
+        inpBusca.oninput = (e) => renderRows(e.target.value);
+        setTimeout(() => inpBusca.focus(), 40);
+    }
+    renderRows('');
+};
+
+window.perguntarTipoVinculoCriacaoCliente = function(centralizadorSugerido = '') {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('custom-tipo-criacao-cli-overlay');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'custom-tipo-criacao-cli-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:200010;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:12px;width:92%;max-width:480px;padding:22px 24px;box-shadow:0 24px 48px rgba(15,23,42,0.3);text-align:left;">
+                <div style="font-size:1.05rem;font-weight:800;color:#0f172a;margin-bottom:6px;">Qual o tipo do cliente que está sendo criado?</div>
+                <div style="font-size:0.82rem;color:#475569;margin-bottom:14px;">
+                    Selecione se este cadastro é um <b>Cliente Base</b> (Centralizador), um <b>Cliente do Grupo</b> ou um <b>Cliente Interveniente</b>${centralizadorSugerido ? ` vinculado a <b>${_escHtmlProp(centralizadorSugerido)}</b>` : ''}:
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+                    <button type="button" data-tipo-esc="Cliente Base" style="padding:11px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#0f172a;font-weight:700;font-size:0.86rem;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;">
+                        <span>🏢 Cliente Base (Centralizador / Independente)</span>
+                        <i class="ph ph-caret-right"></i>
+                    </button>
+                    <button type="button" data-tipo-esc="Cliente do Grupo" style="padding:11px 14px;border:1.5px solid #93c5fd;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:0.86rem;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;">
+                        <span>🔗 Cliente do Grupo</span>
+                        <i class="ph ph-caret-right"></i>
+                    </button>
+                    <button type="button" data-tipo-esc="Cliente Interveniente" style="padding:11px 14px;border:1.5px solid #c4b5fd;border-radius:8px;background:#f5f3ff;color:#5b21b6;font-weight:700;font-size:0.86rem;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;">
+                        <span>🤝 Cliente Interveniente</span>
+                        <i class="ph ph-caret-right"></i>
+                    </button>
+                </div>
+                <div style="text-align:right;">
+                    <button type="button" id="btn-cancel-tipo-criacao" style="background:#e2e8f0;color:#475569;border:none;padding:7px 16px;border-radius:6px;font-weight:700;font-size:0.8rem;cursor:pointer;">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelectorAll('button[data-tipo-esc]').forEach(btn => {
+            btn.onclick = () => {
+                const val = btn.getAttribute('data-tipo-esc');
+                overlay.remove();
+                resolve(val);
+            };
+        });
+        document.getElementById('btn-cancel-tipo-criacao').onclick = () => {
+            overlay.remove();
+            resolve(null);
+        };
+    });
+};
+
+window.criarNovoClienteVinculadoQuadro = async function(escopo = 'main') {
+    const prefix = escopo === 'modal' ? 'modal-cli-' : 'cli-';
+    const codAtual = (document.getElementById(prefix + 'codigo')?.value || '').trim();
+    const razaoAtual = (document.getElementById(prefix + 'razao-social')?.value || '').trim();
+    const idAtual = Number((escopo === 'modal' ? window._modalClienteEditandoId : _clienteEditandoId) || 0);
+    const centralizadorTexto = (codAtual && codAtual.toUpperCase() !== 'AUTO' && razaoAtual)
+        ? `${codAtual} - ${razaoAtual}`
+        : razaoAtual;
+
+    const tipoEscolhido = await window.perguntarTipoVinculoCriacaoCliente(centralizadorTexto);
+    if (!tipoEscolhido) return;
+
+    window._tipoVinculoGrupoNovoCliente = tipoEscolhido;
+
+    if (escopo === 'main' && idAtual) {
+        // Na tela de Clientes com um cliente centralizador aberto: se escolheu Grupo ou Interveniente, abre o modal de novo cliente já com o centralizador preenchido para não perder a tela do centralizador
+        if (tipoEscolhido === 'Cliente do Grupo' || tipoEscolhido === 'Cliente Interveniente') {
+            window._criarClienteVinculadoParaCentralizadorId = idAtual;
+            await window.abrirModalCadastroCliente(null, '');
+            setTimeout(() => {
+                const centEl = document.getElementById('modal-cli-centralizador');
+                if (centEl && centralizadorTexto) centEl.value = centralizadorTexto;
+            }, 80);
+            return;
+        }
+        window.limparFormCliente();
+        window._tipoVinculoGrupoNovoCliente = 'Cliente Base';
+        return;
+    }
+
+    if (escopo === 'main') {
+        window.limparFormCliente();
+        window._tipoVinculoGrupoNovoCliente = tipoEscolhido;
+        if ((tipoEscolhido === 'Cliente do Grupo' || tipoEscolhido === 'Cliente Interveniente') && centralizadorTexto) {
+            const centEl = document.getElementById('cli-centralizador');
+            if (centEl) centEl.value = centralizadorTexto;
+        }
+        return;
+    }
+
+    // escopo === 'modal'
+    await window.abrirModalCadastroCliente(null, '');
+    window._tipoVinculoGrupoNovoCliente = tipoEscolhido;
+    if ((tipoEscolhido === 'Cliente do Grupo' || tipoEscolhido === 'Cliente Interveniente') && centralizadorTexto) {
+        setTimeout(() => {
+            const centEl = document.getElementById('modal-cli-centralizador');
+            if (centEl) centEl.value = centralizadorTexto;
+        }, 80);
+    }
+};
+
+window.buscarClientesComNomeParecido = async function(razaoSocial, nomeFantasia, idIgnorar = null) {
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const stopWords = new Set(['ltda', 'me', 'epp', 'eireli', 'sa', 's', 'a', 'cia', 'comercio', 'servicos', 'equipamentos', 'locacao', 'locacoes', 'construtora', 'engenharia', 'eventos', 'producoes', 'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para', 'grupo', 'brasil', 'sp']);
+    const extrairTokens = (txt) => norm(txt).split(' ').filter(w => w.length >= 3 && !stopWords.has(w));
+
+    const tokensAlvo = Array.from(new Set([...extrairTokens(razaoSocial), ...extrairTokens(nomeFantasia)]));
+    if (tokensAlvo.length === 0) return [];
+
+    let lista = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+    if (!lista.length && typeof window.obterClientesCache === 'function') {
+        lista = await window.obterClientesCache().catch(() => []);
+    }
+
+    const similares = [];
+    (lista || []).forEach(c => {
+        if (!c || (idIgnorar && Number(c.id) === Number(idIgnorar))) return;
+        const rNorm = norm(c.nome_razao_social);
+        const fNorm = norm(c.nome_fantasia);
+        const tokensCand = new Set([...extrairTokens(c.nome_razao_social), ...extrairTokens(c.nome_fantasia)]);
+        if (tokensCand.size === 0) return;
+
+        let matches = 0;
+        let strongTokenMatch = false;
+        tokensAlvo.forEach(t => {
+            if (tokensCand.has(t)) {
+                matches++;
+                if (t.length >= 4) strongTokenMatch = true;
+            } else if (t.length >= 5 && (rNorm.includes(t) || fNorm.includes(t))) {
+                matches += 0.8;
+                strongTokenMatch = true;
+            }
+        });
+
+        if (strongTokenMatch && matches >= 1) {
+            similares.push({ cliente: c, score: matches });
+        }
+    });
+
+    similares.sort((a, b) => b.score - a.score);
+    return similares.slice(0, 15).map(x => x.cliente);
+};
+
+window.perguntarVinculoClienteNomeParecido = async function(razaoSocial, nomeFantasia, centralizadorAtual, tipoVinculoAtual, idIgnorar = null) {
+    // 1. Se ainda não definiu o tipo (Cliente Base, Cliente do Grupo ou Cliente Interveniente), pergunta ou verifica nomes parecidos
+    const similares = await window.buscarClientesComNomeParecido(razaoSocial, nomeFantasia, idIgnorar);
+    let lista = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+    if (!lista.length && typeof window.obterClientesCache === 'function') {
+        lista = await window.obterClientesCache().catch(() => []);
+    }
+
+    // Se já tem centralizador preenchido e já escolheu o tipo de vínculo, mantém
+    if (centralizadorAtual && String(centralizadorAtual).trim() && tipoVinculoAtual) {
+        return { confirmado: true, tipo_vinculo_grupo: tipoVinculoAtual, cliente_centralizador: centralizadorAtual };
+    }
+
+    return new Promise((resolve) => {
+        const existing = document.getElementById('custom-popup-nome-parecido-overlay');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'custom-popup-nome-parecido-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:200015;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;';
+
+        const temSimilares = similares.length > 0;
+        const tipoInicial = tipoVinculoAtual || (centralizadorAtual ? 'Cliente do Grupo' : (temSimilares ? 'Cliente do Grupo' : 'Cliente Base'));
+        const centInicial = centralizadorAtual || (temSimilares && similares[0] ? (similares[0].codigo ? `${similares[0].codigo} - ${similares[0].nome_razao_social}` : similares[0].nome_razao_social) : '');
+
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:12px;width:94%;max-width:620px;padding:22px 24px;box-shadow:0 24px 48px rgba(15,23,42,0.32);text-align:left;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <div style="width:38px;height:38px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">
+                        <i class="ph ph-buildings"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:1.02rem;font-weight:800;color:#0f172a;">
+                            ${temSimilares ? 'Cliente com nome parecido encontrado!' : 'Classificação e Vínculo do Cliente'}
+                        </div>
+                        <div style="font-size:0.79rem;color:#64748b;">
+                            ${temSimilares
+                                ? `Encontramos cliente(s) com nome parecido a "${_escHtmlProp(razaoSocial)}". Gostaria de vincular este cliente a algum outro cliente?`
+                                : `Informe se "${_escHtmlProp(razaoSocial)}" é um Cliente Base, Cliente do Grupo ou Cliente Interveniente:`}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:12px;">
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#334155;margin-bottom:6px;">Este cliente que está criando é:</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#0f172a;background:#f8fafc;">
+                            <input type="radio" name="rad-tipo-vinc-cli" value="Cliente Base" ${tipoInicial === 'Cliente Base' ? 'checked' : ''} style="accent-color:#2563eb;">
+                            Cliente Base
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#1d4ed8;background:#eff6ff;">
+                            <input type="radio" name="rad-tipo-vinc-cli" value="Cliente do Grupo" ${tipoInicial === 'Cliente do Grupo' ? 'checked' : ''} style="accent-color:#2563eb;">
+                            Cliente do Grupo
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;padding:8px 10px;border:1.5px solid #c4b5fd;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#5b21b6;background:#f5f3ff;">
+                            <input type="radio" name="rad-tipo-vinc-cli" value="Cliente Interveniente" ${tipoInicial === 'Cliente Interveniente' ? 'checked' : ''} style="accent-color:#7048e8;">
+                            Interveniente
+                        </label>
+                    </div>
+                </div>
+
+                <div id="box-sel-centralizador-parecido" style="margin-top:14px;display:${tipoInicial === 'Cliente Base' ? 'none' : 'block'};">
+                    ${temSimilares ? `
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#b45309;margin-bottom:5px;">Clientes com nome parecido sugeridos (clique para selecionar):</label>
+                    <div style="max-height:130px;overflow-y:auto;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;margin-bottom:10px;">
+                        ${similares.map(s => {
+                            const valCent = s.codigo ? `${s.codigo} - ${s.nome_razao_social}` : s.nome_razao_social;
+                            const nomeIcone = typeof window.formatarNomeClienteComIcone === 'function' ? window.formatarNomeClienteComIcone(s, s.grupo_clientes, lista) : s.nome_razao_social;
+                            return `<div class="item-sug-parecido" data-cent-val="${_escHtmlProp(valCent)}" style="padding:7px 10px;border-bottom:1px solid #fef3c7;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;" onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='transparent'">
+                                <span style="font-weight:700;color:#0f172a;">${_escHtmlProp(s.codigo ? s.codigo + ' - ' : '')}${_escHtmlProp(nomeIcone)}</span>
+                                <span style="color:#64748b;font-size:0.74rem;">${_escHtmlProp(s.cpf_cnpj || '')}</span>
+                            </div>`;
+                        }).join('')}
+                    </div>` : ''}
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#334155;margin-bottom:4px;">Vincular ao Cliente Base (Centralizador):</label>
+                    <input type="text" id="inp-cent-parecido-busca" value="${_escHtmlProp(centInicial)}" placeholder="Digite código, nome ou CPF/CNPJ do cliente centralizador..." style="width:100%;height:34px;padding:0 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.82rem;box-sizing:border-box;">
+                    <div id="drop-cent-parecido-results" style="max-height:130px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;margin-top:4px;display:none;background:#fff;"></div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:12px;border-top:1px solid #e2e8f0;">
+                    <button type="button" id="btn-cancel-parecido" style="background:#e2e8f0;color:#475569;border:none;padding:8px 16px;border-radius:6px;font-weight:700;font-size:0.82rem;cursor:pointer;">Voltar</button>
+                    <button type="button" id="btn-confirm-parecido" style="background:#16a34a;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-weight:800;font-size:0.82rem;cursor:pointer;">Confirmar e Salvar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const boxCent = document.getElementById('box-sel-centralizador-parecido');
+        const inpCent = document.getElementById('inp-cent-parecido-busca');
+        const dropRes = document.getElementById('drop-cent-parecido-results');
+
+        overlay.querySelectorAll('input[name="rad-tipo-vinc-cli"]').forEach(rad => {
+            rad.onchange = () => {
+                if (boxCent) boxCent.style.display = rad.value === 'Cliente Base' ? 'none' : 'block';
+            };
+        });
+
+        overlay.querySelectorAll('.item-sug-parecido').forEach(el => {
+            el.onclick = () => {
+                const v = el.getAttribute('data-cent-val') || '';
+                if (inpCent) inpCent.value = v;
+                const radGrupo = overlay.querySelector('input[name="rad-tipo-vinc-cli"][value="Cliente do Grupo"]');
+                const radAtual = overlay.querySelector('input[name="rad-tipo-vinc-cli"]:checked');
+                if (radAtual && radAtual.value === 'Cliente Base' && radGrupo) {
+                    radGrupo.checked = true;
+                    if (boxCent) boxCent.style.display = 'block';
+                }
+            };
+        });
+
+        if (inpCent && dropRes) {
+            const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            inpCent.oninput = () => {
+                const q = norm(inpCent.value);
+                if (!q) { dropRes.style.display = 'none'; return; }
+                const matches = (lista || []).filter(c => c && (!idIgnorar || Number(c.id) !== Number(idIgnorar)) && (norm(c.nome_razao_social).includes(q) || norm(c.nome_fantasia).includes(q) || norm(c.codigo).includes(q))).slice(0, 30);
+                if (!matches.length) { dropRes.style.display = 'none'; return; }
+                dropRes.innerHTML = matches.map(c => {
+                    const valC = c.codigo ? `${c.codigo} - ${c.nome_razao_social}` : c.nome_razao_social;
+                    return `<div data-val="${_escHtmlProp(valC)}" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.79rem;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                        <b>${_escHtmlProp(valC)}</b> <span style="color:#64748b;">${_escHtmlProp(c.cpf_cnpj || '')}</span>
+                    </div>`;
+                }).join('');
+                dropRes.style.display = 'block';
+                dropRes.querySelectorAll('div[data-val]').forEach(d => {
+                    d.onclick = () => {
+                        inpCent.value = d.getAttribute('data-val') || '';
+                        dropRes.style.display = 'none';
+                    };
+                });
+            };
+        }
+
+        document.getElementById('btn-cancel-parecido').onclick = () => {
+            overlay.remove();
+            resolve({ confirmado: false });
+        };
+        document.getElementById('btn-confirm-parecido').onclick = () => {
+            const tipoSel = overlay.querySelector('input[name="rad-tipo-vinc-cli"]:checked')?.value || 'Cliente Base';
+            const centVal = tipoSel === 'Cliente Base' ? '' : (inpCent?.value || '').trim();
+            overlay.remove();
+            resolve({
+                confirmado: true,
+                tipo_vinculo_grupo: tipoSel,
+                cliente_centralizador: centVal
+            });
+        };
+    });
+};
+
+window.vincularIntervenienteAoClienteCentralizador = async function(intervenienteNomeOuObj, centralizadorNomeRaw, tipoVinculoGrupo = 'Cliente Interveniente', centralizadorId = null) {
     try {
         const clean = (s) => (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(s || '') : String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '')).replace(/^\d+\s*-\s*/, '').trim();
         const intNome = typeof intervenienteNomeOuObj === 'object' && intervenienteNomeOuObj
@@ -27820,8 +28331,8 @@ window.vincularIntervenienteAoClienteCentralizador = async function(intervenient
             : clean(intervenienteNomeOuObj);
         const intId = typeof intervenienteNomeOuObj === 'object' && intervenienteNomeOuObj ? intervenienteNomeOuObj.id : null;
         const centNome = clean(centralizadorNomeRaw || document.getElementById('prop-cliente')?.value || '');
-        if ((!intId && !intNome) || !centNome) return;
-        if (intNome.toLowerCase() === centNome.toLowerCase()) return;
+        if ((!intId && !intNome) || (!centralizadorId && !centNome)) return;
+        if (intNome && centNome && intNome.toLowerCase() === centNome.toLowerCase()) return;
 
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const resp = await fetch('/api/clientes/vincular-centralizador', {
@@ -27830,17 +28341,25 @@ window.vincularIntervenienteAoClienteCentralizador = async function(intervenient
             body: JSON.stringify({
                 interveniente_id: intId,
                 interveniente_nome: intNome,
-                centralizador_nome: centNome
+                centralizador_id: centralizadorId,
+                centralizador_nome: centNome,
+                tipo_vinculo_grupo: tipoVinculoGrupo
             })
         });
         const j = await resp.json().catch(() => ({}));
         if (resp.ok && j && j.success && !j.skipped) {
             if (Array.isArray(_clientesCache)) {
                 const found = _clientesCache.find(c => Number(c.id) === Number(j.interveniente_id));
-                if (found) found.cliente_centralizador = j.cliente_centralizador;
+                if (found) {
+                    found.cliente_centralizador = j.cliente_centralizador;
+                    if (j.tipo_vinculo_grupo) found.tipo_vinculo_grupo = j.tipo_vinculo_grupo;
+                }
             }
             if (document.getElementById('cli-grupo-intervenientes-tbody')) {
                 window.renderTabelaClientesGrupoIntervenientes('main');
+            }
+            if (document.getElementById('modal-cli-grupo-intervenientes-tbody')) {
+                window.renderTabelaClientesGrupoIntervenientes('modal');
             }
         }
     } catch (e) {
