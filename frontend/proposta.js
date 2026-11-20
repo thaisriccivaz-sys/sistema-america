@@ -28625,18 +28625,27 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const rowsHtml = itens.map((it, idx) => {
-        const nome = it.produto || it.descricao || it.nome || ('Item ' + (idx + 1));
+        const nome = String(it.produto || it.descricao || it.nome || ('Item ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
+        const textoTecnico = String(
+            (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(it) : '') ||
+            it.especificacao_tecnica ||
+            it.descricao_proposta ||
+            ''
+        ).trim();
         const obs = it.observacao || it.obs || '—';
         const qtd = Number(it.quantidade || it.qtde || 1);
         const unit = Number(it.valor_unitario ?? it.valor ?? 0);
         const tot = Number(it.valor_total ?? it.total ?? (qtd * unit));
         return `
             <tr>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155;">${_escHtmlProp(obs)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700;">${qtd}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap;">R$ ${fmtM(unit)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap;">R$ ${fmtM(tot)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
+                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(nome)}</div>
+                    ${textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(textoTecnico)}</div>` : ''}
+                </td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(obs)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${qtd}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(unit)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(tot)}</td>
             </tr>
         `;
     }).join('');
@@ -28683,16 +28692,25 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const rowsHtml = servs.map((sv, idx) => {
-        const nome = sv.servico || sv.descricao || sv.nome || sv.produto || ('Serviço ' + (idx + 1));
+        const nome = String(sv.servico || sv.descricao || sv.nome || sv.produto || ('Serviço ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
+        const textoTecnico = String(
+            (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(Object.assign({ produto: nome }, sv)) : '') ||
+            sv.especificacao_tecnica ||
+            sv.descricao_proposta ||
+            ''
+        ).trim();
         const obs = sv.observacao || sv.obs || '—';
         const isFob = Boolean(sv.frete_fob || sv.fob);
         const vlr = Number(sv.valor_final ?? sv.valor_total ?? sv.valor ?? sv.valor_unitario ?? 0);
         const vlrTxt = isFob ? 'FOB' : ('R$ ' + fmtM(vlr));
         return `
             <tr>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155;">${_escHtmlProp(obs)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap;">${vlrTxt}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
+                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(nome)}</div>
+                    ${textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(textoTecnico)}</div>` : ''}
+                </td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(obs)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">${vlrTxt}</td>
             </tr>
         `;
     }).join('');
@@ -29300,9 +29318,9 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
         pObj.contrato_interveniente === true ||
         Boolean(pObj.interveniente_nome && String(pObj.interveniente_nome).trim());
 
-    const rawTitulo = (pObj.titulo_contrato && String(pObj.titulo_contrato).trim())
-        ? String(pObj.titulo_contrato).trim()
-        : (m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`);
+    const rawTitulo = (m.titulo_contrato && String(m.titulo_contrato).trim())
+        ? String(m.titulo_contrato).trim()
+        : `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`;
     const tituloTemHtml = /<(div|p|br|span|b|strong|i|em|u|font)\b/i.test(rawTitulo);
     const tituloResolvidoHtml = tituloTemHtml
         ? window.resolverHtmlRicoModeloContrato(rawTitulo, ctx)
@@ -29449,6 +29467,9 @@ window.gerarHtmlDocumentoContratoCompleto = function(modelo, dadosContrato, list
 
 window.gerarHtmlContratoParaPropostaObj = async function(pObj, documentoCompleto = false) {
     if (!pObj) return '';
+    if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
+        await window.carregarCacheDadosQuadroEvento(false).catch(() => {});
+    }
     const [modelos, avarias, clientes] = await Promise.all([
         apiGet('/comercial/modelos-contrato').catch(() => []),
         apiGet('/comercial/valores-avarias').catch(() => []),

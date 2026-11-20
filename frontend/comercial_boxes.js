@@ -522,7 +522,7 @@
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
         const cod = norm(itemOuProd.codigo);
-        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const nome = norm(String(itemOuProd.produto || itemOuProd.servico || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
         const achado = lista.find(eq =>
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
@@ -547,7 +547,7 @@
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
         const cod = norm(itemOuProd.codigo);
-        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const nome = norm(String(itemOuProd.produto || itemOuProd.servico || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
         const achado = lista.find(eq =>
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
@@ -564,7 +564,7 @@
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
         const cod = norm(itemOuProd.codigo);
-        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const nome = norm(String(itemOuProd.produto || itemOuProd.servico || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
         const achado = lista.find(eq =>
             (cod && cod !== '—' && norm(eq.codigo || eq.id) === cod) ||
             (nome && norm(eq.nome) === nome)
@@ -604,7 +604,7 @@
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
         const cod = norm(itemOuProd.codigo);
-        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const nome = norm(String(itemOuProd.produto || itemOuProd.servico || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
         const achado = lista.find(eq =>
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
@@ -631,7 +631,7 @@
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
         const cod = norm(itemOuProd.codigo);
-        const nome = norm(String(itemOuProd.produto || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
+        const nome = norm(String(itemOuProd.produto || itemOuProd.servico || itemOuProd.descricao || itemOuProd.nome || '').replace(/^\d+\s*-\s*/, ''));
         const achado = lista.find(eq =>
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
@@ -1297,12 +1297,12 @@
                 </div>
                 <div style="${spanDescItem}min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
-                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><span style="${riscadoTxt}">${esc(it.quantidade)}</span>${iconeLinkItem(it)}<span style="${riscadoTxt}">${esc(it.nome)}</span></span>
+                        <span class="bq-d" style="font-size:${u(26)}; font-weight:800; color:#1e293b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;"><strong style="font-weight:800; ${riscadoTxt}">${esc(it.quantidade)}</strong>${iconeLinkItem(it)}<strong style="font-weight:800; ${riscadoTxt}">${esc(it.nome)}</strong></span>
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
-                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word; ${riscadoTxt}">${esc(it.descricao_proposta)}</div>` : ''}
-                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
-                    ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
+                    ${it.descricao_proposta ? `<div style="font-size:${u(23)}; font-weight:400 !important; font-family:'FGBook','Libre Franklin',Arial,Helvetica,sans-serif !important; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word; ${riscadoTxt}">${esc(it.descricao_proposta)}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(23)}; font-weight:400; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${(!ehQuadroObra && !ehQuadroLimpaFossa && mostrarDiasItem && it.dias_evento_texto) ? `<div style="font-size:${u(23)}; font-weight:400; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word; ${riscadoTxt}">${rotuloDiasItemQuadro} ${esc(it.dias_evento_texto)}</div>` : ''}
                 </div>
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${esc(it.quant_diarias)}</div>`}
                 ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.unit, '#3b3b3b')}</div>`}
@@ -1319,11 +1319,11 @@
                 </div>
                 <div style="grid-column:2 / 6; min-width:0; padding-right:${u(20)}; align-self:start;">
                     <div style="display:flex; align-items:center; gap:${u(12)}; width:100%; min-height:${u(36)};">
-                        <span class="bq-d" style="font-size:${u(26)}; color:#3b3b3b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;">${iconeLinkItem(it)}<span>${esc(it.nome)}</span></span>
+                        <span class="bq-d" style="font-size:${u(26)}; font-weight:800; color:#1e293b; text-transform:uppercase; display:inline-flex; align-items:center; gap:${u(10)}; line-height:1;">${iconeLinkItem(it)}<strong style="font-weight:800;">${esc(it.nome)}</strong></span>
                         <span style="flex:1; height:0; border-bottom:${u(3)} dotted #4b5563; min-width:${u(30)}; align-self:center;"></span>
                     </div>
-                    ${it.descricao_proposta ? `<div style="font-size:${u(24)}; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
-                    ${it.observacao ? `<div style="font-size:${u(24)}; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
+                    ${it.descricao_proposta ? `<div style="font-size:${u(23)}; font-weight:400 !important; font-family:'FGBook','Libre Franklin',Arial,Helvetica,sans-serif !important; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
+                    ${it.observacao ? `<div style="font-size:${u(23)}; font-weight:400; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                 </div>
                 <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total !== undefined ? it.total : it.unit, ROXO)}</div>
@@ -1359,7 +1359,7 @@
 
         return `
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700;800&display=swap');
             @font-face { font-family:'FGBook'; src:local('Franklin Gothic Book'), local('FranklinGothic-Book'), local('FRABK'); font-weight:400; font-style:normal; }
             @font-face { font-family:'FGDemi'; src:local('Franklin Gothic Demi'), local('FranklinGothic-Demi'), local('FRADM'); font-weight:600; font-style:normal; }
             .box-quadro-evento-proposta { font-family:'FGBook','Libre Franklin','Franklin Gothic Book',Arial,Helvetica,sans-serif; font-weight:400; background:#fff; }
