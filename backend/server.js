@@ -46850,6 +46850,54 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   );
 });
 
+// PATCH /api/clientes/vincular-centralizador - Vincula cliente_centralizador ao cliente interveniente/grupo
+app.patch('/api/clientes/vincular-centralizador', authenticateToken, (req, res) => {
+  const { interveniente_id, interveniente_nome, centralizador_id, centralizador_nome } = req.body || {};
+  const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
+  const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').replace(/^\d+\s*-\s*/, '').trim();
+
+  const nomeIntLimpo = norm(interveniente_nome);
+  const nomeCentLimpo = norm(centralizador_nome);
+  if (!interveniente_id && !nomeIntLimpo) {
+    return res.status(400).json({ error: 'Informe o cliente interveniente.' });
+  }
+  if (!centralizador_id && !nomeCentLimpo) {
+    return res.status(400).json({ error: 'Informe o cliente centralizador.' });
+  }
+
+  db.all('SELECT id, codigo, nome_razao_social, nome_fantasia, cliente_centralizador FROM clientes', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const normLow = (s) => norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const intLow = normLow(nomeIntLimpo);
+    const centLow = normLow(nomeCentLimpo);
+
+    const cliInt = (rows || []).find(r => (interveniente_id && Number(r.id) === Number(interveniente_id)) || (intLow && (normLow(r.nome_razao_social) === intLow || normLow(r.nome_fantasia) === intLow)));
+    if (!cliInt) return res.status(404).json({ error: 'Cliente interveniente não encontrado.' });
+
+    const cliCent = (rows || []).find(r => (centralizador_id && Number(r.id) === Number(centralizador_id)) || (centLow && (normLow(r.nome_razao_social) === centLow || normLow(r.nome_fantasia) === centLow)));
+    if (cliCent && Number(cliCent.id) === Number(cliInt.id)) {
+      return res.json({ success: true, skipped: true });
+    }
+
+    const valorCentralizador = cliCent
+      ? (cliCent.codigo ? `${cliCent.codigo} - ${cliCent.nome_razao_social}` : cliCent.nome_razao_social)
+      : nomeCentLimpo;
+
+    db.run(
+      'UPDATE clientes SET cliente_centralizador = ?, atualizado_em = ? WHERE id = ?',
+      [valorCentralizador, agora, cliInt.id],
+      function(upErr) {
+        if (upErr) return res.status(500).json({ error: upErr.message });
+        res.json({
+          success: true,
+          interveniente_id: cliInt.id,
+          cliente_centralizador: valorCentralizador
+        });
+      }
+    );
+  });
+});
+
 // DELETE /api/clientes/:id - Excluir cliente
 app.delete('/api/clientes/:id', authenticateToken, (req, res) => {
   db.get('SELECT id, codigo FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (err, cliRow) => {

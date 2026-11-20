@@ -1989,10 +1989,10 @@ function renderTelaPropostas() {
                 .prop-lbl,
                 .prop-lbl-end,
                 .prop-lbl-modal,
-                .mcli-field label,
+                .mcli-field label:not(.ramo-pill-lbl),
                 .prec-input-group label,
                 .mcon-field label:not(.ramo-pill-lbl),
-                [id^="prop-view-"] label:not(.ramo-pill-lbl) {
+                [id^="prop-view-"] label:not(.ramo-pill-lbl):not(.prop-chk-inline-lbl) {
                     font-weight: 600 !important;
                     font-size: 0.7rem !important;
                     color: #475569 !important;
@@ -2002,18 +2002,50 @@ function renderTelaPropostas() {
                     text-transform: none !important;
                     letter-spacing: normal !important;
                 }
+                label.prop-chk-inline-lbl {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 6px !important;
+                    height: 26px !important;
+                    padding: 0 10px !important;
+                    margin-bottom: 0 !important;
+                    border: 1px solid #c4b5fd !important;
+                    border-radius: 4px !important;
+                    background: #f5f3ff !important;
+                    color: #5b21b6 !important;
+                    font-size: 0.75rem !important;
+                    font-weight: 700 !important;
+                    line-height: 1 !important;
+                    cursor: pointer !important;
+                    white-space: nowrap !important;
+                    user-select: none !important;
+                    box-sizing: border-box !important;
+                }
+                label.prop-chk-inline-lbl input[type="checkbox"] {
+                    margin: 0 !important;
+                    width: 14px !important;
+                    height: 14px !important;
+                    vertical-align: middle !important;
+                    flex-shrink: 0 !important;
+                }
                 label.ramo-pill-lbl {
                     display: inline-flex !important;
                     align-items: center !important;
                     justify-content: center !important;
                     gap: 5px !important;
+                    height: 28px !important;
+                    padding: 0 10px !important;
                     margin-bottom: 0 !important;
                     line-height: 1 !important;
                     vertical-align: middle !important;
                     white-space: nowrap !important;
+                    box-sizing: border-box !important;
                 }
                 label.ramo-pill-lbl input[type="checkbox"] {
                     margin: 0 !important;
+                    width: 14px !important;
+                    height: 14px !important;
                     vertical-align: middle !important;
                     flex-shrink: 0 !important;
                 }
@@ -4048,11 +4080,11 @@ function _renderFormPropostaInt() {
                                 <input type="text" id="prop-titulo-contrato" value="${_escHtmlProp(v('titulo_contrato'))}" placeholder="Digite o título do contrato..."
                                     oninput="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
                                     style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none !important;">
-                                <label style="display:inline-flex; align-items:center; gap:6px; padding:0 10px; height:36px; border:1px solid #c4b5fd; border-radius:6px; background:#f5f3ff; color:#5b21b6; font-size:0.8rem; font-weight:700; cursor:pointer; white-space:nowrap; user-select:none; box-sizing:border-box;" title="Marque para incluir o quadro Dados do Interveniente e o texto legal de interveniente no contrato">
+                                <label class="prop-chk-inline-lbl" title="Marque para incluir o quadro Dados do Interveniente e o texto legal de interveniente no contrato">
                                     <input type="checkbox" id="prop-chk-interveniente" ${(Number(prop?.contrato_interveniente) === 1 || prop?.contrato_interveniente === true || Boolean(v('interveniente_nome')) || String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE') ? 'checked' : ''}
                                         onchange="if(typeof window.onToggleContratoInterveniente === 'function') window.onToggleContratoInterveniente(this.checked); if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
-                                        style="width:15px; height:15px; accent-color:#7048e8; cursor:pointer; margin:0;">
-                                    Interveniente
+                                        style="width:14px; height:14px; accent-color:#7048e8; cursor:pointer; margin:0;">
+                                    <span>Interveniente</span>
                                 </label>
                             </div>
                         </div>
@@ -6336,9 +6368,9 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                     const ramosAtuais = String(client?.ramo_atividade || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
                                     const checked = ramosAtuais.includes(op.val.toLowerCase());
                                     return `
-                                        <label style="display:inline-flex; align-items:center; gap:0.28rem; padding:0 0.55rem; height:28px; box-sizing:border-box; border:1px solid ${checked ? '#3b82f6' : '#cbd5e1'}; border-radius:4px; background:${checked ? '#eff6ff' : '#fff'}; color:${checked ? '#1d4ed8' : '#334155'}; font-size:0.76rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0;">
-                                            <input type="checkbox" class="modal-cli-ramo-chk" value="${op.val}" ${checked ? 'checked' : ''} onchange="window.toggleRamoAtividadeGenerico('.modal-cli-ramo-chk', 'modal-cli-ramo-atividade')" style="accent-color:#2563eb; width:0.85rem; height:0.85rem; cursor:pointer; margin:0;">
-                                            ${op.label}
+                                        <label class="ramo-pill-lbl" style="display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:0 0.6rem; height:28px; box-sizing:border-box; border:1px solid ${checked ? '#3b82f6' : '#cbd5e1'}; border-radius:4px; background:${checked ? '#eff6ff' : '#fff'}; color:${checked ? '#1d4ed8' : '#334155'}; font-size:0.76rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0; line-height:1;">
+                                            <input type="checkbox" class="modal-cli-ramo-chk" value="${op.val}" ${checked ? 'checked' : ''} onchange="window.toggleRamoAtividadeGenerico('.modal-cli-ramo-chk', 'modal-cli-ramo-atividade')" style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer; margin:0; vertical-align:middle;">
+                                            <span>${op.label}</span>
                                         </label>
                                     `;
                                 }).join('')}
@@ -6419,6 +6451,32 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                         </thead>
                                         <tbody id="modal-cli-contatos-tbody">
                                             <!-- Populado dinamicamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Clientes Grupo e Intervenientes (Expandido por padrão, abaixo de Contatos) -->
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                            <div onclick="window.modalToggleAccordion('modal-acc-grupo-intervenientes')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                                <span>▼ Clientes Grupo e Intervenientes <i class="ph ph-buildings"></i></span>
+                                <span id="modal-acc-grupo-intervenientes-arrow" style="transition:transform 0.2s;">▼</span>
+                            </div>
+                            <div id="modal-acc-grupo-intervenientes" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                                <div style="background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
+                                        <thead>
+                                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em;">
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:12%; white-space:nowrap;">Código</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:38%;">Nome / Razão Social</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:20%; white-space:nowrap;">CPF / CNPJ</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%; white-space:nowrap;">Telefone / Celular</th>
+                                                <th style="padding:0.75rem 1rem; font-weight:700; width:15%;">E-mail</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="modal-cli-grupo-intervenientes-tbody">
+                                            <tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -6545,6 +6603,9 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
 
             // Populate contacts table and attachments
             window.modalRenderTabelaContatos();
+            if (typeof window.renderTabelaClientesGrupoIntervenientes === 'function') {
+                window.renderTabelaClientesGrupoIntervenientes('modal', client);
+            }
             window._modalCliAnexosSalvos = (client && Array.isArray(client.anexos_tabela)) ? client.anexos_tabela : [];
             window._modalCliAnexosPendentes = [];
             if (typeof window.renderAnexosCliente === 'function') {
@@ -8862,6 +8923,9 @@ window.salvarPropostaNova = async function() {
     // Cache payload for save confirm call
     window._cachedProposalPayload = payload;
     window._propostaDuplicadaRascunho = null;
+    if (payload.contrato_interveniente && payload.interveniente_nome && payload.cliente_nome && typeof window.vincularIntervenienteAoClienteCentralizador === 'function') {
+        window.vincularIntervenienteAoClienteCentralizador(payload.interveniente_nome, payload.cliente_nome);
+    }
 
     Swal.fire({
         title: 'Preparando conferência da proposta...',
@@ -9642,6 +9706,9 @@ window.aprovarPropostaEdicao = async function() {
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
+    if (payload.contrato_interveniente && payload.interveniente_nome && payload.cliente_nome && typeof window.vincularIntervenienteAoClienteCentralizador === 'function') {
+        window.vincularIntervenienteAoClienteCentralizador(payload.interveniente_nome, payload.cliente_nome);
+    }
     if (usaFluxoAssinafy) {
         if (ehModoContratoAssinafy && !obter('prop-titulo-contrato').trim()) {
             Swal.fire('Aviso', 'Preencha e salve o campo Título do contrato antes de enviar para assinatura.', 'warning');
@@ -11871,9 +11938,9 @@ function _renderCadastroClienteInt() {
                             <label class="prop-lbl">Ramo de Atividade</label>
                             <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; min-height:28px;">
                                 ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
-                                    <label style="display:inline-flex; align-items:center; gap:0.3rem; padding:0 0.6rem; height:28px; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#334155; font-size:0.78rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0;">
-                                        <input type="checkbox" class="cli-ramo-chk" value="${op.val}" onchange="window.toggleRamoAtividadeGenerico('.cli-ramo-chk', 'cli-ramo-atividade')" style="accent-color:#2563eb; width:0.88rem; height:0.88rem; cursor:pointer; margin:0;">
-                                        ${op.label}
+                                    <label class="ramo-pill-lbl" style="display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:0 0.65rem; height:28px; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#334155; font-size:0.78rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0; line-height:1;">
+                                        <input type="checkbox" class="cli-ramo-chk" value="${op.val}" onchange="window.toggleRamoAtividadeGenerico('.cli-ramo-chk', 'cli-ramo-atividade')" style="accent-color:#2563eb; width:14px; height:14px; cursor:pointer; margin:0; vertical-align:middle;">
+                                        <span>${op.label}</span>
                                     </label>
                                 `).join('')}
                             </div>
@@ -11930,6 +11997,32 @@ function _renderCadastroClienteInt() {
                                     </thead>
                                     <tbody id="cli-contatos-tbody">
                                         <!-- Populado dinamicamente -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clientes Grupo e Intervenientes (Expandido por padrão, abaixo de Contatos) -->
+                    <div style="border:1px solid #e2e8f0; border-radius:6px; overflow:hidden;">
+                        <div onclick="toggleAccordion('acc-grupo-intervenientes')" style="background:#f8fafc; padding:0.75rem 1rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-weight:bold; font-size:0.88rem; color:#475569;">
+                            <span>▼ Clientes Grupo e Intervenientes <i class="ph ph-buildings"></i></span>
+                            <span id="acc-grupo-intervenientes-arrow" style="transform:rotate(90deg); transition:transform 0.2s;">▶</span>
+                        </div>
+                        <div id="acc-grupo-intervenientes" style="display:block; padding:1.2rem; border-top:1px solid #e2e8f0; font-size:0.85rem;">
+                            <div style="max-height:260px; overflow-y:auto; background:#fff; border-radius:10px; border:1px solid #e2e8f0; overflow-x:auto; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; font-family:'Inter', sans-serif;">
+                                    <thead>
+                                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; text-align:left;">
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:12%; white-space:nowrap;">Código</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:38%;">Nome / Razão Social</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:20%; white-space:nowrap;">CPF / CNPJ</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%; white-space:nowrap;">Telefone / Celular</th>
+                                            <th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:0.75rem 1rem; font-weight:700; color:#475569; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.02em; width:15%;">E-mail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cli-grupo-intervenientes-tbody">
+                                        <tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -12892,6 +12985,9 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         if (accContatos) accContatos.style.display = 'block';
         if (accContatosArrow) accContatosArrow.innerText = '▼';
         _renderTabelaContatos();
+        if (typeof window.renderTabelaClientesGrupoIntervenientes === 'function') {
+            window.renderTabelaClientesGrupoIntervenientes('main', c);
+        }
 
         // Carregar outros campos JSON
         try {
@@ -12980,6 +13076,9 @@ window.limparFormCliente = function() {
     }
 
     _renderTabelaContatos();
+    if (typeof window.renderTabelaClientesGrupoIntervenientes === 'function') {
+        window.renderTabelaClientesGrupoIntervenientes('main', null);
+    }
     if (typeof window.renderAnexosCliente === 'function') {
         window.renderAnexosCliente('main', null);
     }
@@ -27651,6 +27750,120 @@ window.atualizarVisibilidadeIntervenienteContrato = function(tipoVal) {
     }
 };
 
+window.renderTabelaClientesGrupoIntervenientes = async function(escopo = 'main', clientObj = null) {
+    const tbodyId = escopo === 'modal' ? 'modal-cli-grupo-intervenientes-tbody' : 'cli-grupo-intervenientes-tbody';
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    const prefix = escopo === 'modal' ? 'modal-cli-' : 'cli-';
+    const codAtual = String((clientObj && clientObj.codigo) || document.getElementById(prefix + 'codigo')?.value || '').trim();
+    const razaoAtualRaw = String((clientObj && clientObj.nome_razao_social) || document.getElementById(prefix + 'razao-social')?.value || '').trim();
+    const idAtual = Number((clientObj && clientObj.id) || (escopo === 'modal' ? window._modalClienteEditandoId : _clienteEditandoId) || 0);
+
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const razaoNorm = norm(razaoAtualRaw);
+    const codNorm = norm(codAtual);
+
+    if (!idAtual && !razaoNorm && (!codNorm || codNorm === 'auto')) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado.</td></tr>`;
+        return;
+    }
+
+    let lista = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+    if (!lista.length && typeof window.obterClientesCache === 'function') {
+        lista = await window.obterClientesCache().catch(() => []);
+    }
+
+    const vinculados = (lista || []).filter(c => {
+        if (!c || (idAtual && Number(c.id) === Number(idAtual))) return false;
+        const centRaw = String(c.cliente_centralizador || '').trim();
+        if (!centRaw) return false;
+        const centNorm = norm(centRaw);
+        const parts = centRaw.split(/\s*-\s*/);
+        const centCod = norm(parts[0] || '');
+        const centNome = norm(parts.slice(1).join(' - ') || centRaw);
+
+        if (codNorm && codNorm !== 'auto' && (centNorm === codNorm || centCod === codNorm)) return true;
+        if (razaoNorm && (centNorm === razaoNorm || centNome === razaoNorm || centNorm.includes(razaoNorm))) return true;
+        return false;
+    });
+
+    if (vinculados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:1rem; text-align:center; color:#94a3b8;">Nenhum cliente de grupo ou interveniente vinculado a este cliente centralizador.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = vinculados.map(v => {
+        const nomeExib = typeof window.formatarNomeClienteComIcone === 'function'
+            ? window.formatarNomeClienteComIcone(v, v.grupo_clientes, lista)
+            : (v.nome_razao_social || v.nome_fantasia || '—');
+        const clickHandler = escopo === 'modal'
+            ? `window.abrirModalCadastroCliente(${v.id}, '')`
+            : `window.carregarClienteParaEdicao(${v.id})`;
+        return `
+            <tr onclick="${clickHandler}" style="border-bottom:1px solid #f1f5f9; transition:background 0.15s; cursor:pointer;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''" title="Clique para abrir o cadastro deste cliente / interveniente">
+                <td style="padding:0.75rem 1rem; font-weight:700; color:#7048e8; white-space:nowrap;">${_escHtmlProp(v.codigo || '—')}</td>
+                <td style="padding:0.75rem 1rem; font-weight:600; color:#2563eb; text-decoration:underline;">${_escHtmlProp(nomeExib)}</td>
+                <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${_escHtmlProp(v.cpf_cnpj || '—')}</td>
+                <td style="padding:0.75rem 1rem; color:#475569; white-space:nowrap;">${_escHtmlProp(v.celular || v.telefone || '—')}</td>
+                <td style="padding:0.75rem 1rem; color:#475569; word-break:break-all;">${_escHtmlProp(v.email || '—')}</td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.vincularIntervenienteAoClienteCentralizador = async function(intervenienteNomeOuObj, centralizadorNomeRaw) {
+    try {
+        const clean = (s) => (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(s || '') : String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '')).replace(/^\d+\s*-\s*/, '').trim();
+        const intNome = typeof intervenienteNomeOuObj === 'object' && intervenienteNomeOuObj
+            ? clean(intervenienteNomeOuObj.nome_razao_social || intervenienteNomeOuObj.nome_fantasia || '')
+            : clean(intervenienteNomeOuObj);
+        const intId = typeof intervenienteNomeOuObj === 'object' && intervenienteNomeOuObj ? intervenienteNomeOuObj.id : null;
+        const centNome = clean(centralizadorNomeRaw || document.getElementById('prop-cliente')?.value || '');
+        if ((!intId && !intNome) || !centNome) return;
+        if (intNome.toLowerCase() === centNome.toLowerCase()) return;
+
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch('/api/clientes/vincular-centralizador', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+            body: JSON.stringify({
+                interveniente_id: intId,
+                interveniente_nome: intNome,
+                centralizador_nome: centNome
+            })
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (resp.ok && j && j.success && !j.skipped) {
+            if (Array.isArray(_clientesCache)) {
+                const found = _clientesCache.find(c => Number(c.id) === Number(j.interveniente_id));
+                if (found) found.cliente_centralizador = j.cliente_centralizador;
+            }
+            if (document.getElementById('cli-grupo-intervenientes-tbody')) {
+                window.renderTabelaClientesGrupoIntervenientes('main');
+            }
+        }
+    } catch (e) {
+        console.warn('[INTERVENIENTE] Erro ao vincular cliente centralizador:', e);
+    }
+};
+
+window.selecionarClienteIntervenienteDropdown = async function(idCli, razaoComIcone) {
+    const el = document.getElementById('prop-interveniente');
+    if (el) {
+        el.value = razaoComIcone;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const drop = document.getElementById('prop-interveniente-dropdown');
+    if (drop) drop.style.display = 'none';
+    const inpCt = document.getElementById('prop-interveniente-contato');
+    if (inpCt) inpCt.value = '';
+    const cliBase = document.getElementById('prop-cliente')?.value || '';
+    if (cliBase.trim()) {
+        await window.vincularIntervenienteAoClienteCentralizador({ id: idCli, nome_razao_social: razaoComIcone }, cliBase);
+    }
+};
+
 window.onChangeIntervenienteContratoInput = function(valor) {
     const dropCt = document.getElementById('prop-interveniente-contato-dropdown');
     if (dropCt) dropCt.style.display = 'none';
@@ -27800,7 +28013,7 @@ window.filtrarDropdownIntervenienteContrato = async function(termo = '', abrir =
             ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, lista)
             : razao;
         const razaoEsc = String(razaoComIcone).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        return `<div onmousedown="event.preventDefault(); const el=document.getElementById('prop-interveniente'); if(el){ el.value='${razaoEsc}'; el.dispatchEvent(new Event('input',{bubbles:true})); } document.getElementById('prop-interveniente-dropdown').style.display='none';"
+        return `<div onmousedown="event.preventDefault(); window.selecionarClienteIntervenienteDropdown(${Number(c.id) || 'null'}, '${razaoEsc}');"
             style="padding:7px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.82rem; display:flex; justify-content:space-between; gap:8px;"
             onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'">
             <span style="font-weight:700; color:#1e293b;">${_escHtmlProp(razaoComIcone)}</span>
