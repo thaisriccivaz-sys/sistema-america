@@ -41949,33 +41949,39 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
         });
 
         // Garantir numeração própria de contratos (01 em diante) e situação inicial 'EM ELABORAÇÃO' (exceto Aditivos)
-        db.all(
-          "SELECT id, codigo, contrato, tipo, situacao_contrato, assinafy_id, assinafy_status, assinafy_signed_at, assinafy_signed_r2_key FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO') ORDER BY COALESCE(aprovado_em, atualizado_em, criado_em) ASC, id ASC",
+        db.run(
+          "UPDATE propostas SET fase_negociacao = 'Aprovada', situacao_contrato = 'CONTRATO ASSINADO' WHERE contrato IS NOT NULL AND TRIM(contrato) != '' AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO') AND (LOWER(TRIM(COALESCE(assinafy_status, ''))) = 'assinado' OR assinafy_signed_at IS NOT NULL OR assinafy_signed_r2_key IS NOT NULL)",
           [],
-          (errAp, rowsAp) => {
-            if (errAp || !Array.isArray(rowsAp)) return;
-            db.run("DELETE FROM contratos WHERE proposta_id IS NOT NULL AND proposta_id NOT IN (SELECT id FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA')", [], () => {});
-            rowsAp.forEach((r, idx) => {
-              const seqContrato = String(idx + 1).padStart(2, '0');
-              const sitAtual = String(r.situacao_contrato || '').trim();
-              const sitUp = sitAtual.toUpperCase();
-              const foiAssinadoCtr = (String(r.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(r.assinafy_signed_at) || Boolean(r.assinafy_signed_r2_key));
-              const foiEnviadoAssinafyCtr = Boolean(r.assinafy_id && String(r.assinafy_id).trim());
-              const novaSit = foiAssinadoCtr
-                ? 'CONTRATO ASSINADO'
-                : (foiEnviadoAssinafyCtr && (!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO')
-                    ? 'ENVIADO PARA ASSINATURA'
-                    : ((!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'APROVADA' || sitUp === 'APROVADO' || sitUp === 'ESTORNADO')
-                        ? 'EM ELABORAÇÃO'
-                        : sitAtual));
-              if (String(r.contrato || '').trim() !== seqContrato || sitAtual !== novaSit) {
-                db.run("UPDATE propostas SET contrato = ?, situacao_contrato = ? WHERE id = ?", [seqContrato, novaSit, r.id], () => {
-                  sincronizarContratoDaProposta(r.id);
+          () => {
+            db.all(
+              "SELECT id, codigo, contrato, tipo, fase_negociacao, situacao_contrato, assinafy_id, assinafy_status, assinafy_signed_at, assinafy_signed_r2_key FROM propostas WHERE (UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' OR (contrato IS NOT NULL AND TRIM(contrato) != '')) AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO') ORDER BY COALESCE(aprovado_em, atualizado_em, criado_em) ASC, id ASC",
+              [],
+              (errAp, rowsAp) => {
+                if (errAp || !Array.isArray(rowsAp)) return;
+                db.run("DELETE FROM contratos WHERE proposta_id IS NOT NULL AND proposta_id NOT IN (SELECT id FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' OR (contrato IS NOT NULL AND TRIM(contrato) != ''))", [], () => {});
+                rowsAp.forEach((r, idx) => {
+                  const seqContrato = String(idx + 1).padStart(2, '0');
+                  const sitAtual = String(r.situacao_contrato || '').trim();
+                  const sitUp = sitAtual.toUpperCase();
+                  const foiAssinadoCtr = (String(r.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(r.assinafy_signed_at) || Boolean(r.assinafy_signed_r2_key));
+                  const foiEnviadoAssinafyCtr = Boolean(r.assinafy_id && String(r.assinafy_id).trim());
+                  const novaSit = foiAssinadoCtr
+                    ? 'CONTRATO ASSINADO'
+                    : (foiEnviadoAssinafyCtr && (!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO')
+                        ? 'ENVIADO PARA ASSINATURA'
+                        : ((!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'APROVADA' || sitUp === 'APROVADO' || sitUp === 'ESTORNADO')
+                            ? 'EM ELABORAÇÃO'
+                            : sitAtual));
+                  if (String(r.contrato || '').trim() !== seqContrato || sitAtual !== novaSit) {
+                    db.run("UPDATE propostas SET contrato = ?, situacao_contrato = ? WHERE id = ?", [seqContrato, novaSit, r.id], () => {
+                      sincronizarContratoDaProposta(r.id);
+                    });
+                  } else {
+                    sincronizarContratoDaProposta(r.id);
+                  }
                 });
-              } else {
-                sincronizarContratoDaProposta(r.id);
               }
-            });
+            );
           }
         );
       }

@@ -1886,18 +1886,20 @@ window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOv
         if (!tabCtr) return;
         const snapCtr = window._snapshotsFormComercial && window._snapshotsFormComercial['contrato'];
         const isTabAtivaCtr = Boolean(tabCtr.active) && window._modoTelaComercial === 'contrato';
-        const idRefCtr = isTabAtivaCtr ? (_propostasEditandoId || window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null) : (window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null);
+        const idRefCtr = isTabAtivaCtr
+            ? (_propostasEditandoId || window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null)
+            : (window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || _propostasEditandoId || null);
 
         let numCtr = '';
+        if (codigoOverride) {
+            numCtr = String(codigoOverride).trim();
+        }
         if (idRefCtr) {
-            if (codigoOverride) {
-                numCtr = String(codigoOverride).trim();
-            }
             if (!numCtr && Array.isArray(_propostasData)) {
                 const pMatch = _propostasData.find(p => Number(p.id) === Number(idRefCtr));
                 if (pMatch && pMatch.contrato) numCtr = String(pMatch.contrato).trim();
             }
-            if (!numCtr && isTabAtivaCtr) {
+            if (!numCtr && window._modoTelaComercial === 'contrato') {
                 numCtr = String(document.getElementById('prop-codigo')?.value || '').trim();
             }
             if (!numCtr && snapCtr && snapCtr.campos && snapCtr.campos['prop-codigo']) {
@@ -1905,8 +1907,8 @@ window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOv
             }
         }
 
-        const novoTituloCtr = (idRefCtr && numCtr && numCtr.toUpperCase() !== 'AUTO')
-            ? `${numCtr} - Contratos`
+        const novoTituloCtr = ((idRefCtr || codigoOverride) && numCtr && numCtr.toUpperCase() !== 'AUTO')
+            ? `${numCtr} - Contrato`
             : 'Contratos';
 
         if (tabCtr.title !== novoTituloCtr) {
@@ -3046,8 +3048,8 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
-                        <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
-                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
+                        <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && Boolean(v('contrato') && String(v('contrato')).trim()) && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
+                            <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-contrato">Contrato Nº ${_escHtmlProp(v('contrato') || '01')}</span>
                         </button>
                         <button type="button" id="btn-prop-abrir-proposta-origem" onclick="window.abrirPropostaDiretoId(${id || 'null'})" title="Abrir a Proposta Nº ${_escHtmlProp(v('codigo') || '01')} vinculada a este contrato" style="display:${(!isNovo && window._modoTelaComercial === 'contrato') ? 'inline-flex' : 'none'}; background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onfocus="this.blur()">
                             <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-proposta-origem">Proposta Nº ${_escHtmlProp(v('codigo') || '01')}</span>
@@ -3891,6 +3893,21 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnAbrirPropOrigem.style.display = 'inline-flex';
         } else {
             btnAbrirPropOrigem.style.display = 'none';
+        }
+    }
+
+    const btnAbrirCtr = document.getElementById('btn-prop-abrir-contrato');
+    if (btnAbrirCtr) {
+        const numCtrAtu = String((prop && prop.contrato) || '').trim();
+        const tipoNormAtu = String(document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (window._modoTelaComercial !== 'contrato' && _propostasEditandoId && numCtrAtu && tipoNormAtu !== 'ADITIVO') {
+            const lblCtr = document.getElementById('lbl-btn-prop-abrir-contrato');
+            if (lblCtr) lblCtr.textContent = 'Contrato Nº ' + numCtrAtu;
+            btnAbrirCtr.title = 'Abrir o Contrato Nº ' + numCtrAtu + ' gerado por esta proposta';
+            btnAbrirCtr.setAttribute('onclick', `window.abrirContratoDaProposta(${Number(_propostasEditandoId)})`);
+            btnAbrirCtr.style.display = 'inline-flex';
+        } else {
+            btnAbrirCtr.style.display = 'none';
         }
     }
 
@@ -9117,27 +9134,27 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
     if (!container.querySelector('#assinaturas-comercial-tbody')) {
         container.innerHTML = `
             <div style="background:#ffffff; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 14px rgba(15,23,42,0.05); overflow:hidden; margin-top:0.5rem;">
-                <div style="padding:1rem 1.25rem; background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
+                <div style="padding:1rem 1.25rem; background:#ffffff; color:#0f172a; border-bottom:1px solid #e2e8f0; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:38px; height:38px; border-radius:10px; background:rgba(56,189,248,0.18); display:flex; align-items:center; justify-content:center; color:#38bdf8; font-size:1.3rem;">
+                        <div style="width:38px; height:38px; border-radius:10px; background:#eff6ff; border:1px solid #bae6fd; display:flex; align-items:center; justify-content:center; color:#0284c7; font-size:1.3rem;">
                             <i class="ph ph-signature"></i>
                         </div>
                         <div>
-                            <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:#fff; letter-spacing:-0.01em;">Assinaturas Eletrônicas (Assinafy)</h2>
-                            <p style="margin:2px 0 0 0; font-size:0.76rem; color:#94a3b8;">Conferência de todas as propostas e contratos enviados para assinatura via Assinafy</p>
+                            <h2 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a; letter-spacing:-0.01em;">Assinaturas Eletrônicas (Assinafy)</h2>
+                            <p style="margin:2px 0 0 0; font-size:0.76rem; color:#64748b;">Conferência de todas as propostas e contratos enviados para assinatura via Assinafy</p>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
                         <div style="position:relative; min-width:240px;">
                             <i class="ph ph-magnifying-glass" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b; font-size:0.95rem;"></i>
-                            <input type="text" id="assinaturas-comercial-busca" value="${_escHtmlProp(buscaAtual)}" oninput="window.filtrarTabelaAssinaturasComercial()" placeholder="Buscar cliente, contato, e-mail ou código..." style="width:100%; padding:0.48rem 0.75rem 0.48rem 2rem; border-radius:8px; border:1px solid #334155; background:#fff; color:#0f172a; font-size:0.82rem; box-sizing:border-box;">
+                            <input type="text" id="assinaturas-comercial-busca" value="${_escHtmlProp(buscaAtual)}" oninput="window.filtrarTabelaAssinaturasComercial()" placeholder="Buscar cliente, contato, e-mail ou código..." style="width:100%; padding:0.48rem 0.75rem 0.48rem 2rem; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-size:0.82rem; box-sizing:border-box;">
                         </div>
-                        <select id="assinaturas-comercial-tipo-doc" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #334155; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
+                        <select id="assinaturas-comercial-tipo-doc" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
                             <option value="" ${docTipoAtual === '' ? 'selected' : ''}>Propostas e Contratos</option>
                             <option value="PROPOSTA" ${docTipoAtual === 'PROPOSTA' ? 'selected' : ''}>Apenas Propostas</option>
                             <option value="CONTRATO" ${docTipoAtual === 'CONTRATO' ? 'selected' : ''}>Apenas Contratos</option>
                         </select>
-                        <select id="assinaturas-comercial-status" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #334155; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
+                        <select id="assinaturas-comercial-status" onchange="window.filtrarTabelaAssinaturasComercial()" style="padding:0.48rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600;">
                             <option value="">Todas as Situações</option>
                             <option value="AGUARDANDO">Aguardando Assinatura</option>
                             <option value="ASSINADO">Assinado</option>
@@ -19948,7 +19965,7 @@ window.pesquisarPropostaPorCodigoInput = async function() {
         const localizarNaLista = (listaFonte) => {
             const baseLista = (listaFonte || []).filter(p =>
                 isModoContrato
-                    ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && Boolean(String(p.contrato || '').trim()))
+                    ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO')
                     : true
             );
             // 1) Busca correspondência exata pelo número do contrato (em modo contrato) ou pelo código da proposta (em modo proposta)
@@ -20037,7 +20054,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
         const exibirColExcluirModal = true;
-        const mapearPropostasComCnpj = (listaBruta) => (listaBruta || []).filter(p => isModoContratoModal ? (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && Boolean(String(p.contrato || '').trim())) : true).map(p => {
+        const mapearPropostasComCnpj = (listaBruta) => (listaBruta || []).filter(p => isModoContratoModal ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO') : true).map(p => {
             const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
             const cnpj = key ? (clientCnpjMap[key] || '') : '';
             const icone = key ? (clientIconMap[key] || '') : '';
@@ -20060,16 +20077,22 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
-                const codExib = isModoContratoModal ? (p.contrato || '—') : (p.codigo || '—');
+                const codPropLimpo = String(p.codigo || '').trim();
                 const numContratoProp = String(p.contrato || '').trim();
+                const btnPropAzulHtml = codPropLimpo
+                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirPropostaDiretoId(${p.id});" title="Clique para abrir a Proposta Nº ${_escHtmlProp(codPropLimpo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'">${_escHtmlProp(codPropLimpo)}</button>`
+                    : '—';
+                const btnContratoAmareloHtml = numContratoProp
+                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp)}</button>`
+                    : '—';
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true)
                     : window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; color:#7048e8; text-align:center; white-space:nowrap;">${codExib}</td>
-                        ${!isModoContratoModal ? `<td style="padding:10px 12px; font-weight:700; color:${numContratoProp ? '#0f172a' : '#94a3b8'}; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${numContratoProp ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${numContratoProp}" style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#fde047'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#fef9c3'; this.style.transform='scale(1)'">${numContratoProp}</button>` : '—'}</td>` : ''}
+                        <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${isModoContratoModal ? btnContratoAmareloHtml : btnPropAzulHtml}</td>
+                        ${!isModoContratoModal ? `<td style="padding:10px 12px; font-weight:700; color:${numContratoProp ? '#0f172a' : '#94a3b8'}; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnContratoAmareloHtml}</td>` : ''}
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#334155; text-align:center; white-space:nowrap;">${tipoExib}</td>
