@@ -167,18 +167,15 @@ window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
 };
 
 const CONTRATO_SITUACOES_CONFIG = [
-    { nome: 'EM ELABORAÇÃO',                          cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Em elaboração', icon: 'ph-pencil' },
-    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Ativo',         icon: 'ph-paper-plane-tilt' },
-    { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',         icon: 'ph-signature' },
-    { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',         icon: 'ph-truck' },
-    { nome: 'CONTRATO DIGITAL ASSINADO',              cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',         icon: 'ph-signature' },
-    { nome: 'INFORMAÇÕES ADICIONAIS',                 cor: 'YELLOW',  bg: '#fef9c3', text: '#a16207', border: '#fde047', status: 'Ativo',         icon: 'ph-info' },
-    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',         icon: 'ph-check-circle' },
-    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',         icon: 'ph-receipt' },
-    { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado',       icon: 'ph-x-circle' },
-    { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado',       icon: 'ph-archive' },
-    { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',         icon: 'ph-seal-check' },
-    { nome: 'ADIANTAMENTO DE OS',                     cor: 'BROWN',   bg: '#f5ebe0', text: '#78350f', border: '#d6ccc2', status: 'Aberto',        icon: 'ph-wrench' }
+    { nome: 'EM ELABORAÇÃO',                          cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-pencil' },
+    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Ativo',   icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
+    { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
+    { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
+    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-check-circle' },
+    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
+    { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado', icon: 'ph-x-circle' },
+    { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-archive' },
+    { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',   icon: 'ph-seal-check' }
 ];
 window.CONTRATO_SITUACOES_CONFIG = CONTRATO_SITUACOES_CONFIG;
 
@@ -188,12 +185,15 @@ window.obterConfigSituacaoContrato = function(sitRaw) {
     if (!s || s === 'EM ELABORACAO' || s === 'AGUARDANDO ASSINATURA' || s === 'APROVADA' || s === 'APROVADO' || s === 'ESTORNADO') {
         return CONTRATO_SITUACOES_CONFIG[0];
     }
+    if (s === 'CONTRATO DIGITAL ASSINADO') {
+        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'CONTRATO ASSINADO') || CONTRATO_SITUACOES_CONFIG[2];
+    }
     const exact = CONTRATO_SITUACOES_CONFIG.find(c => normStr(c.nome) === s);
     if (exact) return exact;
     if (s === 'REPROVADA' || s === 'REPROVADO' || s === 'CANCELADA' || s === 'CANCELADO') {
-        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[8];
+        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[6];
     }
-    return { nome: String(sitRaw || 'EM ELABORAÇÃO').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Em elaboração', icon: 'ph-circle' };
+    return { nome: String(sitRaw || 'EM ELABORAÇÃO').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Aberto', icon: 'ph-circle' };
 };
 
 window.propostaVirouContrato = function(prop) {
@@ -3147,7 +3147,8 @@ function _renderFormPropostaInt() {
                                     ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
                                         const sitSel = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
                                         const isSel = sitSel.toUpperCase() === cfg.nome.toUpperCase();
-                                        return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
+                                        const isDisCtr = Boolean(cfg.somenteAutomatico);
+                                        return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${isDisCtr ? 'disabled title="Definido automaticamente ao enviar ou baixar o contrato"' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
                                     }).join('')
                                     : (PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
@@ -3191,9 +3192,12 @@ function _renderFormPropostaInt() {
                                     ${window._modoTelaComercial === 'contrato'
                                         ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
                                             const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                                            return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', false, event)"
-                                                style="padding:6px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
-                                                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                            const isDisCtr = Boolean(cfg.somenteAutomatico);
+                                            const titleDisCtr = isDisCtr ? 'title="Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy"' : '';
+                                            return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', ${isDisCtr ? 'true' : 'false'}, event)"
+                                                ${titleDisCtr}
+                                                style="padding:6px 8px; border-radius:6px; cursor:${isDisCtr ? 'not-allowed' : 'pointer'}; opacity:${isDisCtr ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
+                                                onmouseover="if(!${isDisCtr}) this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                                                 ${window.renderBadgeSituacaoContratoHtml(cfg.nome, true)}
                                             </div>`;
                                         }).join('')
@@ -9170,14 +9174,14 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
                     <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
                         <thead>
                             <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569; font-weight:800; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                <th style="padding:10px 12px; white-space:nowrap;">Código</th>
-                                <th style="padding:10px 12px; white-space:nowrap;">Documento</th>
+                                <th style="padding:10px 10px; text-align:center; width:90px; white-space:nowrap;">Proposta</th>
+                                <th style="padding:10px 10px; text-align:center; width:90px; white-space:nowrap;">Contrato</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Tipo / Categoria</th>
-                                <th style="padding:10px 12px; min-width:300px; width:28%;">Cliente</th>
-                                <th style="padding:10px 12px;">Contato</th>
-                                <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora do Envio</th>
+                                <th style="padding:10px 12px; min-width:280px; width:26%;">Cliente</th>
+                                <th style="padding:10px 12px; min-width:210px; width:19%;">Contato</th>
+                                <th style="padding:10px 10px; text-align:center; width:95px; white-space:nowrap;">Dia / Hora do Envio</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Situação da Assinatura</th>
-                                <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora da Assinatura</th>
+                                <th style="padding:10px 10px; text-align:center; width:95px; white-space:nowrap;">Dia / Hora da Assinatura</th>
                                 <th style="padding:10px 12px; text-align:center; white-space:nowrap;">Ações</th>
                             </tr>
                         </thead>
@@ -9281,14 +9285,22 @@ window.filtrarTabelaAssinaturasComercial = function() {
         return;
     }
 
-    const fmtDataHora = (s) => {
-        if (!s) return '—';
+    const fmtDataHoraDuasLinhas = (s, corData = '#334155', corHora = '#64748b') => {
+        if (!s) return '<span style="color:#94a3b8;">—</span>';
         try {
             const iso = String(s).includes('T') ? String(s) : String(s).replace(' ', 'T');
             const dt = new Date(iso);
-            if (!isNaN(dt.getTime())) return dt.toLocaleString('pt-BR');
-            return String(s);
-        } catch (_) { return String(s); }
+            if (!isNaN(dt.getTime())) {
+                const diaStr = dt.toLocaleDateString('pt-BR');
+                const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                return `<div style="line-height:1.25; text-align:center;"><div style="font-weight:700; color:${corData};">${_escHtmlProp(diaStr)}</div><div style="font-size:0.72rem; font-weight:600; color:${corHora}; margin-top:1px;">${_escHtmlProp(horaStr)}</div></div>`;
+            }
+            const partes = String(s).split(/[,\s]+/).filter(Boolean);
+            if (partes.length >= 2) {
+                return `<div style="line-height:1.25; text-align:center;"><div style="font-weight:700; color:${corData};">${_escHtmlProp(partes[0])}</div><div style="font-size:0.72rem; font-weight:600; color:${corHora}; margin-top:1px;">${_escHtmlProp(partes.slice(1).join(' '))}</div></div>`;
+            }
+            return _escHtmlProp(String(s));
+        } catch (_) { return _escHtmlProp(String(s)); }
     };
 
     tbody.innerHTML = lista.map(item => {
@@ -9307,36 +9319,27 @@ window.filtrarTabelaAssinaturasComercial = function() {
         const ehContratoDoc = String(item.tipo_documento || '').toUpperCase() === 'CONTRATO';
         const numContratoItem = String(item.contrato || (ehContratoDoc ? item.codigo : '') || '').trim();
         const numPropostaItem = String(item.codigo_proposta || (!ehContratoDoc ? item.codigo : '') || '').trim();
-        const badgesCodigoArr = [];
-        if (numContratoItem) {
-            badgesCodigoArr.push(
-                `<span onclick="window.abrirContratoDaProposta(${item.id})" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoItem)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 9px; border-radius:6px; font-size:0.74rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numContratoItem)}</span>`
-            );
-        }
-        if (numPropostaItem) {
-            badgesCodigoArr.push(
-                `<span onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a Proposta Nº ${_escHtmlProp(numPropostaItem)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 9px; border-radius:6px; font-size:0.74rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numPropostaItem)}</span>`
-            );
-        }
-        const htmlBadgesCodigo = `<div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">${badgesCodigoArr.join('')}</div>`;
-        const badgeTipoDoc = ehContratoDoc
-            ? `<span onclick="window.abrirContratoDaProposta(${item.id})" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoItem || item.codigo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 9px; border-radius:999px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-block;">CONTRATO</span>`
-            : `<span onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a Proposta Nº ${_escHtmlProp(numPropostaItem || item.codigo)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 9px; border-radius:999px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-block;">PROPOSTA</span>`;
+        const htmlBtnProposta = numPropostaItem
+            ? `<button type="button" onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a Proposta Nº ${_escHtmlProp(numPropostaItem)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numPropostaItem)}</button>`
+            : '<span style="color:#94a3b8;">—</span>';
+        const htmlBtnContrato = numContratoItem
+            ? `<button type="button" onclick="window.abrirContratoDaProposta(${item.id})" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoItem)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numContratoItem)}</button>`
+            : '<span style="color:#94a3b8;">—</span>';
         return `
             <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding:10px 12px; white-space:nowrap;">${htmlBadgesCodigo}</td>
-                <td style="padding:10px 12px; white-space:nowrap;">${badgeTipoDoc}</td>
+                <td style="padding:10px 10px; text-align:center; white-space:nowrap;">${htmlBtnProposta}</td>
+                <td style="padding:10px 10px; text-align:center; white-space:nowrap;">${htmlBtnContrato}</td>
                 <td style="padding:10px 12px; font-weight:700; color:#475569; white-space:nowrap;">${_escHtmlProp(item.categoria || '—')}</td>
-                <td style="padding:10px 12px; min-width:300px; width:28%;">
+                <td style="padding:10px 12px; min-width:280px; width:26%;">
                     <div style="font-weight:700; color:#0f172a; line-height:1.3;">${_escHtmlProp(cliNomeComIcone)}</div>
                     <div style="font-size:0.75rem; color:#0369a1; font-weight:600; margin-top:3px; text-transform:lowercase; display:flex; align-items:center; gap:4px;">
                         <i class="ph ph-envelope-simple" style="font-size:0.85rem;"></i> ${_escHtmlProp((item.email_enviado || '—').toLowerCase())}
                     </div>
                 </td>
-                <td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(item.contato_nome || '—')}</td>
-                <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${_escHtmlProp(fmtDataHora(item.enviado_em))}</td>
+                <td style="padding:10px 12px; min-width:210px; width:19%; font-weight:600; color:#334155;">${_escHtmlProp(item.contato_nome || '—')}</td>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${fmtDataHoraDuasLinhas(item.enviado_em, '#334155', '#64748b')}</td>
                 <td style="padding:10px 12px; white-space:nowrap;">${badgeSit}</td>
-                <td style="padding:10px 12px; color:${item.assinado_em ? '#15803d' : '#94a3b8'}; font-weight:${item.assinado_em ? '700' : '400'}; white-space:nowrap;">${_escHtmlProp(item.assinado_em ? fmtDataHora(item.assinado_em) : '—')}</td>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${item.assinado_em ? fmtDataHoraDuasLinhas(item.assinado_em, '#15803d', '#16a34a') : '<span style="color:#94a3b8;">—</span>'}</td>
                 <td style="padding:10px 12px; text-align:center; white-space:nowrap;">
                     <div style="display:inline-flex; align-items:center; gap:6px;">
                         <button type="button" onclick="window.visualizarPdfAssinaturaComercial(${item.id})" title="Conferir Documento / PDF Assinafy" style="background:#0d9488; color:#fff; border:none; padding:0 10px; height:30px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; font-weight:700;"><i class="ph ph-eye" style="font-size:0.95rem;"></i> Conferir</button>
