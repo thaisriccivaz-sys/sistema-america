@@ -41927,6 +41927,9 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN assinafy_signatarios_json TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN contrato_interveniente INTEGER DEFAULT 0", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN interveniente_contato_nome TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN periodo_cobranca_inicio TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN periodo_cobranca_fim TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN datas_entrega_equipamentos TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Garantir que propostas de ADITIVO nunca tenham número de contrato próprio
     db.run("UPDATE propostas SET contrato = NULL WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')", () => {});
@@ -42682,8 +42685,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
-        itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome,
+        periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -42709,6 +42713,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.interveniente_nome || null,
         d.contrato_interveniente ? 1 : 0,
         d.interveniente_contato_nome || null,
+        d.periodo_cobranca_inicio || null,
+        d.periodo_cobranca_fim || null,
+        d.datas_entrega_equipamentos ? (typeof d.datas_entrega_equipamentos === 'string' ? d.datas_entrega_equipamentos : JSON.stringify(d.datas_entrega_equipamentos)) : '[]',
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -42941,7 +42948,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
-      itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, contrato_interveniente=?, interveniente_contato_nome=?, atualizado_em=?
+      itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, contrato_interveniente=?, interveniente_contato_nome=?,
+      periodo_cobranca_inicio=?, periodo_cobranca_fim=?, datas_entrega_equipamentos=?, atualizado_em=?
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
@@ -42976,6 +42984,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.interveniente_nome !== undefined ? (d.interveniente_nome || null) : (oldRow.interveniente_nome || null),
       d.contrato_interveniente !== undefined ? (d.contrato_interveniente ? 1 : 0) : (Number(oldRow.contrato_interveniente) === 1 ? 1 : 0),
       d.interveniente_contato_nome !== undefined ? (d.interveniente_contato_nome || null) : (oldRow.interveniente_contato_nome || null),
+      d.periodo_cobranca_inicio !== undefined ? (d.periodo_cobranca_inicio || null) : (oldRow.periodo_cobranca_inicio || null),
+      d.periodo_cobranca_fim !== undefined ? (d.periodo_cobranca_fim || null) : (oldRow.periodo_cobranca_fim || null),
+      d.datas_entrega_equipamentos !== undefined ? (typeof d.datas_entrega_equipamentos === 'string' ? d.datas_entrega_equipamentos : JSON.stringify(d.datas_entrega_equipamentos || [])) : (oldRow.datas_entrega_equipamentos || '[]'),
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });

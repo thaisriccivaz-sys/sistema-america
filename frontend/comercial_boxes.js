@@ -1211,7 +1211,28 @@
         const qtdTotalLinhas = ((d.itens && d.itens.length) || 0) + ((d.servicos && d.servicos.length) || 0);
         const abaixo600Inicial = qtdTotalLinhas < 9;
 
-        const COLS = u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220);
+        const prodsAprovQuadro = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+        const temSelecaoComparativa = Boolean(d.proposta_comparativa && prodsAprovQuadro.length > 0);
+        const itensNormalizadosQuadro = Array.isArray(d.itens)
+            ? d.itens.map((it, idxIt) => {
+                const naoAp = typeof it.nao_aprovado === 'boolean'
+                    ? it.nao_aprovado
+                    : Boolean(temSelecaoComparativa && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(it, idxIt, prodsAprovQuadro));
+                return Object.assign({}, it, { nao_aprovado: naoAp });
+            })
+            : [];
+        const ehObraPuroQuadro = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
+        const listaServicosQuadro = (Array.isArray(d.servicos) && d.servicos.length > 0)
+            ? d.servicos
+            : (ehObraPuroQuadro ? [{ quantidade: 1, nome: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 0, por_dia: 0, desconto: 0, total: 0 }] : []);
+
+        const temDescontoProdutosQuadro = itensNormalizadosQuadro.some(it => !it.fob && Number(it.desconto) > 0);
+        const temDescontoServicosQuadro = listaServicosQuadro.some(it => !it.fob && Number(it.desconto) > 0);
+        const temDescontoGeralQuadro = temDescontoProdutosQuadro || temDescontoServicosQuadro;
+
+        const COLS = temDescontoGeralQuadro
+            ? (u(135) + ' 1fr ' + u(110) + ' ' + u(190) + ' ' + u(165) + ' ' + u(140) + ' ' + u(220))
+            : (u(135) + ' 1fr ' + u(110) + ' ' + u(200) + ' ' + u(175) + ' ' + u(220));
         const GAP = u(10);
 
         const celula = (it, valor, cor) => {
@@ -1223,13 +1244,17 @@
                     : '<span style="color:' + cor + '; ' + riscado + '">' + fmtNum(valor) + '</span>');
         };
 
+        const colDescontoHeaderHtml = temDescontoGeralQuadro
+            ? `<div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>`
+            : '';
+
         const cabecalhoColunas = (titulo) => ehQuadroLimpaFossa ? `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
                 <div></div>
                 <div style="grid-column:2 / 6; font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
-                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                ${colDescontoHeaderHtml}
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>` : (ehQuadroObra ? `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
@@ -1238,7 +1263,7 @@
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR<br>UNITÁRIO R$</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                ${colDescontoHeaderHtml}
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>` : `
             <div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:center; margin-bottom:${u(16)};">
@@ -1249,7 +1274,7 @@
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">QUANT.<br>DIÁRIAS</div>
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR UNITÁRIO<br>POR DIÁRIA R$</div>
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">VALOR TOTAL<br>POR DIA R$</div>
-                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                ${colDescontoHeaderHtml}
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>TOTAL R$</div>
             </div>`);
 
@@ -1259,7 +1284,7 @@
                 <div style="grid-column:2 / 6; font-size:${u(40)}; color:#3b3b3b; display:flex; align-items:center; gap:${u(10)};">
                     <span style="color:${ROXO}; font-size:${u(24)};">&#9656;</span> ${titulo}
                 </div>
-                <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:#3b3b3b; line-height:1.2;">DESCONTO<br>R$</div>
+                ${colDescontoHeaderHtml}
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>R$</div>
             </div>`;
 
@@ -1276,16 +1301,6 @@
 
         const celulaLinhaStyle = `text-align:center; font-size:${u(26)}; align-self:start; min-height:${u(36)}; display:flex; align-items:center; justify-content:center; line-height:1;`;
         const spanDescItem = ehQuadroLimpaFossa ? 'grid-column:2 / 6; ' : (ehQuadroObra ? 'grid-column:2 / 5; ' : '');
-        const prodsAprovQuadro = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
-        const temSelecaoComparativa = Boolean(d.proposta_comparativa && prodsAprovQuadro.length > 0);
-        const itensNormalizadosQuadro = Array.isArray(d.itens)
-            ? d.itens.map((it, idxIt) => {
-                const naoAp = typeof it.nao_aprovado === 'boolean'
-                    ? it.nao_aprovado
-                    : Boolean(temSelecaoComparativa && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(it, idxIt, prodsAprovQuadro));
-                return Object.assign({}, it, { nao_aprovado: naoAp });
-            })
-            : [];
 
         const linhaItem = (it) => {
             const riscadoTxt = it.nao_aprovado ? 'text-decoration:line-through; opacity:0.65;' : '';
@@ -1307,7 +1322,7 @@
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${esc(it.quant_diarias)}</div>`}
                 ${ehQuadroLimpaFossa ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.unit, '#3b3b3b')}</div>`}
                 ${(ehQuadroObra || ehQuadroLimpaFossa) ? '' : `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${ehItemServQuadro ? '—' : celula(it, it.por_dia, '#3b3b3b')}</div>`}
-                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                ${temDescontoGeralQuadro ? `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b; ${riscadoTxt}">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>` : ''}
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total, ROXO)}</div>
             </div>`;
         };
@@ -1325,7 +1340,7 @@
                     ${it.descricao_proposta ? `<div style="font-size:${u(23)}; font-weight:400 !important; font-family:'FGBook','Libre Franklin',Arial,Helvetica,sans-serif !important; color:#4b5563; line-height:1.3; margin-top:${u(8)}; word-break:break-word;">${esc(it.descricao_proposta)}</div>` : ''}
                     ${it.observacao ? `<div style="font-size:${u(23)}; font-weight:400; color:#3b3b3b; line-height:1.3; margin-top:${u(2)}; word-break:break-word;">Obs.: ${esc(String(it.observacao).toUpperCase())}</div>` : ''}
                 </div>
-                <div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>
+                ${temDescontoGeralQuadro ? `<div class="bq-d" style="${celulaLinhaStyle} color:#3b3b3b;">${(it.fob || !(Number(it.desconto) > 0)) ? '—' : fmtNum(it.desconto)}</div>` : ''}
                 <div class="bq-d" style="${celulaLinhaStyle}">${celula(it, it.total !== undefined ? it.total : it.unit, ROXO)}</div>
             </div>`;
 
@@ -1341,10 +1356,6 @@
 
         const ocultarTotaisComparativa = Boolean(d.proposta_comparativa && !temSelecaoComparativa);
 
-        const ehObraPuroQuadro = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
-        const listaServicosQuadro = (Array.isArray(d.servicos) && d.servicos.length > 0)
-            ? d.servicos
-            : (ehObraPuroQuadro ? [{ quantidade: 1, nome: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 0, por_dia: 0, desconto: 0, total: 0 }] : []);
         const secaoServicos = (listaServicosQuadro.length > 0) ? `
             <div style="padding:${u(14)} ${u(60)} ${u(20)} ${u(50)};">
                 ${cabecalhoColunasServicos(esc(tituloServ))}
@@ -1481,7 +1492,7 @@
                             ${cabecalhoColunas(esc(tituloEquip))}
                             ${itensHtml}
                             ${ocultarTotaisComparativa ? '' : `<div style="display:grid; grid-template-columns:${COLS}; column-gap:${GAP}; align-items:baseline; margin-top:${u(14)}; padding-top:${u(16)}; border-top:${u(2)} solid #d1d5db;">
-                                <div class="bq-d" style="grid-column:1 / 7; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS PRODUTOS: R$</div>
+                                <div class="bq-d" style="grid-column:1 / ${temDescontoGeralQuadro ? '7' : '6'}; text-align:right; font-size:${u(32)}; color:${corRotuloTotal};">VALOR TOTAL DOS PRODUTOS: R$</div>
                                 <div class="bq-d" style="text-align:center; font-size:${u(36)}; color:${ROXO};">${fmtNum(totalProdutosQuadro)}</div>
                             </div>`}
                         </div>

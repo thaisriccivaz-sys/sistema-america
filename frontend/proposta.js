@@ -1055,7 +1055,10 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         valor_km: obterN('prop-valor-km'),
         distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
-        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : []
     };
 
     Swal.fire({ title: 'Gerando PDF do Contrato e enviando para assinatura...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -2671,6 +2674,7 @@ window._resetarEstadoMemoriaFormComercial = function(modo) {
     window._propDiasEventoHorarios = {};
     window._ultimoHorarioDiaEventoEditado = '';
     window._propServicosAdicionados = [];
+    window._propDatasEntregaEquipamentos = [];
     window._propFormEditadoNaoSalvo = false;
     _propRegiaoIdentificada = '';
     window._ultimoClienteNomePropostaAtivo = '';
@@ -2710,6 +2714,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         produtos: JSON.parse(JSON.stringify(window._propProdutosAdicionados || [])),
         produtosAprovadosAtual: JSON.parse(JSON.stringify(window._propProdutosAprovadosAtual || [])),
         servicos: JSON.parse(JSON.stringify(window._propServicosAdicionados || [])),
+        datasEntregaEquipamentos: JSON.parse(JSON.stringify(window._propDatasEntregaEquipamentos || [])),
         diasEvento: JSON.parse(JSON.stringify(window._propDiasEventoSelecionados || [])),
         diasHorarios: JSON.parse(JSON.stringify(window._propDiasEventoHorarios || {})),
         ultimoHorario: window._ultimoHorarioDiaEventoEditado || '',
@@ -2742,6 +2747,10 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     window._propProdutosAdicionados = JSON.parse(JSON.stringify(snap.produtos || []));
     window._propProdutosAprovadosAtual = JSON.parse(JSON.stringify(snap.produtosAprovadosAtual || []));
     window._propServicosAdicionados = JSON.parse(JSON.stringify(snap.servicos || []));
+    if (Array.isArray(snap.datasEntregaEquipamentos)) {
+        window._propDatasEntregaEquipamentos = JSON.parse(JSON.stringify(snap.datasEntregaEquipamentos));
+        if (typeof window.renderizarChipsDatasEntregaContrato === 'function') window.renderizarChipsDatasEntregaContrato();
+    }
     window._propDiasEventoSelecionados = JSON.parse(JSON.stringify(snap.diasEvento || []));
     window._propDiasEventoHorarios = JSON.parse(JSON.stringify(snap.diasHorarios || {}));
     window._ultimoHorarioDiaEventoEditado = snap.ultimoHorario || '';
@@ -3884,6 +3893,15 @@ function _renderFormPropostaInt() {
     window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
+    try {
+        const rawDatasEnt = prop && prop.datas_entrega_equipamentos
+            ? (Array.isArray(prop.datas_entrega_equipamentos) ? prop.datas_entrega_equipamentos : JSON.parse(prop.datas_entrega_equipamentos || '[]'))
+            : [];
+        window._propDatasEntregaEquipamentos = Array.isArray(rawDatasEnt) ? rawDatasEnt.map(d => String(d || '').trim()).filter(Boolean) : [];
+    } catch (_) { window._propDatasEntregaEquipamentos = []; }
+    if (!window._propDatasEntregaEquipamentos.length && prop && prop.periodo_inicio) {
+        window._propDatasEntregaEquipamentos = [String(prop.periodo_inicio).trim().slice(0, 10)];
+    }
     window._propFreteFobInicial = prop ? (Number(prop.servico_frete_fob) ? 1 : 0) : 0;
     (() => {
         // Cada produto guarda as suas diárias; o seletor começa vazio (produtos antigos herdam as da proposta)
@@ -4775,6 +4793,42 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Informações do Contrato (Exclusiva na tela de Contratos — em cima do quadro de Assinatura Digital) -->
+                    <div id="prop-secao-info-contrato" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#eef2ff; border:1.5px solid #c7d2fe; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <h4 style="margin:0 0 0.55rem 0; font-size:0.82rem; color:#3730a3; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
+                            <i class="ph ph-file-text" style="font-size:1.05rem; color:#4f46e5;"></i> Informações do Contrato
+                        </h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1.8fr; gap:0.65rem 0.85rem; align-items:start;">
+                            <div>
+                                <label class="prop-lbl">Período de Cobrança — Início</label>
+                                <input type="date" id="prop-cobranca-ini" value="${_escHtmlProp(v('periodo_cobranca_inicio') || v('periodo_inicio') || '')}"
+                                    onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
+                                    style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Período de Cobrança — Fim</label>
+                                <input type="date" id="prop-cobranca-fim" value="${_escHtmlProp(v('periodo_cobranca_fim') || v('periodo_fim') || '')}"
+                                    onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
+                                    style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Data(s) de Entrega dos Equipamentos <span style="font-weight:500; color:#4f46e5; font-size:0.72rem; text-transform:none;">(Data 1, Data 2, Data 3...)</span></label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <input type="date" id="prop-data-entrega-add-inp"
+                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarDataEntregaEquipamentoContrato(); }"
+                                        style="flex:1; max-width:210px; padding:0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; background:#fff; height:36px;">
+                                    <button type="button" onclick="window.adicionarDataEntregaEquipamentoContrato()" title="Adicionar Data de Entrega na sequência (Data 1, Data 2...)"
+                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.85rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;"
+                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar Data
+                                    </button>
+                                </div>
+                                <input type="hidden" id="prop-datas-entrega-json" value="${_escHtmlProp(JSON.stringify(window._propDatasEntregaEquipamentos || []))}">
+                                <div id="prop-datas-entrega-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Seção: Assinatura Digital (Exclusiva na tela de Contratos — sempre aberta, sem seta de abrir/fechar) -->
                     <div id="prop-secao-assinatura-digital" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; user-select:none;">
@@ -4808,6 +4862,9 @@ function _renderFormPropostaInt() {
     
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
+    }
+    if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
+        window.renderizarChipsDatasEntregaContrato();
     }
 
     // Filter services based on loaded proposal's table pricing
@@ -8977,7 +9034,10 @@ window.salvarPropostaNova = async function() {
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         modo_contrato: window._modoTelaComercial === 'contrato',
         titulo_contrato: obter('prop-titulo-contrato').trim(),
-        situacao_contrato: window._modoTelaComercial === 'contrato' ? fase : undefined
+        situacao_contrato: window._modoTelaComercial === 'contrato' ? fase : undefined,
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : []
     };
 
     // Cache payload for save confirm call
@@ -9764,7 +9824,10 @@ window.aprovarPropostaEdicao = async function() {
         valor_km: obterN('prop-valor-km'),
         distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
-        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : []
     };
     if (payload.contrato_interveniente && payload.interveniente_nome && payload.cliente_nome && typeof window.vincularIntervenienteAoClienteCentralizador === 'function') {
         window.vincularIntervenienteAoClienteCentralizador(payload.interveniente_nome, payload.cliente_nome);
@@ -23568,6 +23631,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
     }
+    if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
+        window.renderizarChipsDatasEntregaContrato();
+    }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (typeof Swal !== 'undefined') Swal.close();
 };
@@ -23781,6 +23847,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
     }
+    if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
+        window.renderizarChipsDatasEntregaContrato();
+    }
 };
 
 window.onChangeTabelaPrecosManual = async function(novaTabela) {
@@ -23840,6 +23909,9 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
     }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
+    }
+    if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
+        window.renderizarChipsDatasEntregaContrato();
     }
 };
 
@@ -27815,9 +27887,19 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     // Período, Evento e Local de Instalação
     { tag: '{{PERIODO_INICIO}}', label: 'Período Início (Data de Entrega)', categoria: 'Período e Local', exemplo: '20/11/2026' },
     { tag: '{{PERIODO_FIM}}', label: 'Período Fim (Até)', categoria: 'Período e Local', exemplo: '20/12/2026' },
+    { tag: '{{PERIODO_COBRANCA_INICIO}}', label: 'Período de Cobrança — Início', categoria: 'Período e Local', exemplo: '20/11/2026' },
+    { tag: '{{PERIODO_COBRANCA_FIM}}', label: 'Período de Cobrança — Fim', categoria: 'Período e Local', exemplo: '20/12/2026' },
+    { tag: '{{DATAS_ENTREGA}}', label: 'Todas as Datas de Entrega dos Equipamentos', categoria: 'Período e Local', exemplo: '18/11/2026, 20/11/2026' },
+    { tag: '{{DATA_ENTREGA_1}}', label: 'Data de Entrega 1', categoria: 'Período e Local', exemplo: '18/11/2026' },
+    { tag: '{{DATA_ENTREGA_2}}', label: 'Data de Entrega 2', categoria: 'Período e Local', exemplo: '20/11/2026' },
+    { tag: '{{DATA_ENTREGA_3}}', label: 'Data de Entrega 3', categoria: 'Período e Local', exemplo: '22/11/2026' },
+    { tag: '{{DATA_ENTREGA_4}}', label: 'Data de Entrega 4', categoria: 'Período e Local', exemplo: '24/11/2026' },
+    { tag: '{{DATA_ENTREGA_5}}', label: 'Data de Entrega 5', categoria: 'Período e Local', exemplo: '26/11/2026' },
     { tag: '{{HORA_INICIO}}', label: 'Hora Início', categoria: 'Período e Local', exemplo: '08:00' },
     { tag: '{{HORA_FIM}}', label: 'Hora Fim', categoria: 'Período e Local', exemplo: '18:00' },
     { tag: '{{DIAS_CONTRATO}}', label: 'Dias de Contrato', categoria: 'Período e Local', exemplo: '30' },
+    { tag: '{{DIARIAS_EVENTO_SEM_HORARIO}}', label: 'Diárias do Evento (Sem Horário)', categoria: 'Período e Local', exemplo: '18/11/2026, 19/11/2026, 20/11/2026' },
+    { tag: '{{DIARIAS_EVENTO_COM_HORARIO}}', label: 'Diárias do Evento (Com Horário)', categoria: 'Período e Local', exemplo: '18/11/2026 (08:00 às 18:00), 19/11/2026 (08:00 às 18:00)' },
     { tag: '{{DIAS_EVENTO}}', label: 'Dias de Evento / Sucção', categoria: 'Período e Local', exemplo: '20/11/2026 (08:00-18:00)' },
     { tag: '{{NOME_EVENTO}}', label: 'Nome do Evento', categoria: 'Período e Local', exemplo: 'Festival América 2026' },
     { tag: '{{ENDERECO_INSTALACAO}}', label: 'Endereço de Entrega / Instalação', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP - CEP: 07110-000' },
@@ -28629,18 +28711,22 @@ window.abrirModalPesquisaIntervenienteContrato = async function() {
     if (inp) inp.focus();
 };
 
-window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
+window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', propostaObj = null) {
     let itens = [];
     try {
         itens = typeof itensRaw === 'string' ? JSON.parse(itensRaw || '[]') : (Array.isArray(itensRaw) ? itensRaw : []);
     } catch (_) { itens = []; }
+    const tipoUp = String(tipoContrato || (propostaObj && propostaObj.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ehContratoEvento = tipoUp === 'EVENTO' || tipoUp === 'EQUIPAMENTOS' || tipoUp === 'EQUIPAMENTO';
     if (!itens.length) {
         itens = [
-            { produto: 'CABINE SANITÁRIA STANDARD', observacao: 'LOCAÇÃO E MANUTENÇÃO', quantidade: 2, valor_unitario: 720.00, valor_total: 1440.00 }
+            { produto: 'CABINE SANITÁRIA STANDARD', observacao: 'LOCAÇÃO E MANUTENÇÃO', quantidade: 2, diarias: ehContratoEvento ? 2 : 1, valor_unitario: 720.00, valor_total: 1440.00 }
         ];
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const rowsHtml = itens.map((it, idx) => {
+    const diasContratoPropNum = Number((propostaObj && propostaObj.dias_contrato) || 0);
+
+    const itensCalc = itens.map((it, idx) => {
         const nome = String(it.produto || it.descricao || it.nome || ('Item ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
         const textoTecnico = String(
             (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(it) : '') ||
@@ -28648,31 +28734,101 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
             it.descricao_proposta ||
             ''
         ).trim();
-        const obs = it.observacao || it.obs || '—';
-        const qtd = Number(it.quantidade || it.qtde || 1);
-        const unit = Number(it.valor_unitario ?? it.valor ?? 0);
-        const tot = Number(it.valor_total ?? it.total ?? (qtd * unit));
-        return `
+        const obs = String(it.observacao || it.obs || '').trim();
+        const qtd = Math.max(1, Number(it.quantidade || it.qtde || 1) || 1);
+        const ehItemServico = typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(it);
+        const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
+        const nDiarias = (ehContratoEvento && !ehItemServico)
+            ? (diasArr.length > 0
+                ? diasArr.length
+                : (Number(it.diarias) > 0
+                    ? Number(it.diarias)
+                    : (diasContratoPropNum > 0 ? diasContratoPropNum : 1)))
+            : 1;
+        const unitLiq = Number(it.valor_unitario ?? it.valor ?? 0) || 0;
+        const descRsItem = Number(it.desconto_rs) > 0 ? Number(it.desconto_rs) : 0;
+        const base = Number(it.valor_base) > 0
+            ? Number(it.valor_base)
+            : (unitLiq > 0 ? unitLiq : (descRsItem > 0 && qtd > 0 ? (descRsItem / qtd) : 0));
+        const netDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : (unitLiq * qtd);
+        const grossDia = base * qtd;
+        const descDia = Math.max(0, grossDia - netDia, descRsItem);
+        const descontoTotal = ehContratoEvento ? (descDia * nDiarias) : descDia;
+        const valorTotalFinal = ehContratoEvento ? (netDia * nDiarias) : netDia;
+        return {
+            nome,
+            textoTecnico,
+            obs: obs || '—',
+            obsReal: obs,
+            qtd,
+            nDiarias: ehItemServico ? 1 : nDiarias,
+            unitBase: base,
+            unitLiq,
+            grossDia,
+            netDia,
+            descontoTotal,
+            valorTotalFinal
+        };
+    });
+
+    const temDescontoProd = itensCalc.some(x => Number(x.descontoTotal) > 0.004);
+
+    if (ehContratoEvento) {
+        const rowsEvHtml = itensCalc.map(x => `
             <tr>
+                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${x.qtd}</td>
                 <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
-                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(nome)}</div>
-                    ${textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(textoTecnico)}</div>` : ''}
+                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(x.nome)}</div>
+                    ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
+                    ${x.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3;">Obs.: ${_escHtmlProp(x.obsReal)}</div>` : ''}
                 </td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(obs)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${qtd}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(unit)}</td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(tot)}</td>
+                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${x.nDiarias}</td>
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.unitBase)}</td>
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.grossDia)}</td>
+                ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.valorTotalFinal)}</td>
             </tr>
+        `).join('');
+        return `
+            <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
+                <thead>
+                    <tr style="background:#f1f5f9; color:#1e293b;">
+                        <th style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; width:7%;">Quant.</th>
+                        <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:left; width:${temDescontoProd ? '37%' : '47%'};">Equipamentos</th>
+                        <th style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; width:10%;">Quant. Diárias</th>
+                        <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; width:12%;">Valor unitário por diária</th>
+                        <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; width:12%;">Valor total por diária</th>
+                        ${temDescontoProd ? `<th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; width:10%;">Desconto</th>` : ''}
+                        <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; width:12%;">Valor Total</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsEvHtml}</tbody>
+            </table>
         `;
-    }).join('');
+    }
+
+    const rowsHtml = itensCalc.map(x => `
+        <tr>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
+                <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(x.nome)}</div>
+                ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
+            </td>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(x.obs)}</td>
+            <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${x.qtd}</td>
+            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(temDescontoProd ? x.unitBase : x.unitLiq)}</td>
+            ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
+            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.valorTotalFinal)}</td>
+        </tr>
+    `).join('');
     return `
         <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
             <thead>
                 <tr style="background:#f1f5f9; color:#1e293b;">
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:36%;">Equipamento / Produto</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:38%;">Observação</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:${temDescontoProd ? '33%' : '36%'};">Equipamento / Produto</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:${temDescontoProd ? '31%' : '38%'};">Observação</th>
                     <th style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:6%;">Qtd.</th>
                     <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:10%;">Vlr. Unitário</th>
+                    ${temDescontoProd ? `<th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:10%;">Desconto</th>` : ''}
                     <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:10%;">Vlr. Total</th>
                 </tr>
             </thead>
@@ -28707,7 +28863,7 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         return '<div style="font-size:8.5pt; color:#475569; margin:4px 0 8px 0;">Não há taxas ou serviços complementares adicionais.</div>';
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const rowsHtml = servs.map((sv, idx) => {
+    const servsCalc = servs.map((sv, idx) => {
         const nome = String(sv.servico || sv.descricao || sv.nome || sv.produto || ('Serviço ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
         const textoTecnico = String(
             (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(Object.assign({ produto: nome }, sv)) : '') ||
@@ -28717,15 +28873,32 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         ).trim();
         const obs = sv.observacao || sv.obs || '—';
         const isFob = Boolean(sv.frete_fob || sv.fob);
-        const vlr = Number(sv.valor_final ?? sv.valor_total ?? sv.valor ?? sv.valor_unitario ?? 0);
-        const vlrTxt = isFob ? 'FOB' : ('R$ ' + fmtM(vlr));
+        const qtd = Math.max(1, Number(sv.quantidade ?? 1) || 1);
+        const vlrLiq = isFob ? 0 : Number(sv.valor_final ?? sv.valor_total ?? sv.valor ?? sv.valor_unitario ?? 0);
+        const descRsServ = isFob ? 0 : (Number(sv.desconto_rs) > 0 ? Number(sv.desconto_rs) : 0);
+        const base = isFob ? 0 : (Number(sv.valor_base) > 0 ? Number(sv.valor_base) : (vlrLiq > 0 ? (vlrLiq / qtd) : 0));
+        const gross = isFob ? 0 : (base * qtd);
+        const desconto = isFob ? 0 : Math.max(0, gross - vlrLiq, descRsServ);
+        return {
+            nome,
+            textoTecnico,
+            obs,
+            isFob,
+            vlrLiq,
+            desconto
+        };
+    });
+    const temDescontoServ = servsCalc.some(s => !s.isFob && Number(s.desconto) > 0.004);
+    const rowsHtml = servsCalc.map(sv => {
+        const vlrTxt = sv.isFob ? 'FOB' : ('R$ ' + fmtM(sv.vlrLiq));
         return `
             <tr>
                 <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
-                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(nome)}</div>
-                    ${textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(textoTecnico)}</div>` : ''}
+                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(sv.nome)}</div>
+                    ${sv.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(sv.textoTecnico)}</div>` : ''}
                 </td>
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(obs)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155; vertical-align:top;">${_escHtmlProp(sv.obs)}</td>
+                ${temDescontoServ ? `<td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${sv.desconto > 0 ? ('R$ ' + fmtM(sv.desconto)) : '—'}</td>` : ''}
                 <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">${vlrTxt}</td>
             </tr>
         `;
@@ -28736,7 +28909,8 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
                 <tr style="background:#f1f5f9; color:#1e293b;">
                     <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Serviço / Taxa Complementar</th>
                     <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Observação</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:110px;">Valor</th>
+                    ${temDescontoServ ? `<th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:95px;">Desconto</th>` : ''}
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:105px;">Valor</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -28790,6 +28964,60 @@ window.gerarHtmlTabelaValoresAvariasContrato = function(listaAvarias) {
     `;
 };
 
+window.renderizarChipsDatasEntregaContrato = function() {
+    const box = document.getElementById('prop-datas-entrega-chips');
+    const hid = document.getElementById('prop-datas-entrega-json');
+    if (!Array.isArray(window._propDatasEntregaEquipamentos)) window._propDatasEntregaEquipamentos = [];
+    if (hid) hid.value = JSON.stringify(window._propDatasEntregaEquipamentos);
+    if (!box) return;
+    const fmtBr = (iso) => {
+        const s = String(iso || '').trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+    };
+    if (!window._propDatasEntregaEquipamentos.length) {
+        box.innerHTML = '<span style="font-size:0.75rem; color:#64748b; font-style:italic;">Nenhuma data de entrega adicionada. Selecione uma data acima e clique em Adicionar Data.</span>';
+        return;
+    }
+    box.innerHTML = window._propDatasEntregaEquipamentos.map((iso, idx) => {
+        const numSeq = idx + 1;
+        return `
+            <span style="display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #a5b4fc; border-radius:6px; padding:3px 9px; font-size:0.76rem; font-weight:700; color:#312e81; box-shadow:0 1px 2px rgba(79,70,229,0.06);">
+                <span style="background:#e0e7ff; color:#4338ca; padding:1px 6px; border-radius:4px; font-size:0.7rem; font-weight:800;">Data ${numSeq}</span>
+                <span>${_escHtmlProp(fmtBr(iso))}</span>
+                <code onclick="window.copiarMnemonicoContratoParaAreaTransferencia('{{DATA_ENTREGA_${numSeq}}}')" title="Clique para copiar {{DATA_ENTREGA_${numSeq}}}" style="background:#f5f3ff; color:#6d28d9; border:1px dashed #c4b5fd; padding:1px 5px; border-radius:4px; font-size:0.68rem; cursor:pointer;">{{DATA_ENTREGA_${numSeq}}}</code>
+                <button type="button" onclick="window.removerDataEntregaEquipamentoContrato(${idx})" title="Remover Data ${numSeq}" style="background:transparent; border:none; color:#dc2626; cursor:pointer; padding:0 2px; font-size:0.9rem; font-weight:800; line-height:1;">&times;</button>
+            </span>
+        `;
+    }).join('');
+    if (document.getElementById('mc-mnemonicos-chips-container') && typeof window.renderizarChipsMnemonicosContrato === 'function') {
+        window.renderizarChipsMnemonicosContrato();
+    }
+};
+
+window.adicionarDataEntregaEquipamentoContrato = function() {
+    const inp = document.getElementById('prop-data-entrega-add-inp');
+    const val = String(inp?.value || '').trim();
+    if (!val) {
+        if (typeof Swal !== 'undefined') Swal.fire('Aviso', 'Selecione uma data de entrega para adicionar.', 'warning');
+        else alert('Selecione uma data de entrega.');
+        if (inp) inp.focus();
+        return;
+    }
+    if (!Array.isArray(window._propDatasEntregaEquipamentos)) window._propDatasEntregaEquipamentos = [];
+    window._propDatasEntregaEquipamentos.push(val);
+    if (inp) inp.value = '';
+    window.renderizarChipsDatasEntregaContrato();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+};
+
+window.removerDataEntregaEquipamentoContrato = function(idx) {
+    if (!Array.isArray(window._propDatasEntregaEquipamentos)) return;
+    window._propDatasEntregaEquipamentos.splice(idx, 1);
+    window.renderizarChipsDatasEntregaContrato();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+};
+
 window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {
     const p = pRaw || {};
     const cli = clientObj || {};
@@ -28817,17 +29045,93 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
     const clienteRazao = limparIcone(p.cliente_nome || cli.nome_razao_social || 'CONSTRUTORA EXEMPLO S.A.');
     const interRazao = limparIcone(p.interveniente_nome || inter.nome_razao_social || cli.cliente_centralizador || 'INTERVENIENTE EXEMPLO LTDA');
 
-    let diasEvTxt = '—';
+    // Extrai todas as diárias selecionadas (tanto de p.itens[].dias_evento quanto de p.dias_evento)
+    const mapaDiariasHorario = {};
+    const registrarDiariaRaw = (entry) => {
+        if (!entry) return;
+        const s = typeof entry === 'object' ? String(entry.data || entry.dia || '') : String(entry);
+        const trimS = s.trim();
+        if (!trimS) return;
+        const mIso = trimS.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/);
+        const mBr = !mIso ? trimS.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(.*))?$/) : null;
+        let isoKey = '';
+        let hor = '';
+        if (mIso) {
+            isoKey = mIso[1];
+            hor = String(mIso[2] || '').trim();
+        } else if (mBr) {
+            const pts = mBr[1].split('/');
+            isoKey = `${pts[2]}-${pts[1]}-${pts[0]}`;
+            hor = String(mBr[2] || '').trim();
+        } else {
+            return;
+        }
+        if (!(isoKey in mapaDiariasHorario) || (!mapaDiariasHorario[isoKey] && hor)) {
+            mapaDiariasHorario[isoKey] = hor;
+        }
+    };
+    try {
+        const arrItensD = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []);
+        arrItensD.forEach(it => {
+            if (it && Array.isArray(it.dias_evento)) {
+                it.dias_evento.forEach(registrarDiariaRaw);
+            }
+        });
+    } catch (_) {}
     try {
         const arrD = typeof p.dias_evento === 'string' ? JSON.parse(p.dias_evento || '[]') : (Array.isArray(p.dias_evento) ? p.dias_evento : []);
-        if (arrD.length > 0) diasEvTxt = arrD.join(', ');
+        if (Array.isArray(arrD)) arrD.forEach(registrarDiariaRaw);
     } catch (_) {}
 
-    return {
-        '{{NUMERO_CONTRATO}}': String(p.contrato || p.numero_contrato || p.codigo || '0001').trim(),
-        '{{TITULO_CONTRATO}}': String(p.titulo_contrato || '').trim(),
+    const datasDiariasIsoOrd = Object.keys(mapaDiariasHorario).sort();
+    const formatarHorarioLegivel = (hRaw) => {
+        const h = String(hRaw || '').trim();
+        if (!h) return '';
+        if (/^(?:hor[aá]rio\s+)?comercial$/i.test(h)) return 'Horário comercial';
+        const mInt = h.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+        if (mInt) return `${mInt[1]} às ${mInt[2]}`;
+        return h;
+    };
+    const diariasSemHorarioTxt = datasDiariasIsoOrd.length > 0
+        ? datasDiariasIsoOrd.map(iso => fmtDataBr(iso)).join(', ')
+        : (p._isPreviewModelo ? '18/11/2026, 19/11/2026, 20/11/2026' : fmtDataBr(p.periodo_inicio || dataAtualBr));
+    const diariasComHorarioTxt = datasDiariasIsoOrd.length > 0
+        ? datasDiariasIsoOrd.map(iso => {
+            const dBr = fmtDataBr(iso);
+            const hFmt = formatarHorarioLegivel(mapaDiariasHorario[iso]);
+            return hFmt ? `${dBr} (${hFmt})` : dBr;
+        }).join(', ')
+        : (p._isPreviewModelo ? '18/11/2026 (08:00 às 18:00), 19/11/2026 (08:00 às 18:00)' : diariasSemHorarioTxt);
+
+    // Datas de entrega dos equipamentos (Data 1, Data 2, Data 3...)
+    let datasEntregaArr = [];
+    try {
+        const rawEnt = p.datas_entrega_equipamentos !== undefined
+            ? p.datas_entrega_equipamentos
+            : (Array.isArray(window._propDatasEntregaEquipamentos) && !p._isPreviewModelo ? window._propDatasEntregaEquipamentos : []);
+        const parsedEnt = typeof rawEnt === 'string' ? JSON.parse(rawEnt || '[]') : (Array.isArray(rawEnt) ? rawEnt : []);
+        datasEntregaArr = parsedEnt.map(d => String(d || '').trim()).filter(Boolean);
+    } catch (_) { datasEntregaArr = []; }
+    if (!datasEntregaArr.length && p.periodo_inicio) {
+        datasEntregaArr = [String(p.periodo_inicio).trim().slice(0, 10)];
+    }
+    const datasEntregaFmtArr = datasEntregaArr.map(d => fmtDataBr(d));
+    const datasEntregaTodasTxt = datasEntregaFmtArr.length > 0
+        ? datasEntregaFmtArr.join(', ')
+        : fmtDataBr(p.periodo_inicio || dataAtualBr);
+
+    const cobrancaIniBr = fmtDataBr(p.periodo_cobranca_inicio || p.periodo_inicio || dataAtualBr);
+    const cobrancaFimBr = fmtDataBr(p.periodo_cobranca_fim || p.periodo_fim || dataAtualBr);
+    const tipoLimpoContrato = String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, '');
+    const numContratoLimpo = String(p.contrato || p.numero_contrato || p.codigo || '0001').trim();
+    const tituloContratoPadrao = `CONTRATO DE LOCAÇÃO Nº ${numContratoLimpo} - ${tipoLimpoContrato}`;
+
+    const ctxResult = {
+        '{{NUMERO_CONTRATO}}': numContratoLimpo,
+        '{{TITULO_CONTRATO}}': tituloContratoPadrao,
+        '{{TITULO_INTERNO_CONTRATO}}': String(p.titulo_contrato || '').trim(),
         '{{CODIGO_PROPOSTA}}': String(p.codigo || '0001').trim(),
-        '{{TIPO_CONTRATO}}': String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, ''),
+        '{{TIPO_CONTRATO}}': tipoLimpoContrato,
         '{{ATENDENTE}}': String(p.atendente_nome || p.atendente || window.obterNomeUsuarioLogado() || 'Thais Ricci').trim(),
         '{{REPRESENTANTE}}': String(p.representante || p.atendente_nome || p.atendente || 'Thais Ricci').trim(),
         '{{LOCAL_FILIAL}}': String(p.local || 'AMERICA RENTAL').trim(),
@@ -28875,10 +29179,15 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
 
         '{{PERIODO_INICIO}}': fmtDataBr(p.periodo_inicio || dataAtualBr),
         '{{PERIODO_FIM}}': fmtDataBr(p.periodo_fim || dataAtualBr),
+        '{{PERIODO_COBRANCA_INICIO}}': cobrancaIniBr,
+        '{{PERIODO_COBRANCA_FIM}}': cobrancaFimBr,
+        '{{DATAS_ENTREGA}}': datasEntregaTodasTxt,
         '{{HORA_INICIO}}': String(p.hora_inicio || '08:00').trim(),
         '{{HORA_FIM}}': String(p.hora_fim || '18:00').trim(),
         '{{DIAS_CONTRATO}}': String(p.dias_contrato !== undefined ? p.dias_contrato : 30),
-        '{{DIAS_EVENTO}}': diasEvTxt,
+        '{{DIARIAS_EVENTO_SEM_HORARIO}}': diariasSemHorarioTxt,
+        '{{DIARIAS_EVENTO_COM_HORARIO}}': diariasComHorarioTxt,
+        '{{DIAS_EVENTO}}': diariasComHorarioTxt,
         '{{NOME_EVENTO}}': String(p.nome_evento || '—').trim(),
         '{{ENDERECO_INSTALACAO}}': String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim(),
         '{{REGIAO_INSTALACAO}}': String(p.regiao || 'Zona Central').trim(),
@@ -28900,7 +29209,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{DATA_ATUAL}}': dataAtualBr,
         '{{DATA_ATUAL_EXTENSO}}': dataAtualExtenso,
 
-        '{{TABELA_PRODUTOS}}': window.gerarHtmlTabelaProdutosContrato(p.itens),
+        '{{TABELA_PRODUTOS}}': window.gerarHtmlTabelaProdutosContrato(p.itens, p.tipo || 'OBRA MENSAL', p),
         '{{TABELA_SERVICOS}}': window.gerarHtmlTabelaServicosContrato(
             p.itens_servicos,
             p.tipo || 'OBRA MENSAL',
@@ -28909,6 +29218,15 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         ),
         '{{TABELA_VALORES_AVARIAS}}': window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias)
     };
+
+    const maxDatasMnemonico = Math.max(20, datasEntregaFmtArr.length);
+    for (let i = 1; i <= maxDatasMnemonico; i++) {
+        const valDataN = datasEntregaFmtArr[i - 1] || (p._isPreviewModelo && i === 1 ? dataAtualBr : '');
+        ctxResult[`{{DATA_ENTREGA_${i}}}`] = valDataN;
+        ctxResult[`{{DATA_${i}}}`] = valDataN;
+    }
+
+    return ctxResult;
 };
 
 window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText = false) {
@@ -29655,7 +29973,7 @@ window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
     if (tag === '{{CONTRATO_VINCULADO}}' || tag === '{{CONTRATO_VINCULADO_TIPO}}') {
         return t === 'ADITIVO';
     }
-    if (tag === '{{NOME_EVENTO}}' || tag === '{{DIAS_EVENTO}}') {
+    if (tag === '{{NOME_EVENTO}}' || tag === '{{DIAS_EVENTO}}' || tag === '{{DIARIAS_EVENTO_SEM_HORARIO}}' || tag === '{{DIARIAS_EVENTO_COM_HORARIO}}') {
         return t === 'EVENTO' || t === 'EQUIPAMENTOS';
     }
     if (tag === '{{HORA_INICIO}}' || tag === '{{HORA_FIM}}') {
@@ -29939,7 +30257,7 @@ window._renderEditorModeloContratoAtivo = function() {
                 style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; user-select:none; gap:8px;">
                 <div style="font-size:0.82rem; font-weight:800; color:#4c1d95; display:flex; align-items:center; gap:6px;">
                     <i class="ph ph-brackets-curly" style="font-size:1rem;"></i>
-                    <span>Mnemônicos dos Campos do Contrato (Clique para inserir no texto)</span>
+                    <span>Mnemônicos dos Campos do Contrato (Clique para copiar e colar onde quiser no contrato)</span>
                 </div>
                 <button type="button" title="Abrir / Fechar Mnemônicos"
                     style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
@@ -30033,6 +30351,52 @@ window.removerTopoPersonalizadoModeloContrato = async function() {
     }
 };
 
+window.copiarMnemonicoContratoParaAreaTransferencia = function(tag) {
+    const t = String(tag || '').trim();
+    if (!t) return;
+    const avisarCopia = () => {
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Mnemônico ${t} copiado! Cole onde quiser no contrato (Ctrl+V).`);
+        } else if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Mnemônico ${t} copiado!`,
+                showConfirmButton: false,
+                timer: 2200
+            });
+        }
+    };
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(t).then(avisarCopia).catch(() => {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = t;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            } catch (_) {}
+            avisarCopia();
+        });
+    } else {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = t;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        } catch (_) {}
+        avisarCopia();
+    }
+};
+
 window.renderizarChipsMnemonicosContrato = function() {
     const box = document.getElementById('mc-mnemonicos-chips-container');
     if (!box) return;
@@ -30041,7 +30405,24 @@ window.renderizarChipsMnemonicosContrato = function() {
     const m = window._modeloContratoAtivo;
     const tipoAtivo = m ? (m.codigo_tipo || m.nome || '') : '';
 
-    const lista = (window.CONTRATO_MNEMONICOS_CATALOGO || []).filter(item => {
+    // Monta catálogo dinâmico adicionando Data 4, Data 5... na sequência conforme a quantidade de datas preenchidas no contrato
+    const qtdDatasPreenchidas = Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos.length : 0;
+    const maxDatasSeq = Math.max(3, qtdDatasPreenchidas);
+    const catalogoCompleto = [];
+    (window.CONTRATO_MNEMONICOS_CATALOGO || []).forEach(item => {
+        catalogoCompleto.push(item);
+        if (item.tag === '{{DATA_ENTREGA_3}}' && maxDatasSeq > 3) {
+            for (let i = 4; i <= maxDatasSeq; i++) {
+                catalogoCompleto.push({
+                    tag: `{{DATA_ENTREGA_${i}}}`,
+                    label: `Data de Entrega ${i}`,
+                    categoria: 'Informações do Contrato'
+                });
+            }
+        }
+    });
+
+    const lista = catalogoCompleto.filter(item => {
         if (!window.mnemonicoPertenceAoTipoContrato(item, tipoAtivo)) return false;
         if (!q) return true;
         return norm(item.tag).includes(q) || norm(item.label).includes(q) || norm(item.categoria).includes(q);
@@ -30053,11 +30434,12 @@ window.renderizarChipsMnemonicosContrato = function() {
     }
 
     box.innerHTML = lista.map(item => `
-        <button type="button" onmousedown="event.preventDefault(); window.inserirMnemonicoNoTextoContrato('${item.tag}')"
-            title="Clique para inserir ${_escHtmlProp(item.tag)} (${_escHtmlProp(item.label)})"
+        <button type="button" onmousedown="event.preventDefault(); window.copiarMnemonicoContratoParaAreaTransferencia('${item.tag}')"
+            title="Clique para copiar ${_escHtmlProp(item.tag)} (${_escHtmlProp(item.label)}) e colar onde quiser no contrato"
             style="background:#fff; border:1px solid #c4b5fd; border-radius:6px; padding:4px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; font-size:0.74rem; color:#1e293b; transition:all 0.12s; height:auto !important;"
             onmouseover="this.style.background='#ede9fe'; this.style.borderColor='#7048e8'"
             onmouseout="this.style.background='#fff'; this.style.borderColor='#c4b5fd'">
+            <i class="ph ph-copy" style="color:#7048e8; font-size:0.8rem;"></i>
             <code style="font-weight:800; color:#5b21b6; font-size:0.73rem;">${_escHtmlProp(item.tag)}</code>
             <span style="color:#475569; font-size:0.72rem;">${_escHtmlProp(item.label)}</span>
         </button>
@@ -30065,43 +30447,7 @@ window.renderizarChipsMnemonicosContrato = function() {
 };
 
 window.inserirMnemonicoNoTextoContrato = function(tag) {
-    let el = window._mcUltimoElementoFocado;
-    if (!el || !document.body.contains(el)) {
-        el = document.getElementById('mc-edit-texto') || document.getElementById('mc-edit-preambulo');
-    }
-    if (!el) return;
-
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-        const start = el.selectionStart ?? el.value.length;
-        const end = el.selectionEnd ?? el.value.length;
-        const val = el.value;
-        el.value = val.slice(0, start) + tag + val.slice(end);
-        el.focus();
-        const newPos = start + tag.length;
-        try { el.setSelectionRange(newPos, newPos); } catch (_) {}
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        return;
-    }
-
-    if (el.isContentEditable) {
-        el.focus();
-        window._mcRestaurarSelecaoRichText();
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
-            const range = sel.getRangeAt(0);
-            range.deleteContents();
-            const textNode = document.createTextNode(tag);
-            range.insertNode(textNode);
-            range.setStartAfter(textNode);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            window._mcUltimaSelecaoRange = range.cloneRange();
-        } else {
-            el.insertAdjacentText('beforeend', tag);
-        }
-        window._sincronizarEstruturaParaModeloContratoAtivo();
-    }
+    window.copiarMnemonicoContratoParaAreaTransferencia(tag);
 };
 
 window._sincronizarEstruturaParaModeloContratoAtivo = function() {
@@ -30688,6 +31034,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                     }).join('')}
                 </tbody>
                 <tfoot>
+                    ${descontoVal > 0 ? `
                     <tr>
                         <td colspan="6" style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">TOTAL</td>
                         <td style="padding:6px 6px 2px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalProdutos)}</td>
@@ -30695,7 +31042,7 @@ window.gerarHtmlLayoutPropostaPadrao = function(modelo, dadosCustom) {
                     <tr>
                         <td colspan="6" style="padding:2px 6px; text-align:right; font-weight:700;">DESCONTO</td>
                         <td style="padding:2px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(descontoVal)}</td>
-                    </tr>
+                    </tr>` : ''}
                     <tr>
                         <td colspan="6" style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">VALOR TOTAL DOS PRODUTOS</td>
                         <td style="padding:2px 6px 6px 6px; text-align:right; font-weight:700;">R$ ${_fmtMoedaNumProp(totalComDesconto)}</td>
