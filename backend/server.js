@@ -52041,6 +52041,136 @@ app.post('/api/comercial/valores-avarias/importar', authenticateToken, uploadImp
   }
 });
 
+// ============================================================
+// MÓDULO: COMERCIAL → TABELA DE PREÇOS → CUSTOS DE REPOSIÇÃO (MNEMÔNICOS DO CONTRATO)
+// ============================================================
+const CUSTOS_REPOSICAO_PADRAO_SEED = [
+  { nome: 'Cabines Modelo Standard, Luxo e Extra Luxo', mnemonico: '{{REPOSICAO_CABINES_MODELO_STANDARD_LUXO_E_EXTRA_LUXO}}', valor: 6700.00, ordem: 1 },
+  { nome: 'Cabine PCD', mnemonico: '{{REPOSICAO_CABINE_PCD}}', valor: 13400.00, ordem: 2 },
+  { nome: 'Cabine Chuveiro Portátil Hidráulico / Cabine Sanitário Hidráulico', mnemonico: '{{REPOSICAO_CABINE_CHUVEIRO_PORTATIL_HIDRAULICO_CABINE_SANITARIO_HIDRAULICO}}', valor: 6700.00, ordem: 3 },
+  { nome: 'Guaritas', mnemonico: '{{REPOSICAO_GUARITAS}}', valor: 6700.00, ordem: 4 },
+  { nome: 'Guaritas Dupla', mnemonico: '{{REPOSICAO_GUARITAS_DUPLA}}', valor: 11000.00, ordem: 5 },
+  { nome: 'Pia Portátil / Mictório', mnemonico: '{{REPOSICAO_PIA_PORTATIL_MICTORIO}}', valor: 7900.00, ordem: 6 },
+  { nome: 'Manutenção Avulsa', mnemonico: '{{REPOSICAO_MANUTENCAO_AVULSA}}', valor: 450.00, ordem: 7 }
+];
+
+function gerarMnemonicoReposicaoPorNome(nomeRaw) {
+  const slug = String(nomeRaw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 72);
+  return `{{REPOSICAO_${slug || 'ITEM'}}}`;
+}
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS comercial_valores_reposicao (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    mnemonico TEXT NOT NULL,
+    valor REAL DEFAULT 0,
+    ordem INTEGER DEFAULT 0,
+    criado_por TEXT DEFAULT '',
+    atualizado_por TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`, () => {
+    db.get('SELECT COUNT(*) AS cnt FROM comercial_valores_reposicao', [], (errCnt, rowCnt) => {
+      if (!errCnt && Number(rowCnt?.cnt || 0) === 0) {
+        const stmt = db.prepare(`INSERT INTO comercial_valores_reposicao (nome, mnemonico, valor, ordem, criado_por, atualizado_por) VALUES (?, ?, ?, ?, 'Sistema', 'Sistema')`);
+        CUSTOS_REPOSICAO_PADRAO_SEED.forEach(it => {
+          stmt.run([it.nome, it.mnemonico, it.valor, it.ordem]);
+        });
+        stmt.finalize();
+      }
+    });
+  });
+});
+
+// GET /api/comercial/valores-reposicao - Listar todos os custos de reposição
+app.get('/api/comercial/valores-reposicao', authenticateToken, (req, res) => {
+  db.all('SELECT * FROM comercial_valores_reposicao ORDER BY ordem ASC, id ASC', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// POST /api/comercial/valores-reposicao - Adicionar novo custo de reposição (cria mnemônico automaticamente)
+app.post('/api/comercial/valores-reposicao', authenticateToken, (req, res) => {
+  const { nome, mnemonico, valor } = req.body || {};
+  const nomeClean = String(nome || '').replace(/\s+/g, ' ').trim();
+  if (!nomeClean) return res.status(400).json({ error: 'O nome do custo de reposição é obrigatório.' });
+  let mnemClean = String(mnemonico || '').trim();
+  if (!mnemClean) {
+    mnemClean = gerarMnemonicoReposicaoPorNome(nomeClean);
+  } else {
+    mnemClean = mnemClean.toUpperCase().replace(/[^A-Z0-9_{}]/g, '_');
+    if (!mnemClean.startsWith('{{')) mnemClean = '{{' + mnemClean.replace(/^\{+|\}+$/g, '') + '}}';
+  }
+  const valNum = parseFloat(String(valor ?? '0').replace(',', '.')) || 0;
+  const usuario = req.user?.nome || req.user?.username || 'Sistema';
+  const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+  db.get('SELECT COALESCE(MAX(ordem), 0) + 1 AS proxOrdem FROM comercial_valores_reposicao', [], (errOrd, rOrd) => {
+    const proxOrdem = Number(rOrd?.proxOrdem || 1);
+    db.run(
+      `INSERT INTO comercial_valores_reposicao (nome, mnemonico, valor, ordem, criado_por, atualizado_por, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nomeClean, mnemClean, valNum, proxOrdem, usuario, usuario, agora, agora],
+      function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: this.lastID, mnemonico: mnemClean });
+      }
+    );
+  });
+});
+
+// PUT /api/comercial/valores-reposicao/:id - Atualizar custo de reposição
+app.put('/api/comercial/valores-reposicao/:id', authenticateToken, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  const { nome, mnemonico, valor } = req.body || {};
+  const usuario = req.user?.nome || req.user?.username || 'Sistema';
+  const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+  db.get('SELECT * FROM comercial_valores_reposicao WHERE id = ?', [id], (errRow, row) => {
+    if (errRow) return res.status(500).json({ error: errRow.message });
+    if (!row) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const nomeFinal = nome !== undefined ? String(nome || '').replace(/\s+/g, ' ').trim() : row.nome;
+    if (!nomeFinal) return res.status(400).json({ error: 'O nome do custo de reposição é obrigatório.' });
+    let mnemFinal = row.mnemonico;
+    if (mnemonico !== undefined && String(mnemonico || '').trim()) {
+      mnemFinal = String(mnemonico).trim().toUpperCase().replace(/[^A-Z0-9_{}]/g, '_');
+      if (!mnemFinal.startsWith('{{')) mnemFinal = '{{' + mnemFinal.replace(/^\{+|\}+$/g, '') + '}}';
+    } else if (nome !== undefined && nomeFinal !== row.nome) {
+      mnemFinal = gerarMnemonicoReposicaoPorNome(nomeFinal);
+    }
+    const valFinal = valor !== undefined ? (parseFloat(String(valor ?? '0').replace(',', '.')) || 0) : (parseFloat(row.valor) || 0);
+
+    db.run(
+      `UPDATE comercial_valores_reposicao
+       SET nome = ?, mnemonico = ?, valor = ?, atualizado_por = ?, updated_at = ?
+       WHERE id = ?`,
+      [nomeFinal, mnemFinal, valFinal, usuario, agora, id],
+      function(errUp) {
+        if (errUp) return res.status(500).json({ error: errUp.message });
+        res.json({ success: true, mnemonico: mnemFinal });
+      }
+    );
+  });
+});
+
+// DELETE /api/comercial/valores-reposicao/:id - Excluir custo de reposição (remove também o mnemônico)
+app.delete('/api/comercial/valores-reposicao/:id', authenticateToken, (req, res) => {
+  db.run('DELETE FROM comercial_valores_reposicao WHERE id = ?', [req.params.id], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
 
 
 

@@ -25611,17 +25611,70 @@ window.renderizarProdutosPropostaGrid = function() {
 
 /* ── TELA: TABELA DE PREÇOS (Comercial → Administração → Tabela Preços) ── */
 window._abaAtivaTabelaPrecos = 'OBRA MENSAL';
+window._valoresReposicaoList = [
+    { id: 1, nome: 'Cabines Modelo Standard, Luxo e Extra Luxo', mnemonico: '{{REPOSICAO_CABINES_MODELO_STANDARD_LUXO_E_EXTRA_LUXO}}', valor: 6700.00 },
+    { id: 2, nome: 'Cabine PCD', mnemonico: '{{REPOSICAO_CABINE_PCD}}', valor: 13400.00 },
+    { id: 3, nome: 'Cabine Chuveiro Portátil Hidráulico / Cabine Sanitário Hidráulico', mnemonico: '{{REPOSICAO_CABINE_CHUVEIRO_PORTATIL_HIDRAULICO_CABINE_SANITARIO_HIDRAULICO}}', valor: 6700.00 },
+    { id: 4, nome: 'Guaritas', mnemonico: '{{REPOSICAO_GUARITAS}}', valor: 6700.00 },
+    { id: 5, nome: 'Guaritas Dupla', mnemonico: '{{REPOSICAO_GUARITAS_DUPLA}}', valor: 11000.00 },
+    { id: 6, nome: 'Pia Portátil / Mictório', mnemonico: '{{REPOSICAO_PIA_PORTATIL_MICTORIO}}', valor: 7900.00 },
+    { id: 7, nome: 'Manutenção Avulsa', mnemonico: '{{REPOSICAO_MANUTENCAO_AVULSA}}', valor: 450.00 }
+];
+window._valoresReposicaoCarregado = false;
+
+window.gerarMnemonicoReposicaoFront = function(nomeRaw) {
+    const slug = String(nomeRaw || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 72);
+    return `{{REPOSICAO_${slug || 'ITEM'}}}`;
+};
+
+window.carregarValoresReposicaoComercial = async function(force = false) {
+    if (!force && window._valoresReposicaoCarregado && Array.isArray(window._valoresReposicaoList)) {
+        return window._valoresReposicaoList;
+    }
+    try {
+        const rows = await apiGet('/comercial/valores-reposicao');
+        if (Array.isArray(rows)) {
+            window._valoresReposicaoList = rows;
+            window._valoresReposicaoCarregado = true;
+        }
+    } catch (e) {
+        console.warn('[ValoresReposicao] Erro ao carregar:', e);
+    }
+    if (document.getElementById('mc-mnemonicos-chips-container') && typeof window.renderizarChipsMnemonicosContrato === 'function') {
+        window.renderizarChipsMnemonicosContrato();
+    }
+    return window._valoresReposicaoList;
+};
+
+// Carrega os custos de reposição ao inicializar para estarem disponíveis nos mnemônicos
+setTimeout(() => {
+    if (typeof window.carregarValoresReposicaoComercial === 'function') {
+        window.carregarValoresReposicaoComercial(true).catch(() => {});
+    }
+}, 400);
 
 window._renderTabelaPrecosInt = async function() {
     const container = document.getElementById('prop-view-tabela-precos');
     if (!container) return;
 
-    await window._garantirTabelasPrecoCarregadas(true);
+    await Promise.all([
+        window._garantirTabelasPrecoCarregadas(true),
+        window.carregarValoresReposicaoComercial(true)
+    ]);
     const data = window._comercialTabelasPrecoData || { configs: [], itens: [] };
-    if (!PROP_TIPOS.includes(window._abaAtivaTabelaPrecos)) {
+    const ABAS_TABELA_PRECOS = [...PROP_TIPOS, 'REPOSIÇÃO'];
+    if (!ABAS_TABELA_PRECOS.includes(window._abaAtivaTabelaPrecos)) {
         window._abaAtivaTabelaPrecos = 'OBRA MENSAL';
     }
     const aba = window._abaAtivaTabelaPrecos || 'OBRA MENSAL';
+    const ehAbaReposicao = aba === 'REPOSIÇÃO';
+    const itensReposicao = Array.isArray(window._valoresReposicaoList) ? window._valoresReposicaoList : [];
     const cfgAtual = (data.configs || []).find(c => String(c.tipo_proposta || '').toUpperCase() === aba) || {
         tipo_proposta: aba,
         tipo_contrato: '',
@@ -25642,10 +25695,11 @@ window._renderTabelaPrecosInt = async function() {
                     </div>
                     <div>
                         <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">Tabela de Preços por Tipo de Proposta</h3>
-                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Gerencie as planilhas de valores por equipamento x tipo de proposta e o tipo de contrato vinculado</p>
+                        <p style="margin:0; font-size:0.76rem; color:#64748b;">Gerencie as planilhas de valores por equipamento x tipo de proposta e os custos de reposição dos contratos</p>
                     </div>
                 </div>
                 <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                    ${ehAbaReposicao ? '' : `
                     <button type="button" onclick="window.baixarTabelaValoresPrecos('${aba}')" style="background:#0284c7; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(2,132,199,0.25);">
                         <i class="ph ph-download-simple" style="font-size:1.05rem;"></i> Baixar tabela de valores
                     </button>
@@ -25655,17 +25709,19 @@ window._renderTabelaPrecosInt = async function() {
                     </label>
                     <button type="button" onclick="window.abrirModalNovoItemTabelaPreco('${aba}')" style="background:#7048e8; color:#fff; border:none; padding:0.48rem 0.95rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:0.8rem; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-plus-circle"></i> + Equipamento na Tabela
-                    </button>
+                    </button>`}
                     <button type="button" onclick="window._renderTabelaPrecosInt()" title="Recarregar" style="background:#e2e8f0; color:#475569; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
                         <i class="ph ph-arrows-clockwise" style="font-size:1.1rem;"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Abas para cada Tipo de Proposta -->
+            <!-- Abas para cada Tipo de Proposta + Reposição ao lado direito de Avaria -->
             <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.85rem; background:#fff; padding:0.5rem; border-radius:10px; border:1px solid #e2e8f0;">
-                ${PROP_TIPOS.map(tp => {
-                    const qtdTp = (data.itens || []).filter(i => String(i.tipo_proposta || '').toUpperCase() === tp).length;
+                ${ABAS_TABELA_PRECOS.map(tp => {
+                    const qtdTp = tp === 'REPOSIÇÃO'
+                        ? itensReposicao.length
+                        : (data.itens || []).filter(i => String(i.tipo_proposta || '').toUpperCase() === tp).length;
                     const isAtiva = tp === aba;
                     return `
                         <button type="button" onclick="window._abaAtivaTabelaPrecos='${tp}'; window._renderTabelaPrecosInt();"
@@ -25677,6 +25733,104 @@ window._renderTabelaPrecosInt = async function() {
                 }).join('')}
             </div>
 
+            ${ehAbaReposicao ? `
+            <!-- Card: Adicionar Novo Custo de Reposição -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1rem; margin-bottom:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <div style="font-size:0.8rem; font-weight:800; color:#5f3dc4; margin-bottom:0.65rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <span style="display:inline-flex; align-items:center; gap:6px;">
+                        <i class="ph ph-plus-circle" style="font-size:1.05rem;"></i> Adicionar Custo de Reposição (cria mnemônico automaticamente para o Contrato)
+                    </span>
+                    <span id="rep-preview-mnemonico-novo" style="font-size:0.72rem; color:#6d28d9; background:#f5f3ff; border:1px dashed #c4b5fd; padding:2px 8px; border-radius:6px; font-family:monospace;">Mnemônico: {{REPOSICAO_...}}</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 180px auto; gap:0.65rem; align-items:end;">
+                    <div>
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição / Tipo de Equipamento ou Serviço *</label>
+                        <input type="text" id="rep-novo-nome" placeholder="Ex: Cabine PCD, Guaritas Dupla, Manutenção Avulsa..." autocomplete="off"
+                            oninput="const el=document.getElementById('rep-preview-mnemonico-novo'); if(el) el.textContent='Mnemônico: ' + window.gerarMnemonicoReposicaoFront(this.value);"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorReposicao();}"
+                            style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Valor de Reposição (R$) *</label>
+                        <input type="number" step="0.01" min="0" id="rep-novo-valor" placeholder="0,00"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorReposicao();}"
+                            style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-align:right; font-weight:700;">
+                    </div>
+                    <div>
+                        <button type="button" onclick="window.adicionarItemValorReposicao()"
+                            style="height:36px; background:#7048e8; color:#fff; border:none; padding:0 1.1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:0 2px 6px rgba(112,72,232,0.25);">
+                            <i class="ph ph-plus-bold"></i> Adicionar Reposição
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Busca na Aba Reposição -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
+                <div>
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtrar Custo de Reposição ou Mnemônico</label>
+                    <input type="text" id="tp-filtro-equipamento" placeholder="🔍 Filtrar por descrição ou mnemônico..."
+                        oninput="window.filtrarLinhasTabelaPrecos(this.value)"
+                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
+                </div>
+            </div>
+
+            <!-- Tabela de Custos de Reposição -->
+            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
+                            <th style="padding:10px 14px;">Descrição do Custo de Reposição</th>
+                            <th style="padding:10px 12px; width:340px;">Mnemônico no Contrato (Clique para copiar)</th>
+                            <th style="padding:10px 12px; width:165px; text-align:right;">Valor (R$)</th>
+                            <th style="padding:10px 12px; width:115px; text-align:center;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tp-itens-tbody">
+                        ${itensReposicao.length === 0 ? `
+                            <tr>
+                                <td colspan="4" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                    Nenhum custo de reposição cadastrado. Utilize os campos acima para adicionar.
+                                </td>
+                            </tr>
+                        ` : itensReposicao.map(item => `
+                            <tr class="tp-row-item" data-search="${_escHtmlProp((String(item.nome || '') + ' ' + String(item.mnemonico || '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
+                                <td style="padding:8px 14px; font-weight:700; color:#1e293b;">
+                                    ${_escHtmlProp(item.nome || '—')}
+                                </td>
+                                <td style="padding:8px 12px;">
+                                    <button type="button" onclick="window.copiarMnemonicoContratoParaAreaTransferencia('${_escHtmlProp(item.mnemonico)}')"
+                                        title="Clique para copiar o mnemônico ${_escHtmlProp(item.mnemonico)}"
+                                        style="background:#f5f3ff; border:1px dashed #a78bfa; color:#5b21b6; border-radius:6px; padding:4px 9px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                                        <i class="ph ph-copy" style="font-size:0.85rem;"></i>
+                                        <code>${_escHtmlProp(item.mnemonico)}</code>
+                                    </button>
+                                </td>
+                                <td style="padding:8px 12px; text-align:right;">
+                                    <input type="number" step="0.01" id="rep-val-${item.id}" value="${Number(item.valor || 0).toFixed(2)}"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault(); window.salvarValorLinhaReposicao(${item.id});}"
+                                        style="width:130px; padding:5px 8px; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; text-align:right; font-size:0.83rem;">
+                                </td>
+                                <td style="padding:8px 12px; text-align:center; white-space:nowrap;">
+                                    <button type="button" onclick="window.salvarValorLinhaReposicao(${item.id})" title="Salvar Valor"
+                                        style="background:#dcfce7; color:#166534; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
+                                        <i class="ph ph-check" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.abrirModalEditarValorReposicao(${item.id})" title="Editar Descrição / Valor"
+                                        style="background:#e0f2fe; color:#0369a1; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
+                                        <i class="ph ph-pencil-simple" style="font-size:0.95rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="window.excluirItemValorReposicao(${item.id})" title="Excluir Custo de Reposição e Mnemônico"
+                                        style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-trash" style="font-size:0.95rem;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            ` : `
             <!-- Card de Busca -->
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
                 <div>
@@ -25731,14 +25885,130 @@ window._renderTabelaPrecosInt = async function() {
                     </tbody>
                 </table>
             </div>
+            `}
         </div>
     `;
 };
 
+window.adicionarItemValorReposicao = async function() {
+    const inpNome = document.getElementById('rep-novo-nome');
+    const inpVal = document.getElementById('rep-novo-valor');
+    const nome = String(inpNome?.value || '').trim();
+    const valor = parseFloat(String(inpVal?.value || '0').replace(',', '.')) || 0;
+    if (!nome) {
+        Swal.fire('Atenção', 'Informe a descrição do custo de reposição.', 'warning');
+        if (inpNome) inpNome.focus();
+        return;
+    }
+    try {
+        await apiPost('/comercial/valores-reposicao', { nome, valor });
+        await window.carregarValoresReposicaoComercial(true);
+        await window._renderTabelaPrecosInt();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Custo de reposição e mnemônico criados com sucesso!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Não foi possível adicionar o custo de reposição: ' + (e.message || e), 'error');
+    }
+};
+
+window.salvarValorLinhaReposicao = async function(id) {
+    const inp = document.getElementById(`rep-val-${id}`);
+    const valor = parseFloat(String(inp?.value || '0').replace(',', '.')) || 0;
+    try {
+        await apiPut(`/comercial/valores-reposicao/${id}`, { valor });
+        await window.carregarValoresReposicaoComercial(true);
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Valor de reposição atualizado!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Não foi possível salvar o valor: ' + (e.message || e), 'error');
+    }
+};
+
+window.abrirModalEditarValorReposicao = async function(id) {
+    const item = (window._valoresReposicaoList || []).find(r => Number(r.id) === Number(id));
+    if (!item) return;
+    const { value: formValues } = await Swal.fire({
+        title: 'Editar Custo de Reposição',
+        width: '540px',
+        html: `
+            <div style="text-align:left; font-family:'Inter',sans-serif; display:flex; flex-direction:column; gap:12px;">
+                <div>
+                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Descrição *</label>
+                    <input type="text" id="swal-rep-nome" value="${_escHtmlProp(item.nome || '')}"
+                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; box-sizing:border-box; text-transform:none;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#334155; margin-bottom:4px;">Valor (R$) *</label>
+                    <input type="number" step="0.01" id="swal-rep-valor" value="${Number(item.valor || 0).toFixed(2)}"
+                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; font-size:0.86rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#64748b; margin-bottom:4px;">Mnemônico Vinculado</label>
+                    <input type="text" id="swal-rep-mnemonico" value="${_escHtmlProp(item.mnemonico || '')}"
+                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; background:#f8fafc; color:#5b21b6; font-family:monospace; font-weight:700; border-radius:6px; font-size:0.8rem; box-sizing:border-box; text-transform:none;">
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Salvar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#7048e8',
+        preConfirm: () => {
+            const nome = String(document.getElementById('swal-rep-nome')?.value || '').trim();
+            const valor = parseFloat(String(document.getElementById('swal-rep-valor')?.value || '0').replace(',', '.')) || 0;
+            const mnemonico = String(document.getElementById('swal-rep-mnemonico')?.value || '').trim();
+            if (!nome) {
+                Swal.showValidationMessage('A descrição é obrigatória.');
+                return false;
+            }
+            return { nome, valor, mnemonico };
+        }
+    });
+    if (formValues) {
+        try {
+            await apiPut(`/comercial/valores-reposicao/${id}`, formValues);
+            await window.carregarValoresReposicaoComercial(true);
+            await window._renderTabelaPrecosInt();
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso('Custo de reposição atualizado!');
+            }
+        } catch (e) {
+            Swal.fire('Erro', 'Não foi possível atualizar: ' + (e.message || e), 'error');
+        }
+    }
+};
+
+window.excluirItemValorReposicao = async function(id) {
+    const item = (window._valoresReposicaoList || []).find(r => Number(r.id) === Number(id));
+    const conf = await Swal.fire({
+        title: 'Excluir custo de reposição?',
+        text: item ? `Deseja excluir "${item.nome}" e remover automaticamente o mnemônico ${item.mnemonico}?` : 'Deseja excluir este item?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Sim, excluir',
+        cancelButtonText: 'Cancelar'
+    });
+    if (!conf.isConfirmed) return;
+    try {
+        await apiDelete(`/comercial/valores-reposicao/${id}`);
+        await window.carregarValoresReposicaoComercial(true);
+        await window._renderTabelaPrecosInt();
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso('Custo de reposição e mnemônico excluídos!');
+        }
+    } catch (e) {
+        Swal.fire('Erro', 'Não foi possível excluir o item.', 'error');
+    }
+};
+
 window.filtrarLinhasTabelaPrecos = function(termo) {
-    const q = String(termo || '').toLowerCase().trim();
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
     document.querySelectorAll('#tp-itens-tbody .tp-row-item').forEach(tr => {
-        const s = tr.getAttribute('data-search') || '';
+        const s = norm(tr.getAttribute('data-search') || '');
         tr.style.display = (!q || s.includes(q)) ? '' : 'none';
     });
 };
@@ -28850,17 +29120,17 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
             if (servsFromProd.length > 0) servs = servsFromProd;
         } catch (_) {}
     }
-    if (!servs.length && (ehObra || isPreview)) {
+    if (!servs.length && isPreview) {
         servs = [
             {
                 servico: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO',
-                observacao: isPreview ? 'TAXA DE ENTREGA E RETIRADA' : 'CONFORME PROPOSTA',
-                valor_final: isPreview ? 150.00 : 0
+                observacao: 'TAXA DE ENTREGA E RETIRADA',
+                valor_final: 150.00
             }
         ];
     }
     if (!servs.length) {
-        return '<div style="font-size:8.5pt; color:#475569; margin:4px 0 8px 0;">Não há taxas ou serviços complementares adicionais.</div>';
+        return '';
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const servsCalc = servs.map((sv, idx) => {
@@ -29225,6 +29495,14 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         ctxResult[`{{DATA_ENTREGA_${i}}}`] = valDataN;
         ctxResult[`{{DATA_${i}}}`] = valDataN;
     }
+
+    // Mnemônicos dinâmicos dos Custos de Reposição (Comercial → Administração → Tabela Preços → Reposição)
+    const listaRep = Array.isArray(window._valoresReposicaoList) ? window._valoresReposicaoList : [];
+    listaRep.forEach(rep => {
+        if (rep && rep.mnemonico) {
+            ctxResult[String(rep.mnemonico).trim()] = 'R$ ' + fmtM(rep.valor || 0);
+        }
+    });
 
     return ctxResult;
 };
@@ -29623,7 +29901,17 @@ window.resolverHtmlRicoModeloContrato = function(htmlOuTextoBruto, ctx) {
     Object.keys(ctx || {}).forEach(k => {
         mapEscapado[k] = htmlTags.includes(k) ? String(ctx[k] ?? '') : _escHtmlProp(String(ctx[k] ?? ''));
     });
-    return window.resolverTextoModeloContrato(htmlBase, mapEscapado, false);
+
+    // Quando não houver serviço no contrato ({{TABELA_SERVICOS}} vazio), oculta também a linha da cláusula "Valores referentes às taxas complementares (quando houver):"
+    let htmlParaResolver = htmlBase;
+    if (!String(mapEscapado['{{TABELA_SERVICOS}}'] || '').trim()) {
+        htmlParaResolver = htmlParaResolver
+            .replace(/<div[^>]*>\s*(?:<[^>]+>\s*)*(?:\d+(?:\.\d+)*\.?\s*)?Valores\s+referentes\s+[àa]s\s+taxas\s+complementares[^<]*(?:<\/[^>]+>\s*)*<\/div>\s*(?:<div[^>]*>\s*(?:<[^>]+>\s*)*\{\{TABELA_SERVICOS\}\}\s*(?:<\/[^>]+>\s*)*<\/div>|\{\{TABELA_SERVICOS\}\})?/gi, '')
+            .replace(/(?:\d+(?:\.\d+)*\.?\s*)?Valores\s+referentes\s+[àa]s\s+taxas\s+complementares[^\n<]*(?:<br\s*\/?>|\r?\n)?\s*\{\{TABELA_SERVICOS\}\}/gi, '')
+            .replace(/<div[^>]*>\s*\{\{TABELA_SERVICOS\}\}\s*<\/div>/gi, '');
+    }
+
+    return window.resolverTextoModeloContrato(htmlParaResolver, mapEscapado, false);
 };
 
 window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
@@ -29807,7 +30095,8 @@ window.gerarHtmlContratoParaPropostaObj = async function(pObj, documentoCompleto
     const [modelos, avarias, clientes] = await Promise.all([
         apiGet('/comercial/modelos-contrato').catch(() => []),
         apiGet('/comercial/valores-avarias').catch(() => []),
-        (Array.isArray(_clientesCache) && _clientesCache.length > 0) ? Promise.resolve(_clientesCache) : apiGet('/clientes').catch(() => [])
+        (Array.isArray(_clientesCache) && _clientesCache.length > 0) ? Promise.resolve(_clientesCache) : apiGet('/clientes').catch(() => []),
+        typeof window.carregarValoresReposicaoComercial === 'function' ? window.carregarValoresReposicaoComercial(false).catch(() => []) : Promise.resolve([])
     ]);
     const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/i, '').trim();
     const tipoAlvo = norm(pObj.tipo || pObj.modelo_impressao || 'OBRA MENSAL');
@@ -30150,7 +30439,8 @@ window._renderModelosContratoInt = async function() {
     try {
         const [rows, avarias] = await Promise.all([
             apiGet('/comercial/modelos-contrato').catch(() => []),
-            apiGet('/comercial/valores-avarias').catch(() => [])
+            apiGet('/comercial/valores-avarias').catch(() => []),
+            typeof window.carregarValoresReposicaoComercial === 'function' ? window.carregarValoresReposicaoComercial(true).catch(() => []) : Promise.resolve([])
         ]);
         window._valoresAvariasList = Array.isArray(avarias) ? avarias : [];
         const ordemPadrao = ['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'EQUIPAMENTOS', 'INTERVENIENTE'];
@@ -30419,6 +30709,18 @@ window.renderizarChipsMnemonicosContrato = function() {
                     categoria: 'Informações do Contrato'
                 });
             }
+        }
+    });
+
+    // Adiciona dinamicamente todos os mnemônicos de Custos de Reposição cadastrados (criados/excluídos automaticamente)
+    const fmtMRep = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    (window._valoresReposicaoList || []).forEach(rep => {
+        if (rep && rep.mnemonico && !catalogoCompleto.some(c => c.tag === rep.mnemonico)) {
+            catalogoCompleto.push({
+                tag: String(rep.mnemonico).trim(),
+                label: `Reposição: ${rep.nome} (R$ ${fmtMRep(rep.valor)})`,
+                categoria: 'Custos de Reposição'
+            });
         }
     });
 
