@@ -168,6 +168,8 @@ window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
 
 const CONTRATO_SITUACOES_CONFIG = [
     { nome: 'AGUARDANDO ASSINATURA',                  cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-clock' },
+    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt' },
+    { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
     { nome: 'CONTRATO DIGITAL ASSINADO',              cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'INFORMAÇÕES ADICIONAIS',                 cor: 'YELLOW',  bg: '#fef9c3', text: '#a16207', border: '#fde047', status: 'Ativo',   icon: 'ph-info' },
@@ -405,9 +407,15 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
                 ctx.pode_excluir_proposta = true;
                 ctx.is_gestor_departamento = true;
             }
+            if (Array.isArray(ctx.atendentes_comercial) && ctx.atendentes_comercial.length > 0) {
+                window._atendentesComercialCache = ctx.atendentes_comercial;
+            }
             window._contextoUsuarioComercial = ctx;
             if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
                 setTimeout(() => window.aplicarPermissaoDescontoPropostaDOM(), 0);
+            }
+            if (typeof window.sincronizarExibicaoInputAtendenteDOM === 'function') {
+                setTimeout(() => window.sincronizarExibicaoInputAtendenteDOM(), 0);
             }
             return ctx;
         }
@@ -427,6 +435,140 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
     }
     return window._contextoUsuarioComercial;
 };
+
+window.carregarAtendentesComercial = async function(force = false) {
+    if (Array.isArray(window._atendentesComercialCache) && window._atendentesComercialCache.length > 0 && !force) {
+        return window._atendentesComercialCache;
+    }
+    try {
+        const lista = await apiGet('/comercial/atendentes');
+        if (Array.isArray(lista)) {
+            window._atendentesComercialCache = lista;
+            if (typeof window.sincronizarExibicaoInputAtendenteDOM === 'function') {
+                window.sincronizarExibicaoInputAtendenteDOM();
+            }
+            return lista;
+        }
+    } catch (_) {}
+    return window._atendentesComercialCache || [];
+};
+
+window.resolverObjetoAtendenteComercial = function(rawVal) {
+    const s = String(rawVal || '').trim();
+    if (!s) return null;
+    const lista = Array.isArray(window._atendentesComercialCache) ? window._atendentesComercialCache : [];
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[._-]+/g, ' ').toLowerCase().replace(/\s+/g, ' ').trim();
+    const sNorm = norm(s);
+    if (!sNorm) return null;
+    return lista.find(a => norm(a.nome) === sNorm || norm(a.username) === sNorm || norm(a.email_corporativo) === sNorm)
+        || lista.find(a => {
+            const nA = norm(a.nome);
+            const uA = norm(a.username);
+            return (nA && (nA.includes(sNorm) || sNorm.includes(nA))) || (uA && (uA === sNorm || nA.startsWith(sNorm)));
+        })
+        || null;
+};
+
+window.resolverNomeExibicaoAtendenteComercial = function(rawVal, usarLogadoSeVazio = true) {
+    let val = String(rawVal || '').trim();
+    if (!val && usarLogadoSeVazio) {
+        val = (window._contextoUsuarioComercial && window._contextoUsuarioComercial.nome_colaborador)
+            || (window.obterNomeUsuarioLogado ? window.obterNomeUsuarioLogado() : '')
+            || '';
+    }
+    if (!val) return '';
+    const obj = window.resolverObjetoAtendenteComercial(val);
+    if (obj && obj.nome) return obj.nome;
+    if (val.includes('.')) {
+        return window.formatarNomeColaboradorAssinatura(val);
+    }
+    return val;
+};
+
+window.sincronizarExibicaoInputAtendenteDOM = function() {
+    const inp = document.getElementById('prop-atendente');
+    if (!inp) return;
+    const raw = inp.getAttribute('data-atendente-raw') || inp.value || '';
+    if (!raw && window._modoTelaComercial === 'contrato' && !_propostasEditandoId) return;
+    const obj = window.resolverObjetoAtendenteComercial(raw);
+    if (obj && obj.nome) {
+        inp.value = obj.nome;
+        if (obj.email_corporativo) inp.setAttribute('data-atendente-email', obj.email_corporativo);
+    } else if (raw) {
+        inp.value = window.resolverNomeExibicaoAtendenteComercial(raw, false);
+    }
+};
+
+window.filtrarDropdownAtendentesComercial = async function(termo = '', abrir = true) {
+    const drop = document.getElementById('prop-atendente-dropdown');
+    const inp = document.getElementById('prop-atendente');
+    if (!drop || !inp || inp.disabled) return;
+    const lista = await window.carregarAtendentesComercial();
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
+    const filtrados = q
+        ? lista.filter(a => norm(a.nome).includes(q) || norm(a.username).includes(q) || norm(a.email_corporativo).includes(q))
+        : lista;
+    if (!filtrados.length) {
+        drop.innerHTML = `<div style="padding:8px 10px; font-size:0.78rem; color:#94a3b8;">Nenhum colaborador do Comercial encontrado.</div>`;
+    } else {
+        drop.innerHTML = filtrados.map(a => {
+            const nomeEsc = String(a.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const emailEsc = String(a.email_corporativo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<div onmousedown="event.preventDefault(); window.selecionarAtendenteComercial('${nomeEsc}', '${emailEsc}')"
+                style="padding:7px 10px; font-size:0.82rem; color:#1e293b; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:2px;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                <div style="font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                    <span>${_escHtmlProp(a.nome)}</span>
+                    ${a.is_gestor ? '<span style="font-size:0.65rem; background:#ede9fe; color:#6d28d9; padding:1px 6px; border-radius:999px; font-weight:800;">Gestor Comercial</span>' : ''}
+                </div>
+                ${a.email_corporativo ? `<div style="font-size:0.72rem; color:#64748b;">${_escHtmlProp(a.email_corporativo)}</div>` : ''}
+            </div>`;
+        }).join('');
+    }
+    if (abrir) drop.style.display = 'block';
+};
+
+window.toggleDropdownAtendentesComercial = function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const drop = document.getElementById('prop-atendente-dropdown');
+    const inp = document.getElementById('prop-atendente');
+    if (!drop || !inp || inp.disabled) return;
+    if (drop.style.display === 'block') {
+        drop.style.display = 'none';
+    } else {
+        window.filtrarDropdownAtendentesComercial('', true);
+        inp.focus();
+    }
+};
+
+window.selecionarAtendenteComercial = function(nome, emailCorp = '') {
+    const inp = document.getElementById('prop-atendente');
+    const drop = document.getElementById('prop-atendente-dropdown');
+    if (inp) {
+        inp.value = nome;
+        inp.setAttribute('data-atendente-raw', nome);
+        inp.setAttribute('data-atendente-email', emailCorp || '');
+    }
+    if (drop) drop.style.display = 'none';
+    if (typeof window.marcarPropostaComoEditada === 'function') {
+        window.marcarPropostaComoEditada();
+    }
+};
+
+if (!window._listenerFecharDropdownAtendenteBound) {
+    window._listenerFecharDropdownAtendenteBound = true;
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('prop-atendente-combo-wrap');
+        const drop = document.getElementById('prop-atendente-dropdown');
+        if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+            drop.style.display = 'none';
+        }
+    });
+}
 
 window.formatarNomeColaboradorAssinatura = function(raw) {
     const s = String(raw || '').trim();
@@ -2840,25 +2982,19 @@ function _renderFormPropostaInt() {
                     <div style="width: 4px;"></div>
 
                     <!-- Text Buttons -->
-                    <button onclick="limparFormPropostaNovo();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
+                    <button id="btn-prop-novo" onclick="limparFormPropostaNovo();" style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${window._modoTelaComercial === 'contrato' ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
                     </button>
-                    <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${isNovo ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${(isNovo || window._modoTelaComercial === 'contrato') ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
                     </button>
                     <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
-                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar documento para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial === 'contrato' && !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(String(v('situacao_contrato') || 'AGUARDANDO ASSINATURA').trim().toUpperCase())) || (window._modoTelaComercial !== 'contrato' && window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase())))) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
-                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') || (window._modoTelaComercial === 'contrato' && Boolean(prop && prop.assinafy_id) && String(v('situacao_contrato') || '').trim().toUpperCase() === 'AGUARDANDO ASSINATURA'))) ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar documento para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial === 'contrato' && !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(String(v('situacao_contrato') || 'AGUARDANDO ASSINATURA').trim().toUpperCase())) || (window._modoTelaComercial !== 'contrato' && window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase())))) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
+                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') || (window._modoTelaComercial === 'contrato' && Boolean(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase())))) ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
-                    </button>
-                    <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
-                        <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
-                    </button>
-                    <button type="button" id="btn-prop-abrir-proposta-origem" onclick="window.abrirPropostaDiretoId(${id || 'null'})" title="Abrir a Proposta Nº ${_escHtmlProp(v('codigo') || '01')} vinculada a este contrato" style="display:${(!isNovo && window._modoTelaComercial === 'contrato') ? 'inline-flex' : 'none'}; background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onfocus="this.blur()">
-                        <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-proposta-origem">Proposta Nº ${_escHtmlProp(v('codigo') || '01')}</span>
                     </button>
                     <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
                         <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Proposta Assinada' : 'Proposta Aprovada'}</span>
@@ -2887,9 +3023,17 @@ function _renderFormPropostaInt() {
                     <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
-                    <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="margin-left:auto; background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
-                        <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
-                    </button>
+                    <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
+                        <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
+                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
+                        </button>
+                        <button type="button" id="btn-prop-abrir-proposta-origem" onclick="window.abrirPropostaDiretoId(${id || 'null'})" title="Abrir a Proposta Nº ${_escHtmlProp(v('codigo') || '01')} vinculada a este contrato" style="display:${(!isNovo && window._modoTelaComercial === 'contrato') ? 'inline-flex' : 'none'}; background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onfocus="this.blur()">
+                            <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-proposta-origem">Proposta Nº ${_escHtmlProp(v('codigo') || '01')}</span>
+                        </button>
+                        <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
+                            <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -2913,10 +3057,10 @@ function _renderFormPropostaInt() {
                                 </button>
                             </div>
                         </div>
-                        <div>
+                        <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
                             <label class="prop-lbl">Tipo *</label>
                             <div style="display:flex; gap:0.4rem; align-items:center;">
-                                <select id="prop-tipo" onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value); if(typeof window.atualizarVisibilidadeIntervenienteContrato === 'function') window.atualizarVisibilidadeIntervenienteContrato(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                <select id="prop-tipo" ${(window._modoTelaComercial === 'contrato' && isNovo) ? 'disabled' : ''} onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value); if(typeof window.atualizarVisibilidadeIntervenienteContrato === 'function') window.atualizarVisibilidadeIntervenienteContrato(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
                                     <option value="">-- Selecione --</option>
                                     ${(() => {
                                         const baseTipos = window._modoTelaComercial === 'contrato' ? CONTRATO_TIPOS : PROP_TIPOS;
@@ -2933,8 +3077,20 @@ function _renderFormPropostaInt() {
                         </div>
                         <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
                             <label class="prop-lbl">Atendente</label>
-                            <input type="text" id="prop-atendente" value="${String(v('atendente') || window.obterNomeUsuarioLogado() || '').toUpperCase()}"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                            <div id="prop-atendente-combo-wrap" style="position:relative; width:100%;">
+                                <input type="text" id="prop-atendente"
+                                    data-atendente-raw="${_escHtmlProp(v('atendente') || (isNovo && window._modoTelaComercial !== 'contrato' ? (window.obterNomeUsuarioLogado() || '') : ''))}"
+                                    value="${_escHtmlProp(window.resolverNomeExibicaoAtendenteComercial(v('atendente'), isNovo && window._modoTelaComercial !== 'contrato'))}"
+                                    placeholder="Digite para filtrar o atendente do Comercial..."
+                                    onfocus="if(!this.disabled && typeof window.filtrarDropdownAtendentesComercial === 'function') window.filtrarDropdownAtendentesComercial('', true);"
+                                    onclick="if(!this.disabled && typeof window.filtrarDropdownAtendentesComercial === 'function') window.filtrarDropdownAtendentesComercial('', true);"
+                                    oninput="if(typeof window.filtrarDropdownAtendentesComercial === 'function') window.filtrarDropdownAtendentesComercial(this.value, true);"
+                                    style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none !important;">
+                                <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownAtendentesComercial === 'function') window.toggleDropdownAtendentesComercial(event);" title="Selecionar atendente do departamento Comercial" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                    <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                                </button>
+                                <div id="prop-atendente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -3618,6 +3774,9 @@ function _renderFormPropostaInt() {
     if (typeof window.atualizarBloqueioPorTipoProposta === 'function') {
         window.atualizarBloqueioPorTipoProposta();
     }
+    if (typeof window.carregarAtendentesComercial === 'function') {
+        window.carregarAtendentesComercial();
+    }
     window._propFormEditadoNaoSalvo = false;
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
@@ -3707,6 +3866,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         foiAssinadaAssinafy ||
         faseForm === 'PROPOSTA ASSINADA' ||
         faseForm === 'APROVADO - ADITIVO ASSINADO' ||
+        faseForm === 'CONTRATO ASSINADO' ||
         faseForm === 'CONTRATO DIGITAL ASSINADO'
     );
 
@@ -3716,7 +3876,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnEnviarAssinafy.style.display = 'none';
         } else if (window._modoTelaComercial === 'contrato') {
             const sitCtr = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || 'AGUARDANDO ASSINATURA').trim().toUpperCase();
-            const podeEnvCtr = !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(sitCtr);
+            const podeEnvCtr = !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(sitCtr);
             btnEnviarAssinafy.style.display = podeEnvCtr ? 'inline-flex' : 'none';
             if (podeEnvCtr) {
                 btnEnviarAssinafy.disabled = false;
@@ -3744,7 +3904,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnReenviarAssinafy.style.display = 'none';
         } else if (window._modoTelaComercial === 'contrato') {
             const sitCtr = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
-            const mostrarReenvCtr = Boolean(prop && prop.assinafy_id) && sitCtr === 'AGUARDANDO ASSINATURA';
+            const mostrarReenvCtr = Boolean(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA'].includes(sitCtr);
             btnReenviarAssinafy.style.display = mostrarReenvCtr ? 'inline-flex' : 'none';
         } else {
             const mostrarReenviar = faseForm === 'ENVIADO PARA ASSINATURA';
@@ -7375,6 +7535,10 @@ window.limparFormPropostaNovo = function() {
 };
 
 window.salvarPropostaNova = async function() {
+    if (window._modoTelaComercial === 'contrato' && !_propostasEditandoId) {
+        Swal.fire('Aviso', 'Não é possível criar um contrato pela tela de Contratos. Todo contrato nasce da aprovação de uma proposta.', 'warning');
+        return;
+    }
     if (_propostasEditandoId && !window._propFormEditadoNaoSalvo) return;
     console.log('[DEBUG] salvarPropostaNova called. _propostasEditandoId =', _propostasEditandoId);
     if (!_propostasEditandoId && typeof window.validarClienteCnpjBaixadoProposta === 'function') {
@@ -9231,6 +9395,44 @@ window._marcarPropostaComoEnviadaAuto = function(propId, sincronizarServidor = f
     }
 };
 
+window._marcarContratoComoEnviadoAssinaturaAuto = function(propId, sincronizarServidor = true, acao = '', detalhe = '') {
+    if (window._modoTelaComercial !== 'contrato') return;
+    const normSit = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const selFase = document.getElementById('prop-fase');
+    if (selFase) {
+        const sAtual = normSit(selFase.value || 'AGUARDANDO ASSINATURA');
+        if (!sAtual || sAtual === 'AGUARDANDO ASSINATURA' || sAtual === 'EM ELABORACAO') {
+            selFase.value = 'ENVIADO PARA ASSINATURA';
+            if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                window.atualizarBadgeSituacaoContratoForm('ENVIADO PARA ASSINATURA');
+            }
+        }
+    }
+    const idAlvo = propId || _propostasEditandoId;
+    if (idAlvo && Array.isArray(_propostasData)) {
+        const pObj = _propostasData.find(pr => Number(pr.id) === Number(idAlvo));
+        if (pObj) {
+            const sObj = normSit(pObj.situacao_contrato || 'AGUARDANDO ASSINATURA');
+            if (!sObj || sObj === 'AGUARDANDO ASSINATURA' || sObj === 'EM ELABORACAO') {
+                pObj.situacao_contrato = 'ENVIADO PARA ASSINATURA';
+            }
+        }
+    }
+    if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+        window.atualizarVisibilidadeBotoesPosSalvoProposta();
+    }
+    if (sincronizarServidor && idAlvo) {
+        try {
+            apiPost('/propostas/' + idAlvo + '/registrar-acao', {
+                modo_contrato: true,
+                apenas_mudar_situacao_contrato: !acao,
+                acao: acao || undefined,
+                detalhe: detalhe || acao || undefined
+            });
+        } catch (_) {}
+    }
+};
+
 window.baixarPdfProposta = async function(id = null) {
     const propId = id || _propostasEditandoId;
     if (!propId) {
@@ -9239,6 +9441,8 @@ window.baixarPdfProposta = async function(id = null) {
     }
     const p = _propostasData.find(pr => pr.id === propId);
     if (window._modoTelaComercial === 'contrato' && p && typeof window.imprimirContratoComModelo === 'function') {
+        const numCtrPdf = p.contrato || p.codigo || propId;
+        window._marcarContratoComoEnviadoAssinaturaAuto(propId, true, 'Download de PDF (Contrato)', 'PDF do Contrato Nº ' + numCtrPdf + ' baixado pelo usuário');
         await window.imprimirContratoComModelo(p);
         return;
     }
@@ -9470,13 +9674,22 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
         } catch (e) {}
 
         if (propId) {
-            try {
-                apiPost('/propostas/' + propId + '/registrar-acao', {
-                    acao: 'Envio por WhatsApp',
-                    detalhe: 'Enviado por WhatsApp para ' + (contatoProp || '') + ' (' + numRaw + ') via ' + (res.isConfirmed ? 'CRM Abil' : 'WhatsApp Direto')
-                });
-            } catch (_) {}
-            window._marcarPropostaComoEnviadaAuto(propId, false);
+            if (window._modoTelaComercial === 'contrato') {
+                window._marcarContratoComoEnviadoAssinaturaAuto(
+                    propId,
+                    true,
+                    'Envio por WhatsApp (Contrato)',
+                    'Contrato Nº ' + (p?.contrato || codigoProp) + ' enviado por WhatsApp para ' + (contatoProp || '') + ' (' + numRaw + ') via ' + (res.isConfirmed ? 'CRM Abil' : 'WhatsApp Direto')
+                );
+            } else {
+                try {
+                    apiPost('/propostas/' + propId + '/registrar-acao', {
+                        acao: 'Envio por WhatsApp',
+                        detalhe: 'Enviado por WhatsApp para ' + (contatoProp || '') + ' (' + numRaw + ') via ' + (res.isConfirmed ? 'CRM Abil' : 'WhatsApp Direto')
+                    });
+                } catch (_) {}
+                window._marcarPropostaComoEnviadaAuto(propId, false);
+            }
         }
         if (res.isConfirmed) {
             // Abre direto no CRM da Abil e já deixa a mensagem e número copiados
@@ -9612,6 +9825,9 @@ window.abrirPopupEmail = async function(id) {
                 const resp = await apiPost(`/propostas/${id}/enviar-email`, payloadEmail);
                 Swal.close();
                 if (resp && resp.success) {
+                    if (ehModoContrato && typeof window._marcarContratoComoEnviadoAssinaturaAuto === 'function') {
+                        window._marcarContratoComoEnviadoAssinaturaAuto(id, false);
+                    }
                     if (typeof mostrarToastSucesso === 'function') {
                         mostrarToastSucesso('E-mail enviado com sucesso!');
                     } else {
@@ -21145,7 +21361,17 @@ window.atualizarBloqueioPorTipoProposta = function() {
     const wrapEl = document.getElementById('prop-campos-dependentes-tipo');
     const atendenteEl = document.getElementById('prop-atendente');
     if (!tipoEl || !wrapEl) return;
-    const liberado = Boolean(String(tipoEl.value || '').trim());
+    const ehContratoSemRegistro = window._modoTelaComercial === 'contrato' && !_propostasEditandoId;
+    if (ehContratoSemRegistro) {
+        tipoEl.disabled = true;
+        tipoEl.style.pointerEvents = 'none';
+        tipoEl.style.opacity = '0.6';
+    } else {
+        tipoEl.disabled = false;
+        tipoEl.style.pointerEvents = '';
+        tipoEl.style.opacity = '1';
+    }
+    const liberado = !ehContratoSemRegistro && Boolean(String(tipoEl.value || '').trim());
     if (atendenteEl) {
         atendenteEl.disabled = !liberado;
         atendenteEl.style.pointerEvents = liberado ? '' : 'none';
@@ -21153,7 +21379,9 @@ window.atualizarBloqueioPorTipoProposta = function() {
     }
     wrapEl.style.opacity = liberado ? '1' : '0.55';
     wrapEl.style.cursor = liberado ? '' : 'not-allowed';
-    wrapEl.title = liberado ? '' : 'Selecione primeiro o Tipo de Proposta para liberar o preenchimento dos demais campos';
+    wrapEl.title = ehContratoSemRegistro
+        ? 'Pesquise um contrato existente pelo Nº do Contrato ou clique na lupa (todo contrato nasce da aprovação de uma proposta)'
+        : (liberado ? '' : 'Selecione primeiro o Tipo de Proposta para liberar o preenchimento dos demais campos');
     const campos = wrapEl.querySelectorAll('input, select, textarea, button');
     campos.forEach(el => {
         el.disabled = !liberado;
@@ -21384,6 +21612,36 @@ window.onBlurContratoAditivoInput = async function() {
 window.onClickCampoBloqueadoPorTipoProposta = function(event) {
     const tipoEl = document.getElementById('prop-tipo');
     if (!tipoEl) return;
+    const ehContratoSemRegistro = window._modoTelaComercial === 'contrato' && !_propostasEditandoId;
+    if (ehContratoSemRegistro) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        const codEl = document.getElementById('prop-codigo');
+        if (codEl) {
+            codEl.focus();
+            codEl.style.borderColor = '#2563eb';
+            codEl.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.2)';
+            setTimeout(() => {
+                if (codEl) {
+                    codEl.style.borderColor = '#cbd5e1';
+                    codEl.style.boxShadow = '';
+                }
+            }, 2000);
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: 'Todo contrato nasce da aprovação de uma proposta. Pesquise um contrato existente pelo Nº do Contrato ou clique na lupa.',
+                showConfirmButton: false,
+                timer: 3200
+            });
+        }
+        return;
+    }
     const liberado = Boolean(String(tipoEl.value || '').trim());
     if (liberado) return;
     if (event) {
