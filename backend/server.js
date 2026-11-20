@@ -42930,7 +42930,7 @@ async function prepararHtmlImpressaoParaPdf(rawHtml) {
       stream.on('error', reject);
     });
 
-    const regexApiImg = /src=(["'])(?:https?:\/\/[^/"']+)?\/api\/public\/(modelos-proposta|propostas)\/(\d+)\/(aceite-arquivo|aditivo-arquivo|assinatura-arquivo)(?:\?[^"']*)?\1/gi;
+    const regexApiImg = /src=(["'])(?:https?:\/\/[^/"']+)?\/api\/public\/(modelos-proposta|propostas|modelos-contrato)\/(\d+)\/(aceite-arquivo|aditivo-arquivo|assinatura-arquivo|topo-arquivo)(?:\?[^"']*)?\1/gi;
     const matches = Array.from(html.matchAll(regexApiImg));
     for (const m of matches) {
       try {
@@ -42953,6 +42953,12 @@ async function prepararHtmlImpressaoParaPdf(rawHtml) {
           if (rowProp && rowProp.assinatura_r2_key) {
             r2Key = rowProp.assinatura_r2_key;
             mime = rowProp.assinatura_mime_type || 'image/png';
+          }
+        } else if (tipoRota === 'modelos-contrato' && acao === 'topo-arquivo') {
+          const rowMc = await new Promise((res) => db.get('SELECT topo_r2_key, topo_mime_type FROM comercial_modelos_contrato WHERE id = ?', [idReg], (e, r) => res(r || null)));
+          if (rowMc && rowMc.topo_r2_key) {
+            r2Key = rowMc.topo_r2_key;
+            mime = rowMc.topo_mime_type || 'image/png';
           }
         }
         if (r2Key) {
@@ -42997,19 +43003,21 @@ app.get('/api/propostas/:id/pdf', authenticateToken, async (req, res) => {
   });
 });
 
-// POST /api/propostas/:id/enviar-email - Enviar PDF da proposta por e-mail
+// POST /api/propostas/:id/enviar-email - Enviar PDF da proposta ou contrato por e-mail
 app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) => {
-  const { assunto, destinatarios, corpo, html_impressao_simples } = req.body;
+  const { assunto, destinatarios, corpo, html_impressao_simples, modo_contrato, numero_contrato } = req.body;
   if (!destinatarios) return res.status(400).json({ error: 'Informe pelo menos um destinatário.' });
+  const ehContratoEmail = Boolean(modo_contrato);
 
   db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], async (err, p) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!p) return res.status(404).json({ error: 'Proposta não encontrada' });
 
     try {
+      const numCtrRef = String(numero_contrato || p.contrato || p.codigo || p.id).trim();
       const baseLink = String(process.env.PUBLIC_LINK_BASE || 'https://fluxoar.com.br').replace(/\/+$/, '');
       let tokenPublico = p.token_publico;
-      if (!tokenPublico || Number(p.token_publico_revogado) === 1) {
+      if (!ehContratoEmail && (!tokenPublico || Number(p.token_publico_revogado) === 1)) {
         tokenPublico = require('crypto').randomBytes(24).toString('base64url');
         const agoraTok = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
         await new Promise((resolve) => db.run('UPDATE propostas SET token_publico = ?, token_publico_criado_em = ?, token_publico_revogado = 0 WHERE id = ?', [tokenPublico, agoraTok, p.id], () => resolve()));
@@ -43039,20 +43047,26 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
       }
 
       const logoPath = path.join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+      const blocoRodapeEmail = ehContratoEmail
+        ? (pdfBuffer
+            ? `<div style="margin:22px 0 8px 0;padding:14px 16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;font-size:13px;font-weight:700;color:#1e293b;">📎 O documento do Contrato Nº ${numCtrRef} segue em anexo neste e-mail (Contrato_${numCtrRef}.pdf).</div>`
+            : `<div style="margin:22px 0 8px 0;padding:12px;background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;">${resumoPreparado}</div>`)
+        : `<div style="margin:22px 0 8px 0;padding:16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;">
+              <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px;">Acesse a proposta completa, aprove ou imprima pelo link abaixo:</div>
+              <a href="${linkPublicoProposta}" target="_blank" style="display:inline-block;background:#1b358f;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 28px;border-radius:8px;">
+                🔗 Abrir Proposta Comercial Nº ${p.codigo || p.id}
+              </a>
+              <div style="margin-top:8px;font-size:12px;color:#64748b;word-break:break-all;"><a href="${linkPublicoProposta}" style="color:#2563eb;">${linkPublicoProposta}</a></div>
+            </div>`;
+
       const htmlEmailFinal = `
         <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#ffffff;">
           <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
             <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:640px;height:auto;display:block;">
           </div>
           <div style="padding:24px;color:#1e293b;font-size:14px;line-height:1.6;">
-            <div>${corpo || '<p>Olá,</p><p>Seguem abaixo o link da proposta e os detalhes da nossa proposta comercial.</p>'}</div>
-            <div style="margin:22px 0 8px 0;padding:16px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;text-align:center;">
-              <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px;">Acesse a proposta completa, aprove ou imprima pelo link abaixo:</div>
-              <a href="${linkPublicoProposta}" target="_blank" style="display:inline-block;background:#1b358f;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 28px;border-radius:8px;">
-                🔗 Abrir Proposta Comercial Nº ${p.codigo || p.id}
-              </a>
-              <div style="margin-top:8px;font-size:12px;color:#64748b;word-break:break-all;"><a href="${linkPublicoProposta}" style="color:#2563eb;">${linkPublicoProposta}</a></div>
-            </div>
+            <div>${corpo || (ehContratoEmail ? `<p>Olá,</p><p>Segue em anexo o documento do Contrato Nº ${numCtrRef}.</p>` : '<p>Olá,</p><p>Seguem abaixo o link da proposta e os detalhes da nossa proposta comercial.</p>')}</div>
+            ${blocoRodapeEmail}
           </div>
         </div>
       `;
@@ -43060,7 +43074,7 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
       const attachments = [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }];
       if (pdfBuffer) {
         attachments.push({
-          filename: `Proposta_${p.codigo || p.id}.pdf`,
+          filename: ehContratoEmail ? `Contrato_${numCtrRef}.pdf` : `Proposta_${p.codigo || p.id}.pdf`,
           content: pdfBuffer,
           contentType: 'application/pdf'
         });
@@ -43069,7 +43083,7 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
       const toList = destinatarios.replace(/;/g, ',');
       await sendMailHelper({
         to: toList,
-        subject: assunto || `Proposta Comercial ${p.codigo}`,
+        subject: assunto || (ehContratoEmail ? `Contrato Nº ${numCtrRef}` : `Proposta Comercial ${p.codigo}`),
         html: htmlEmailFinal,
         attachments
       });
@@ -43077,7 +43091,7 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
       const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const loggedUser = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'unknown';
       const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-      if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA' && faseAtualNorm !== 'ENVIADO PARA ASSINATURA' && faseAtualNorm !== 'APROVADO - ADITIVO ASSINADO') {
+      if (!ehContratoEmail && faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA' && faseAtualNorm !== 'ENVIADO PARA ASSINATURA' && faseAtualNorm !== 'APROVADO - ADITIVO ASSINADO') {
         const snapEmail = JSON.stringify(Object.assign({}, p, {
           fase_negociacao: 'Proposta Enviada',
           assinatura_r2_key: null,
@@ -43089,10 +43103,10 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
           [loggedUser, String(p.fase_negociacao || 'Em Elaboração'), p.id, snapEmail]
         );
       }
-      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', 'Envio de E-mail', '', ?, ?)`,
-        [loggedUser, `Enviado para: ${toList}`, p.id]);
+      db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id) VALUES (?, 'Proposta', ?, '', ?, ?)`,
+        [loggedUser, ehContratoEmail ? 'Envio de E-mail (Contrato)' : 'Envio de E-mail', `Enviado para: ${toList}`, p.id]);
 
-      res.json({ success: true, fase_negociacao: 'Proposta Enviada' });
+      res.json({ success: true, fase_negociacao: ehContratoEmail ? p.fase_negociacao : 'Proposta Enviada' });
     } catch (e) {
       console.error('[PROPOSTAS] Erro ao enviar e-mail:', e);
       res.status(500).json({ error: 'Erro ao gerar ou enviar e-mail: ' + e.message });

@@ -1603,8 +1603,8 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         ultimoClienteAtivo: window._ultimoClienteNomePropostaAtivo || '',
         contratoVinculadoTipoAtivo: window._contratoVinculadoTipoAtivo || ''
     };
-    if (m === 'proposta' && typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
-        window.atualizarTituloAbaPropostaAtiva(null, chave);
+    if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        window.atualizarTituloAbaPropostaAtiva(null, m === 'contrato' ? 'contrato' : chave);
     }
 };
 
@@ -1702,15 +1702,53 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         window.verificarBloqueioFaturamentoProposta(cliVal);
     }
     if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
-        window.atualizarTituloAbaPropostaAtiva( null, chave );
+        window.atualizarTituloAbaPropostaAtiva(null, m === 'contrato' ? 'contrato' : chave);
     }
     return true;
 };
 
 window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOverride = null) {
-    if (window._modoTelaComercial === 'contrato') return;
     const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
     if (!Array.isArray(tabsArr)) return;
+    const isModoContrato = (tabIdOverride === 'contrato' || tabIdOverride === 'comercial-contratos') || (!tabIdOverride && window._modoTelaComercial === 'contrato');
+
+    if (isModoContrato) {
+        const tabCtr = tabsArr.find(t => t && t.target === 'comercial-contratos' && t.active) || tabsArr.find(t => t && t.target === 'comercial-contratos');
+        if (!tabCtr) return;
+        const snapCtr = window._snapshotsFormComercial && window._snapshotsFormComercial['contrato'];
+        const isTabAtivaCtr = Boolean(tabCtr.active) && window._modoTelaComercial === 'contrato';
+        const idRefCtr = isTabAtivaCtr ? (_propostasEditandoId || window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null) : (window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null);
+
+        let numCtr = '';
+        if (idRefCtr) {
+            if (codigoOverride) {
+                numCtr = String(codigoOverride).trim();
+            }
+            if (!numCtr && Array.isArray(_propostasData)) {
+                const pMatch = _propostasData.find(p => Number(p.id) === Number(idRefCtr));
+                if (pMatch && pMatch.contrato) numCtr = String(pMatch.contrato).trim();
+            }
+            if (!numCtr && isTabAtivaCtr) {
+                numCtr = String(document.getElementById('prop-codigo')?.value || '').trim();
+            }
+            if (!numCtr && snapCtr && snapCtr.campos && snapCtr.campos['prop-codigo']) {
+                numCtr = String(snapCtr.campos['prop-codigo'].value || '').trim();
+            }
+        }
+
+        const novoTituloCtr = (idRefCtr && numCtr && numCtr.toUpperCase() !== 'AUTO')
+            ? `${numCtr} - Contratos`
+            : 'Contratos';
+
+        if (tabCtr.title !== novoTituloCtr) {
+            tabCtr.title = novoTituloCtr;
+            if (typeof renderAppTabs === 'function') {
+                renderAppTabs();
+            }
+        }
+        return;
+    }
+
     const chave = tabIdOverride || (typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('proposta') : 'comercial-proposta');
     const tab = tabsArr.find(t => t && t.tabId === chave) || tabsArr.find(t => t && t.active && t.target === 'comercial-proposta');
     if (!tab || tab.target !== 'comercial-proposta') return;
@@ -1805,6 +1843,7 @@ window.limparEstadoAbaComercial = function(modo, reRenderSeAtivo = true, tabIdOv
     if (window._snapshotsFormComercial) {
         delete window._snapshotsFormComercial[chave];
     }
+    if (m === 'contrato') window._propostasEditandoId_contrato = null;
     const modoAtual = window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta';
     if (reRenderSeAtivo && modoAtual === m) {
         window._resetarEstadoMemoriaFormComercial(m);
@@ -2793,7 +2832,10 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && v('contrato') && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                         <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${_escHtmlProp(v('contrato') || '01')}
                     </button>
-                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada'}" style="display:${(!isNovo && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-abrir-proposta-origem" onclick="window.abrirPropostaDiretoId(${id || 'null'})" title="Abrir a Proposta Nº ${_escHtmlProp(v('codigo') || '01')} vinculada a este contrato" style="display:${(!isNovo && window._modoTelaComercial === 'contrato') ? 'inline-flex' : 'none'}; background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" onfocus="this.blur()">
+                        <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-proposta-origem">Proposta Nº ${_escHtmlProp(v('codigo') || '01')}</span>
+                    </button>
+                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
                         <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Proposta Assinada' : 'Proposta Aprovada'}</span>
                     </button>
                     <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
@@ -2811,13 +2853,13 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-enviar-email" class="prop-btn-pos-salvo" onclick="window.enviarPropostaPorEmail(${id || 'null'})" style="background:#0ea5e9; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'" onfocus="this.blur()">
                         <i class="ph ph-envelope-simple" style="font-size:1rem;"></i> Enviar E-mail
                     </button>
-                    <button type="button" id="btn-prop-copiar-link" class="prop-btn-pos-salvo" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-copiar-link" class="prop-btn-pos-salvo" onclick="window.copiarLinkProposta(${id || 'null'})" title="Gera e copia o link seguro da proposta para enviar ao cliente" style="background:#7c3aed; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${(isNovo || window._modoTelaComercial === 'contrato') ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
                         <i class="ph ph-link" style="font-size:1rem;"></i> Copiar Link
                     </button>
-                    <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${(isNovo || window._modoTelaComercial === 'contrato') ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
-                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <button type="button" id="btn-prop-historico" onclick="abrirLogsAlteracao(_propostasEditandoId)" style="margin-left:auto; background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:${isNovo ? 'none' : 'inline-flex'}; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'" onfocus="this.blur()">
@@ -3544,7 +3586,7 @@ function _renderFormPropostaInt() {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
     }
     if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
-        window.atualizarTituloAbaPropostaAtiva(prop ? prop.codigo : null);
+        window.atualizarTituloAbaPropostaAtiva(prop ? (window._modoTelaComercial === 'contrato' ? prop.contrato : prop.codigo) : null);
     }
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
@@ -3588,12 +3630,39 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     const isApOuPreAp = foiAssinadaAssinafy || faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA' || faseForm === 'APROVADO - ADITIVO ASSINADO' || faseForm === 'ENVIADO PARA ASSINATURA';
 
     document.querySelectorAll('#prop-toolbar-form .prop-btn-pos-salvo').forEach(btn => {
-        if (isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
+        if (window._modoTelaComercial === 'contrato' && (btn.id === 'btn-prop-copiar-link' || btn.id === 'btn-prop-desativar-link')) {
+            btn.style.display = 'none';
+            return;
+        }
+        if (window._modoTelaComercial !== 'contrato' && isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
             btn.style.display = 'none';
             return;
         }
         btn.style.display = mostrar ? 'inline-flex' : 'none';
     });
+
+    const btnEstornar = document.getElementById('btn-prop-estornar');
+    if (btnEstornar) {
+        if (window._modoTelaComercial === 'contrato' || !_propostasEditandoId) {
+            btnEstornar.style.display = 'none';
+        } else {
+            btnEstornar.style.display = (faseForm === 'APROVADA' && !foiAssinadaAssinafy) ? 'inline-flex' : 'none';
+        }
+    }
+
+    const btnAbrirPropOrigem = document.getElementById('btn-prop-abrir-proposta-origem');
+    if (btnAbrirPropOrigem) {
+        if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
+            const codOrig = (prop && prop.codigo) || '01';
+            const lblOrig = document.getElementById('lbl-btn-prop-abrir-proposta-origem');
+            if (lblOrig) lblOrig.textContent = 'Proposta Nº ' + codOrig;
+            btnAbrirPropOrigem.title = 'Abrir a Proposta Nº ' + codOrig + ' vinculada a este contrato';
+            btnAbrirPropOrigem.setAttribute('onclick', `window.abrirPropostaDiretoId(${Number(_propostasEditandoId)})`);
+            btnAbrirPropOrigem.style.display = 'inline-flex';
+        } else {
+            btnAbrirPropOrigem.style.display = 'none';
+        }
+    }
 
     const tipoFormAtu = document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '';
     const usaAssinafyTipo = Boolean(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(tipoFormAtu));
@@ -3654,7 +3723,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             lblDocAssin.textContent = ehDocAssinafyLabel ? 'Proposta Assinada' : 'Proposta Aprovada';
         }
         btnDocAssinado.title = ehDocAssinafyLabel ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada';
-        if (!_propostasEditandoId) {
+        if (!_propostasEditandoId || window._modoTelaComercial === 'contrato') {
             btnDocAssinado.style.display = 'none';
         } else if (jaAssinadaReal) {
             btnDocAssinado.style.display = 'inline-flex';
@@ -8384,6 +8453,9 @@ window.abrirContratoDaProposta = async function(id) {
 window.abrirPropostaDiretoId = async function(id) {
     const targetId = Number(id);
     if (!targetId) return;
+    if (window._modoTelaComercial === 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial('contrato');
+    }
     window._modoTelaComercial = 'proposta';
     window._propostasEditandoId_proposta = targetId;
     _propostasEditandoId = targetId;
@@ -9243,7 +9315,9 @@ window.enviarPropostaPorEmail = function(id = null) {
         Swal.fire('Aviso', 'Salve a proposta primeiro para poder enviá-la por e-mail.', 'warning');
         return;
     }
-    window._marcarPropostaComoEnviadaAuto(propId, true);
+    if (window._modoTelaComercial !== 'contrato') {
+        window._marcarPropostaComoEnviadaAuto(propId, true);
+    }
     window.abrirPopupEmail(propId);
 };
 
@@ -9360,21 +9434,33 @@ window.enviarPropostaPorWhatsapp = async function(id = null) {
 window.abrirPopupEmail = async function(id) {
     const p = _propostasData.find(pr => pr.id === id);
     if (!p) { alert('Proposta não encontrada.'); return; }
-    window._marcarPropostaComoEnviadaAuto(id, true);
+    const ehModoContrato = window._modoTelaComercial === 'contrato';
+    if (!ehModoContrato) {
+        window._marcarPropostaComoEnviadaAuto(id, true);
+    }
 
     const dadosCt = await window.obterDadosContatoPropostaAtual(p);
     const emailContatoPadrao = dadosCt.email || '';
 
     const tipoServico = p.tipo || 'Serviço';
-    const codigoProp = p.codigo || '';
+    const codigoProp = ehModoContrato
+        ? (p.contrato || document.getElementById('prop-codigo')?.value || p.codigo || '')
+        : (p.codigo || '');
 
     const ctxUser = await window.carregarContextoUsuarioComercial();
     const nomeColaboradorAssinatura = (ctxUser && ctxUser.nome_colaborador)
         ? ctxUser.nome_colaborador
         : window.formatarNomeColaboradorAssinatura(window.obterNomeUsuarioLogado ? window.obterNomeUsuarioLogado() : (p.atendente || 'América Rental'));
 
-    const headerText = `Enviar Proposta de ${tipoServico} N° ${codigoProp} por email`;
-    const defaultSubject = `Proposta de ${tipoServico} - N° ${codigoProp}`;
+    const headerText = ehModoContrato
+        ? `Enviar Contrato de ${tipoServico} N° ${codigoProp} por email`
+        : `Enviar Proposta de ${tipoServico} N° ${codigoProp} por email`;
+    const defaultSubject = ehModoContrato
+        ? `Contrato de ${tipoServico} - N° ${codigoProp}`
+        : `Proposta de ${tipoServico} - N° ${codigoProp}`;
+    const defaultCorpoHtml = ehModoContrato
+        ? `Olá,<br><br>Segue em anexo o documento do Contrato Nº ${_escHtmlProp(codigoProp)} referente à locação de equipamentos.<br><br>Atenciosamente,<br>${_escHtmlProp(nomeColaboradorAssinatura)}`
+        : `Olá,<br><br>Seguem abaixo o link da proposta e os detalhes da nossa proposta comercial.<br><br>Atenciosamente,<br>${_escHtmlProp(nomeColaboradorAssinatura)}`;
 
     Swal.fire({
         title: `<div style="font-size:1.1rem; font-weight:700; color:#4c1d95; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-paper-plane-right"></i> ${headerText}</div>`,
@@ -9401,7 +9487,7 @@ window.abrirPopupEmail = async function(id) {
                         </div>
                         <!-- Area editavel -->
                         <div id="email-corpo-editor" contenteditable="true" style="min-height: 120px; max-height: 220px; overflow-y: auto; padding: 0.55rem; font-size: 0.85rem; outline: none; box-sizing:border-box;">
-                            Olá,<br><br>Seguem abaixo o link da proposta e os detalhes da nossa proposta comercial.<br><br>Atenciosamente,<br>${_escHtmlProp(nomeColaboradorAssinatura)}
+                            ${defaultCorpoHtml}
                         </div>
                     </div>
                 </div>
@@ -9428,7 +9514,9 @@ window.abrirPopupEmail = async function(id) {
         if (result.isConfirmed) {
             Swal.fire({
                 title: 'Enviando e-mail...',
-                html: 'Gerando PDF da proposta e transmitindo e-mail. Por favor, aguarde.',
+                html: ehModoContrato
+                    ? 'Gerando PDF do contrato e transmitindo e-mail. Por favor, aguarde.'
+                    : 'Gerando PDF da proposta e transmitindo e-mail. Por favor, aguarde.',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -9438,22 +9526,30 @@ window.abrirPopupEmail = async function(id) {
             try {
                 let htmlImpressaoSimples = '';
                 try {
-                    const respDoc = await apiGet('/propostas/' + id + '/dados-documento-assinado');
-                    if (respDoc && respDoc.dados) {
-                        const d = respDoc.dados;
-                        const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
-                            ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
-                            : '';
-                        const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? (d.aditivo.url.startsWith('http') ? d.aditivo.url : window.location.origin + d.aditivo.url) : '';
-                        const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
-                        const urlAceite = (d.aceite && d.aceite.url) ? (d.aceite.url.startsWith('http') ? d.aceite.url : window.location.origin + d.aceite.url) : '';
-                        const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
-                        htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                    if (ehModoContrato && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+                        htmlImpressaoSimples = await window.gerarHtmlContratoParaPropostaObj(p, false);
+                    } else {
+                        const respDoc = await apiGet('/propostas/' + id + '/dados-documento-assinado');
+                        if (respDoc && respDoc.dados) {
+                            const d = respDoc.dados;
+                            const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                                ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
+                                : '';
+                            const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? (d.aditivo.url.startsWith('http') ? d.aditivo.url : window.location.origin + d.aditivo.url) : '';
+                            const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                            const urlAceite = (d.aceite && d.aceite.url) ? (d.aceite.url.startsWith('http') ? d.aceite.url : window.location.origin + d.aceite.url) : '';
+                            const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                            htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                        }
                     }
                 } catch (errDoc) {
                     console.warn('[PROPOSTA EMAIL] Falha ao montar html_impressao_simples:', errDoc);
                 }
-                const payloadEmail = Object.assign({}, result.value, { html_impressao_simples: htmlImpressaoSimples });
+                const payloadEmail = Object.assign({}, result.value, {
+                    html_impressao_simples: htmlImpressaoSimples,
+                    modo_contrato: ehModoContrato,
+                    numero_contrato: codigoProp
+                });
                 const resp = await apiPost(`/propostas/${id}/enviar-email`, payloadEmail);
                 Swal.close();
                 if (resp && resp.success) {
