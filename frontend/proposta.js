@@ -1693,10 +1693,23 @@ function renderTelaPropostas() {
 
 window._snapshotsFormComercial = window._snapshotsFormComercial || { proposta: null, contrato: null };
 window._activePropostaTabId = window._activePropostaTabId || 'comercial-proposta';
+window._activeContratoTabId = window._activeContratoTabId || 'comercial-contratos';
 
 window._obterChaveSnapshotComercial = function(modo, tabIdOverride) {
     const m = modo === 'contrato' ? 'contrato' : 'proposta';
-    if (m === 'contrato') return 'contrato';
+    if (m === 'contrato') {
+        if (tabIdOverride && tabIdOverride !== 'contrato' && String(tabIdOverride).startsWith('comercial-contratos')) {
+            return String(tabIdOverride);
+        }
+        if (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) {
+            const abaAtivaCtr = appOpenTabs.find(t => t && t.active && t.target === 'comercial-contratos');
+            if (abaAtivaCtr && abaAtivaCtr.tabId) {
+                window._activeContratoTabId = abaAtivaCtr.tabId;
+                return abaAtivaCtr.tabId;
+            }
+        }
+        return window._activeContratoTabId || 'comercial-contratos';
+    }
     if (tabIdOverride && String(tabIdOverride).startsWith('comercial-proposta')) {
         return String(tabIdOverride);
     }
@@ -1735,7 +1748,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     const modoDom = formEl ? formEl.getAttribute('data-modo-comercial') : '';
     if (modoDom && modoDom !== m) return;
     const tabKeyDom = formEl ? formEl.getAttribute('data-tab-key') : '';
-    const chave = tabIdOverride || (m === 'proposta' && tabKeyDom ? tabKeyDom : window._obterChaveSnapshotComercial(m));
+    const chave = tabIdOverride || ((tabKeyDom && ((m === 'proposta' && tabKeyDom.startsWith('comercial-proposta')) || (m === 'contrato' && tabKeyDom.startsWith('comercial-contratos')))) ? tabKeyDom : window._obterChaveSnapshotComercial(m));
     const idAttr = formEl ? formEl.getAttribute('data-editando-id') : '';
     const idRef = idAttr ? Number(idAttr) : (m === 'contrato' ? (window._propostasEditandoId_contrato || null) : (window._propostasEditandoId_proposta || null));
     const campos = {};
@@ -1768,7 +1781,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         contratoVinculadoTipoAtivo: window._contratoVinculadoTipoAtivo || ''
     };
     if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
-        window.atualizarTituloAbaPropostaAtiva(null, m === 'contrato' ? 'contrato' : chave);
+        window.atualizarTituloAbaPropostaAtiva(null, chave);
     }
 };
 
@@ -1871,7 +1884,7 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         window.verificarBloqueioFaturamentoProposta(cliVal);
     }
     if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
-        window.atualizarTituloAbaPropostaAtiva(null, m === 'contrato' ? 'contrato' : chave);
+        window.atualizarTituloAbaPropostaAtiva(null, chave);
     }
     return true;
 };
@@ -1879,16 +1892,17 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
 window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOverride = null) {
     const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
     if (!Array.isArray(tabsArr)) return;
-    const isModoContrato = (tabIdOverride === 'contrato' || tabIdOverride === 'comercial-contratos') || (!tabIdOverride && window._modoTelaComercial === 'contrato');
+    const isModoContrato = (tabIdOverride === 'contrato' || (tabIdOverride && String(tabIdOverride).startsWith('comercial-contratos'))) || (!tabIdOverride && window._modoTelaComercial === 'contrato');
 
     if (isModoContrato) {
-        const tabCtr = tabsArr.find(t => t && t.target === 'comercial-contratos' && t.active) || tabsArr.find(t => t && t.target === 'comercial-contratos');
+        const chaveCtr = (tabIdOverride && tabIdOverride !== 'contrato') ? String(tabIdOverride) : (typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('contrato') : 'comercial-contratos');
+        const tabCtr = tabsArr.find(t => t && t.tabId === chaveCtr) || tabsArr.find(t => t && t.target === 'comercial-contratos' && t.active) || tabsArr.find(t => t && t.target === 'comercial-contratos');
         if (!tabCtr) return;
-        const snapCtr = window._snapshotsFormComercial && window._snapshotsFormComercial['contrato'];
+        const snapCtr = window._snapshotsFormComercial && (window._snapshotsFormComercial[tabCtr.tabId] || window._snapshotsFormComercial['contrato']);
         const isTabAtivaCtr = Boolean(tabCtr.active) && window._modoTelaComercial === 'contrato';
         const idRefCtr = isTabAtivaCtr
-            ? (_propostasEditandoId || window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || null)
-            : (window._propostasEditandoId_contrato || (snapCtr && snapCtr.editandoId) || _propostasEditandoId || null);
+            ? (_propostasEditandoId || (snapCtr && snapCtr.editandoId) || window._propostasEditandoId_contrato || null)
+            : ((snapCtr && snapCtr.editandoId) || window._propostasEditandoId_contrato || _propostasEditandoId || null);
 
         let numCtr = '';
         if (codigoOverride) {
@@ -1899,7 +1913,7 @@ window.atualizarTituloAbaPropostaAtiva = function(codigoOverride = null, tabIdOv
                 const pMatch = _propostasData.find(p => Number(p.id) === Number(idRefCtr));
                 if (pMatch && pMatch.contrato) numCtr = String(pMatch.contrato).trim();
             }
-            if (!numCtr && window._modoTelaComercial === 'contrato') {
+            if (!numCtr && isTabAtivaCtr) {
                 numCtr = String(document.getElementById('prop-codigo')?.value || '').trim();
             }
             if (!numCtr && snapCtr && snapCtr.campos && snapCtr.campos['prop-codigo']) {
@@ -2034,11 +2048,14 @@ window.switchPropostaTab = function(tab) {
         window.salvarSnapshotEstadoFormComercial(modoDomAtu, tabKeyDomAtu || undefined);
     }
     if (tab === 'contratos') {
-        if (modoAnterior !== 'contrato' || modoDomAtu !== 'contrato') {
+        const chaveAlvoCtr = window._obterChaveSnapshotComercial('contrato');
+        if (modoAnterior !== 'contrato' || modoDomAtu !== 'contrato' || (tabKeyDomAtu && tabKeyDomAtu !== chaveAlvoCtr)) {
             mudouModoComercial = true;
         }
         window._modoTelaComercial = 'contrato';
-        _propostasEditandoId = window._propostasEditandoId_contrato || null;
+        const snapAlvoCtr = window._snapshotsFormComercial && window._snapshotsFormComercial[chaveAlvoCtr];
+        _propostasEditandoId = snapAlvoCtr ? (snapAlvoCtr.editandoId || null) : (window._propostasEditandoId_contrato || null);
+        window._propostasEditandoId_contrato = _propostasEditandoId;
         tab = 'form';
     } else if (tab === 'propostas') {
         const chaveAlvoProp = window._obterChaveSnapshotComercial('proposta');
@@ -8696,20 +8713,28 @@ window.aprovarPropostaEdicao = async function() {
     }
 };
 
-window.abrirContratoDaProposta = async function(id) {
+window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
     const targetId = Number(id || _propostasEditandoId);
     if (!targetId) return;
-    if (window._modoTelaComercial !== 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        window.salvarSnapshotEstadoFormComercial('proposta');
-    }
-    if (window._snapshotsFormComercial) {
-        window._snapshotsFormComercial.contrato = null;
+    const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
+    const abaAtiva = Array.isArray(tabsArr) ? tabsArr.find(t => t && t.active) : null;
+    const jaEstaNaAbaContrato = Boolean(!forcarNovaAba && abaAtiva && abaAtiva.target === 'comercial-contratos' && window._modoTelaComercial === 'contrato');
+
+    if (!jaEstaNaAbaContrato) {
+        if (abaAtiva && (abaAtiva.target === 'comercial-proposta' || abaAtiva.target === 'comercial-contratos') && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+            window.salvarSnapshotEstadoFormComercial(abaAtiva.target === 'comercial-contratos' ? 'contrato' : 'proposta', abaAtiva.tabId);
+        }
     }
     window._propostasEditandoId_contrato = targetId;
     window._modoTelaComercial = 'contrato';
     _propostasEditandoId = targetId;
-    if (typeof window.navigateTo === 'function') {
+    if (!jaEstaNaAbaContrato && typeof window.navigateTo === 'function') {
         window.navigateTo('comercial-contratos');
+    }
+    const chaveSnapCtr = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial('contrato') : 'comercial-contratos';
+    if (window._snapshotsFormComercial) {
+        delete window._snapshotsFormComercial[chaveSnapCtr];
+        delete window._snapshotsFormComercial.contrato;
     }
     await carregarPropostas();
     window._modoTelaComercial = 'contrato';
@@ -8717,7 +8742,11 @@ window.abrirContratoDaProposta = async function(id) {
     _propostasEditandoId = targetId;
     await abrirFormProposta(targetId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        window.salvarSnapshotEstadoFormComercial('contrato');
+        window.salvarSnapshotEstadoFormComercial('contrato', chaveSnapCtr);
+    }
+    if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        const pCtr = (_propostasData || []).find(p => Number(p.id) === Number(targetId));
+        window.atualizarTituloAbaPropostaAtiva(pCtr ? pCtr.contrato : null, chaveSnapCtr);
     }
     setTimeout(() => {
         if (window._modoTelaComercial === 'contrato' && _propostasEditandoId !== targetId) {
@@ -8728,16 +8757,22 @@ window.abrirContratoDaProposta = async function(id) {
     }, 110);
 };
 
-window.abrirPropostaDiretoId = async function(id) {
+window.abrirPropostaDiretoId = async function(id, forcarNovaAba = false) {
     const targetId = Number(id);
     if (!targetId) return;
-    if (window._modoTelaComercial === 'contrato' && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        window.salvarSnapshotEstadoFormComercial('contrato');
+    const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
+    const abaAtiva = Array.isArray(tabsArr) ? tabsArr.find(t => t && t.active) : null;
+    const jaEstaNaAbaProposta = Boolean(!forcarNovaAba && abaAtiva && abaAtiva.target === 'comercial-proposta' && window._modoTelaComercial !== 'contrato');
+
+    if (!jaEstaNaAbaProposta) {
+        if (abaAtiva && (abaAtiva.target === 'comercial-proposta' || abaAtiva.target === 'comercial-contratos') && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+            window.salvarSnapshotEstadoFormComercial(abaAtiva.target === 'comercial-contratos' ? 'contrato' : 'proposta', abaAtiva.tabId);
+        }
     }
     window._modoTelaComercial = 'proposta';
     window._propostasEditandoId_proposta = targetId;
     _propostasEditandoId = targetId;
-    if (typeof window.navigateTo === 'function') {
+    if (!jaEstaNaAbaProposta && typeof window.navigateTo === 'function') {
         window.navigateTo('comercial-proposta');
     }
     await carregarPropostas();
@@ -8756,7 +8791,10 @@ window.abrirPropostaDiretoId = async function(id) {
     }
     await abrirFormProposta(realId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
-        window.salvarSnapshotEstadoFormComercial('proposta');
+        window.salvarSnapshotEstadoFormComercial('proposta', chaveSnap);
+    }
+    if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
+        window.atualizarTituloAbaPropostaAtiva(encontrada ? encontrada.codigo : null, chaveSnap);
     }
     setTimeout(async () => {
         if (window._modoTelaComercial === 'proposta' && Number(_propostasEditandoId) !== Number(realId)) {
@@ -20057,20 +20095,32 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
         const exibirColExcluirModal = true;
-        const mapearPropostasComCnpj = (listaBruta) => (listaBruta || []).filter(p => isModoContratoModal ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO') : true).map(p => {
-            const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
-            const cnpj = key ? (clientCnpjMap[key] || '') : '';
-            const icone = key ? (clientIconMap[key] || '') : '';
-            return {
-                ...p,
-                cliente_cnpj: cnpj,
-                cliente_icone: icone
-            };
-        });
+        const extrairNumOrdenacaoModal = (val) => {
+            const digits = String(val || '').replace(/\D/g, '');
+            return digits ? parseInt(digits, 10) : 0;
+        };
+        const mapearPropostasComCnpj = (listaBruta) => {
+            const filtrada = (listaBruta || []).filter(p => isModoContratoModal ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO') : true).map(p => {
+                const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
+                const cnpj = key ? (clientCnpjMap[key] || '') : '';
+                const icone = key ? (clientIconMap[key] || '') : '';
+                return {
+                    ...p,
+                    cliente_cnpj: cnpj,
+                    cliente_icone: icone
+                };
+            });
+            if (isModoContratoModal) {
+                filtrada.sort((a, b) => extrairNumOrdenacaoModal(b.contrato) - extrairNumOrdenacaoModal(a.contrato));
+            } else {
+                filtrada.sort((a, b) => extrairNumOrdenacaoModal(b.codigo) - extrairNumOrdenacaoModal(a.codigo));
+            }
+            return filtrada;
+        };
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
-        const totalColunasModal = (isModoContratoModal ? 7 : 8) + (exibirColExcluirModal ? 1 : 0);
+        const totalColunasModal = 8 + (exibirColExcluirModal ? 1 : 0);
 
         const renderRows = (list) => {
             if (list.length === 0) {
@@ -20079,7 +20129,10 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
             return list.map(p => {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                const dataFmt = p.data_cadastro ? p.data_cadastro.split('-').reverse().join('/') : '';
+                const dataIsoModal = isModoContratoModal
+                    ? (String(p.aprovado_em || '').trim().substring(0, 10) || String(p.data_cadastro || '').trim())
+                    : String(p.data_cadastro || '').trim();
+                const dataFmt = dataIsoModal ? dataIsoModal.split('-').reverse().join('/') : '';
                 const codPropLimpo = String(p.codigo || '').trim();
                 const numContratoProp = String(p.contrato || '').trim();
                 const btnPropAzulHtml = codPropLimpo
@@ -20095,7 +20148,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${isModoContratoModal ? btnContratoAmareloHtml : btnPropAzulHtml}</td>
-                        ${!isModoContratoModal ? `<td style="padding:10px 12px; font-weight:700; color:${numContratoProp ? '#0f172a' : '#94a3b8'}; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnContratoAmareloHtml}</td>` : ''}
+                        <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${isModoContratoModal ? btnPropAzulHtml : btnContratoAmareloHtml}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#334155; text-align:center; white-space:nowrap;">${tipoExib}</td>
@@ -20148,7 +20201,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Proposta'}</th>
-                                        ${!isModoContratoModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px; white-space:nowrap;">Contrato</th>' : ''}
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px; white-space:nowrap;">${isModoContratoModal ? 'Proposta' : 'Contrato'}</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:130px; white-space:nowrap;">Tipo</th>

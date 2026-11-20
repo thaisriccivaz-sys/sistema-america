@@ -1453,6 +1453,8 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'comercial-proposta') {
         window._activePropostaTabId = tab.tabId;
+    } else if (tab.target === 'comercial-contratos') {
+        window._activeContratoTabId = tab.tabId;
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
@@ -1676,6 +1678,22 @@ function navigateTo(target) {
             window._activePropostaTabId = newTabId;
             if (window._snapshotsFormComercial) {
                 delete window._snapshotsFormComercial[newTabId];
+            }
+            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+            appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
+        } else if (target === 'comercial-contratos') {
+            const ctrTabs = appOpenTabs.filter(t => t.target === 'comercial-contratos');
+            let newTabId = 'comercial-contratos';
+            const newTitle = 'Contratos';
+            if (ctrTabs.length > 0 || appOpenTabs.some(t => t.tabId === 'comercial-contratos')) {
+                let n = 2;
+                while (appOpenTabs.some(t => t.tabId === `comercial-contratos-${n}`)) n++;
+                newTabId = `comercial-contratos-${n}`;
+            }
+            window._activeContratoTabId = newTabId;
+            if (window._snapshotsFormComercial) {
+                delete window._snapshotsFormComercial[newTabId];
+                delete window._snapshotsFormComercial['contrato'];
             }
             appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
