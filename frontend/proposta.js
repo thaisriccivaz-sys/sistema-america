@@ -171,7 +171,6 @@ const CONTRATO_SITUACOES_CONFIG = [
     { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Ativo',   icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
     { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
-    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-check-circle' },
     { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
     { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado', icon: 'ph-x-circle' },
     { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-archive' },
@@ -182,18 +181,36 @@ window.CONTRATO_SITUACOES_CONFIG = CONTRATO_SITUACOES_CONFIG;
 window.obterConfigSituacaoContrato = function(sitRaw) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
     const s = normStr(sitRaw);
-    if (!s || s === 'EM ELABORACAO' || s === 'AGUARDANDO ASSINATURA' || s === 'APROVADA' || s === 'APROVADO' || s === 'ESTORNADO') {
+    if (s === 'CONTRATO ESTORNADO' || s === 'ESTORNADO') {
+        return { nome: 'CONTRATO ESTORNADO', cor: 'GREY', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-arrow-counter-clockwise', ocultoLista: true };
+    }
+    if (!s || s === 'EM ELABORACAO' || s === 'AGUARDANDO ASSINATURA' || s === 'APROVADA' || s === 'APROVADO') {
         return CONTRATO_SITUACOES_CONFIG[0];
     }
-    if (s === 'CONTRATO DIGITAL ASSINADO') {
+    if (s === 'CONTRATO DIGITAL ASSINADO' || s === 'CONTRATO ASSINADO/ENTREGA LIBERADA') {
         return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'CONTRATO ASSINADO') || CONTRATO_SITUACOES_CONFIG[2];
     }
     const exact = CONTRATO_SITUACOES_CONFIG.find(c => normStr(c.nome) === s);
     if (exact) return exact;
     if (s === 'REPROVADA' || s === 'REPROVADO' || s === 'CANCELADA' || s === 'CANCELADO') {
-        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[6];
+        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[5];
     }
     return { nome: String(sitRaw || 'EM ELABORAÇÃO').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Aberto', icon: 'ph-circle' };
+};
+
+window.propostaTemContratoGerado = function(prop) {
+    if (!prop) return false;
+    const tipoNorm = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoNorm === 'ADITIVO') return false;
+    return Boolean(prop.contrato && String(prop.contrato).trim());
+};
+
+window.contratoFoiEstornado = function(prop) {
+    if (!prop) return false;
+    const sitNorm = String(prop.situacao_contrato || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().replace(/\s+/g, ' ').trim();
+    return sitNorm === 'CONTRATO ESTORNADO' || sitNorm === 'ESTORNADO';
 };
 
 window.propostaVirouContrato = function(prop) {
@@ -201,7 +218,7 @@ window.propostaVirouContrato = function(prop) {
     const tipoNorm = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (tipoNorm === 'ADITIVO') return false;
     const faseUp = String(prop.fase_negociacao || '').trim().toUpperCase();
-    return Boolean((prop.contrato && String(prop.contrato).trim()) || faseUp === 'APROVADA');
+    return faseUp === 'APROVADA';
 };
 
 window.contratoEstaEmElaboracao = function(prop) {
@@ -209,13 +226,15 @@ window.contratoEstaEmElaboracao = function(prop) {
     const sitNorm = String(prop.situacao_contrato || '')
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toUpperCase().replace(/\s+/g, ' ').trim();
-    return !sitNorm || sitNorm === 'EM ELABORACAO' || sitNorm === 'AGUARDANDO ASSINATURA' || sitNorm === 'APROVADA' || sitNorm === 'APROVADO' || sitNorm === 'ESTORNADO';
+    return !sitNorm || sitNorm === 'EM ELABORACAO' || sitNorm === 'AGUARDANDO ASSINATURA' || sitNorm === 'APROVADA' || sitNorm === 'APROVADO';
 };
 
 window.propostaPodeMudarParaReprovada = function(prop) {
     if (!prop) return true;
-    if (!window.propostaVirouContrato(prop)) return true;
-    return window.contratoEstaEmElaboracao(prop);
+    const faseUp = String(prop.fase_negociacao || '').trim().toUpperCase();
+    if (faseUp === 'APROVADA') return false;
+    if (!window.propostaTemContratoGerado(prop)) return true;
+    return window.contratoFoiEstornado(prop);
 };
 
 window.situacaoContratoEhAtiva = function(sitRaw) {
@@ -615,6 +634,7 @@ window.tipoPropostaUsaContratoBase = function(tipoRaw) {
 
 window.propostaFoiAssinadaViaAssinafy = function(p) {
     if (!p) return false;
+    if (typeof window.contratoFoiEstornado === 'function' && window.contratoFoiEstornado(p)) return false;
     const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
     return Boolean(
         String(p.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
@@ -3061,7 +3081,7 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-desativar-link" class="prop-btn-pos-salvo" onclick="window.desativarLinkProposta(${id || 'null'})" title="Desativa o link público desta proposta (o link já enviado deixa de funcionar)" style="background:#fff; color:#b91c1c; border:1px solid #fecaca; padding:0.45rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.82rem; display:${(isNovo || window._modoTelaComercial === 'contrato') ? 'none' : 'inline-flex'}; align-items:center;" onfocus="this.blur()">
                         <i class="ph ph-link-break" style="font-size:1rem;"></i>
                     </button>
-                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
+                    <button id="btn-prop-estornar" onclick="${isNovo ? "Swal.fire('Aviso', 'Salve a proposta primeiro para poder estorná-la.', 'warning')" : `estornarPropostaEdicao()`}" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'APROVADA') ? 'inline-flex' : 'none'}; background:#64748b; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#475569'" onmouseout="this.style.background='#64748b'" onfocus="this.blur()">
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
@@ -3137,8 +3157,14 @@ function _renderFormPropostaInt() {
 
                     <div id="prop-campos-dependentes-tipo" onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
 
-                    <!-- Linha 2: Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
-                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 2: Título (no Contrato), Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
+                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1.35fr 1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
+                        <div id="prop-col-titulo-contrato" style="display:${window._modoTelaComercial === 'contrato' ? 'block' : 'none'};">
+                            <label class="prop-lbl">Título *</label>
+                            <input type="text" id="prop-titulo-contrato" value="${_escHtmlProp(v('titulo_contrato'))}" placeholder="Digite o título do contrato..."
+                                oninput="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;text-transform:none !important;">
+                        </div>
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
                             <input type="date" id="prop-data-cadastro" value="${dataCadastroValorForm}" onchange="window.calcularPrevisaoFechamento()"
@@ -3182,9 +3208,9 @@ function _renderFormPropostaInt() {
                                             ? (f.toUpperCase() !== 'REPROVADA' || !podeReprovarOpt)
                                             : (isEnvBloq || isPreAp || isApBloq || isReprovBloq);
                                         const disabledTitle = isReprovBloq
-                                            ? 'Apenas é possível mudar para Reprovada se a proposta ainda não virou contrato ou se o contrato estiver Em elaboração'
+                                            ? 'Se tiver um contrato gerado, apenas é possível mudar a situação da proposta para Reprovada se antes o contrato for estornado'
                                             : ((foiAssinadaAssinafyOpt || virouContratoOpt)
-                                                ? (isDisabled ? 'Proposta já aprovada/assinada: a única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração)' : '')
+                                                ? (isDisabled ? 'Proposta aprovada: estorne o contrato primeiro para poder editar ou reprovar a proposta' : '')
                                                 : (isEnvBloq
                                                     ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
                                                     : (isPreAp
@@ -3231,9 +3257,9 @@ function _renderFormPropostaInt() {
                                                 ? (f.toUpperCase() !== 'REPROVADA' || !podeReprovarOpt)
                                                 : (isEnvBloq || isPreAp || isApBloq || isReprovBloq);
                                             const disabledTitle = isReprovBloq
-                                                ? 'Apenas é possível mudar para Reprovada se a proposta ainda não virou contrato ou se o contrato estiver Em elaboração'
+                                                ? 'Se tiver um contrato gerado, apenas é possível mudar a situação da proposta para Reprovada se antes o contrato for estornado'
                                                 : ((foiAssinadaAssinafyOpt || virouContratoOpt)
-                                                    ? (isDisabled ? 'Proposta já aprovada/assinada: a única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração)' : '')
+                                                    ? (isDisabled ? 'Proposta aprovada: estorne o contrato primeiro para poder editar ou reprovar a proposta' : '')
                                                     : (isEnvBloq
                                                         ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
                                                         : (isPreAp
@@ -3899,7 +3925,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         if (window._modoTelaComercial === 'contrato' || !_propostasEditandoId) {
             btnEstornar.style.display = 'none';
         } else {
-            btnEstornar.style.display = (faseForm === 'APROVADA' && !foiAssinadaAssinafy) ? 'inline-flex' : 'none';
+            btnEstornar.style.display = (faseForm === 'APROVADA') ? 'inline-flex' : 'none';
         }
     }
 
@@ -7632,8 +7658,8 @@ window.salvarPropostaNova = async function() {
         const podeReprovSalvar = Boolean(!window.propostaPodeMudarParaReprovada || window.propostaPodeMudarParaReprovada(propExistAssinafy));
         if ((faseUpSalvar !== 'REPROVADA' && faseUpSalvar !== 'REPROVADO') || !podeReprovSalvar) {
             Swal.fire('Edição Bloqueada', !podeReprovSalvar
-                ? 'Esta proposta já virou contrato e não está mais na situação Em elaboração, portanto não pode ser alterada para Reprovada.'
-                : 'Esta proposta já foi aprovada/assinada e não pode mais ser editada. A única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração).', 'warning');
+                ? 'Se tiver um contrato gerado, apenas é possível mudar a situação da proposta para Reprovada se antes o contrato for estornado.'
+                : 'Esta proposta já foi aprovada/assinada e não pode mais ser editada sem estornar o contrato primeiro.', 'warning');
             return;
         }
         const motReprov = obter('prop-motivo-reprovacao').trim();
@@ -7645,7 +7671,7 @@ window.salvarPropostaNova = async function() {
         window._cachedProposalPayload = {
             fase_negociacao: 'Reprovada',
             motivo_reprovacao: motReprov,
-            situacao_contrato: virouContratoProp ? 'REPROVADO | CANCELADO' : undefined
+            situacao_contrato: (propExistAssinafy && propExistAssinafy.situacao_contrato) || undefined
         };
         await window.confirmarSalvarProposta(false);
         return;
@@ -7664,6 +7690,11 @@ window.salvarPropostaNova = async function() {
     const dataCad = obter('prop-data-cadastro');
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
+    if (window._modoTelaComercial === 'contrato' && !obter('prop-titulo-contrato').trim()) {
+        alert('O campo Título é obrigatório para salvar o contrato.');
+        document.getElementById('prop-titulo-contrato')?.focus();
+        return;
+    }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
@@ -7804,6 +7835,7 @@ window.salvarPropostaNova = async function() {
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         modo_contrato: window._modoTelaComercial === 'contrato',
+        titulo_contrato: obter('prop-titulo-contrato').trim(),
         situacao_contrato: window._modoTelaComercial === 'contrato' ? fase : undefined
     };
 
@@ -8094,20 +8126,20 @@ window.estornarPropostaEdicao = async function() {
     }
 
     const propAtual = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || {};
-    if (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propAtual)) {
-        Swal.fire('Estorno Bloqueado', 'Esta proposta já foi assinada via Assinafy e não pode mais ser estornada ou editada. A única alteração permitida é mudar a situação para Reprovada.', 'warning');
+    const ehPropTipoAssinafyEstorno = Boolean(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(propAtual.tipo));
+    if (ehPropTipoAssinafyEstorno && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propAtual)) {
+        Swal.fire('Estorno Bloqueado', 'Esta proposta já foi assinada via Assinafy e não pode mais ser estornada.', 'warning');
         return;
     }
     const sitContratoRaw = String(
         (window._modoTelaComercial === 'contrato' ? document.getElementById('prop-fase')?.value : '') ||
         propAtual.situacao_contrato ||
-        'AGUARDANDO ASSINATURA'
+        'EM ELABORAÇÃO'
     ).trim();
     const sitContrato = sitContratoRaw.toUpperCase();
     const sitPermitida = [
         '',
         'AGUARDANDO ASSINATURA',
-        'ADIANTAMENTO DE OS',
         'REPROVADO | CANCELADO',
         'EM ELABORAÇÃO',
         'EM ELABORACAO',
@@ -8117,13 +8149,13 @@ window.estornarPropostaEdicao = async function() {
         'CANCELADO'
     ].includes(sitContrato);
     if (!sitPermitida) {
-        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver em situação Aberta (AGUARDANDO ASSINATURA / ADIANTAMENTO DE OS) ou REPROVADO | CANCELADO.', 'warning');
+        Swal.fire('Estorno bloqueado', 'Um contrato apenas pode ser estornado se estiver em situação AGUARDANDO ASSINATURA ou REPROVADO | CANCELADO.', 'warning');
         return;
     }
 
     const confEstorno = await Swal.fire({
         title: 'Estornar Contrato?',
-        text: 'Tem certeza que gostaria de estornar o contrato? A proposta voltará para a situação Proposta Enviada.',
+        text: 'Tem certeza que gostaria de estornar o contrato? A situação do contrato mudará para CONTRATO ESTORNADO (Fechado) e a proposta voltará para Em Elaboração.',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -8142,6 +8174,11 @@ window.estornarPropostaEdicao = async function() {
     const dataCad = obter('prop-data-cadastro');
 
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
+    if (window._modoTelaComercial === 'contrato' && !obter('prop-titulo-contrato').trim()) {
+        alert('O campo Título é obrigatório para salvar o contrato.');
+        document.getElementById('prop-titulo-contrato')?.focus();
+        return;
+    }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
@@ -8214,9 +8251,10 @@ window.estornarPropostaEdicao = async function() {
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: 'Proposta Enviada',
+        fase_negociacao: 'Em Elaboração',
         acao_estornar: true,
-        situacao_contrato: sitContratoRaw || 'Em Elaboração',
+        situacao_contrato: 'CONTRATO ESTORNADO',
+        titulo_contrato: obter('prop-titulo-contrato').trim() || (propAtual && propAtual.titulo_contrato) || '',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -8310,6 +8348,11 @@ window.aprovarPropostaEdicao = async function() {
     }
     const dataCad = obter('prop-data-cadastro');
     if (!tipo) { alert('Selecione o Tipo da proposta.'); return; }
+    if (window._modoTelaComercial === 'contrato' && !obter('prop-titulo-contrato').trim()) {
+        alert('O campo Título é obrigatório para salvar o contrato.');
+        document.getElementById('prop-titulo-contrato')?.focus();
+        return;
+    }
     if (!dataCad) { alert('Informe a Data de Cadastro.'); return; }
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para aprovar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para aprovar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
@@ -8514,6 +8557,7 @@ window.aprovarPropostaEdicao = async function() {
         situacao_contrato: ehModoContratoAssinafy
             ? (obter('prop-fase') || propExistente?.situacao_contrato || 'EM ELABORAÇÃO')
             : (usaFluxoAssinafy ? null : 'EM ELABORAÇÃO'),
+        titulo_contrato: obter('prop-titulo-contrato').trim() || (propExistente && propExistente.titulo_contrato) || '',
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -26370,6 +26414,7 @@ function valorPorExtenso(valor) {
 window.CONTRATO_MNEMONICOS_CATALOGO = [
     // Dados do Contrato
     { tag: '{{NUMERO_CONTRATO}}', label: 'Nº do Contrato', categoria: 'Contrato', exemplo: '0145' },
+    { tag: '{{TITULO_CONTRATO}}', label: 'Título do Contrato', categoria: 'Contrato', exemplo: 'Locação de Equipamentos - Obra Centro' },
     { tag: '{{CODIGO_PROPOSTA}}', label: 'Código da Proposta', categoria: 'Contrato', exemplo: '0218' },
     { tag: '{{TIPO_CONTRATO}}', label: 'Tipo do Contrato', categoria: 'Contrato', exemplo: 'OBRA MENSAL' },
     { tag: '{{ATENDENTE}}', label: 'Atendente', categoria: 'Contrato', exemplo: 'Thais Ricci' },
@@ -26685,6 +26730,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
 
     return {
         '{{NUMERO_CONTRATO}}': String(p.contrato || p.numero_contrato || p.codigo || '0001').trim(),
+        '{{TITULO_CONTRATO}}': String(p.titulo_contrato || '').trim(),
         '{{CODIGO_PROPOSTA}}': String(p.codigo || '0001').trim(),
         '{{TIPO_CONTRATO}}': String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, ''),
         '{{ATENDENTE}}': String(p.atendente_nome || p.atendente || window.obterNomeUsuarioLogado() || 'Thais Ricci').trim(),
