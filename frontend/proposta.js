@@ -688,8 +688,372 @@ window.obterListaSignatariosProposta = function(prop) {
     return [];
 };
 
-window.renderQuadroAssinaturaDigitalContratoHtml = function(prop) {
-    const sigs = window.obterListaSignatariosProposta(prop);
+window._propSignatariosContratoDraft = [];
+
+window.atualizarQuadroAssinaturaDigitalDom = function() {
+    const prop = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
+    const elConteudo = document.getElementById('prop-quadro-assinatura-digital-conteudo');
+    if (elConteudo) {
+        elConteudo.innerHTML = window.renderQuadroAssinaturaDigitalContratoHtml(prop, true);
+    }
+    const elBadgeCount = document.getElementById('prop-assinatura-digital-count-badge');
+    if (elBadgeCount) {
+        const qtd = Array.isArray(window._propSignatariosContratoDraft) ? window._propSignatariosContratoDraft.length : 0;
+        elBadgeCount.textContent = `${qtd} signatário(s)`;
+    }
+};
+
+window.onChangeTipoSignatarioQuadroContrato = function(novoTipo) {
+    const inpNome = document.getElementById('prop-sig-add-nome');
+    const inpEmail = document.getElementById('prop-sig-add-email');
+    if (!inpEmail) return;
+    if (novoTipo === 'América Rental') {
+        inpEmail.value = 'nicolle.mezuraro@americarental.com.br';
+        inpEmail.setAttribute('readonly', 'readonly');
+        inpEmail.style.background = '#f1f5f9';
+        inpEmail.style.color = '#475569';
+        if (inpNome && !inpNome.value.trim()) {
+            inpNome.value = 'América Rental';
+        }
+    } else {
+        inpEmail.removeAttribute('readonly');
+        inpEmail.style.background = '#ffffff';
+        inpEmail.style.color = '#0f172a';
+        if (inpEmail.value.trim().toLowerCase() === 'nicolle.mezuraro@americarental.com.br') {
+            inpEmail.value = '';
+        }
+        if (inpNome && inpNome.value.trim() === 'América Rental') {
+            inpNome.value = '';
+        }
+    }
+};
+
+window.renderizarDropdownContatosSignatarioQuadro = function(termoFiltro = '', mostrarTodos = false) {
+    const dropEl = document.getElementById('prop-sig-contato-dropdown');
+    if (!dropEl) return;
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    const base = clienteNome ? (window._contatosDoClientePropostaAtual || []) : [];
+    const qNorm = mostrarTodos ? '' : normStr(termoFiltro);
+    const filtrados = !qNorm
+        ? base
+        : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm) || normStr(c.email).includes(qNorm));
+    if (filtrados.length === 0) {
+        const msg = clienteNome
+            ? 'Nenhum contato vinculado a este cliente encontrado. Você pode digitar o nome e o e-mail manualmente.'
+            : 'Selecione um cliente primeiro para listar os contatos vinculados.';
+        dropEl.innerHTML = `<div style="padding:0.65rem 0.75rem; font-size:0.78rem; color:#64748b; text-align:center;">${msg}</div>`;
+        dropEl.style.display = 'block';
+        return;
+    }
+    dropEl.innerHTML = filtrados.slice(0, 80).map(c => {
+        const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const safeEmail = String(c.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const subInfo = [c.cargo, c.celular, c.email || 'Sem e-mail cadastrado'].filter(Boolean).join(' • ');
+        return `
+            <div onmousedown="event.preventDefault(); window.selecionarContatoSignatarioQuadro('${safeNome}', '${safeEmail}')"
+                style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                <div style="font-size:0.82rem; font-weight:700; color:#1e293b;">${_escHtmlProp(c.nome)}</div>
+                <div style="font-size:0.72rem; color:${c.email ? '#0369a1' : '#94a3b8'}; font-weight:600;">${_escHtmlProp(subInfo)}</div>
+            </div>
+        `;
+    }).join('');
+    dropEl.style.display = 'block';
+};
+
+window.abrirDropdownContatosSignatarioQuadro = async function(mostrarTodos = true, event = null) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (typeof window._obterDadosContatosClienteProposta === 'function' && (window._ultimoClienteContatosCarregado !== clienteNome || !Array.isArray(window._contatosDoClientePropostaAtual))) {
+        await window._obterDadosContatosClienteProposta(clienteNome);
+    }
+    const valAtual = (document.getElementById('prop-sig-add-nome')?.value || '').trim();
+    window.renderizarDropdownContatosSignatarioQuadro(valAtual, mostrarTodos);
+};
+
+window.toggleDropdownContatosSignatarioQuadro = async function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const dropEl = document.getElementById('prop-sig-contato-dropdown');
+    if (dropEl && dropEl.style.display === 'block') {
+        dropEl.style.display = 'none';
+        return;
+    }
+    await window.abrirDropdownContatosSignatarioQuadro(true);
+};
+
+window.filtrarDropdownContatosSignatarioQuadro = async function(termo) {
+    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+    if (typeof window._obterDadosContatosClienteProposta === 'function' && (window._ultimoClienteContatosCarregado !== clienteNome || !Array.isArray(window._contatosDoClientePropostaAtual))) {
+        await window._obterDadosContatosClienteProposta(clienteNome);
+    }
+    window.renderizarDropdownContatosSignatarioQuadro(termo, false);
+};
+
+window.selecionarContatoSignatarioQuadro = function(nome, email) {
+    const dropEl = document.getElementById('prop-sig-contato-dropdown');
+    if (dropEl) dropEl.style.display = 'none';
+    const inpNome = document.getElementById('prop-sig-add-nome');
+    const inpEmail = document.getElementById('prop-sig-add-email');
+    const selTipo = document.getElementById('prop-sig-add-tipo');
+    if (inpNome) inpNome.value = nome || '';
+    if (inpEmail) {
+        if (selTipo && selTipo.value === 'América Rental') {
+            inpEmail.value = 'nicolle.mezuraro@americarental.com.br';
+        } else {
+            inpEmail.value = (email || '').trim().toLowerCase();
+        }
+    }
+};
+
+if (!window._propSigContatoOutsideClickBound && typeof document !== 'undefined') {
+    window._propSigContatoOutsideClickBound = true;
+    document.addEventListener('mousedown', (ev) => {
+        const wrap = document.getElementById('prop-sig-contato-combo-wrap');
+        const dropEl = document.getElementById('prop-sig-contato-dropdown');
+        if (dropEl && dropEl.style.display === 'block' && wrap && !wrap.contains(ev.target)) {
+            dropEl.style.display = 'none';
+        }
+    });
+}
+
+window.adicionarSignatarioQuadroContrato = function() {
+    const selTipo = document.getElementById('prop-sig-add-tipo');
+    const inpNome = document.getElementById('prop-sig-add-nome');
+    const inpEmail = document.getElementById('prop-sig-add-email');
+    const tipo = (selTipo?.value || 'Responsável Legal').trim();
+    const ehAm = tipo === 'América Rental';
+    const nome = (inpNome?.value || (ehAm ? 'América Rental' : '')).trim();
+    const email = ehAm ? 'nicolle.mezuraro@americarental.com.br' : (inpEmail?.value || '').trim().toLowerCase();
+
+    if (!nome) {
+        Swal.fire('Aviso', 'Selecione um contato do cliente ou informe o nome do signatário.', 'warning');
+        inpNome?.focus();
+        return false;
+    }
+    if (!email || !email.includes('@')) {
+        Swal.fire('Aviso', `Informe um e-mail válido para "${nome}".`, 'warning');
+        inpEmail?.focus();
+        return false;
+    }
+    if (!Array.isArray(window._propSignatariosContratoDraft)) {
+        window._propSignatariosContratoDraft = [];
+    }
+    window._propSignatariosContratoDraft.push({
+        tipo,
+        nome,
+        email,
+        status: 'Na lista para envio',
+        enviado_em: '',
+        assinado_em: ''
+    });
+    window.atualizarQuadroAssinaturaDigitalDom();
+    return true;
+};
+
+window.removerSignatarioQuadroContrato = function(idx) {
+    if (!Array.isArray(window._propSignatariosContratoDraft)) return;
+    window._propSignatariosContratoDraft.splice(idx, 1);
+    window.atualizarQuadroAssinaturaDigitalDom();
+};
+
+window.alterarTipoSignatarioLinhaQuadroContrato = function(idx, novoTipo) {
+    if (!Array.isArray(window._propSignatariosContratoDraft) || !window._propSignatariosContratoDraft[idx]) return;
+    window._propSignatariosContratoDraft[idx].tipo = novoTipo;
+    if (novoTipo === 'América Rental') {
+        window._propSignatariosContratoDraft[idx].email = 'nicolle.mezuraro@americarental.com.br';
+        if (!window._propSignatariosContratoDraft[idx].nome) {
+            window._propSignatariosContratoDraft[idx].nome = 'América Rental';
+        }
+    }
+    window.atualizarQuadroAssinaturaDigitalDom();
+};
+
+window.enviarContratoParaAssinaturaPeloQuadro = async function() {
+    if (!_propostasEditandoId) {
+        Swal.fire('Aviso', 'Abra um contrato válido primeiro.', 'warning');
+        return;
+    }
+    const inpNomePendente = (document.getElementById('prop-sig-add-nome')?.value || '').trim();
+    const inpEmailPendente = (document.getElementById('prop-sig-add-email')?.value || '').trim();
+    const selTipoPendente = (document.getElementById('prop-sig-add-tipo')?.value || 'Responsável Legal').trim();
+    if ((!Array.isArray(window._propSignatariosContratoDraft) || window._propSignatariosContratoDraft.length === 0) && (inpNomePendente || selTipoPendente === 'América Rental')) {
+        if (!window.adicionarSignatarioQuadroContrato()) return;
+    } else if (inpNomePendente && (inpEmailPendente.includes('@') || selTipoPendente === 'América Rental')) {
+        window.adicionarSignatarioQuadroContrato();
+    }
+
+    if (!Array.isArray(window._propSignatariosContratoDraft) || window._propSignatariosContratoDraft.length === 0) {
+        Swal.fire('Aviso', 'Adicione pelo menos um contato/signatário na lista de Assinatura Digital antes de clicar em Enviar para Assinatura.', 'warning');
+        document.getElementById('prop-sig-add-nome')?.focus();
+        return;
+    }
+
+    const obter = (id) => document.getElementById(id)?.value || '';
+    const obterN = (id) => typeof window.parseMoedaProposta === 'function'
+        ? window.parseMoedaProposta(document.getElementById(id)?.value)
+        : (parseFloat(document.getElementById(id)?.value || 0) || 0);
+
+    const tituloContrato = obter('prop-titulo-contrato').trim();
+    if (!tituloContrato) {
+        Swal.fire('Aviso', 'Preencha o campo Título * do contrato antes de enviar para assinatura.', 'warning');
+        document.getElementById('prop-titulo-contrato')?.focus();
+        return;
+    }
+    const tipo = obter('prop-tipo');
+    const dataCad = obter('prop-data-cadastro');
+    if (!tipo) { Swal.fire('Aviso', 'Selecione o Tipo do contrato.', 'warning'); return; }
+    if (!dataCad) { Swal.fire('Aviso', 'Informe a Data de Cadastro.', 'warning'); return; }
+    if (!obter('prop-cliente').trim()) { Swal.fire('Aviso', 'O campo Cliente é obrigatório.', 'warning'); return; }
+    if (!obter('prop-contato').trim()) { Swal.fire('Aviso', 'O campo Contato é obrigatório.', 'warning'); return; }
+
+    const listaSignatariosEscolhidos = window._propSignatariosContratoDraft.map(s => {
+        const tp = String(s.tipo || 'Responsável Legal').trim();
+        const ehAm = tp === 'América Rental';
+        return {
+            tipo: tp,
+            nome: String(s.nome || (ehAm ? 'América Rental' : '')).trim(),
+            email: ehAm ? 'nicolle.mezuraro@americarental.com.br' : String(s.email || '').trim().toLowerCase()
+        };
+    });
+
+    const invalido = listaSignatariosEscolhidos.find(s => !s.nome || !s.email || !s.email.includes('@'));
+    if (invalido) {
+        Swal.fire('Aviso', 'Todos os signatários da lista devem possuir Nome e E-mail válidos.', 'warning');
+        return;
+    }
+
+    const propExistente = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
+    const isComparativa = Boolean(document.getElementById('prop-comparativa')?.checked);
+    const produtosAprovadosSel = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
+    const ehReenvio = Boolean(propExistente && propExistente.assinafy_id);
+
+    const payload = {
+        modo_contrato: true,
+        titulo_contrato: tituloContrato,
+        local: obter('prop-local') || 'AMERICA RENTAL',
+        tipo,
+        atendente: obter('prop-atendente'),
+        data_cadastro: dataCad,
+        validade_proposta: obter('prop-validade-proposta'),
+        previsao_fechamento: obter('prop-previsao'),
+        fase_negociacao: propExistente?.fase_negociacao || 'Aprovada',
+        situacao_contrato: obter('prop-fase') || propExistente?.situacao_contrato || 'EM ELABORAÇÃO',
+        modelo_impressao: obter('prop-modelo'),
+        cliente_nome: obter('prop-cliente'),
+        contato_nome: obter('prop-contato'),
+        interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
+        periodo_inicio: obter('prop-periodo-ini'),
+        periodo_fim: obter('prop-periodo-fim'),
+        hora_inicio: obter('prop-hora-ini') || '00:00',
+        hora_fim: obter('prop-hora-fim') || '00:00',
+        dias_contrato: parseInt(obter('prop-dias') || 0),
+        dias_evento: JSON.stringify(typeof window.obterDiasEventoUniaoProposta === 'function' ? window.obterDiasEventoUniaoProposta() : (window._propDiasEventoSelecionados || [])),
+        tabela_precos: (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipo) : '') || obter('prop-tabela') || String(tipo || '').replace(/^PROPOSTA\s+/i, '').trim(),
+        nome_evento: (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) ? obter('prop-nome-evento').trim() : '',
+        servico_frete_fob: (typeof window.obterFreteFobPropostaObra === 'function') ? window.obterFreteFobPropostaObra() : 0,
+        contrato_vinculado: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(obter('prop-contrato-aditivo')) : obter('prop-contrato-aditivo').trim()) : '',
+        contrato_vinculado_id: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (parseInt(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-id'), 10) || null) : null,
+        contrato_vinculado_tipo: (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo)) ? (document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-tipo') || '').trim() : '',
+        endereco_instalacao: (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda(tipo)) ? '' : obter('prop-endereco'),
+        desconto_percent: obterN('prop-desc-pct'),
+        desconto_reais: obterN('prop-desc-rs'),
+        condicao_pagamento: obter('prop-cond-pag'),
+        representante: obter('prop-representante'),
+        transportadora: obter('prop-transportadora'),
+        tipo_frete: obter('prop-tipo-frete'),
+        valor_frete_ida: obterN('prop-frete-ida'),
+        valor_frete_volta: obterN('prop-frete-volta'),
+        observacoes: obter('prop-obs'),
+        valor_total: obterN('prop-valor-total'),
+        status: obter('prop-status') || 'Ativa',
+        motivo_reprovacao: '',
+        criado_por: window.obterNomeUsuarioLogado(),
+        itens: window._propProdutosAdicionados || [],
+        itens_servicos: window._propServicosAdicionados || [],
+        proposta_comparativa: isComparativa ? 1 : 0,
+        produtos_aprovados: produtosAprovadosSel,
+        servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
+        regiao: _propRegiaoIdentificada || null,
+        percentual_zona: obterN('prop-percentual-zona'),
+        valor_km: obterN('prop-valor-km'),
+        distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
+        valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
+        valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
+    };
+
+    Swal.fire({ title: 'Gerando PDF do Contrato e enviando para assinatura...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+        await apiPut(`/propostas/${_propostasEditandoId}`, payload);
+        const finalId = Number(_propostasEditandoId);
+
+        let htmlImpressaoSimples = '';
+        try {
+            if (typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+                const propObjAssinafy = Object.assign({}, propExistente || {}, payload, {
+                    id: finalId,
+                    contrato: (propExistente && propExistente.contrato) || obter('prop-codigo') || '',
+                    codigo: (propExistente && propExistente.codigo) || ''
+                });
+                const htmlContratoMod = await window.gerarHtmlContratoParaPropostaObj(propObjAssinafy, false);
+                if (htmlContratoMod) htmlImpressaoSimples = htmlContratoMod;
+            }
+        } catch (errHtml) {
+            console.warn('[ASSINATURA DIGITAL CONTRATO] Erro ao gerar HTML do contrato:', errHtml);
+        }
+
+        const respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
+            reenviar: ehReenvio,
+            modo_contrato: true,
+            html_impressao_simples: htmlImpressaoSimples,
+            produtos_aprovados: produtosAprovadosSel,
+            signatarios: listaSignatariosEscolhidos,
+            nome_signatario: listaSignatariosEscolhidos[0]?.nome || '',
+            email_signatario: listaSignatariosEscolhidos[0]?.email || '',
+            tipo_signatario: listaSignatariosEscolhidos[0]?.tipo || 'Responsável Legal'
+        });
+
+        Swal.close();
+        if (respAssinafy && respAssinafy.success) {
+            window._propFormEditadoNaoSalvo = false;
+            await carregarPropostas();
+            await abrirFormProposta(finalId);
+            Swal.fire({
+                icon: 'success',
+                title: 'Enviado para Assinatura!',
+                html: `O PDF do contrato foi enviado para <strong>${listaSignatariosEscolhidos.length} signatário(s)</strong>:<br><div style="margin-top:8px; font-size:0.84rem; color:#334155;">${listaSignatariosEscolhidos.map(s => `• <strong>${_escHtmlProp(s.nome)}</strong> (${_escHtmlProp(s.tipo)}) — ${_escHtmlProp(s.email)}`).join('<br>')}</div>`,
+                confirmButtonColor: '#0f766e'
+            });
+        } else {
+            Swal.fire('Erro', 'Falha ao enviar contrato para assinatura: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (e) {
+        Swal.close();
+        console.error('[ASSINATURA DIGITAL CONTRATO] Erro:', e);
+        Swal.fire('Erro', 'Erro ao enviar contrato para assinatura: ' + e.message, 'error');
+    }
+};
+
+window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = false) {
+    if (!usarDraft || !Array.isArray(window._propSignatariosContratoDraft)) {
+        window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(prop);
+    }
+    const sigs = Array.isArray(window._propSignatariosContratoDraft) ? window._propSignatariosContratoDraft : [];
+    const tipos = window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador'];
+    const foiAssinadoGeral = Boolean(
+        prop && (
+            String(prop.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
+            (prop.assinafy_signed_r2_key && String(prop.assinafy_signed_r2_key).trim()) ||
+            (prop.assinafy_signed_at && String(prop.assinafy_signed_at).trim()) ||
+            String(prop.situacao_contrato || '').trim().toUpperCase() === 'CONTRATO ASSINADO'
+        )
+    );
     const fmtDtHr = (s) => {
         if (!s) return '—';
         try {
@@ -699,52 +1063,123 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop) {
             return String(s);
         } catch (_) { return String(s); }
     };
-    if (sigs.length === 0) {
-        return `
-            <div style="padding:1rem; text-align:center; color:#64748b; font-size:0.83rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">
-                <i class="ph ph-signature" style="font-size:1.3rem; color:#0f766e; display:block; margin-bottom:4px;"></i>
-                Este contrato ainda não foi enviado para assinatura digital via Assinafy.
+
+    const builderHtml = !foiAssinadoGeral ? `
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+            <div style="font-size:0.76rem; font-weight:700; color:#0f766e; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <i class="ph ph-user-plus" style="font-size:0.95rem;"></i> Selecionar Contatos do Cliente e Tipo de Signatário para receber o Contrato:
             </div>
-        `;
-    }
-    const rowsHtml = sigs.map(s => {
+            <div style="display:grid; grid-template-columns: 1.15fr 1.6fr 1.55fr auto; gap:8px; align-items:end;">
+                <div>
+                    <label class="prop-lbl" style="margin-bottom:3px;">Tipo de Signatário *</label>
+                    <select id="prop-sig-add-tipo" onchange="window.onChangeTipoSignatarioQuadroContrato(this.value)" style="width:100%; height:36px; padding:0.45rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.82rem; font-weight:600; box-sizing:border-box; text-transform:none !important;">
+                        ${tipos.map(t => `<option value="${_escHtmlProp(t)}">${_escHtmlProp(t)}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="prop-lbl" style="margin-bottom:3px;">Contato do Cliente / Signatário *</label>
+                    <div id="prop-sig-contato-combo-wrap" style="display:flex; gap:0.35rem; align-items:center; position:relative;">
+                        <div style="position:relative; flex:1;">
+                            <input type="text" id="prop-sig-add-nome" autocomplete="off"
+                                placeholder="Clique ou digite para selecionar contato do cliente..."
+                                onclick="window.abrirDropdownContatosSignatarioQuadro(true, event)"
+                                oninput="window.filtrarDropdownContatosSignatarioQuadro(this.value)"
+                                style="width:100%; height:36px; padding:0.45rem 1.8rem 0.45rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.82rem; box-sizing:border-box; text-transform:none !important;">
+                            <button type="button" tabindex="-1" onclick="window.toggleDropdownContatosSignatarioQuadro(event)" title="Listar contatos do cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                            </button>
+                            <div id="prop-sig-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1080;"></div>
+                        </div>
+                        <button type="button" onclick="window.toggleDropdownContatosSignatarioQuadro(event)" title="Selecionar contato do cliente" style="background:#3b82f6; color:white; border:none; padding:0 0.65rem; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:36px; flex-shrink:0;">
+                            <i class="ph ph-address-book" style="font-size:1.05rem;"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="prop-lbl" style="margin-bottom:3px;">E-mail para Assinatura *</label>
+                    <input type="email" id="prop-sig-add-email" placeholder="email@empresa.com.br" style="width:100%; height:36px; padding:0.45rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.82rem; box-sizing:border-box; text-transform:none !important;">
+                </div>
+                <div>
+                    <button type="button" onclick="window.adicionarSignatarioQuadroContrato()" style="height:36px; background:#0284c7; color:#ffffff; border:none; padding:0 14px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
+                        <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Adicionar à Lista
+                    </button>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
+    const rowsHtml = sigs.map((s, idx) => {
         const isAssin = String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em);
+        const jaEnviado = Boolean(s.enviado_em);
         const badgeStatus = isAssin
             ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Assinado</span>`
-            : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`;
+            : (jaEnviado
+                ? `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`
+                : `<span style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-list-plus"></i> Na lista para envio</span>`);
         const ehAm = String(s.tipo || '').toUpperCase().includes('AMERICA RENTAL') || String(s.tipo || '').toUpperCase().includes('AMÉRICA RENTAL');
-        const badgeTipo = `<span style="background:${ehAm ? '#ede9fe' : '#f1f5f9'}; color:${ehAm ? '#6d28d9' : '#334155'}; border:1px solid ${ehAm ? '#c4b5fd' : '#cbd5e1'}; padding:2px 9px; border-radius:6px; font-size:0.73rem; font-weight:800; white-space:nowrap;">${_escHtmlProp(s.tipo || 'Responsável Legal')}</span>`;
+        const colTipoHtml = !foiAssinadoGeral
+            ? `<select onchange="window.alterarTipoSignatarioLinhaQuadroContrato(${idx}, this.value)" style="padding:3px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.76rem; font-weight:700; text-transform:none !important;">
+                ${tipos.map(t => `<option value="${_escHtmlProp(t)}" ${(s.tipo || 'Responsável Legal') === t ? 'selected' : ''}>${_escHtmlProp(t)}</option>`).join('')}
+               </select>`
+            : `<span style="background:${ehAm ? '#ede9fe' : '#f1f5f9'}; color:${ehAm ? '#6d28d9' : '#334155'}; border:1px solid ${ehAm ? '#c4b5fd' : '#cbd5e1'}; padding:2px 9px; border-radius:6px; font-size:0.73rem; font-weight:800; white-space:nowrap;">${_escHtmlProp(s.tipo || 'Responsável Legal')}</span>`;
         return `
             <tr style="border-bottom:1px solid #e2e8f0;">
-                <td style="padding:8px 10px; white-space:nowrap;">${badgeTipo}</td>
+                <td style="padding:8px 10px; white-space:nowrap;">${colTipoHtml}</td>
                 <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${_escHtmlProp(s.nome || '—')}</td>
                 <td style="padding:8px 10px; color:#0369a1; font-weight:600; text-transform:lowercase;">${_escHtmlProp((s.email || '—').toLowerCase())}</td>
                 <td style="padding:8px 10px; color:#475569; text-align:center; white-space:nowrap;">${_escHtmlProp(fmtDtHr(s.enviado_em))}</td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${badgeStatus}</td>
                 <td style="padding:8px 10px; color:${isAssin ? '#15803d' : '#94a3b8'}; font-weight:${isAssin ? '700' : '400'}; text-align:center; white-space:nowrap;">${_escHtmlProp(s.assinado_em ? fmtDtHr(s.assinado_em) : '—')}</td>
+                ${!foiAssinadoGeral ? `<td style="padding:8px 10px; text-align:center; white-space:nowrap;">
+                    <button type="button" onclick="window.removerSignatarioQuadroContrato(${idx})" title="Remover da lista" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-trash" style="font-size:0.92rem;"></i>
+                    </button>
+                </td>` : ''}
             </tr>
         `;
     }).join('');
 
-    return `
-        <div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-            <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
-                <thead>
-                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569; font-weight:800; font-size:0.72rem; text-transform:uppercase;">
-                        <th style="padding:8px 10px; white-space:nowrap;">Tipo de Signatário</th>
-                        <th style="padding:8px 10px;">Nome do Signatário</th>
-                        <th style="padding:8px 10px;">E-mail Enviado</th>
-                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora do Envio</th>
-                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Situação</th>
-                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora da Assinatura</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
+    const tabelaOuVazioHtml = sigs.length === 0
+        ? `
+            <div style="padding:0.9rem; text-align:center; color:#64748b; font-size:0.82rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhum signatário adicionado na lista ainda. Selecione o tipo de signatário e o contato do cliente acima e clique em <strong>Adicionar à Lista</strong>.
+            </div>
+        `
+        : `
+            <div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569; font-weight:800; font-size:0.72rem; text-transform:uppercase;">
+                            <th style="padding:8px 10px; white-space:nowrap;">Tipo de Signatário</th>
+                            <th style="padding:8px 10px;">Nome do Signatário</th>
+                            <th style="padding:8px 10px;">E-mail</th>
+                            <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora do Envio</th>
+                            <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Situação</th>
+                            <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora da Assinatura</th>
+                            ${!foiAssinadoGeral ? '<th style="padding:8px 10px; text-align:center; width:60px; white-space:nowrap;">Remover</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+    const rodapeBotaoEnviarHtml = !foiAssinadoGeral ? `
+        <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <span style="font-size:0.75rem; color:#475569;">
+                Adicione todos os signatários desejados na lista acima e clique em <strong>Enviar para Assinatura</strong> para disparar o contrato.
+            </span>
+            <button type="button" id="btn-quadro-enviar-assinatura-contrato" onclick="window.enviarContratoParaAssinaturaPeloQuadro()"
+                style="background:#0f766e; color:#ffffff; border:none; padding:0.55rem 1.25rem; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(15,118,110,0.22); transition:background 0.15s;"
+                onmouseover="this.style.background='#115e59'" onmouseout="this.style.background='#0f766e'">
+                <i class="ph ph-paper-plane-tilt" style="font-size:1.05rem;"></i> Enviar para Assinatura
+            </button>
         </div>
-    `;
+    ` : '';
+
+    return builderHtml + tabelaOuVazioHtml + rodapeBotaoEnviarHtml;
 };
 
 window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Enviar para Assinatura (Assinafy)', nomePadrao = '', emailPadrao = '', signatariosIniciais = null } = {}) {
@@ -3340,8 +3775,8 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
-                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar documento para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial === 'contrato' && !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(String(v('situacao_contrato') || 'AGUARDANDO ASSINATURA').trim().toUpperCase())) || (window._modoTelaComercial !== 'contrato' && window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase())))) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
-                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && ((window._modoTelaComercial !== 'contrato' && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') || (window._modoTelaComercial === 'contrato' && Boolean(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase())))) ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar documento para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase()))) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
+                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
                     </button>
                     <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
@@ -4093,8 +4528,8 @@ function _renderFormPropostaInt() {
                     <div id="prop-secao-assinatura-digital" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
                         <div onclick="window.toggleSecaoContratoAccordion('assinatura_digital', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
                             <h4 style="margin:0; font-size:0.82rem; color:#0f766e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
-                                <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital (Assinafy)
-                                <span style="background:#ccfbf1; color:#115e59; border:1px solid #5eead4; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${window.obterListaSignatariosProposta(prop).length} signatário(s)</span>
+                                <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital
+                                <span id="prop-assinatura-digital-count-badge" style="background:#ccfbf1; color:#115e59; border:1px solid #5eead4; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${window.obterListaSignatariosProposta(prop).length} signatário(s)</span>
                             </h4>
                             <button type="button" tabindex="-1" style="background:#ccfbf1; border:1px solid #5eead4; color:#0f766e; width:26px; height:26px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
                                 <i id="prop-caret-assinatura_digital" class="ph ph-caret-down" style="font-size:0.95rem; transition:transform 0.2s; transform:${window._contratoSecoesAbertas.assinatura_digital ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
@@ -4281,19 +4716,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnEnviarAssinafy = document.getElementById('btn-prop-enviar-assinafy');
     if (btnEnviarAssinafy) {
-        if (!_propostasEditandoId || jaAssinadaReal) {
+        if (!_propostasEditandoId || jaAssinadaReal || window._modoTelaComercial === 'contrato') {
             btnEnviarAssinafy.style.display = 'none';
-        } else if (window._modoTelaComercial === 'contrato') {
-            const sitCtr = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || 'AGUARDANDO ASSINATURA').trim().toUpperCase();
-            const podeEnvCtr = !(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(sitCtr);
-            btnEnviarAssinafy.style.display = podeEnvCtr ? 'inline-flex' : 'none';
-            if (podeEnvCtr) {
-                btnEnviarAssinafy.disabled = false;
-                btnEnviarAssinafy.style.background = '#0f766e';
-                btnEnviarAssinafy.style.color = '#ffffff';
-                btnEnviarAssinafy.style.cursor = 'pointer';
-                btnEnviarAssinafy.style.pointerEvents = 'auto';
-            }
         } else {
             const podeEnvProp = usaAssinafyTipo && !['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(faseForm);
             btnEnviarAssinafy.style.display = podeEnvProp ? 'inline-flex' : 'none';
@@ -4309,12 +4733,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnReenviarAssinafy = document.getElementById('btn-prop-reenviar-assinafy');
     if (btnReenviarAssinafy) {
-        if (!_propostasEditandoId || jaAssinadaReal) {
+        if (!_propostasEditandoId || jaAssinadaReal || window._modoTelaComercial === 'contrato') {
             btnReenviarAssinafy.style.display = 'none';
-        } else if (window._modoTelaComercial === 'contrato') {
-            const sitCtr = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
-            const mostrarReenvCtr = Boolean(prop && prop.assinafy_id) && ['AGUARDANDO ASSINATURA', 'ENVIADO PARA ASSINATURA'].includes(sitCtr);
-            btnReenviarAssinafy.style.display = mostrarReenvCtr ? 'inline-flex' : 'none';
         } else {
             const mostrarReenviar = faseForm === 'ENVIADO PARA ASSINATURA';
             btnReenviarAssinafy.style.display = mostrarReenviar ? 'inline-flex' : 'none';
