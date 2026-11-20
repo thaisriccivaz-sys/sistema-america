@@ -689,7 +689,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias', 'comercial-modelos-contrato'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
+        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',

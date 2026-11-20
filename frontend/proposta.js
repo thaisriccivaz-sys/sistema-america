@@ -3972,8 +3972,8 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
                     </button>
-                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && window.propostaEstaAssinadaOuAprovada(prop)) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
-                        <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'Proposta Assinada' : 'Proposta Aprovada'}</span>
+                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${window._modoTelaComercial === 'contrato' ? 'Visualizar Contrato Assinado (Assinafy)' : ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada')}" style="display:${(!isNovo && (window._modoTelaComercial === 'contrato' ? Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) : window.propostaEstaAssinadaOuAprovada(prop))) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
+                        <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${window._modoTelaComercial === 'contrato' ? 'Contrato Assinado' : ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) ? 'Proposta Assinada' : 'Proposta Aprovada')}</span>
                     </button>
                     <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
@@ -4977,14 +4977,23 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
     if (btnDocAssinado) {
-        const ehDocAssinafyLabel = Boolean(usaAssinafyTipo || jaAssinadaReal || (prop && prop.assinafy_id));
+        const isModoContratoBtn = window._modoTelaComercial === 'contrato';
+        const ehDocAssinafyLabel = Boolean(usaAssinafyTipo);
         const lblDocAssin = document.getElementById('lbl-btn-prop-doc-assinado');
         if (lblDocAssin) {
-            lblDocAssin.textContent = ehDocAssinafyLabel ? 'Proposta Assinada' : 'Proposta Aprovada';
+            lblDocAssin.textContent = isModoContratoBtn
+                ? 'Contrato Assinado'
+                : (ehDocAssinafyLabel ? 'Proposta Assinada' : 'Proposta Aprovada');
         }
-        btnDocAssinado.title = ehDocAssinafyLabel ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada';
-        if (!_propostasEditandoId || window._modoTelaComercial === 'contrato') {
+        btnDocAssinado.title = isModoContratoBtn
+            ? 'Visualizar Contrato Assinado (Assinafy)'
+            : (ehDocAssinafyLabel ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada');
+        if (!_propostasEditandoId) {
             btnDocAssinado.style.display = 'none';
+        } else if (isModoContratoBtn) {
+            const sitCtrUp = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
+            const ctrAssinado = Boolean(foiAssinadaAssinafy || sitCtrUp === 'CONTRATO ASSINADO');
+            btnDocAssinado.style.display = ctrAssinado ? 'inline-flex' : 'none';
         } else if (jaAssinadaReal) {
             btnDocAssinado.style.display = 'inline-flex';
         } else if (!mostrar) {
@@ -10168,10 +10177,14 @@ window.reenviarPropostaAssinafy = async function(idOpcional = null) {
 window.visualizarPdfAssinaturaComercial = async function(id) {
     const targetId = Number(id || _propostasEditandoId);
     if (!targetId) return;
-    await window.verDocumentoAssinadoClienteProposta(targetId);
+    const itemAssin = (window._assinaturasComercialData || []).find(x => Number(x.id) === Number(targetId));
+    const modoForcado = (itemAssin && String(itemAssin.tipo_documento || '').toUpperCase() === 'CONTRATO')
+        ? 'contrato'
+        : (itemAssin && String(itemAssin.tipo_documento || '').toUpperCase() === 'PROPOSTA' ? 'proposta' : null);
+    await window.verDocumentoAssinadoClienteProposta(targetId, modoForcado);
 };
 
-window.verDocumentoAssinadoClienteProposta = async function(id) {
+window.verDocumentoAssinadoClienteProposta = async function(id, modoForcado = null) {
     const targetId = id || _propostasEditandoId;
     if (!targetId) return;
     try {
@@ -10194,15 +10207,24 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
                 window.renderizarProdutosPropostaGrid();
             }
         }
+
+        const ehModoContrato = modoForcado
+            ? (modoForcado === 'contrato')
+            : (window._modoTelaComercial === 'contrato');
+        const ehPropostaQueUsaAssinafy = Boolean(
+            window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(pRow.tipo || d.tipo || d.modelo_tipo)
+        );
         const temAssinafy = Boolean(
             (pRow.assinafy_id && String(pRow.assinafy_id).trim()) ||
             (pRow.assinafy_signed_r2_key && String(pRow.assinafy_signed_r2_key).trim()) ||
             (pRow.pdf_enviado_assinafy_r2_key && String(pRow.pdf_enviado_assinafy_r2_key).trim()) ||
             (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow))
         );
+        // Na tela de Contrato mostra o Contrato; na tela de Proposta só mostra PDF Assinafy quando a própria proposta é do tipo Assinafy (Aditivo/Venda/Avaria)
+        const deveCarregarPdfAssinafy = Boolean(temAssinafy && (ehModoContrato || ehPropostaQueUsaAssinafy));
 
         let pdfBlobUrl = '';
-        if (temAssinafy) {
+        if (deveCarregarPdfAssinafy) {
             try {
                 const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
                 const apiUrl = window.API_URL || '/api';
@@ -10220,6 +10242,11 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
             }
         }
         Swal.close();
+
+        if (ehModoContrato && !pdfBlobUrl && typeof window.imprimirContratoComModelo === 'function') {
+            await window.imprimirContratoComModelo(pRow);
+            return;
+        }
 
         const fmtDataHoraAssin = (s) => {
             if (!s) return '—';
@@ -10247,8 +10274,11 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
                     </div>
                 </div>
             `;
+            const tituloDocModal = ehModoContrato
+                ? ((foiAssinado ? 'Contrato Assinado' : 'Documento Assinafy') + ' — Contrato Nº ' + _escHtmlProp(pRow.contrato || d.codigo_proposta || pRow.codigo || ''))
+                : ('Documento Assinafy — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || pRow.codigo || ''));
             Swal.fire({
-                title: 'Documento Assinafy — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || pRow.codigo || ''),
+                title: tituloDocModal,
                 width: '1020px',
                 html: `
                     <div style="text-align:left; font-family:'Inter',sans-serif;">
@@ -10282,8 +10312,10 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
             prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
             '</div>'
         ) : '';
-        const foiAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow));
-        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && !foiAssinafy && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
+        const foiAssinafy = Boolean(ehPropostaQueUsaAssinafy && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pRow));
+        const nomeAprovadorProp = d.aprovado_por || pRow.aprovado_por || pRow.atendente_nome || pRow.atendente || window.obterNomeUsuarioLogado();
+        const dataAprovacaoProp = d.aprovado_em || pRow.aprovado_em || pRow.data_cadastro || '';
+        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && !foiAssinafy;
         const htmlAssinatura = foiAssinafy ? (
             '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
             '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Documento Assinado Eletronicamente via Assinafy</div>' +
@@ -10298,34 +10330,42 @@ window.verDocumentoAssinadoClienteProposta = async function(id) {
             '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
             '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
             '</div>' +
-            (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
-            (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) : '') + '</div>' : '') +
+            (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(fmtDataHoraAssin(d.aceite_publico_em)) + '</div>' : '') +
+            (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(fmtDataHoraAssin(d.aprovado_em)) : '') + '</div>' : '') +
             '</div>'
         ) : isAprovacaoInternaSemAssinatura ? (
             '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
             '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada Internamente</div>' +
             htmlProdutosAprovados +
-            '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(d.aprovado_por || window.obterNomeUsuarioLogado()) + '</div>' +
-            (d.aprovado_em ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) + '</div>' : '') +
+            '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(nomeAprovadorProp) + '</div>' +
+            (dataAprovacaoProp ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(fmtDataHoraAssin(dataAprovacaoProp)) + '</div>' : '') +
             '</div>'
-        ) : '<div style="padding:18px; text-align:center; color:#64748b; font-size:13px; background:#f8fafc; border-top:1px solid #e2e8f0;">' + htmlProdutosAprovados + 'Assinatura eletrônica registrada em ' + _escHtmlProp(d.aceite_publico_em ? new Date(d.aceite_publico_em).toLocaleString('pt-BR') : '—') + '</div>';
+        ) : (
+            '<div style="padding:20px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
+            '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada pelo Cliente</div>' +
+            htmlProdutosAprovados +
+            (pRow.contato_nome ? '<div style="font-size:13px; color:#1e293b; font-weight:700;">Contato: ' + _escHtmlProp(pRow.contato_nome) + '</div>' : '') +
+            '<div style="font-size:12px; color:#475569; margin-top:4px;">Assinatura eletrônica registrada em ' + _escHtmlProp(d.aceite_publico_em ? fmtDataHoraAssin(d.aceite_publico_em) : '—') + '</div>' +
+            (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(fmtDataHoraAssin(d.aprovado_em)) : '') + '</div>' : '') +
+            '</div>'
+        );
 
         const docCompletoHtml = '<div id="doc-assinado-cliente-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
             htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
 
         Swal.fire({
-            title: (foiAssinafy ? 'Proposta Assinada' : 'Proposta Aprovada') + ' — Nº ' + _escHtmlProp(d.codigo_proposta || ''),
+            title: (foiAssinafy ? 'Proposta Assinada' : 'Proposta Aprovada') + ' — Nº ' + _escHtmlProp(d.codigo_proposta || pRow.codigo || ''),
             width: '980px',
             html: '<div style="max-height:72vh; overflow-y:auto; text-align:left;">' + docCompletoHtml + '</div>',
             showCancelButton: true,
             confirmButtonColor: '#0f172a',
-            confirmButtonText: '<i class="ph ph-printer"></i> Imprimir Documento Assinado',
+            confirmButtonText: '<i class="ph ph-printer"></i> ' + (foiAssinafy ? 'Imprimir Documento Assinado' : 'Imprimir Proposta Aprovada'),
             cancelButtonText: 'Fechar'
         }).then((r) => {
             if (r.isConfirmed) {
                 const w = window.open('', '_blank', 'width=1020,height=860');
                 if (w) {
-                    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Proposta Assinada Nº ' + _escHtmlProp(d.codigo_proposta || '') + '</title><link rel="stylesheet" href="/box_renderer.css"></head><body style="margin:0; padding:0; background:#fff;">' + docCompletoHtml + '<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>');
+                    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + (foiAssinafy ? 'Proposta Assinada' : 'Proposta Aprovada') + ' Nº ' + _escHtmlProp(d.codigo_proposta || pRow.codigo || '') + '</title><link rel="stylesheet" href="/box_renderer.css"></head><body style="margin:0; padding:0; background:#fff;">' + docCompletoHtml + '<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>');
                     w.document.close();
                 }
             }
@@ -28578,23 +28618,23 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
         const tot = Number(it.valor_total ?? it.total ?? (qtd * unit));
         return `
             <tr>
-                <td style="padding:6px 8px; border:1px solid #cbd5e1; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
-                <td style="padding:6px 8px; border:1px solid #cbd5e1; color:#334155;">${_escHtmlProp(obs)}</td>
-                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:center; font-weight:700;">${qtd}</td>
-                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right;">R$ ${fmtM(unit)}</td>
-                <td style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">R$ ${fmtM(tot)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155;">${_escHtmlProp(obs)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700;">${qtd}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap;">R$ ${fmtM(unit)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap;">R$ ${fmtM(tot)}</td>
             </tr>
         `;
     }).join('');
     return `
-        <table style="width:100%; border-collapse:collapse; margin:8px 0 12px 0; font-size:10.5pt; font-family:Arial, Helvetica, sans-serif;">
+        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
             <thead>
                 <tr style="background:#f1f5f9; color:#1e293b;">
-                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:left;">Equipamento / Produto</th>
-                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:left;">Observação</th>
-                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:center; width:70px;">Qtd.</th>
-                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; width:115px;">Vlr. Unitário</th>
-                    <th style="padding:6px 8px; border:1px solid #cbd5e1; text-align:right; width:120px;">Vlr. Total</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Equipamento / Produto</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Observação</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:64px;">Qtd.</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:105px;">Vlr. Unitário</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:110px;">Vlr. Total</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -28602,34 +28642,53 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
     `;
 };
 
-window.gerarHtmlTabelaServicosContrato = function(servicosRaw) {
+window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = '', isPreview = false, itensProdutosRaw = null) {
     let servs = [];
     try {
         servs = typeof servicosRaw === 'string' ? JSON.parse(servicosRaw || '[]') : (Array.isArray(servicosRaw) ? servicosRaw : []);
     } catch (_) { servs = []; }
+    const ehObra = String(tipoContrato || '').toUpperCase().includes('OBRA');
+    if (!servs.length && itensProdutosRaw) {
+        try {
+            const arrP = typeof itensProdutosRaw === 'string' ? JSON.parse(itensProdutosRaw || '[]') : (Array.isArray(itensProdutosRaw) ? itensProdutosRaw : []);
+            const servsFromProd = arrP.filter(it => typeof window.produtoEhTipoServico === 'function' && window.produtoEhTipoServico(it));
+            if (servsFromProd.length > 0) servs = servsFromProd;
+        } catch (_) {}
+    }
+    if (!servs.length && (ehObra || isPreview)) {
+        servs = [
+            {
+                servico: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO',
+                observacao: isPreview ? 'TAXA DE ENTREGA E RETIRADA' : 'CONFORME PROPOSTA',
+                valor_final: isPreview ? 150.00 : 0
+            }
+        ];
+    }
     if (!servs.length) {
-        return '<div style="font-size:10pt; color:#475569; margin:4px 0 8px 0;">Não há taxas ou serviços complementares adicionais.</div>';
+        return '<div style="font-size:8.5pt; color:#475569; margin:4px 0 8px 0;">Não há taxas ou serviços complementares adicionais.</div>';
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const rowsHtml = servs.map((sv, idx) => {
-        const nome = sv.servico || sv.descricao || sv.nome || ('Serviço ' + (idx + 1));
+        const nome = sv.servico || sv.descricao || sv.nome || sv.produto || ('Serviço ' + (idx + 1));
         const obs = sv.observacao || sv.obs || '—';
-        const vlr = Number(sv.valor_final ?? sv.valor ?? sv.valor_total ?? 0);
+        const isFob = Boolean(sv.frete_fob || sv.fob);
+        const vlr = Number(sv.valor_final ?? sv.valor_total ?? sv.valor ?? sv.valor_unitario ?? 0);
+        const vlrTxt = isFob ? 'FOB' : ('R$ ' + fmtM(vlr));
         return `
             <tr>
-                <td style="padding:5px 8px; border:1px solid #cbd5e1; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
-                <td style="padding:5px 8px; border:1px solid #cbd5e1; color:#334155;">${_escHtmlProp(obs)}</td>
-                <td style="padding:5px 8px; border:1px solid #cbd5e1; text-align:right; font-weight:700;">R$ ${fmtM(vlr)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; font-weight:600; color:#0f172a;">${_escHtmlProp(nome)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#334155;">${_escHtmlProp(obs)}</td>
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap;">${vlrTxt}</td>
             </tr>
         `;
     }).join('');
     return `
-        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif;">
+        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
             <thead>
                 <tr style="background:#f1f5f9; color:#1e293b;">
-                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:left;">Serviço / Taxa Complementar</th>
-                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:left;">Observação</th>
-                    <th style="padding:5px 8px; border:1px solid #cbd5e1; text-align:right; width:120px;">Valor</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Serviço / Taxa Complementar</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Observação</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:110px;">Valor</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -28794,7 +28853,12 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{DATA_ATUAL_EXTENSO}}': dataAtualExtenso,
 
         '{{TABELA_PRODUTOS}}': window.gerarHtmlTabelaProdutosContrato(p.itens),
-        '{{TABELA_SERVICOS}}': window.gerarHtmlTabelaServicosContrato(p.itens_servicos),
+        '{{TABELA_SERVICOS}}': window.gerarHtmlTabelaServicosContrato(
+            p.itens_servicos,
+            p.tipo || 'OBRA MENSAL',
+            Boolean(!pRaw || (!pRaw.id && !pRaw.cliente_nome) || pRaw._isPreviewModelo),
+            p.itens
+        ),
         '{{TABELA_VALORES_AVARIAS}}': window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias)
     };
 };
@@ -29061,50 +29125,52 @@ window.extrairEstruturaModeloContrato = function(m) {
 window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente) {
     const q = (est && est.quadro_cliente) ? est.quadro_cliente : window._padraoQuadroClienteContrato();
     const res = (txt) => _escHtmlProp(window.resolverTextoModeloContrato(txt || '', ctx, false));
+    const colgroup12 = '<colgroup>' + Array(12).fill('<col style="width:8.3333%;">').join('') + '</colgroup>';
 
     const tabelaCliente = `
-        <table style="width:100%; border-collapse:collapse; margin:10px 0 14px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:10px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            ${colgroup12}
             <tbody>
                 <tr style="background:#f8fafc;">
-                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; width:62%; color:#0f172a;">
+                    <td colspan="8" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_contratante || 'Contratante:')}</strong> ${res(q.val_contratante)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:38%; color:#0f172a;">
+                    <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_cnpj || 'CNPJ:')}</strong> ${res(q.val_cnpj)}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="12" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_endereco || 'Endereço de Faturamento:')}</strong> ${res(q.val_endereco)}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_cep || 'CEP:')}</strong> ${res(q.val_cep)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:44%; color:#0f172a;">
+                    <td colspan="5" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_cidade || 'Cidade:')}</strong> ${res(q.val_cidade)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                    <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_estado || 'Estado:')}</strong> ${res(q.val_estado)}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="8" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(q.val_ie)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_telefone || 'Telefone:')}</strong> ${res(q.val_telefone)}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_contato || 'Contato:')}</strong> ${res(q.val_contato)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_tel_contato || 'Tel. Contato:')}</strong> ${res(q.val_tel_contato)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="6" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_email || 'E-mail:')}</strong> ${res(q.val_email)}
                     </td>
                 </tr>
@@ -29117,40 +29183,41 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
     const qi = (est && est.quadro_interveniente) ? est.quadro_interveniente : window._padraoQuadroIntervenienteContrato();
     const tabelaInterv = `
         <div style="font-size:10pt; font-weight:700; color:#0f172a; margin:8px 0 4px 0;">E como INTERVENIENTE, abaixo qualificado(a):</div>
-        <table style="width:100%; border-collapse:collapse; margin:4px 0 14px 0; font-size:10pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:4px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            ${colgroup12}
             <tbody>
                 <tr style="background:#f8fafc;">
-                    <td colspan="2" style="padding:6px 10px; border:1px solid #cbd5e1; width:62%; color:#0f172a;">
+                    <td colspan="8" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_interveniente || 'Interveniente:')}</strong> ${res(qi.val_interveniente)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:38%; color:#0f172a;">
+                    <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_cnpj || 'CNPJ:')}</strong> ${res(qi.val_cnpj)}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="12" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_endereco || 'Endereço:')}</strong> ${res(qi.val_endereco)}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_cep || 'CEP:')}</strong> ${res(qi.val_cep)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:44%; color:#0f172a;">
+                    <td colspan="5" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_cidade || 'Cidade:')}</strong> ${res(qi.val_cidade)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; width:28%; color:#0f172a;">
+                    <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_estado || 'Estado:')}</strong> ${res(qi.val_estado)}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(qi.val_ie)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_telefone || 'Telefone:')}</strong> ${res(qi.val_telefone)}
                     </td>
-                    <td style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a;">
+                    <td colspan="6" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_email || 'E-mail:')}</strong> ${res(qi.val_email)}
                     </td>
                 </tr>
@@ -29195,7 +29262,10 @@ window.resolverHtmlRicoModeloContrato = function(htmlOuTextoBruto, ctx) {
 
 window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
     const m = modelo || {};
-    const pObj = dadosContrato?.proposta || dadosContrato || {};
+    const pObjBase = dadosContrato?.proposta || dadosContrato || {};
+    const pObj = (!pObjBase.id && !pObjBase.cliente_nome)
+        ? Object.assign({ tipo: m.codigo_tipo || m.nome || 'OBRA MENSAL', _isPreviewModelo: true }, pObjBase)
+        : pObjBase;
     const ctx = window.montarContextoMnemonicosContrato(
         pObj,
         dadosContrato?.cliente || null,
@@ -30082,68 +30152,73 @@ window.atualizarPreviewModeloContratoAtivo = function() {
 
     const topoImgSrc = window.obterUrlTopoModeloContrato(m);
     const temTopoCustom = Boolean(m.topo_r2_key || (m.topo_url && m.topo_url !== '/assets/logo-header.png'));
-    const ctx = window.montarContextoMnemonicosContrato({}, null, null, null, window._valoresAvariasList || []);
+    const ctx = window.montarContextoMnemonicosContrato(
+        { tipo: m.codigo_tipo || m.nome || 'OBRA MENSAL', _isPreviewModelo: true },
+        null, null, null, window._valoresAvariasList || []
+    );
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(window._valoresAvariasList || []);
+    const colgroup12Edit = '<colgroup>' + Array(12).fill('<col style="width:8.3333%;">').join('') + '</colgroup>';
 
     const renderCellQ = (scopeAttr, lblKey, valKey) => `
-        <div style="display:flex; align-items:center; gap:6px; width:100%;">
+        <div style="display:flex; align-items:center; gap:5px; width:100%;">
             <span contenteditable="true" ${scopeAttr}="${lblKey}"
                 onfocus="window._mcSalvarSelecaoRichText(this)"
                 onkeyup="window._mcSalvarSelecaoRichText(this)"
                 onmouseup="window._mcSalvarSelecaoRichText(this)"
                 oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                style="font-weight:700; font-size:9.5pt; color:#0f172a; white-space:nowrap; outline:none; padding:1px 2px; border-radius:3px; text-transform:none !important;">${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}</span>
+                style="font-weight:700; font-size:9pt; color:#0f172a; white-space:nowrap; outline:none; padding:1px 2px; border-radius:3px; text-transform:none !important;">${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[lblKey] : qi[lblKey]) || '')}</span>
             <input type="text" class="mc-q-val-inp" ${scopeAttr}="${valKey}" value="${_escHtmlProp((scopeAttr === 'data-q-cli' ? q[valKey] : qi[valKey]) || '')}"
                 onfocus="window._mcUltimoElementoFocado=this"
                 oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                style="flex:1; min-width:50px;">
+                style="flex:1; min-width:40px;">
         </div>
     `;
 
     const tabelaClienteEditavelHtml = `
-        <table style="width:100%; border-collapse:collapse; margin:10px 0 12px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:10px 0 12px 0; font-size:9pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            ${colgroup12Edit}
             <tbody>
                 <tr style="background:#f8fafc;">
-                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
+                    <td colspan="8" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_contratante', 'val_contratante')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
+                    <td colspan="4" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_cnpj', 'val_cnpj')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="12" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_endereco', 'val_endereco')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_cep', 'val_cep')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
+                    <td colspan="5" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_cidade', 'val_cidade')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                    <td colspan="4" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_estado', 'val_estado')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="8" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_ie', 'val_ie')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="4" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_telefone', 'val_telefone')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_contato', 'val_contato')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_tel_contato', 'val_tel_contato')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="6" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-cli', 'lbl_email', 'val_email')}
                     </td>
                 </tr>
@@ -30153,40 +30228,41 @@ window.atualizarPreviewModeloContratoAtivo = function() {
 
     const tabelaIntervenienteEditavelHtml = ehInterveniente ? `
         <div style="font-size:9.5pt; font-weight:700; color:#0f172a; margin:8px 0 4px 0;">E como INTERVENIENTE, abaixo qualificado(a):</div>
-        <table style="width:100%; border-collapse:collapse; margin:4px 0 12px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:4px 0 12px 0; font-size:9pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+            ${colgroup12Edit}
             <tbody>
                 <tr style="background:#f8fafc;">
-                    <td colspan="2" style="padding:5px 8px; border:1px solid #cbd5e1; width:62%;">
+                    <td colspan="8" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_interveniente', 'val_interveniente')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:38%;">
+                    <td colspan="4" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_cnpj', 'val_cnpj')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="12" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_endereco', 'val_endereco')}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_cep', 'val_cep')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:44%;">
+                    <td colspan="5" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_cidade', 'val_cidade')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1; width:28%;">
+                    <td colspan="4" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_estado', 'val_estado')}
                     </td>
                 </tr>
                 <tr style="background:#ffffff;">
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_ie', 'val_ie')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="3" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_telefone', 'val_telefone')}
                     </td>
-                    <td style="padding:5px 8px; border:1px solid #cbd5e1;">
+                    <td colspan="6" style="padding:5px 8px; border:1px solid #cbd5e1;">
                         ${renderCellQ('data-q-int', 'lbl_email', 'val_email')}
                     </td>
                 </tr>
@@ -30287,9 +30363,9 @@ window.atualizarPreviewModeloContratoAtivo = function() {
                 box-shadow: 0 0 0 3px rgba(112, 72, 232, 0.1) !important;
             }
             #mc-live-preview .america-contrato-sheet .mc-q-val-inp {
-                height: 24px !important;
-                padding: 2px 6px !important;
-                font-size: 9.5pt !important;
+                height: 22px !important;
+                padding: 1px 4px !important;
+                font-size: 8.5pt !important;
                 color: #0f172a !important;
                 background: transparent !important;
                 border: 1px dashed transparent !important;

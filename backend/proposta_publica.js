@@ -1057,9 +1057,9 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const p = await dbGet('SELECT * FROM propostas WHERE id = ?', [req.params.id]);
             if (!p) return res.status(404).json({ error: 'Proposta não encontrada.' });
             const dados = await montarDadosQuadro(p);
-            if (String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA' && !dados.aprovado_por) {
+            if (!dados.aprovado_por) {
                 const logAp = await dbGet(
-                    "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND (UPPER(conteudo_atual) = 'APROVADA' OR campo = 'Criação') ORDER BY id DESC LIMIT 1",
+                    "SELECT usuario, data_hora FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND usuario NOT LIKE '%Assinafy%' AND (UPPER(conteudo_atual) = 'APROVADA' OR campo = 'Criação') ORDER BY CASE WHEN UPPER(conteudo_atual) = 'APROVADA' THEN 0 ELSE 1 END, id DESC LIMIT 1",
                     [p.id]
                 ).catch(() => null);
                 const rawUser = (logAp && logAp.usuario) || p.atendente || p.criado_por || '';
@@ -1069,7 +1069,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                         [rawUser, rawUser]
                     ).catch(() => null);
                     dados.aprovado_por = (colabMatch && colabMatch.nome_completo) || rawUser;
-                    dados.aprovado_em = (logAp && logAp.data_hora) || p.atualizado_em || null;
+                    dados.aprovado_em = (logAp && logAp.data_hora) || p.aprovado_em || p.atualizado_em || null;
                 }
             }
             res.json({ success: true, dados, proposta: p });

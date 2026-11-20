@@ -1341,10 +1341,14 @@
 
         const ocultarTotaisComparativa = Boolean(d.proposta_comparativa && !temSelecaoComparativa);
 
-        const secaoServicos = (d.servicos && d.servicos.length > 0) ? `
+        const ehObraPuroQuadro = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
+        const listaServicosQuadro = (Array.isArray(d.servicos) && d.servicos.length > 0)
+            ? d.servicos
+            : (ehObraPuroQuadro ? [{ quantidade: 1, nome: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 0, por_dia: 0, desconto: 0, total: 0 }] : []);
+        const secaoServicos = (listaServicosQuadro.length > 0) ? `
             <div style="padding:${u(14)} ${u(60)} ${u(20)} ${u(50)};">
                 ${cabecalhoColunasServicos(esc(tituloServ))}
-                ${d.servicos.map(linhaServico).join('')}
+                ${listaServicosQuadro.map(linhaServico).join('')}
             </div>` : '';
 
         const obsTextoFinal = String(d.observacoes !== undefined ? d.observacoes : ((d.impressao_simples && d.impressao_simples.observacao) || '')).trim().toUpperCase();
