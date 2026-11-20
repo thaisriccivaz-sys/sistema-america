@@ -8131,8 +8131,9 @@ window.aprovarPropostaEdicao = async function() {
         });
     };
 
+    const ehModoContratoAssinafy = window._modoTelaComercial === 'contrato';
     const itensAtuaisAprov = window._propProdutosAdicionados || [];
-    if (isComparativa && itensAtuaisAprov.length > 0) {
+    if (!ehModoContratoAssinafy && isComparativa && itensAtuaisAprov.length > 0) {
         const ehEvAprov = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento(tipo) : false;
         const temSelecaoCliente = produtosAprovadosSel.length > 0 || itensDbFresh.some(x => x && typeof x.aprovado_comparativa === 'boolean') || itensAtuaisAprov.some(x => x && typeof x.aprovado_comparativa === 'boolean');
         const opcoesHtml = itensAtuaisAprov.map((it, idx) => {
@@ -8214,7 +8215,6 @@ window.aprovarPropostaEdicao = async function() {
         ? window.tipoPropostaEhVenda(tipo)
         : (tipoLimpoAprov === 'VENDA' || tipoLimpoAprov === 'VENDAS');
     const ehAvariaAprov = tipoLimpoAprov === 'AVARIA' || tipoLimpoAprov === 'AVARIAS';
-    const ehModoContratoAssinafy = window._modoTelaComercial === 'contrato';
     const usaFluxoAssinafy = ehAditivoAprov || ehVendaAprov || ehAvariaAprov || ehModoContratoAssinafy;
     const faseSel = document.getElementById('prop-fase');
     if (!usaFluxoAssinafy) {
@@ -8222,14 +8222,19 @@ window.aprovarPropostaEdicao = async function() {
         if (typeof window.toggleMotivoReprovacao === 'function') window.toggleMotivoReprovacao('Aprovada');
     }
     const payload = {
+        modo_contrato: ehModoContratoAssinafy,
         local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: usaFluxoAssinafy ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada',
-        situacao_contrato: usaFluxoAssinafy ? null : 'AGUARDANDO ASSINATURA',
+        fase_negociacao: ehModoContratoAssinafy
+            ? (propExistente?.fase_negociacao || 'Aprovada')
+            : (usaFluxoAssinafy ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada'),
+        situacao_contrato: ehModoContratoAssinafy
+            ? (obter('prop-fase') || propExistente?.situacao_contrato || 'AGUARDANDO ASSINATURA')
+            : (usaFluxoAssinafy ? null : 'AGUARDANDO ASSINATURA'),
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -8291,19 +8296,20 @@ window.aprovarPropostaEdicao = async function() {
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
     if (usaFluxoAssinafy) {
-        const labelDocAssinafy = ehModoContratoAssinafy ? 'Contrato' : (ehVendaAprov ? 'Proposta de Venda' : (ehAvariaAprov ? 'Proposta de Avaria' : 'Aditivo'));
-        Swal.fire({ title: `Gerando documento (${labelDocAssinafy}) e enviando via Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const labelDocAssinafy = ehModoContratoAssinafy ? 'PDF do Contrato' : (ehVendaAprov ? 'Proposta de Venda' : (ehAvariaAprov ? 'Proposta de Avaria' : 'Aditivo'));
+        Swal.fire({ title: `Gerando ${labelDocAssinafy} e enviando via Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
             const respSave = _propostasEditandoId
                 ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
                 : await apiPost('/propostas', payload);
             const finalId = _propostasEditandoId || respSave?.id;
             if (!finalId) {
-                Swal.fire('Erro', 'Não foi possível salvar a proposta antes do envio.', 'error');
+                Swal.fire('Erro', 'Não foi possível salvar antes do envio.', 'error');
                 return;
             }
             _propostasEditandoId = finalId;
-            window._propostasEditandoId_proposta = finalId;
+            if (ehModoContratoAssinafy) window._propostasEditandoId_contrato = finalId;
+            else window._propostasEditandoId_proposta = finalId;
 
             const dadosCtEstrito = typeof window.obterDadosContatoPropostaAtual === 'function'
                 ? await window.obterDadosContatoPropostaAtual(null, true)
@@ -8311,28 +8317,34 @@ window.aprovarPropostaEdicao = async function() {
 
             let htmlImpressaoSimples = '';
             try {
-                const respDoc = await apiGet('/propostas/' + finalId + '/dados-documento-assinado');
-                if (respDoc && respDoc.dados) {
-                    const dDoc = respDoc.dados;
-                    const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
-                        ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
-                        : '';
-                    const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
-                    const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
-                    const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
-                    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
-                    htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
-                }
                 if (ehModoContratoAssinafy && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
-                    const propObjAssinafy = Object.assign({}, propExistente || {}, payload, { id: finalId });
+                    const propObjAssinafy = Object.assign({}, propExistente || {}, payload, {
+                        id: finalId,
+                        contrato: (propExistente && propExistente.contrato) || obter('prop-codigo') || '',
+                        codigo: (propExistente && propExistente.codigo) || ''
+                    });
                     const htmlContratoMod = await window.gerarHtmlContratoParaPropostaObj(propObjAssinafy, false);
                     if (htmlContratoMod) htmlImpressaoSimples = htmlContratoMod;
+                } else {
+                    const respDoc = await apiGet('/propostas/' + finalId + '/dados-documento-assinado');
+                    if (respDoc && respDoc.dados) {
+                        const dDoc = respDoc.dados;
+                        const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                            ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
+                            : '';
+                        const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
+                        const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                        const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
+                        const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                        htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                    }
                 }
             } catch (errDocAd) {
                 console.warn('[ASSINAFY] Falha ao montar html_impressao_simples:', errDocAd);
             }
 
             let respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
+                modo_contrato: ehModoContratoAssinafy,
                 html_impressao_simples: htmlImpressaoSimples,
                 produtos_aprovados: produtosAprovadosSel,
                 nome_signatario: dadosCtEstrito.contatoNome || obter('prop-contato') || '',
@@ -8367,6 +8379,7 @@ window.aprovarPropostaEdicao = async function() {
                 if (!promptSig.isConfirmed) return;
                 Swal.fire({ title: `Enviando ${labelDocAssinafy} para o Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
+                    modo_contrato: ehModoContratoAssinafy,
                     html_impressao_simples: htmlImpressaoSimples,
                     produtos_aprovados: produtosAprovadosSel,
                     nome_signatario: promptSig.value.nome_signatario,
@@ -8377,11 +8390,14 @@ window.aprovarPropostaEdicao = async function() {
             if (respAssinafy && respAssinafy.success) {
                 await carregarPropostas();
                 _propostasEditandoId = finalId;
-                window._propostasEditandoId_proposta = finalId;
+                if (ehModoContratoAssinafy) window._propostasEditandoId_contrato = finalId;
+                else window._propostasEditandoId_proposta = finalId;
                 Swal.close();
                 await abrirFormProposta(finalId);
                 if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso(`${labelDocAssinafy} enviado(a) para assinatura via Assinafy (${respAssinafy.email_signatario || ''})! Situação: ENVIADO PARA ASSINATURA.`);
+                    mostrarToastSucesso(ehModoContratoAssinafy
+                        ? `PDF do Contrato enviado para assinatura via Assinafy (${respAssinafy.email_signatario || ''})!`
+                        : `${labelDocAssinafy} enviado(a) para assinatura via Assinafy (${respAssinafy.email_signatario || ''})! Situação: ENVIADO PARA ASSINATURA.`);
                 }
             } else {
                 Swal.fire('Erro', 'Falha ao enviar documento para o Assinafy: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
@@ -8627,24 +8643,30 @@ window.reenviarPropostaAssinafy = async function(idOpcional = null) {
 
         Swal.fire({ title: 'Reenviando documento via Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
+        const ehModoCtrReenvio = window._modoTelaComercial === 'contrato';
         let htmlImpressaoSimples = '';
         try {
-            const respDoc = await apiGet('/propostas/' + targetId + '/dados-documento-assinado');
-            if (respDoc && respDoc.dados) {
-                const dDoc = respDoc.dados;
-                const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
-                    ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
-                    : '';
-                const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
-                const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
-                const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
-                const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
-                htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+            if (ehModoCtrReenvio && propRef && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+                htmlImpressaoSimples = await window.gerarHtmlContratoParaPropostaObj(propRef, false);
+            } else {
+                const respDoc = await apiGet('/propostas/' + targetId + '/dados-documento-assinado');
+                if (respDoc && respDoc.dados) {
+                    const dDoc = respDoc.dados;
+                    const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                        ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
+                        : '';
+                    const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
+                    const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                    const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
+                    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                    htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                }
             }
         } catch (_) {}
 
         const respAssinafy = await apiPost(`/propostas/${targetId}/aprovar-aditivo-assinafy`, {
             reenviar: true,
+            modo_contrato: ehModoCtrReenvio,
             html_impressao_simples: htmlImpressaoSimples,
             nome_signatario: confReenvio.value.nome_signatario,
             email_signatario: confReenvio.value.email_signatario
@@ -9619,15 +9641,17 @@ window.abrirLogsAlteracao = async function(id) {
             );
             const mostrarOlho = Boolean(log.tem_documento || ehFaseTransicaoDoc || cNorm === 'CRIACAO');
             const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
+            const ehLogContrato = String(log.origem_registro || '').toLowerCase() === 'contrato';
+            const bgLinhaHist = ehLogContrato ? '#ffffff' : '#e2e8f0';
             const tituloBotaoOlho = ehAssinado
                 ? 'Visualizar documento assinado desta versão'
-                : 'Visualizar documento PDF da proposta nesta versão';
+                : (ehLogContrato ? 'Visualizar documento PDF do contrato nesta versão' : 'Visualizar documento PDF da proposta nesta versão');
             const btnOlhoHtml = mostrarOlho
-                ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${Number(propId)}, ${Number(log.id)})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
-                : '<span style="color:#cbd5e1;">—</span>';
+                ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${Number(propId)}, ${Number(log.id)}, ${ehLogContrato ? 'true' : 'false'})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
+                : '<span style="color:#94a3b8;">—</span>';
 
             return `
-                <tr style="border-bottom:1px solid #f1f5f9; font-size:0.8rem;">
+                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.8rem;" title="${ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta'}">
                     <td style="padding:0.5rem 0.6rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
                     <td style="padding:0.5rem 0.6rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
                     <td style="padding:0.5rem 0.6rem; color:#334155; line-height:1.4;">${descEdicao}</td>
@@ -9637,7 +9661,13 @@ window.abrirLogsAlteracao = async function(id) {
         }).join('');
 
         Swal.fire({
-            title: '<div style="font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;"><i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Alterações da Proposta</div>',
+            title: `<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;">
+                <span><i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Alterações</span>
+                <span style="display:inline-flex; align-items:center; gap:12px; font-size:0.75rem; font-weight:600; color:#334155;">
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#e2e8f0; border:1px solid #94a3b8; display:inline-block;"></span> Histórico da Proposta</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#ffffff; border:1px solid #94a3b8; display:inline-block;"></span> Histórico do Contrato</span>
+                </span>
+            </div>`,
             html: `
                 <div style="max-height:380px; overflow-y:auto; width:100%; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
                     <table style="width:100%; border-collapse:collapse; text-align:left; font-family:'Inter', sans-serif;">
@@ -9667,7 +9697,7 @@ window.abrirLogsAlteracao = async function(id) {
     }
 };
 
-window.verDocumentoHistoricoProposta = async function(propId, logId) {
+window.verDocumentoHistoricoProposta = async function(propId, logId, ehLogContrato = false) {
     if (!propId || !logId) return;
     try {
         Swal.fire({
@@ -9676,52 +9706,65 @@ window.verDocumentoHistoricoProposta = async function(propId, logId) {
             didOpen: () => Swal.showLoading()
         });
         const resp = await apiGet(`/propostas/${propId}/logs/${logId}/documento`);
-        Swal.close();
         if (!resp || !resp.dados) {
+            Swal.close();
             Swal.fire('Erro', 'Não foi possível carregar o documento deste registro de histórico.', 'error');
             return;
         }
         const d = resp.dados;
-        const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
-            ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
-            : '';
-        const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
-        const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
-        const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
-        const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
-        const prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
-        const htmlProdutosAprovados = prodsAprovArr.length > 0 ? (
-            '<div style="margin:8px auto 12px auto; max-width:640px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; text-align:left;">' +
-            '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
-            prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
-            '</div>'
-        ) : '';
-        const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && String(d.fase_negociacao || '').trim().toUpperCase().startsWith('APROVADA');
-        const htmlAssinatura = d.assinatura_url ? (
-            '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
-            '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
-            htmlProdutosAprovados +
-            '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
-            '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
-            '</div>' +
-            (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
-            (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) : '') + '</div>' : '') +
-            '</div>'
-        ) : isAprovacaoInternaSemAssinatura ? (
-            '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
-            '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada Internamente</div>' +
-            htmlProdutosAprovados +
-            '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(d.aprovado_por || window.obterNomeUsuarioLogado()) + '</div>' +
-            (d.aprovado_em ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) + '</div>' : '') +
-            '</div>'
-        ) : '';
+        let docCompletoHtml = '';
+        let tituloModal = '';
 
-        const docCompletoHtml = '<div id="doc-historico-proposta-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
-            htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
+        if (ehLogContrato && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+            const propSnap = resp.proposta || (_propostasData || []).find(p => Number(p.id) === Number(propId)) || d;
+            const htmlCtr = await window.gerarHtmlContratoParaPropostaObj(propSnap, false);
+            docCompletoHtml = '<div id="doc-historico-proposta-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlCtr + '</div>';
+            const numCtrDoc = propSnap.contrato || d.contrato || d.codigo_proposta || '';
+            tituloModal = 'Documento PDF do Contrato — Nº ' + _escHtmlProp(numCtrDoc) + (propSnap.situacao_contrato ? ' (' + _escHtmlProp(propSnap.situacao_contrato) + ')' : '');
+            Swal.close();
+        } else {
+            Swal.close();
+            const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                ? window.renderBoxQuadroEventoHtml(d, 'desktop', { modelo_tipo: d.modelo_tipo || 'EVENTO' })
+                : '';
+            const urlAditivo = (d.eh_aditivo && d.aditivo && d.aditivo.url) ? d.aditivo.url : '';
+            const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+            const urlAceite = (d.aceite && d.aceite.url) ? d.aceite.url : '';
+            const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+            const prodsAprovArr = Array.isArray(d.produtos_aprovados) ? d.produtos_aprovados.filter(Boolean) : [];
+            const htmlProdutosAprovados = prodsAprovArr.length > 0 ? (
+                '<div style="margin:8px auto 12px auto; max-width:640px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; text-align:left;">' +
+                '<div style="font-size:12px; font-weight:800; color:#1e40af; text-transform:uppercase; margin-bottom:4px;">Produto(s) Aprovado(s):</div>' +
+                prodsAprovArr.map(p => '<div style="font-size:13px; font-weight:700; color:#0f172a;">• ' + _escHtmlProp(p) + '</div>').join('') +
+                '</div>'
+            ) : '';
+            const isAprovacaoInternaSemAssinatura = !d.assinatura_url && !d.aceite_publico_em && String(d.fase_negociacao || '').trim().toUpperCase().startsWith('APROVADA');
+            const htmlAssinatura = d.assinatura_url ? (
+                '<div style="padding:20px 24px; border-top:2px solid #cbd5e1; background:#f8fafc; text-align:center; font-family:Arial,sans-serif;">' +
+                '<div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">Assinatura do Cliente — Proposta Aceita</div>' +
+                htmlProdutosAprovados +
+                '<div style="display:inline-block; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 20px;">' +
+                '<img src="' + _escHtmlProp(d.assinatura_url) + '" alt="Assinatura do Cliente" style="max-height:120px; max-width:360px; object-fit:contain; display:block; margin:0 auto;">' +
+                '</div>' +
+                (d.aceite_publico_em ? '<div style="font-size:12px; color:#475569; margin-top:6px;">Assinado em: ' + _escHtmlProp(new Date(d.aceite_publico_em).toLocaleString('pt-BR')) + '</div>' : '') +
+                (d.aprovado_por ? '<div style="font-size:12px; color:#0f766e; font-weight:700; margin-top:6px;">Aprovado internamente por: ' + _escHtmlProp(d.aprovado_por) + (d.aprovado_em ? ' em ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) : '') + '</div>' : '') +
+                '</div>'
+            ) : isAprovacaoInternaSemAssinatura ? (
+                '<div style="padding:22px 24px; border-top:2px solid #0d9488; background:#f0fdfa; text-align:center; font-family:Arial,sans-serif;">' +
+                '<div style="font-size:15px; font-weight:800; color:#0f766e; margin-bottom:6px; text-transform:uppercase;">Proposta Aprovada Internamente</div>' +
+                htmlProdutosAprovados +
+                '<div style="font-size:13px; color:#1e293b; font-weight:700;">Aprovado por: ' + _escHtmlProp(d.aprovado_por || window.obterNomeUsuarioLogado()) + '</div>' +
+                (d.aprovado_em ? '<div style="font-size:12px; color:#475569; margin-top:4px;">Data/Hora da aprovação: ' + _escHtmlProp(new Date(d.aprovado_em).toLocaleString('pt-BR')) + '</div>' : '') +
+                '</div>'
+            ) : '';
 
-        const tituloModal = d.assinatura_url
-            ? ('Documento Assinado — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || ''))
-            : ('Documento PDF da Proposta — Nº ' + _escHtmlProp(d.codigo_proposta || '') + (d.fase_negociacao ? ' (' + _escHtmlProp(d.fase_negociacao) + ')' : ''));
+            docCompletoHtml = '<div id="doc-historico-proposta-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
+                htmlQuadro + htmlAditivo + htmlAceite + htmlAssinatura + '</div>';
+
+            tituloModal = d.assinatura_url
+                ? ('Documento Assinado — Proposta Nº ' + _escHtmlProp(d.codigo_proposta || ''))
+                : ('Documento PDF da Proposta — Nº ' + _escHtmlProp(d.codigo_proposta || '') + (d.fase_negociacao ? ' (' + _escHtmlProp(d.fase_negociacao) + ')' : ''));
+        }
 
         Swal.fire({
             title: tituloModal,

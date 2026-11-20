@@ -42347,6 +42347,7 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
       });
 
       const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+      let emFaseContrato = false;
       const enriquecidos = lista.map(r => {
         const item = Object.assign({}, r);
         if (item.campo === 'fase_negociacao') item.campo = 'Fase de Negociação';
@@ -42365,12 +42366,50 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
           atuNorm.includes('ACEITE CONFIRMADO')
         );
         let snapHasSig = false;
+        let snapOrigemLog = '';
         if (item.snapshot_json) {
           try {
             const sp = JSON.parse(item.snapshot_json);
             snapHasSig = Boolean(sp && sp.assinatura_r2_key);
+            if (sp && sp._origem_log) snapOrigemLog = String(sp._origem_log).toLowerCase();
           } catch (_) {}
         }
+
+        const ehAcaoExplicitaContrato =
+          snapOrigemLog === 'contrato' ||
+          cNorm === 'SITUACAO DO CONTRATO' ||
+          cNorm.includes('(CONTRATO)') ||
+          cNorm.includes('DO CONTRATO');
+
+        const ehAcaoExclusivaProposta =
+          snapOrigemLog === 'proposta' ||
+          [
+            'CRIACAO',
+            'FASE DE NEGOCIACAO',
+            'COPIAR LINK',
+            'DESATIVAR LINK',
+            'LINK DA PROPOSTA (DESATIVADO)',
+            'NOVO LINK DA PROPOSTA',
+            'ASSINATURA / ACEITE',
+            'PROPOSTA COMPARATIVA'
+          ].includes(cNorm);
+
+        if (ehAcaoExplicitaContrato) {
+          item.origem_registro = 'contrato';
+        } else if (ehAcaoExclusivaProposta) {
+          item.origem_registro = 'proposta';
+        } else {
+          item.origem_registro = emFaseContrato ? 'contrato' : 'proposta';
+        }
+
+        if (cNorm === 'FASE DE NEGOCIACAO') {
+          emFaseContrato = atuNorm.startsWith('APROVADA');
+        } else if (cNorm === 'SITUACAO DO CONTRATO') {
+          emFaseContrato = atuNorm !== 'ESTORNADO';
+        } else if (ehAcaoExplicitaContrato) {
+          emFaseContrato = true;
+        }
+
         const ehEventoApenasLinkOuAcao = [
           'COPIAR LINK',
           'DESATIVAR LINK',
@@ -42378,6 +42417,7 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
           'NOVO LINK DA PROPOSTA',
           'DOWNLOAD DE PDF',
           'ENVIO DE E-MAIL',
+          'ENVIO DE E-MAIL (CONTRATO)',
           'ENVIO DE WHATSAPP',
           'ASSINATURA / ACEITE'
         ].includes(cNorm);
@@ -42708,6 +42748,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       );
 
       const snapEstadoAtual = JSON.stringify(Object.assign({}, oldRow, d, {
+        _origem_log: d.modo_contrato ? 'contrato' : 'proposta',
         id: Number(proposalId),
         codigo: oldRow.codigo,
         contrato: contratoFinal,
@@ -43457,7 +43498,7 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
 
 app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async (req, res) => {
   const propId = Number(req.params.id);
-  const { html_impressao_simples, email_signatario, nome_signatario, produtos_aprovados, reenviar } = req.body || {};
+  const { html_impressao_simples, email_signatario, nome_signatario, produtos_aprovados, reenviar, modo_contrato } = req.body || {};
 
   db.get('SELECT * FROM propostas WHERE id = ?', [propId], async (err, p) => {
     if (err || !p) return res.status(404).json({ error: 'Proposta não encontrada.' });
@@ -43467,6 +43508,7 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
     const ehVenda = tipoNorm === 'VENDA' || tipoNorm === 'VENDAS';
     const ehAvaria = tipoNorm === 'AVARIA' || tipoNorm === 'AVARIAS';
     const temContrato = Boolean(p.contrato && String(p.contrato).trim());
+    const ehContratoAssinafy = Boolean(modo_contrato) || (!ehAditivo && !ehVenda && !ehAvaria && temContrato);
     const jaAssinadoNoBanco = String(p.assinafy_status || '').trim().toLowerCase() === 'assinado'
       || Boolean(p.assinafy_signed_r2_key)
       || Boolean(p.assinafy_signed_at)
@@ -43599,6 +43641,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
       // 3) Salvar o PDF gerado no Cloudflare R2 EM PARALELO com o envio para o Assinafy
       let pdfEnviadoR2Key = p.pdf_enviado_assinafy_r2_key || null;
       const r2 = require('./utils/r2');
+      const numDocRefArq = ehContratoAssinafy
+        ? String(p.contrato || p.codigo || p.id).replace(/[^a-zA-Z0-9_-]/g, '_')
+        : String(p.codigo || p.id).replace(/[^a-zA-Z0-9_-]/g, '_');
       const r2UploadPromise = (async () => {
         if (r2.isReady() && pdfBuffer && pdfBuffer.length > 0) {
           const agoraBr = new Date(Date.now() - 3 * 60 * 60 * 1000);
@@ -43606,15 +43651,18 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
           const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
           const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
           const hash = Math.random().toString(36).substring(2, 8);
-          const prefixoDoc = ehVenda ? 'VENDA' : (ehAvaria ? 'AVARIA' : 'ADITIVO');
-          const novaKey = `Comercial/AditivosEnviados/${yyyy}/${mm}/${dd}_${prefixoDoc}_PROP_${p.id}_${hash}.pdf`;
+          const novaKey = ehContratoAssinafy
+            ? `Comercial/ContratosEnviados/${yyyy}/${mm}/${dd}_CONTRATO_${numDocRefArq}_PROP_${p.id}_${hash}.pdf`
+            : `Comercial/AditivosEnviados/${yyyy}/${mm}/${dd}_${ehVenda ? 'VENDA' : (ehAvaria ? 'AVARIA' : 'ADITIVO')}_PROP_${p.id}_${hash}.pdf`;
           await r2.uploadToR2(novaKey, pdfBuffer, 'application/pdf');
           pdfEnviadoR2Key = novaKey;
         }
       })();
 
-      const prefixoArq = ehVenda ? 'Proposta_Venda' : (ehAvaria ? 'Proposta_Avaria' : 'Proposta_Aditivo');
-      const nomeArquivoPdf = `${prefixoArq}_${String(p.codigo || p.id).replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+      const prefixoArq = ehContratoAssinafy
+        ? 'Contrato'
+        : (ehVenda ? 'Proposta_Venda' : (ehAvaria ? 'Proposta_Avaria' : 'Proposta_Aditivo'));
+      const nomeArquivoPdf = `${prefixoArq}_${numDocRefArq}.pdf`;
       const [resultadoAssinafy] = await Promise.all([
         novoProcessoAssinafy.enviarPdfBufferParaAssinafy({
           pdfBuffer,
@@ -43627,11 +43675,13 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
         r2UploadPromise
       ]);
 
-      // 5) Atualizar situação da proposta para ENVIADO PARA ASSINATURA
+      // 5) Atualizar situação da proposta/contrato
       const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const loggedUser = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'Sistema';
       const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
       const faseAnterior = p.fase_negociacao || 'Em Elaboração';
+      const faseNovaAssinafy = ehContratoAssinafy ? (p.fase_negociacao || 'Aprovada') : 'ENVIADO PARA ASSINATURA';
+      const sitContratoNovaAssinafy = ehContratoAssinafy ? 'AGUARDANDO ASSINATURA' : (p.situacao_contrato || null);
 
       const prodsAprovArr = Array.isArray(produtos_aprovados) ? produtos_aprovados.map(x => String(x || '').trim()).filter(Boolean) : [];
       const produtosAprovadosJson = prodsAprovArr.length > 0
@@ -43641,7 +43691,8 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
       await new Promise((resolve, reject) => {
         db.run(
           `UPDATE propostas
-           SET fase_negociacao = 'ENVIADO PARA ASSINATURA',
+           SET fase_negociacao = ?,
+               situacao_contrato = ?,
                contrato = CASE WHEN ? = 1 THEN NULL ELSE contrato END,
                contato_nome = COALESCE(NULLIF(TRIM(?), ''), contato_nome),
                assinafy_id = ?,
@@ -43651,12 +43702,14 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
                assinafy_email = ?,
                assinafy_signer_name = ?,
                pdf_enviado_assinafy_r2_key = COALESCE(?, pdf_enviado_assinafy_r2_key),
-               aprovado_por = ?,
-               aprovado_em = ?,
+               aprovado_por = COALESCE(aprovado_por, ?),
+               aprovado_em = COALESCE(aprovado_em, ?),
                produtos_aprovados = ?,
                atualizado_em = ?
            WHERE id = ?`,
           [
+            faseNovaAssinafy,
+            sitContratoNovaAssinafy,
             ehAditivo ? 1 : 0,
             contatoAlvo,
             resultadoAssinafy.assinafyDocId,
@@ -43676,7 +43729,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
       });
 
       const snapEnviado = JSON.stringify(Object.assign({}, p, {
-        fase_negociacao: 'ENVIADO PARA ASSINATURA',
+        _origem_log: ehContratoAssinafy ? 'contrato' : 'proposta',
+        fase_negociacao: faseNovaAssinafy,
+        situacao_contrato: sitContratoNovaAssinafy,
         contrato: ehAditivo ? null : p.contrato,
         assinafy_id: resultadoAssinafy.assinafyDocId,
         assinafy_status: 'Pendente',
@@ -43685,22 +43740,29 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
         assinafy_email: emailSig,
         assinafy_signer_name: nomeSig,
         pdf_enviado_assinafy_r2_key: pdfEnviadoR2Key,
-        aprovado_por: loggedUser,
-        aprovado_em: agora,
+        aprovado_por: p.aprovado_por || loggedUser,
+        aprovado_em: p.aprovado_em || agora,
         produtos_aprovados: produtosAprovadosJson
       }));
 
-      const labelAcaoAuditoria = reenviar ? 'Reenvio para Assinatura (Assinafy)' : 'Fase de Negociação';
+      const labelAcaoAuditoria = ehContratoAssinafy
+        ? (reenviar ? 'Reenvio para Assinatura do Contrato (Assinafy)' : 'Envio para Assinatura do Contrato (Assinafy)')
+        : (reenviar ? 'Reenvio para Assinatura (Assinafy)' : 'Fase de Negociação');
+      const antAuditoria = ehContratoAssinafy ? (p.situacao_contrato || 'AGUARDANDO ASSINATURA') : faseAnterior;
+      const atuAuditoria = ehContratoAssinafy
+        ? `AGUARDANDO ASSINATURA (Assinafy: ${emailSig})`
+        : `ENVIADO PARA ASSINATURA (Assinafy: ${emailSig})`;
       db.run(
         `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)
          VALUES (?, 'Proposta', ?, ?, ?, ?, ?)`,
-        [loggedUser, labelAcaoAuditoria, faseAnterior, `ENVIADO PARA ASSINATURA (Assinafy: ${emailSig})`, p.id, snapEnviado]
+        [loggedUser, labelAcaoAuditoria, antAuditoria, atuAuditoria, p.id, snapEnviado]
       );
 
       res.json({
         success: true,
         reenviado: Boolean(reenviar),
-        fase_negociacao: 'ENVIADO PARA ASSINATURA',
+        fase_negociacao: faseNovaAssinafy,
+        situacao_contrato: sitContratoNovaAssinafy,
         contrato: ehAditivo ? null : p.contrato,
         assinafy_id: resultadoAssinafy.assinafyDocId,
         assinafy_url: resultadoAssinafy.urlAssinatura,
