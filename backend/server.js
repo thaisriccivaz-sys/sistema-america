@@ -41948,9 +41948,9 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
           });
         });
 
-        // Garantir numeração própria de contratos (01 em diante) e situação inicial 'Em Elaboração' (exceto Aditivos)
+        // Garantir numeração própria de contratos (01 em diante) e situação inicial 'EM ELABORAÇÃO' (exceto Aditivos)
         db.all(
-          "SELECT id, codigo, contrato, situacao_contrato FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO') ORDER BY COALESCE(aprovado_em, atualizado_em, criado_em) ASC, id ASC",
+          "SELECT id, codigo, contrato, tipo, situacao_contrato, assinafy_id, assinafy_status, assinafy_signed_at, assinafy_signed_r2_key FROM propostas WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO') ORDER BY COALESCE(aprovado_em, atualizado_em, criado_em) ASC, id ASC",
           [],
           (errAp, rowsAp) => {
             if (errAp || !Array.isArray(rowsAp)) return;
@@ -41959,9 +41959,15 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
               const seqContrato = String(idx + 1).padStart(2, '0');
               const sitAtual = String(r.situacao_contrato || '').trim();
               const sitUp = sitAtual.toUpperCase();
-              const novaSit = (!sitAtual || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'APROVADA' || sitUp === 'APROVADO' || sitUp === 'ESTORNADO')
-                ? 'AGUARDANDO ASSINATURA'
-                : sitAtual;
+              const foiAssinadoCtr = (String(r.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(r.assinafy_signed_at) || Boolean(r.assinafy_signed_r2_key));
+              const foiEnviadoAssinafyCtr = Boolean(r.assinafy_id && String(r.assinafy_id).trim());
+              const novaSit = foiAssinadoCtr
+                ? 'CONTRATO ASSINADO'
+                : (foiEnviadoAssinafyCtr && (!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO')
+                    ? 'ENVIADO PARA ASSINATURA'
+                    : ((!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'APROVADA' || sitUp === 'APROVADO' || sitUp === 'ESTORNADO')
+                        ? 'EM ELABORAÇÃO'
+                        : sitAtual));
               if (String(r.contrato || '').trim() !== seqContrato || sitAtual !== novaSit) {
                 db.run("UPDATE propostas SET contrato = ?, situacao_contrato = ? WHERE id = ?", [seqContrato, novaSit, r.id], () => {
                   sincronizarContratoDaProposta(r.id);
@@ -42012,6 +42018,7 @@ function gerarCodigoContrato(cb) {
 function classificarStatusSituacaoContrato(sitRaw) {
   const s = String(sitRaw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
   const ativos = [
+    'ENVIADO PARA ASSINATURA',
     'SOLICITACAO DE RETIRADA EM ANDAMENTO',
     'CONTRATO ASSINADO',
     'CONTRATO DIGITAL ASSINADO',
@@ -42031,6 +42038,7 @@ function classificarStatusSituacaoContrato(sitRaw) {
     'ESTORNADO'
   ];
   if (fechados.includes(s)) return 'FECHADO';
+  if (!s || s === 'EM ELABORACAO' || s === 'AGUARDANDO ASSINATURA') return 'EM ELABORAÇÃO';
   return 'ABERTO';
 }
 
@@ -42409,7 +42417,10 @@ app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res
         }
       }
       if (acao && !apenas_mudar_situacao_contrato) {
-        const snapAcaoCtr = JSON.stringify({ _origem_log: 'contrato' });
+        const snapAcaoCtr = JSON.stringify(Object.assign({}, propRow || {}, {
+          _origem_log: 'contrato',
+          situacao_contrato: novaSitContrato
+        }));
         db.run(
           `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, '', ?, ?, ?)`,
           [autor, String(acao).trim(), String(detalhe || acao).trim(), proposalId, snapAcaoCtr]
@@ -42568,11 +42579,18 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
           'NOVO LINK DA PROPOSTA',
           'DOWNLOAD DE PDF',
           'ENVIO DE E-MAIL',
-          'ENVIO DE E-MAIL (CONTRATO)',
           'ENVIO DE WHATSAPP',
+          'ENVIO POR WHATSAPP',
           'ASSINATURA / ACEITE'
         ].includes(cNorm);
-        item.tem_documento = !ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc);
+        const ehAcaoDocumentoContrato = item.origem_registro === 'contrato' && (
+          cNorm.includes('ENVIO DE E-MAIL') ||
+          cNorm.includes('ENVIO POR WHATSAPP') ||
+          cNorm.includes('DOWNLOAD DE PDF') ||
+          cNorm.includes('ASSINAFY') ||
+          cNorm === 'SITUACAO DO CONTRATO'
+        );
+        item.tem_documento = ehAcaoDocumentoContrato || (!ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc));
         item.tem_assinatura = Boolean(snapHasSig || atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO'));
         delete item.snapshot_json;
         return item;
@@ -42598,7 +42616,7 @@ function sincronizarContratoDaProposta(propostaId) {
     }
     const isAprovada = String(p.fase_negociacao || '').trim().toUpperCase() === 'APROVADA';
     const numContrato = String(p.contrato || p.codigo || '').trim();
-    const sitContrato = String(p.situacao_contrato || 'AGUARDANDO ASSINATURA').trim();
+    const sitContrato = String(p.situacao_contrato || 'EM ELABORAÇÃO').trim();
     const statusContrato = classificarStatusSituacaoContrato(sitContrato);
     const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
     db.get('SELECT id FROM contratos WHERE proposta_id = ?', [p.id], (errC, rowC) => {
@@ -42612,7 +42630,11 @@ function sincronizarContratoDaProposta(propostaId) {
             [numContrato, p.id, p.cliente_nome, p.contato_nome, p.tipo, p.periodo_inicio, p.periodo_fim, p.endereco_instalacao, p.valor_total || 0, sitContrato, statusContrato, agora, agora]);
         }
       } else if (rowC && rowC.id) {
-        db.run(`UPDATE contratos SET situacao='ESTORNADO', status='ESTORNADO', atualizado_em=? WHERE id=?`, [agora, rowC.id]);
+        const sitNaoAp = String(p.fase_negociacao || '').trim().toUpperCase().startsWith('REPROVAD')
+          ? 'REPROVADO | CANCELADO'
+          : 'ESTORNADO';
+        const stNaoAp = classificarStatusSituacaoContrato(sitNaoAp);
+        db.run(`UPDATE contratos SET situacao=?, status=?, atualizado_em=? WHERE id=?`, [sitNaoAp, stNaoAp, agora, rowC.id]);
       }
     });
   });
@@ -42714,9 +42736,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         if (isNovaAprovada) {
           resolverContextoUsuarioComercial(req.user).then(ctx => {
             const nomeAprov = (ctx && ctx.nome_colaborador) || usuarioLog;
-            db.run("UPDATE propostas SET situacao_contrato = 'AGUARDANDO ASSINATURA', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
+            db.run("UPDATE propostas SET situacao_contrato = 'EM ELABORAÇÃO', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [nomeAprov, agora, lastIdCreated], () => {});
           }).catch(() => {
-            db.run("UPDATE propostas SET situacao_contrato = 'AGUARDANDO ASSINATURA', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
+            db.run("UPDATE propostas SET situacao_contrato = 'EM ELABORAÇÃO', aprovado_por = ?, aprovado_em = ? WHERE id = ?", [usuarioLog, agora, lastIdCreated], () => {});
           });
         }
         db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Criação', '', ?, ?, ?)`,
@@ -42766,23 +42788,34 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       || oldFaseUpper === 'PROPOSTA ASSINADA'
       || oldFaseUpper === 'APROVADO - ADITIVO ASSINADO';
 
+    const oldSitCtrNorm = String(oldRow.situacao_contrato || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase().replace(/\s+/g, ' ').trim();
+    const virouContratoOld = Boolean(!ehAditivoPut && ((oldRow.contrato && String(oldRow.contrato).trim()) || (oldFaseUpper === 'APROVADA' && !ehFluxoAssinafyPut)));
+    const contratoEmElaboracaoOld = !oldSitCtrNorm || oldSitCtrNorm === 'EM ELABORACAO' || oldSitCtrNorm === 'AGUARDANDO ASSINATURA' || oldSitCtrNorm === 'APROVADA' || oldSitCtrNorm === 'APROVADO' || oldSitCtrNorm === 'ESTORNADO';
+
+    if (!d.modo_contrato && (reqFaseUpper === 'REPROVADA' || reqFaseUpper === 'REPROVADO') && virouContratoOld && !contratoEmElaboracaoOld) {
+      return res.status(400).json({ error: 'Apenas é possível mudar a situação da proposta para Reprovada se a proposta ainda não tiver virado contrato ou se o contrato estiver na situação Em elaboração.' });
+    }
+
     if (jaAssinadoAssinafy && !d.modo_contrato) {
       if (d.acao_estornar) {
         return res.status(400).json({ error: 'Proposta assinada via Assinafy não pode ser estornada ou editada (apenas é permitido mudar a situação para Reprovada).' });
       }
-      if (reqFaseUpper === 'REPROVADA' || reqFaseUpper === 'REPROVADO') {
+      if ((reqFaseUpper === 'REPROVADA' || reqFaseUpper === 'REPROVADO') && (!virouContratoOld || contratoEmElaboracaoOld)) {
         const motivoReprov = d.motivo_reprovacao !== undefined ? d.motivo_reprovacao : oldRow.motivo_reprovacao;
         Object.keys(oldRow).forEach(k => { d[k] = oldRow[k]; });
         d.fase_negociacao = 'Reprovada';
         d.motivo_reprovacao = motivoReprov;
+        if (virouContratoOld) d.situacao_contrato = 'REPROVADO | CANCELADO';
       } else {
-        return res.status(400).json({ error: 'Proposta assinada via Assinafy não pode ser editada. A única alteração permitida é mudar a situação para Reprovada.' });
+        return res.status(400).json({ error: 'Proposta assinada via Assinafy não pode ser editada. A única alteração permitida é mudar a situação para Reprovada (enquanto o contrato estiver Em elaboração).' });
       }
     } else if (d.acao_estornar) {
       const sitContratoCheck = String(d.situacao_contrato || oldRow.situacao_contrato || '').trim().toUpperCase();
       const sitPermitidasEstorno = ['', 'AGUARDANDO ASSINATURA', 'ADIANTAMENTO DE OS', 'REPROVADO | CANCELADO', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'REPROVADA', 'REPROVADO', 'CANCELADA', 'CANCELADO'];
       if (!sitPermitidasEstorno.includes(sitContratoCheck)) {
-        return res.status(400).json({ error: 'Um contrato apenas pode ser estornado se estiver na situação de AGUARDANDO ASSINATURA, ADIANTAMENTO DE OS ou REPROVADO | CANCELADO.' });
+        return res.status(400).json({ error: 'Um contrato apenas pode ser estornado se estiver na situação de EM ELABORAÇÃO, ADIANTAMENTO DE OS ou REPROVADO | CANCELADO.' });
       }
       d.fase_negociacao = 'Proposta Enviada';
       d.situacao_contrato = 'ESTORNADO';
@@ -42793,10 +42826,16 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.valor_distancia_calculado = oldRow.valor_distancia_calculado || 0;
     } else if ((oldFaseUpper === 'APROVADA' && !ehFluxoAssinafyPut) || oldFaseUpper === 'PROPOSTA ASSINADA' || oldFaseUpper === 'APROVADO - ADITIVO ASSINADO') {
       if (d.modo_contrato) {
-        d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'AGUARDANDO ASSINATURA';
+        d.situacao_contrato = reqFaseRaw || oldRow.situacao_contrato || 'EM ELABORAÇÃO';
         d.fase_negociacao = oldRow.fase_negociacao || 'Aprovada';
+      } else if ((reqFaseUpper === 'REPROVADA' || reqFaseUpper === 'REPROVADO') && (!virouContratoOld || contratoEmElaboracaoOld)) {
+        const motivoReprov = d.motivo_reprovacao !== undefined ? d.motivo_reprovacao : oldRow.motivo_reprovacao;
+        Object.keys(oldRow).forEach(k => { d[k] = oldRow[k]; });
+        d.fase_negociacao = 'Reprovada';
+        d.motivo_reprovacao = motivoReprov;
+        if (virouContratoOld) d.situacao_contrato = 'REPROVADO | CANCELADO';
       } else {
-        return res.status(400).json({ error: 'Proposta aprovada não pode ser editada. Estorne a proposta para poder editar.' });
+        return res.status(400).json({ error: 'Proposta aprovada não pode ser editada. A única alteração permitida na proposta é mudar para Reprovada enquanto o contrato estiver Em elaboração.' });
       }
     }
 
@@ -42841,7 +42880,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const sitContratoFinal = d.situacao_contrato !== undefined
         ? d.situacao_contrato
         : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
-            ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'AGUARDANDO ASSINATURA')
+            ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && oldRow.situacao_contrato !== 'ESTORNADO' ? oldRow.situacao_contrato : 'EM ELABORAÇÃO')
             : (oldRow.situacao_contrato || null));
 
       const propComparativaFinal = d.proposta_comparativa !== undefined ? (d.proposta_comparativa ? 1 : 0) : (Number(oldRow.proposta_comparativa) === 1 ? 1 : 0);
@@ -43323,8 +43362,14 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
           [loggedUser, String(p.fase_negociacao || 'Em Elaboração'), p.id, snapEmail]
         );
       }
+      const snapEmailContratoLog = ehContratoEmail
+        ? JSON.stringify(Object.assign({}, p, {
+            _origem_log: 'contrato',
+            situacao_contrato: novaSitContratoEmail
+          }))
+        : null;
       db.run(`INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', ?, '', ?, ?, ?)`,
-        [loggedUser, ehContratoEmail ? 'Envio de E-mail (Contrato)' : 'Envio de E-mail', `Enviado para: ${toList}`, p.id, ehContratoEmail ? JSON.stringify({ _origem_log: 'contrato' }) : null]);
+        [loggedUser, ehContratoEmail ? 'Envio de E-mail (Contrato)' : 'Envio de E-mail', `Enviado para: ${toList}`, p.id, snapEmailContratoLog]);
 
       res.json({
         success: true,
@@ -44105,12 +44150,14 @@ app.get('/api/comercial/assinaturas', authenticateToken, async (req, res) => {
       const tPropUp = String(r.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
       const ehPropAssinafy = tPropUp === 'ADITIVO' || tPropUp === 'VENDA' || tPropUp === 'VENDAS' || tPropUp === 'AVARIA' || tPropUp === 'AVARIAS';
       const ehContratoDoc = Boolean(!ehPropAssinafy && r.contrato && String(r.contrato).trim());
+      const codPropostaLimpo = r.codigo || String(r.id).padStart(2, '0');
       const codExib = ehContratoDoc
         ? String(r.contrato).trim()
-        : (r.codigo || String(r.id).padStart(2, '0'));
+        : codPropostaLimpo;
       return {
         id: r.id,
         codigo: codExib,
+        codigo_proposta: codPropostaLimpo,
         contrato: r.contrato || '',
         tipo_documento: ehContratoDoc ? 'Contrato' : 'Proposta',
         tipo_proposta: r.tipo || '',

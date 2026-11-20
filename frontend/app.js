@@ -1415,7 +1415,7 @@ function renderAppTabs() {
         const activeColor = t.color || '#0f172a';
         // Cor inativa: mesma cor do departamento mas com opacidade reduzida
         const inactiveColor = activeColor;
-        const displayTitle = (t.target === 'comercial-proposta' && t.title) ? t.title : (TAB_META[t.target]?.title || t.title);
+        const displayTitle = ((t.target === 'comercial-proposta' || t.target === 'comercial-contratos') && t.title) ? t.title : (TAB_META[t.target]?.title || t.title);
         return `
         <div class="app-top-tab ${t.active ? 'active' : ''}" 
              onclick="navigateToTab('${t.tabId}')"

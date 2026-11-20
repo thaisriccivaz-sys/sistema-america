@@ -167,33 +167,55 @@ window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
 };
 
 const CONTRATO_SITUACOES_CONFIG = [
-    { nome: 'AGUARDANDO ASSINATURA',                  cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-clock' },
-    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt' },
-    { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
-    { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
-    { nome: 'CONTRATO DIGITAL ASSINADO',              cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-signature' },
-    { nome: 'INFORMAÇÕES ADICIONAIS',                 cor: 'YELLOW',  bg: '#fef9c3', text: '#a16207', border: '#fde047', status: 'Ativo',   icon: 'ph-info' },
-    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-check-circle' },
-    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
-    { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado', icon: 'ph-x-circle' },
-    { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-archive' },
-    { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',   icon: 'ph-seal-check' },
-    { nome: 'ADIANTAMENTO DE OS',                     cor: 'BROWN',   bg: '#f5ebe0', text: '#78350f', border: '#d6ccc2', status: 'Aberto',  icon: 'ph-wrench' }
+    { nome: 'EM ELABORAÇÃO',                          cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Em elaboração', icon: 'ph-pencil' },
+    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Ativo',         icon: 'ph-paper-plane-tilt' },
+    { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',         icon: 'ph-signature' },
+    { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',         icon: 'ph-truck' },
+    { nome: 'CONTRATO DIGITAL ASSINADO',              cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',         icon: 'ph-signature' },
+    { nome: 'INFORMAÇÕES ADICIONAIS',                 cor: 'YELLOW',  bg: '#fef9c3', text: '#a16207', border: '#fde047', status: 'Ativo',         icon: 'ph-info' },
+    { nome: 'CONTRATO ASSINADO/ENTREGA LIBERADA',     cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',         icon: 'ph-check-circle' },
+    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',         icon: 'ph-receipt' },
+    { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado',       icon: 'ph-x-circle' },
+    { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado',       icon: 'ph-archive' },
+    { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',         icon: 'ph-seal-check' },
+    { nome: 'ADIANTAMENTO DE OS',                     cor: 'BROWN',   bg: '#f5ebe0', text: '#78350f', border: '#d6ccc2', status: 'Aberto',        icon: 'ph-wrench' }
 ];
 window.CONTRATO_SITUACOES_CONFIG = CONTRATO_SITUACOES_CONFIG;
 
 window.obterConfigSituacaoContrato = function(sitRaw) {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
     const s = normStr(sitRaw);
-    if (!s || s === 'EM ELABORACAO' || s === 'APROVADA' || s === 'APROVADO' || s === 'ESTORNADO') {
+    if (!s || s === 'EM ELABORACAO' || s === 'AGUARDANDO ASSINATURA' || s === 'APROVADA' || s === 'APROVADO' || s === 'ESTORNADO') {
         return CONTRATO_SITUACOES_CONFIG[0];
     }
     const exact = CONTRATO_SITUACOES_CONFIG.find(c => normStr(c.nome) === s);
     if (exact) return exact;
     if (s === 'REPROVADA' || s === 'REPROVADO' || s === 'CANCELADA' || s === 'CANCELADO') {
-        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[6];
+        return CONTRATO_SITUACOES_CONFIG.find(c => c.nome === 'REPROVADO | CANCELADO') || CONTRATO_SITUACOES_CONFIG[8];
     }
-    return { nome: String(sitRaw || 'AGUARDANDO ASSINATURA').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Aberto', icon: 'ph-circle' };
+    return { nome: String(sitRaw || 'EM ELABORAÇÃO').toUpperCase(), cor: 'DEFAULT', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Em elaboração', icon: 'ph-circle' };
+};
+
+window.propostaVirouContrato = function(prop) {
+    if (!prop) return false;
+    const tipoNorm = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoNorm === 'ADITIVO') return false;
+    const faseUp = String(prop.fase_negociacao || '').trim().toUpperCase();
+    return Boolean((prop.contrato && String(prop.contrato).trim()) || faseUp === 'APROVADA');
+};
+
+window.contratoEstaEmElaboracao = function(prop) {
+    if (!prop) return true;
+    const sitNorm = String(prop.situacao_contrato || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase().replace(/\s+/g, ' ').trim();
+    return !sitNorm || sitNorm === 'EM ELABORACAO' || sitNorm === 'AGUARDANDO ASSINATURA' || sitNorm === 'APROVADA' || sitNorm === 'APROVADO' || sitNorm === 'ESTORNADO';
+};
+
+window.propostaPodeMudarParaReprovada = function(prop) {
+    if (!prop) return true;
+    if (!window.propostaVirouContrato(prop)) return true;
+    return window.contratoEstaEmElaboracao(prop);
 };
 
 window.situacaoContratoEhAtiva = function(sitRaw) {
@@ -2988,7 +3010,7 @@ function _renderFormPropostaInt() {
                     <button type="button" id="btn-prop-duplicar" onclick="window.duplicarPropostaAtual()" style="display:${(isNovo || window._modoTelaComercial === 'contrato') ? 'none' : 'inline-flex'}; background:#0284c7; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'" onfocus="this.blur()">
                         <i class="ph ph-copy" style="font-size:1rem;"></i> Duplicar
                     </button>
-                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
+                    <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && !(window.propostaPodeMudarParaReprovada && window.propostaPodeMudarParaReprovada(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
@@ -3128,21 +3150,26 @@ function _renderFormPropostaInt() {
                                     : (PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
                                         const isSel = faseAtiva.trim().toUpperCase() === f.toUpperCase();
-                                        const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
+                                        const foiAssinadaAssinafyOpt = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+                                        const virouContratoOpt = Boolean(window.propostaVirouContrato && window.propostaVirouContrato(prop));
+                                        const podeReprovarOpt = Boolean(!window.propostaPodeMudarParaReprovada || window.propostaPodeMudarParaReprovada(prop));
                                         const ehTipoAssinafyOpt = window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'));
                                         const isEnvBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'PROPOSTA ENVIADA';
                                         const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                         const isApBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'APROVADA';
-                                        const isDisabled = foiAssinadaAssinafyOpt
-                                            ? (f.toUpperCase() !== 'REPROVADA')
-                                            : (isEnvBloq || isPreAp || isApBloq);
-                                        const disabledTitle = foiAssinadaAssinafyOpt
-                                            ? (isDisabled ? 'Proposta assinada via Assinafy: a única alteração permitida é mudar a situação para Reprovada' : '')
-                                            : (isEnvBloq
-                                                ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
-                                                : (isPreAp
-                                                    ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                                    : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '')));
+                                        const isReprovBloq = f.toUpperCase() === 'REPROVADA' && !podeReprovarOpt;
+                                        const isDisabled = (foiAssinadaAssinafyOpt || virouContratoOpt)
+                                            ? (f.toUpperCase() !== 'REPROVADA' || !podeReprovarOpt)
+                                            : (isEnvBloq || isPreAp || isApBloq || isReprovBloq);
+                                        const disabledTitle = isReprovBloq
+                                            ? 'Apenas é possível mudar para Reprovada se a proposta ainda não virou contrato ou se o contrato estiver Em elaboração'
+                                            : ((foiAssinadaAssinafyOpt || virouContratoOpt)
+                                                ? (isDisabled ? 'Proposta já aprovada/assinada: a única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração)' : '')
+                                                : (isEnvBloq
+                                                    ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                                    : (isPreAp
+                                                        ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                        : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''))));
                                         return `<option value="${f}" ${isSel ? 'selected' : ''} ${isDisabled ? `disabled title="${disabledTitle}"` : ''}>${f.toUpperCase()}</option>`;
                                     }).join('') + (['ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())
                                         ? `<option value="${_escHtmlProp(String(v('fase_negociacao')).trim())}" selected disabled>${_escHtmlProp(String(v('fase_negociacao')).trim().toUpperCase())}</option>`
@@ -3170,20 +3197,25 @@ function _renderFormPropostaInt() {
                                         }).join('')
                                         : PROP_FASES.map(f => {
                                             const ehTipoAssinafyOpt = window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'));
-                                            const foiAssinadaAssinafyOpt = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
+                                            const foiAssinadaAssinafyOpt = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+                                            const virouContratoOpt = Boolean(window.propostaVirouContrato && window.propostaVirouContrato(prop));
+                                            const podeReprovarOpt = Boolean(!window.propostaPodeMudarParaReprovada || window.propostaPodeMudarParaReprovada(prop));
                                             const isEnvBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'PROPOSTA ENVIADA';
                                             const isPreAp = f.toUpperCase() === 'PRÉ APROVADA';
                                             const isApBloq = !ehTipoAssinafyOpt && f.toUpperCase() === 'APROVADA';
-                                            const isDisabled = foiAssinadaAssinafyOpt
-                                                ? (f.toUpperCase() !== 'REPROVADA')
-                                                : (isEnvBloq || isPreAp || isApBloq);
-                                            const disabledTitle = foiAssinadaAssinafyOpt
-                                                ? (isDisabled ? 'Proposta assinada via Assinafy: a única alteração permitida é mudar a situação para Reprovada' : '')
-                                                : (isEnvBloq
-                                                    ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
-                                                    : (isPreAp
-                                                        ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
-                                                        : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : '')));
+                                            const isReprovBloq = f.toUpperCase() === 'REPROVADA' && !podeReprovarOpt;
+                                            const isDisabled = (foiAssinadaAssinafyOpt || virouContratoOpt)
+                                                ? (f.toUpperCase() !== 'REPROVADA' || !podeReprovarOpt)
+                                                : (isEnvBloq || isPreAp || isApBloq || isReprovBloq);
+                                            const disabledTitle = isReprovBloq
+                                                ? 'Apenas é possível mudar para Reprovada se a proposta ainda não virou contrato ou se o contrato estiver Em elaboração'
+                                                : ((foiAssinadaAssinafyOpt || virouContratoOpt)
+                                                    ? (isDisabled ? 'Proposta já aprovada/assinada: a única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração)' : '')
+                                                    : (isEnvBloq
+                                                        ? 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Copiar Link'
+                                                        : (isPreAp
+                                                            ? 'Disponível apenas mediante assinatura do cliente pelo link da proposta'
+                                                            : (isApBloq ? 'Utilize o botão Aprovar no topo para aprovar a proposta' : ''))));
                                             const fEsc = f.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                             return `<div onclick="window.selecionarFasePropostaCustom('${fEsc}', ${isDisabled ? 'true' : 'false'}, event)"
                                                 ${disabledTitle ? `title="${disabledTitle}"` : ''}
@@ -3789,10 +3821,12 @@ function _renderFormPropostaInt() {
     }
     const faseUpRender = String(v('fase_negociacao') || '').trim().toUpperCase();
     const foiAssinadaAssinafyRender = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
-    if (window._modoTelaComercial !== 'contrato' && (foiAssinadaAssinafyRender || faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
+    const virouContratoRender = Boolean(window.propostaVirouContrato && window.propostaVirouContrato(prop));
+    const podeReprovarRender = Boolean(!window.propostaPodeMudarParaReprovada || window.propostaPodeMudarParaReprovada(prop));
+    if (window._modoTelaComercial !== 'contrato' && (foiAssinadaAssinafyRender || virouContratoRender || faseUpRender === 'APROVADA' || faseUpRender === 'APROVADO - ADITIVO ASSINADO')) {
         const formEl = document.getElementById('form-proposta');
         if (formEl) {
-            const permiteMudarParaReprovada = foiAssinadaAssinafyRender && faseUpRender !== 'REPROVADA';
+            const permiteMudarParaReprovada = (foiAssinadaAssinafyRender || virouContratoRender || faseUpRender === 'APROVADA') && faseUpRender !== 'REPROVADA' && podeReprovarRender;
             formEl.querySelectorAll('input, select, textarea, button').forEach(el => {
                 if (el.id === 'prop-codigo' || (el.getAttribute('onclick') || '').includes('pesquisarPropostaPorCodigoInput')) return;
                 if (permiteMudarParaReprovada && (el.id === 'prop-fase' || el.id === 'prop-fase-custom-btn' || el.id === 'prop-motivo-reprovacao')) return;
@@ -7553,10 +7587,15 @@ window.salvarPropostaNova = async function() {
     const tipo = obter('prop-tipo');
     let fase = obter('prop-fase');
     const propExistAssinafy = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
-    if (propExistAssinafy && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propExistAssinafy) && window._modoTelaComercial !== 'contrato') {
+    const foiAssinadaProp = Boolean(propExistAssinafy && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propExistAssinafy));
+    const virouContratoProp = Boolean(propExistAssinafy && window.propostaVirouContrato && window.propostaVirouContrato(propExistAssinafy));
+    if (propExistAssinafy && (foiAssinadaProp || virouContratoProp) && window._modoTelaComercial !== 'contrato') {
         const faseUpSalvar = String(fase || '').trim().toUpperCase();
-        if (faseUpSalvar !== 'REPROVADA' && faseUpSalvar !== 'REPROVADO') {
-            Swal.fire('Edição Bloqueada', 'Esta proposta já foi assinada via Assinafy e não pode mais ser editada. A única alteração permitida é mudar a situação para Reprovada.', 'warning');
+        const podeReprovSalvar = Boolean(!window.propostaPodeMudarParaReprovada || window.propostaPodeMudarParaReprovada(propExistAssinafy));
+        if ((faseUpSalvar !== 'REPROVADA' && faseUpSalvar !== 'REPROVADO') || !podeReprovSalvar) {
+            Swal.fire('Edição Bloqueada', !podeReprovSalvar
+                ? 'Esta proposta já virou contrato e não está mais na situação Em elaboração, portanto não pode ser alterada para Reprovada.'
+                : 'Esta proposta já foi aprovada/assinada e não pode mais ser editada. A única alteração permitida na situação é mudar para Reprovada (enquanto o contrato estiver Em elaboração).', 'warning');
             return;
         }
         const motReprov = obter('prop-motivo-reprovacao').trim();
@@ -7567,7 +7606,8 @@ window.salvarPropostaNova = async function() {
         }
         window._cachedProposalPayload = {
             fase_negociacao: 'Reprovada',
-            motivo_reprovacao: motReprov
+            motivo_reprovacao: motReprov,
+            situacao_contrato: virouContratoProp ? 'REPROVADO | CANCELADO' : undefined
         };
         await window.confirmarSalvarProposta(false);
         return;
@@ -8434,8 +8474,8 @@ window.aprovarPropostaEdicao = async function() {
             ? (propExistente?.fase_negociacao || 'Aprovada')
             : (usaFluxoAssinafy ? (propExistente?.fase_negociacao || 'Em Elaboração') : 'Aprovada'),
         situacao_contrato: ehModoContratoAssinafy
-            ? (obter('prop-fase') || propExistente?.situacao_contrato || 'AGUARDANDO ASSINATURA')
-            : (usaFluxoAssinafy ? null : 'AGUARDANDO ASSINATURA'),
+            ? (obter('prop-fase') || propExistente?.situacao_contrato || 'EM ELABORAÇÃO')
+            : (usaFluxoAssinafy ? null : 'EM ELABORAÇÃO'),
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -9116,9 +9156,8 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
                                 <th style="padding:10px 12px; white-space:nowrap;">Código</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Documento</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Tipo / Categoria</th>
-                                <th style="padding:10px 12px;">Cliente</th>
+                                <th style="padding:10px 12px; min-width:300px; width:28%;">Cliente</th>
                                 <th style="padding:10px 12px;">Contato</th>
-                                <th style="padding:10px 12px;">E-mail Enviado</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora do Envio</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Situação da Assinatura</th>
                                 <th style="padding:10px 12px; white-space:nowrap;">Dia / Hora da Assinatura</th>
@@ -9126,7 +9165,7 @@ window.renderTelaAssinaturasComercial = async function(forceSync = true) {
                             </tr>
                         </thead>
                         <tbody id="assinaturas-comercial-tbody">
-                            <tr><td colspan="10" style="padding:2rem; text-align:center; color:#64748b;"><i class="ph ph-spinner ph-spin"></i> Sincronizando assinaturas com a Assinafy...</td></tr>
+                            <tr><td colspan="9" style="padding:2rem; text-align:center; color:#64748b;"><i class="ph ph-spinner ph-spin"></i> Sincronizando assinaturas com a Assinafy...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -9221,7 +9260,7 @@ window.filtrarTabelaAssinaturasComercial = function() {
     });
 
     if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="padding:2.2rem; text-align:center; color:#64748b; font-style:italic;">Nenhum documento enviado para assinatura via Assinafy encontrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:2.2rem; text-align:center; color:#64748b; font-style:italic;">Nenhum documento enviado para assinatura via Assinafy encontrado.</td></tr>`;
         return;
     }
 
@@ -9249,20 +9288,35 @@ window.filtrarTabelaAssinaturasComercial = function() {
             badgeSit = `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:3px 9px; border-radius:999px; font-weight:800; font-size:0.72rem; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`;
         }
         const ehContratoDoc = String(item.tipo_documento || '').toUpperCase() === 'CONTRATO';
+        const numContratoItem = String(item.contrato || (ehContratoDoc ? item.codigo : '') || '').trim();
+        const numPropostaItem = String(item.codigo_proposta || (!ehContratoDoc ? item.codigo : '') || '').trim();
+        const badgesCodigoArr = [];
+        if (numContratoItem) {
+            badgesCodigoArr.push(
+                `<span onclick="window.abrirContratoDaProposta(${item.id})" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoItem)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 9px; border-radius:6px; font-size:0.74rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numContratoItem)}</span>`
+            );
+        }
+        if (numPropostaItem) {
+            badgesCodigoArr.push(
+                `<span onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a Proposta Nº ${_escHtmlProp(numPropostaItem)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 9px; border-radius:6px; font-size:0.74rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'"><i class="ph ph-file-text"></i> ${_escHtmlProp(numPropostaItem)}</span>`
+            );
+        }
+        const htmlBadgesCodigo = `<div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">${badgesCodigoArr.join('')}</div>`;
         const badgeTipoDoc = ehContratoDoc
-            ? '<span style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">CONTRATO</span>'
-            : '<span style="background:#ede9fe; color:#6d28d9; border:1px solid #ddd6fe; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">PROPOSTA</span>';
-        const acaoAbrir = ehContratoDoc
-            ? `window.abrirContratoDaProposta(${item.id})`
-            : `window.abrirPropostaDiretoId(${item.id})`;
+            ? `<span onclick="window.abrirContratoDaProposta(${item.id})" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoItem || item.codigo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 9px; border-radius:999px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-block;">CONTRATO</span>`
+            : `<span onclick="window.abrirPropostaDiretoId(${item.id})" title="Clique para abrir a Proposta Nº ${_escHtmlProp(numPropostaItem || item.codigo)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 9px; border-radius:999px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-block;">PROPOSTA</span>`;
         return `
             <tr style="border-bottom:1px solid #f1f5f9; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding:10px 12px; font-weight:800; color:#1d4ed8; cursor:pointer; white-space:nowrap;" onclick="${acaoAbrir}" title="Clique para abrir ${ehContratoDoc ? 'o contrato' : 'a proposta'}">${_escHtmlProp(item.codigo)}</td>
+                <td style="padding:10px 12px; white-space:nowrap;">${htmlBadgesCodigo}</td>
                 <td style="padding:10px 12px; white-space:nowrap;">${badgeTipoDoc}</td>
                 <td style="padding:10px 12px; font-weight:700; color:#475569; white-space:nowrap;">${_escHtmlProp(item.categoria || '—')}</td>
-                <td style="padding:10px 12px; font-weight:700; color:#0f172a;">${_escHtmlProp(cliNomeComIcone)}</td>
+                <td style="padding:10px 12px; min-width:300px; width:28%;">
+                    <div style="font-weight:700; color:#0f172a; line-height:1.3;">${_escHtmlProp(cliNomeComIcone)}</div>
+                    <div style="font-size:0.75rem; color:#0369a1; font-weight:600; margin-top:3px; text-transform:lowercase; display:flex; align-items:center; gap:4px;">
+                        <i class="ph ph-envelope-simple" style="font-size:0.85rem;"></i> ${_escHtmlProp((item.email_enviado || '—').toLowerCase())}
+                    </div>
+                </td>
                 <td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(item.contato_nome || '—')}</td>
-                <td style="padding:10px 12px; color:#0369a1; font-weight:600; text-transform:lowercase;">${_escHtmlProp((item.email_enviado || '—').toLowerCase())}</td>
                 <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${_escHtmlProp(fmtDataHora(item.enviado_em))}</td>
                 <td style="padding:10px 12px; white-space:nowrap;">${badgeSit}</td>
                 <td style="padding:10px 12px; color:${item.assinado_em ? '#15803d' : '#94a3b8'}; font-weight:${item.assinado_em ? '700' : '400'}; white-space:nowrap;">${_escHtmlProp(item.assinado_em ? fmtDataHora(item.assinado_em) : '—')}</td>
@@ -9892,10 +9946,18 @@ window.abrirLogsAlteracao = async function(id) {
                 atuNorm.startsWith('APROVADA') ||
                 atuNorm.includes('ACEITE ASSINADO')
             );
-            const mostrarOlho = Boolean(log.tem_documento || ehFaseTransicaoDoc || cNorm === 'CRIACAO');
-            const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
             const ehLogContrato = String(log.origem_registro || '').toLowerCase() === 'contrato';
+            const ehAcaoEnvioOuPdfContrato = ehLogContrato && (
+                cNorm.includes('ENVIO DE E-MAIL') ||
+                cNorm.includes('ENVIO POR WHATSAPP') ||
+                cNorm.includes('DOWNLOAD DE PDF') ||
+                cNorm.includes('ASSINAFY') ||
+                cNorm === 'SITUACAO DO CONTRATO'
+            );
+            const mostrarOlho = Boolean(log.tem_documento || ehAcaoEnvioOuPdfContrato || ehFaseTransicaoDoc || cNorm === 'CRIACAO');
+            const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
             const bgLinhaHist = ehLogContrato ? '#ffffff' : '#e2e8f0';
+            const labelTelaHist = ehLogContrato ? 'Contrato' : 'Proposta';
             const tituloBotaoOlho = ehAssinado
                 ? 'Visualizar documento assinado desta versão'
                 : (ehLogContrato ? 'Visualizar documento PDF do contrato nesta versão' : 'Visualizar documento PDF da proposta nesta versão');
@@ -9904,32 +9966,34 @@ window.abrirLogsAlteracao = async function(id) {
                 : '<span style="color:#94a3b8;">—</span>';
 
             return `
-                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.8rem;" title="${ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta'}">
-                    <td style="padding:0.5rem 0.6rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
-                    <td style="padding:0.5rem 0.6rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
-                    <td style="padding:0.5rem 0.6rem; color:#334155; line-height:1.4;">${descEdicao}</td>
-                    <td style="padding:0.5rem 0.6rem; text-align:center; white-space:nowrap;">${btnOlhoHtml}</td>
+                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.82rem;" title="${ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta'}">
+                    <td style="padding:0.55rem 0.7rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
+                    <td style="padding:0.55rem 0.7rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
+                    <td style="padding:0.55rem 0.7rem; font-weight:700; color:${ehLogContrato ? '#0f172a' : '#334155'}; white-space:nowrap;">${labelTelaHist}</td>
+                    <td style="padding:0.55rem 0.7rem; color:#334155; line-height:1.4;">${descEdicao}</td>
+                    <td style="padding:0.55rem 0.7rem; text-align:center; white-space:nowrap;">${btnOlhoHtml}</td>
                 </tr>
             `;
         }).join('');
 
         Swal.fire({
-            title: `<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:1.1rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;">
+            title: `<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;">
                 <span><i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Alterações</span>
-                <span style="display:inline-flex; align-items:center; gap:12px; font-size:0.75rem; font-weight:600; color:#334155;">
+                <span style="display:inline-flex; align-items:center; gap:14px; font-size:0.78rem; font-weight:600; color:#334155;">
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#e2e8f0; border:1px solid #94a3b8; display:inline-block;"></span> Histórico da Proposta</span>
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#ffffff; border:1px solid #94a3b8; display:inline-block;"></span> Histórico do Contrato</span>
                 </span>
             </div>`,
             html: `
-                <div style="max-height:380px; overflow-y:auto; width:100%; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
+                <div style="height:75vh; max-height:76vh; overflow-y:auto; width:100%; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
                     <table style="width:100%; border-collapse:collapse; text-align:left; font-family:'Inter', sans-serif;">
                         <thead>
-                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.78rem; font-weight:700; position:sticky; top:0; z-index:1;">
-                                <th style="padding:0.55rem 0.6rem;">Usuário</th>
-                                <th style="padding:0.55rem 0.6rem;">Dia e Hora</th>
-                                <th style="padding:0.55rem 0.6rem;">Edição Realizada</th>
-                                <th style="padding:0.55rem 0.6rem; text-align:center; width:70px;">Doc.</th>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.8rem; font-weight:700; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.65rem 0.7rem;">Usuário</th>
+                                <th style="padding:0.65rem 0.7rem;">Dia e Hora</th>
+                                <th style="padding:0.65rem 0.7rem;">Tela</th>
+                                <th style="padding:0.65rem 0.7rem;">Edição Realizada</th>
+                                <th style="padding:0.65rem 0.7rem; text-align:center; width:80px;">Doc.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -9938,7 +10002,7 @@ window.abrirLogsAlteracao = async function(id) {
                     </table>
                 </div>
             `,
-            width: '880px',
+            width: '96vw',
             confirmButtonText: 'Fechar',
             confirmButtonColor: '#7048e8'
         });

@@ -1179,7 +1179,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
                 dados.aprovado_em = log.data_hora || pBase.aprovado_em || null;
             }
 
-            res.json({ success: true, dados, log });
+            res.json({ success: true, dados, proposta: pBase, log });
         } catch (e) {
             console.error('[PROPOSTA-PUBLICA] Erro ao montar documento do histórico:', e.message);
             res.status(500).json({ error: e.message || 'Erro ao carregar documento do histórico.' });
