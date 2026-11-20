@@ -2659,8 +2659,12 @@ window._obterChaveSnapshotComercial = function(modo, tabIdOverride) {
 
 window._resetarEstadoMemoriaFormComercial = function(modo) {
     _propostasEditandoId = null;
-    if (modo === 'contrato') window._propostasEditandoId_contrato = null;
-    else window._propostasEditandoId_proposta = null;
+    if (modo === 'contrato') {
+        window._propostasEditandoId_contrato = null;
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    } else {
+        window._propostasEditandoId_proposta = null;
+    }
     window._propProdutosAdicionados = [];
     window._propProdutosAprovadosAtual = [];
     window._propDiasEventoSelecionados = [];
@@ -2726,8 +2730,12 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     const snap = window._snapshotsFormComercial && window._snapshotsFormComercial[chave];
     if (!snap) return false;
     _propostasEditandoId = snap.editandoId || null;
-    if (m === 'contrato') window._propostasEditandoId_contrato = _propostasEditandoId;
-    else window._propostasEditandoId_proposta = _propostasEditandoId;
+    if (m === 'contrato') {
+        window._propostasEditandoId_contrato = _propostasEditandoId;
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    } else {
+        window._propostasEditandoId_proposta = _propostasEditandoId;
+    }
     _renderFormPropostaInt();
     const formElAfter = document.getElementById('form-proposta');
     if (formElAfter) formElAfter.setAttribute('data-tab-key', chave);
@@ -3817,8 +3825,12 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
     const chaveAtu = typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial(modoAtu) : modoAtu;
     if (window._snapshotsFormComercial) delete window._snapshotsFormComercial[chaveAtu];
     window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
-    if (modoAtu === 'contrato') window._propostasEditandoId_contrato = id;
-    else window._propostasEditandoId_proposta = id;
+    if (modoAtu === 'contrato') {
+        window._propostasEditandoId_contrato = id;
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    } else {
+        window._propostasEditandoId_proposta = id;
+    }
     _propostasEditandoId = id;
     _currentPropostaTab = 'form';
     
@@ -3829,6 +3841,9 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
     // Sempre re-renderiza o form ao abrir pelo botão de Editar ou Nova Proposta (para resetar dados)
     if (document.getElementById('prop-view-form')) {
         _renderFormPropostaInt();
+    }
+    if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
+        window.salvarSnapshotEstadoFormComercial(modoAtu);
     }
     window.switchPropostaTab(modoAtu === 'contrato' ? 'contratos' : 'propostas');
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
@@ -4654,15 +4669,15 @@ function _renderFormPropostaInt() {
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700;">Produto</th>
-                                        <th style="padding:10px 12px; font-weight:700;">Observação</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:95px; text-align:center;">Quantidade</th>
-                                        <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:135px; text-align:center; line-height:1.25;">Quant. Manut.<br>Semana</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:155px; text-align:center;">Desconto</th>
-                                        <th id="prop-th-valor-unit" style="padding:10px 12px; font-weight:700; width:145px; text-align:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'center' : 'right'}; line-height:1.25;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário<br>Diária R$' : 'Valor Unit.'}</th>
-                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 12px; font-weight:700; width:140px; text-align:center; line-height:1.25;">Valor Total<br>por Dia R$</th>
-                                        <th id="prop-th-valor-total" style="padding:10px 12px; font-weight:700; width:125px; text-align:center; line-height:1.25;">Valor<br>Total R$</th>
-                                        <th style="padding:10px 12px; font-weight:700; width:70px; text-align:center;">Ações</th>
+                                        <th style="padding:10px 10px; font-weight:700; width:27%;">Produto</th>
+                                        <th style="padding:10px 10px; font-weight:700; width:33%;">Observação</th>
+                                        <th style="padding:10px 6px; font-weight:700; width:72px; text-align:center;">Qtd.</th>
+                                        <th id="prop-th-manut-semana" style="display:${typeof window.tipoPropostaUsaManutencoes === 'function' && window.tipoPropostaUsaManutencoes(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 6px; font-weight:700; width:105px; text-align:center; line-height:1.25;">Quant. Manut.<br>Semana</th>
+                                        <th style="padding:10px 6px; font-weight:700; width:130px; text-align:center;">Desconto</th>
+                                        <th id="prop-th-valor-unit" style="padding:10px 8px; font-weight:700; width:105px; text-align:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'center' : 'right'}; line-height:1.25;">${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'Valor Unitário<br>Diária R$' : 'Valor Unit.'}</th>
+                                        <th id="prop-th-valor-total-dia" style="display:${typeof window.tipoPropostaEhEvento === 'function' && window.tipoPropostaEhEvento(v('tipo')) ? 'table-cell' : 'none'}; padding:10px 8px; font-weight:700; width:108px; text-align:center; line-height:1.25;">Valor Total<br>por Dia R$</th>
+                                        <th id="prop-th-valor-total" style="padding:10px 8px; font-weight:700; width:105px; text-align:center; line-height:1.25;">Valor<br>Total R$</th>
+                                        <th style="padding:10px 6px; font-weight:700; width:60px; text-align:center;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prop-produtos-tbody">
@@ -9943,6 +9958,7 @@ window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
     window._modoTelaComercial = 'contrato';
     window._propostasEditandoId_contrato = targetId;
     _propostasEditandoId = targetId;
+    window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
     await abrirFormProposta(targetId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
         window.salvarSnapshotEstadoFormComercial('contrato', chaveSnapCtr);
@@ -21727,7 +21743,7 @@ window._garantirTabelasPrecoCarregadas = async function(force = false) {
 };
 
 window.obterTipoEfetivoProposta = function(tipo) {
-    const raw = (tipo !== undefined && tipo !== null) ? tipo : (document.getElementById('prop-tipo')?.value || '');
+    const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '') ? tipo : (document.getElementById('prop-tipo')?.value || '');
     const t = String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (t === 'INTERVENIENTE') return 'OBRA MENSAL';
     if (t === 'ADITIVO') {
@@ -25452,35 +25468,35 @@ window.renderizarProdutosPropostaGrid = function() {
                     <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}${badgeAprovCompGridHtml}</div>
                     ${diasChipsHtml}
                 </td>
-                <td style="padding:8px 10px;">
+                <td style="padding:8px 8px;">
                     <input type="text" value="${_escHtmlProp(obsProd)}" onchange="window.atualizarItemProdutoProposta(${idx}, 'observacao', this.value)"
                         placeholder="Observação..." style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box; ${styleRiscadoGrid}">
                 </td>
-                <td style="padding:8px 10px; text-align:center;">
+                <td style="padding:8px 6px; text-align:center;">
                     <input type="number" min="${(typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1}" value="${qtd}" onchange="window.atualizarItemProdutoProposta(${idx}, 'quantidade', this.value)"
-                        style="width:72px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700; ${styleRiscadoGrid}">
+                        style="width:58px; padding:4px 4px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:700; ${styleRiscadoGrid}">
                 </td>
                 ${usaManutGrid ? `
-                <td style="padding:8px 10px; text-align:center;">
+                <td style="padding:8px 6px; text-align:center;">
                     <input type="text" inputmode="numeric" value="${manutValItem > 0 ? manutValItem + ' x' : ''}" placeholder="—"
                         oninput="if(typeof window.formatarManutSemanaInput === 'function') window.formatarManutSemanaInput(this);"
                         onchange="window.atualizarItemProdutoProposta(${idx}, 'manut_semana', this.value)"
                         title="Quantidade de manutenções por semana"
-                        style="width:76px; padding:4px 6px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff; ${styleRiscadoGrid}">
+                        style="width:64px; padding:4px 4px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff; ${styleRiscadoGrid}">
                 </td>` : ''}
-                <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
-                <td style="padding:8px 10px; text-align:right;">
+                <td style="padding:8px 6px; text-align:center;">${descHtml}</td>
+                <td style="padding:8px 6px; text-align:right;">
                     <input type="text" inputmode="numeric" data-prod-unit-input="${idx}" value="${window.formatarMoedaCentavosProposta(vUnit)}"
                         ${temValorTabelaItem
                             ? `readonly data-bloqueado-tabela="1" title="${titleBloqTabela}"`
                             : `onfocus="window.posicionarCursorFimMoeda(this)" onclick="window.posicionarCursorFimMoeda(this)" oninput="window.onInputValorItemProdutoProposta(${idx}, this)" onchange="window.atualizarItemProdutoProposta(${idx}, 'valor', this.value)"`}
-                        style="width:105px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaItem ? '#475569' : '#0f172a'}; background:${temValorTabelaItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaItem ? 'cursor:not-allowed;' : ''} ${styleRiscadoGrid}">
+                        style="width:88px; padding:4px 5px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaItem ? '#475569' : '#0f172a'}; background:${temValorTabelaItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaItem ? 'cursor:not-allowed;' : ''} ${styleRiscadoGrid}">
                 </td>
                 ${ehEventoGrid ? `
-                <td data-prod-subtotal="${idx}" style="padding:8px 10px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
+                <td data-prod-subtotal="${idx}" style="padding:8px 6px; font-weight:700; color:#0f172a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
                     R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>` : ''}
-                <td data-prod-total="${idx}" style="padding:8px 10px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
+                <td data-prod-total="${idx}" style="padding:8px 6px; font-weight:800; color:#16a34a; text-align:right; white-space:nowrap; ${styleRiscadoGrid}">
                     ${temValorTabelaItem
                         ? `<span title="${titleBloqTabela}">R$ ${valorTotalFinalLinha.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
                         : `<input type="text" inputmode="numeric" data-prod-total-input="${idx}" value="${window.formatarMoedaCentavosProposta(valorTotalFinalLinha)}"
@@ -25489,7 +25505,7 @@ window.renderizarProdutosPropostaGrid = function() {
                             oninput="window.onInputValorTotalItemProdutoProposta(${idx}, this)"
                             onchange="window.atualizarItemProdutoProposta(${idx}, 'valor_total', this.value)"
                             title="Editar valor total (R$)"
-                            style="width:110px; padding:4px 6px; border:1px solid #86efac; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#15803d; background:#fff; ${styleRiscadoGrid}">`}
+                            style="width:92px; padding:4px 5px; border:1px solid #86efac; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#15803d; background:#fff; ${styleRiscadoGrid}">`}
                 </td>
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
                     <div style="display:inline-flex; align-items:center; justify-content:center; gap:5px;">
@@ -28650,14 +28666,14 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw) {
         `;
     }).join('');
     return `
-        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
             <thead>
                 <tr style="background:#f1f5f9; color:#1e293b;">
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Equipamento / Produto</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Observação</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:64px;">Qtd.</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:105px;">Vlr. Unitário</th>
-                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:110px;">Vlr. Total</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:36%;">Equipamento / Produto</th>
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:38%;">Observação</th>
+                    <th style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:6%;">Qtd.</th>
+                    <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:10%;">Vlr. Unitário</th>
+                    <th style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:right; width:10%;">Vlr. Total</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>

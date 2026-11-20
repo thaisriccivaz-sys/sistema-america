@@ -15,7 +15,7 @@
     window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EQUIPAMENTOS', 'EQUIPAMENTO', 'ADITIVO'];
 
     const tipoProprioProposta = (tipo) => {
-        const raw = (tipo !== undefined && tipo !== null) ? tipo : (document.getElementById('prop-tipo')?.value || '');
+        const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '') ? tipo : (document.getElementById('prop-tipo')?.value || '');
         return String(raw || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     };
 
@@ -39,6 +39,8 @@
     /* O quadro de Serviços aparece em OBRA, EQUIPAMENTOS e ADITIVO de Obra/Equipamentos */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
+        if (window._modoTelaComercial === 'contrato' && !t) return true;
+        if (Array.isArray(window._propServicosAdicionados) && window._propServicosAdicionados.length > 0) return true;
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
     };
 
@@ -125,7 +127,7 @@
                     <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços*' : 'Serviços'}</span>
                     <span id="prop-servicos-hint" style="display:none;"></span>
                 </h4>
-                <button type="button" onclick="if(typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" title="Abrir / Fechar Serviços" style="display:${isModoCtr ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
+                <button type="button" id="btn-toggle-secao-servicos" onclick="if(typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" title="Abrir / Fechar Serviços" style="display:${isModoCtr ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
                     <i id="prop-caret-servicos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(isModoCtr && servAberto) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                 </button>
             </div>
@@ -216,6 +218,14 @@
         } else if (wrap) {
             wrap.style.display = 'block';
         }
+        const isModoCtr = window._modoTelaComercial === 'contrato';
+        const servAberto = !isModoCtr || Boolean(window._contratoSecoesAbertas && window._contratoSecoesAbertas.servicos);
+        const bodyServ = document.getElementById('prop-secao-servicos-body');
+        if (bodyServ) bodyServ.style.display = servAberto ? 'block' : 'none';
+        const btnToggleServ = document.getElementById('btn-toggle-secao-servicos');
+        if (btnToggleServ) btnToggleServ.style.display = isModoCtr ? 'inline-flex' : 'none';
+        const caretServ = document.getElementById('prop-caret-servicos');
+        if (caretServ) caretServ.style.transform = (isModoCtr && servAberto) ? 'rotate(180deg)' : 'rotate(0deg)';
         window._atualizarTituloServicosProposta(tipo);
         if (typeof window.atualizarVisibilidadeManutencoesProposta === 'function') {
             window.atualizarVisibilidadeManutencoesProposta(tipo);
