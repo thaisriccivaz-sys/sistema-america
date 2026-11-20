@@ -632,6 +632,16 @@ window.tipoPropostaUsaContratoBase = function(tipoRaw) {
     return t === 'ADITIVO' || t === 'ADTIVO' || t === 'AVARIA' || t === 'AVARIAS';
 };
 
+/* ── Máscara padrão de Telefone / Celular: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX ── */
+window.aplicarMascaraTelefone = function(val) {
+    const d = String(val || '').replace(/\D/g, '').slice(0, 11);
+    if (!d) return '';
+    if (d.length <= 2) return '(' + d;
+    if (d.length <= 6) return '(' + d.slice(0, 2) + ') ' + d.slice(2);
+    if (d.length <= 10) return '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    return '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7);
+};
+
 window.ASSINAFY_TIPOS_SIGNATARIO = [
     'Responsável Legal',
     'América Rental',
@@ -639,6 +649,25 @@ window.ASSINAFY_TIPOS_SIGNATARIO = [
     'Interveniente',
     'Procurador'
 ];
+
+window.contratoEstaComIntervenienteAtivo = function(propOpcional = null) {
+    const chk = document.getElementById('prop-chk-interveniente');
+    if (chk) return Boolean(chk.checked);
+    const p = propOpcional || (_propostasEditandoId ? (_propostasData || []).find(x => Number(x.id) === Number(_propostasEditandoId)) : null);
+    if (!p) return false;
+    return Boolean(
+        Number(p.contrato_interveniente) === 1 ||
+        p.contrato_interveniente === true ||
+        String(p.interveniente_nome || '').trim() ||
+        String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE'
+    );
+};
+
+window.obterTiposSignatarioPermitidos = function(propOpcional = null) {
+    const base = window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador'];
+    const ehInterv = window.contratoEstaComIntervenienteAtivo(propOpcional);
+    return ehInterv ? base : base.filter(t => t !== 'Interveniente');
+};
 
 window.obterListaSignatariosProposta = function(prop) {
     if (!prop) return [];
@@ -656,14 +685,19 @@ window.obterListaSignatariosProposta = function(prop) {
         (prop.assinafy_signed_r2_key && String(prop.assinafy_signed_r2_key).trim()) ||
         (prop.assinafy_signed_at && String(prop.assinafy_signed_at).trim())
     );
+    const jaTemEnvioAssinafy = Boolean(prop.assinafy_id || prop.assinafy_sent_at);
     if (lista.length > 0) {
-        return lista.map(s => ({
-            ...s,
-            tipo: s.tipo || 'Responsável Legal',
-            status: (foiAssinadoGeral || s.status === 'Assinado' || s.assinado_em) ? 'Assinado' : 'Aguardando Assinatura',
-            enviado_em: s.enviado_em || prop.assinafy_sent_at || '',
-            assinado_em: s.assinado_em || (foiAssinadoGeral ? (prop.assinafy_signed_at || '') : '')
-        }));
+        return lista.map(s => {
+            const isAssin = foiAssinadoGeral || String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em);
+            const envEm = s.enviado_em || (jaTemEnvioAssinafy ? (prop.assinafy_sent_at || '') : '');
+            return {
+                ...s,
+                tipo: s.tipo || 'Responsável Legal',
+                status: isAssin ? 'Assinado' : (envEm ? 'Aguardando Assinatura' : (s.status || 'Na lista para envio')),
+                enviado_em: envEm,
+                assinado_em: s.assinado_em || (foiAssinadoGeral ? (prop.assinafy_signed_at || '') : '')
+            };
+        });
     }
     if (prop.assinafy_id || prop.assinafy_email || prop.assinafy_signer_name) {
         const emails = String(prop.assinafy_email || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -823,11 +857,37 @@ if (!window._propSigContatoOutsideClickBound && typeof document !== 'undefined')
     });
 }
 
+window.persistirSignatariosDraftContrato = async function() {
+    if (!_propostasEditandoId) return;
+    const sigs = Array.isArray(window._propSignatariosContratoDraft) ? window._propSignatariosContratoDraft : [];
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        const resp = await fetch(`/api/propostas/${_propostasEditandoId}/signatarios-draft`, {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+            body: JSON.stringify({ signatarios: sigs })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data && data.success) {
+            const prop = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId));
+            if (prop) {
+                prop.assinafy_signatarios_json = data.assinafy_signatarios_json || JSON.stringify(sigs);
+            }
+        }
+    } catch (e) {
+        console.warn('[ASSINATURA DIGITAL DRAFT] Erro ao salvar rascunho:', e);
+    }
+};
+
 window.adicionarSignatarioQuadroContrato = function() {
     const selTipo = document.getElementById('prop-sig-add-tipo');
     const inpNome = document.getElementById('prop-sig-add-nome');
     const inpEmail = document.getElementById('prop-sig-add-email');
     const tipo = (selTipo?.value || 'Responsável Legal').trim();
+    if (tipo === 'Interveniente' && !window.contratoEstaComIntervenienteAtivo()) {
+        Swal.fire('Aviso', 'O tipo de signatário "Interveniente" apenas pode ser selecionado quando a opção "Interveniente" estiver marcada ao lado do Título do contrato.', 'warning');
+        return false;
+    }
     const ehAm = tipo === 'América Rental';
     const nome = (inpNome?.value || (ehAm ? 'América Rental' : '')).trim();
     const email = ehAm ? 'nicolle.mezuraro@americarental.com.br' : (inpEmail?.value || '').trim().toLowerCase();
@@ -854,6 +914,7 @@ window.adicionarSignatarioQuadroContrato = function() {
         assinado_em: ''
     });
     window.atualizarQuadroAssinaturaDigitalDom();
+    window.persistirSignatariosDraftContrato();
     return true;
 };
 
@@ -861,10 +922,16 @@ window.removerSignatarioQuadroContrato = function(idx) {
     if (!Array.isArray(window._propSignatariosContratoDraft)) return;
     window._propSignatariosContratoDraft.splice(idx, 1);
     window.atualizarQuadroAssinaturaDigitalDom();
+    window.persistirSignatariosDraftContrato();
 };
 
 window.alterarTipoSignatarioLinhaQuadroContrato = function(idx, novoTipo) {
     if (!Array.isArray(window._propSignatariosContratoDraft) || !window._propSignatariosContratoDraft[idx]) return;
+    if (novoTipo === 'Interveniente' && !window.contratoEstaComIntervenienteAtivo()) {
+        Swal.fire('Aviso', 'O tipo de signatário "Interveniente" apenas pode ser selecionado quando a opção "Interveniente" estiver marcada ao lado do Título do contrato.', 'warning');
+        window.atualizarQuadroAssinaturaDigitalDom();
+        return;
+    }
     window._propSignatariosContratoDraft[idx].tipo = novoTipo;
     if (novoTipo === 'América Rental') {
         window._propSignatariosContratoDraft[idx].email = 'nicolle.mezuraro@americarental.com.br';
@@ -873,6 +940,7 @@ window.alterarTipoSignatarioLinhaQuadroContrato = function(idx, novoTipo) {
         }
     }
     window.atualizarQuadroAssinaturaDigitalDom();
+    window.persistirSignatariosDraftContrato();
 };
 
 window.enviarContratoParaAssinaturaPeloQuadro = async function() {
@@ -948,7 +1016,9 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        contrato_interveniente: Boolean(document.getElementById('prop-chk-interveniente')?.checked) ? 1 : 0,
         interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
+        interveniente_contato_nome: obter('prop-interveniente-contato').trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -1061,8 +1131,11 @@ window.sincronizarAssinaturaDigitalQuadroContrato = async function(silencioso = 
             window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(propAtual);
             window.atualizarQuadroAssinaturaDigitalDom();
             const selFase = document.getElementById('prop-fase');
-            const sitCtr = window.obterSituacaoContratoInicial(propAtual);
-            if (selFase && window._isModoContratosComercial && sitCtr) {
+            const cfgSit = typeof window.obterConfigSituacaoContrato === 'function'
+                ? window.obterConfigSituacaoContrato(propAtual.situacao_contrato)
+                : null;
+            const sitCtr = (cfgSit && cfgSit.nome) || String(propAtual.situacao_contrato || 'EM ELABORAÇÃO').trim();
+            if (selFase && window._modoTelaComercial === 'contrato' && sitCtr) {
                 if (!Array.from(selFase.options).some(o => o.value === sitCtr)) {
                     const optTmp = document.createElement('option');
                     optTmp.value = sitCtr;
@@ -1126,7 +1199,9 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
         window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(prop);
     }
     const sigs = Array.isArray(window._propSignatariosContratoDraft) ? window._propSignatariosContratoDraft : [];
-    const tipos = window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador'];
+    const tipos = typeof window.obterTiposSignatarioPermitidos === 'function'
+        ? window.obterTiposSignatarioPermitidos(prop)
+        : (window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador']);
     const foiAssinadoGeral = Boolean(
         prop && (
             String(prop.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
@@ -1173,6 +1248,9 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
                         </div>
                         <button type="button" onclick="window.toggleDropdownContatosSignatarioQuadro(event)" title="Selecionar contato do cliente" style="background:#3b82f6; color:white; border:none; padding:0 0.65rem; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:36px; flex-shrink:0;">
                             <i class="ph ph-address-book" style="font-size:1.05rem;"></i>
+                        </button>
+                        <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-sig-add-nome')?.value || '', true)" title="Adicionar Novo Contato ao Cliente" style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                            <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                         </button>
                     </div>
                 </div>
@@ -1264,7 +1342,9 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
 };
 
 window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Enviar para Assinatura (Assinafy)', nomePadrao = '', emailPadrao = '', signatariosIniciais = null } = {}) {
-    const tipos = window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador'];
+    const tipos = typeof window.obterTiposSignatarioPermitidos === 'function'
+        ? window.obterTiposSignatarioPermitidos()
+        : (window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador']);
     let linhas = Array.isArray(signatariosIniciais) && signatariosIniciais.length > 0
         ? signatariosIniciais.map(s => ({
             tipo: s.tipo || 'Responsável Legal',
@@ -3960,13 +4040,21 @@ function _renderFormPropostaInt() {
 
                     <div id="prop-campos-dependentes-tipo" onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
 
-                    <!-- Linha 2: Título (no Contrato), Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
-                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1.35fr 1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 2: Título + Interveniente (no Contrato), Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
+                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1.6fr 1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
                         <div id="prop-col-titulo-contrato" style="display:${window._modoTelaComercial === 'contrato' ? 'block' : 'none'};">
                             <label class="prop-lbl">Título *</label>
-                            <input type="text" id="prop-titulo-contrato" value="${_escHtmlProp(v('titulo_contrato'))}" placeholder="Digite o título do contrato..."
-                                oninput="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;text-transform:none !important;">
+                            <div style="display:flex; gap:0.55rem; align-items:center;">
+                                <input type="text" id="prop-titulo-contrato" value="${_escHtmlProp(v('titulo_contrato'))}" placeholder="Digite o título do contrato..."
+                                    oninput="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
+                                    style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none !important;">
+                                <label style="display:inline-flex; align-items:center; gap:6px; padding:0 10px; height:36px; border:1px solid #c4b5fd; border-radius:6px; background:#f5f3ff; color:#5b21b6; font-size:0.8rem; font-weight:700; cursor:pointer; white-space:nowrap; user-select:none; box-sizing:border-box;" title="Marque para incluir o quadro Dados do Interveniente e o texto legal de interveniente no contrato">
+                                    <input type="checkbox" id="prop-chk-interveniente" ${(Number(prop?.contrato_interveniente) === 1 || prop?.contrato_interveniente === true || Boolean(v('interveniente_nome')) || String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE') ? 'checked' : ''}
+                                        onchange="if(typeof window.onToggleContratoInterveniente === 'function') window.onToggleContratoInterveniente(this.checked); if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
+                                        style="width:15px; height:15px; accent-color:#7048e8; cursor:pointer; margin:0;">
+                                    Interveniente
+                                </label>
+                            </div>
                         </div>
                         <div>
                             <label class="prop-lbl">Data Cadastro *</label>
@@ -4178,19 +4266,50 @@ function _renderFormPropostaInt() {
                                     </button>
                                 </div>
                             </div>
-                            <div id="prop-wrapper-interveniente" style="display:${(String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE' || (window._modoTelaComercial === 'contrato' && v('interveniente_nome'))) ? 'block' : 'none'}; grid-column: 1 / -1; margin-top:0.2rem;">
-                                <label class="prop-lbl">Interveniente (Razão Social / Nome ou CPF/CNPJ) <span style="color:#7048e8; font-weight:700;">(Contrato Interveniente)</span></label>
+                        </div>
+                    </div>
+
+                    <!-- Seção: Dados do Interveniente (Abaixo de Dados do Cliente, sempre aberta quando o checkbox Interveniente estiver selecionado) -->
+                    <div id="prop-wrapper-interveniente" style="display:${(window._modoTelaComercial === 'contrato' && (Number(prop?.contrato_interveniente) === 1 || prop?.contrato_interveniente === true || Boolean(v('interveniente_nome')) || String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE')) ? 'block' : 'none'}; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <h4 style="margin:0 0 0.45rem; font-size:0.8rem; color:#5b21b6; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
+                            <i class="ph ph-buildings" style="color:#7048e8; font-size:1rem;"></i> Dados do Interveniente
+                        </h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
+                            <div>
+                                <label class="prop-lbl">Interveniente (Cliente) <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <div style="position:relative; flex:1;">
+                                    <div id="prop-interveniente-combo-wrap" style="position:relative; flex:1;">
                                         <input type="text" id="prop-interveniente" value="${_escHtmlProp(typeof window.formatarNomeClienteComIcone === 'function' && v('interveniente_nome') ? window.formatarNomeClienteComIcone(v('interveniente_nome')) : (v('interveniente_nome') || ''))}"
                                             placeholder="Digite para filtrar ou pesquise o cliente interveniente..."
                                             onfocus="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
-                                            oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
-                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none;">
+                                            oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true); if(typeof window.onChangeIntervenienteContratoInput === 'function') window.onChangeIntervenienteContratoInput(this.value);"
+                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none !important;">
                                         <div id="prop-interveniente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
                                     </div>
-                                    <button type="button" onclick="if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato();" title="Pesquisar Interveniente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                    <button type="button" onclick="if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato();" title="Pesquisar Cliente Interveniente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
+                                    </button>
+                                    <button type="button" onclick="if(typeof window.cadastrarNovoClienteIntervenienteContrato === 'function') window.cadastrarNovoClienteIntervenienteContrato();" title="Cadastrar Novo Cliente Interveniente (com Cliente Centralizador preenchido automaticamente)" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Contato do Interveniente</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div id="prop-interveniente-contato-combo-wrap" style="position:relative; flex:1;">
+                                        <input type="text" id="prop-interveniente-contato" value="${_escHtmlProp(v('interveniente_contato_nome') || '')}"
+                                            placeholder="Selecione ou digite o contato do interveniente..."
+                                            onclick="if(typeof window.abrirDropdownContatosIntervenienteContrato === 'function') window.abrirDropdownContatosIntervenienteContrato(true, event);"
+                                            oninput="if(typeof window.filtrarDropdownContatosIntervenienteContrato === 'function') window.filtrarDropdownContatosIntervenienteContrato(this.value);"
+                                            style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none !important;">
+                                        <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownContatosIntervenienteContrato === 'function') window.toggleDropdownContatosIntervenienteContrato(event);" title="Selecionar contato vinculado ao interveniente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
+                                        </button>
+                                        <div id="prop-interveniente-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
+                                    </div>
+                                    <button type="button" onclick="if(typeof window.cadastrarNovoContatoIntervenienteContrato === 'function') window.cadastrarNovoContatoIntervenienteContrato();" title="Cadastrar Novo Contato para o Interveniente" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                             </div>
@@ -4605,9 +4724,9 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Seção: Assinatura Digital (Exclusiva na tela de Contratos) -->
+                    <!-- Seção: Assinatura Digital (Exclusiva na tela de Contratos — sempre aberta, sem seta de abrir/fechar) -->
                     <div id="prop-secao-assinatura-digital" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
-                        <div onclick="window.toggleSecaoContratoAccordion('assinatura_digital', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; user-select:none;">
                             <h4 style="margin:0; font-size:0.82rem; color:#0f766e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
                                 <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital
                                 <span id="prop-assinatura-digital-count-badge" style="background:#ccfbf1; color:#115e59; border:1px solid #5eead4; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${window.obterListaSignatariosProposta(prop).length} signatário(s)</span>
@@ -4616,12 +4735,9 @@ function _renderFormPropostaInt() {
                                 <button type="button" id="btn-atualizar-quadro-assinatura-digital" onclick="event.stopPropagation(); window.sincronizarAssinaturaDigitalQuadroContrato(false);" title="Verificar agora no Assinafy se algum signatário assinou o contrato" style="background:#0284c7; color:#ffffff; border:none; padding:4px 10px; border-radius:6px; font-weight:700; font-size:0.74rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">
                                     <i class="ph ph-arrows-clockwise" style="font-size:0.9rem;"></i> Atualizar
                                 </button>
-                                <button type="button" tabindex="-1" style="background:#ccfbf1; border:1px solid #5eead4; color:#0f766e; width:26px; height:26px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
-                                    <i id="prop-caret-assinatura_digital" class="ph ph-caret-down" style="font-size:0.95rem; transition:transform 0.2s; transform:${window._contratoSecoesAbertas.assinatura_digital ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
-                                </button>
                             </div>
                         </div>
-                        <div id="prop-secao-assinatura_digital-body" style="display:${window._contratoSecoesAbertas.assinatura_digital ? 'block' : 'none'}; margin-top:0.6rem;">
+                        <div id="prop-secao-assinatura_digital-body" style="display:block; margin-top:0.6rem;">
                             <div id="prop-quadro-assinatura-digital-conteudo">
                                 ${window.renderQuadroAssinaturaDigitalContratoHtml(prop)}
                             </div>
@@ -6189,11 +6305,11 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                     <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr 1.2fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div class="mcli-field">
                             <label>Telefone *</label>
-                            <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" class="mcli-input">
+                            <input type="text" id="modal-cli-telefone" value="${client ? (client.telefone || '') : ''}" placeholder="(XX) XXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="mcli-input">
                         </div>
                         <div class="mcli-field">
                             <label>Celular / WhatsApp *</label>
-                            <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX)XXXXX-XXXX" class="mcli-input">
+                            <input type="text" id="modal-cli-celular" value="${client ? (client.celular || '') : ''}" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="mcli-input">
                         </div>
                         <div class="mcli-field">
                             <label>Website (Site)</label>
@@ -6211,10 +6327,28 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                         </div>
                     </div>
 
-                    <!-- Observações -->
-                    <div class="mcli-field" style="margin-top:0.85rem;">
-                        <label>Observações</label>
-                        <textarea id="modal-cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." class="mcli-input" style="height:auto; min-height:52px; padding:0.45rem; resize:vertical; font-family:inherit;">${client ? (client.observacoes || '') : ''}</textarea>
+                    <!-- Ramo de Atividade e Observações -->
+                    <div style="display:grid; grid-template-columns:280px 1fr; gap:0.75rem; margin-top:0.85rem; align-items:start;">
+                        <div class="mcli-field">
+                            <label>Ramo de Atividade</label>
+                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; min-height:28px;">
+                                ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => {
+                                    const ramosAtuais = String(client?.ramo_atividade || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                                    const checked = ramosAtuais.includes(op.val.toLowerCase());
+                                    return `
+                                        <label style="display:inline-flex; align-items:center; gap:0.28rem; padding:0 0.55rem; height:28px; box-sizing:border-box; border:1px solid ${checked ? '#3b82f6' : '#cbd5e1'}; border-radius:4px; background:${checked ? '#eff6ff' : '#fff'}; color:${checked ? '#1d4ed8' : '#334155'}; font-size:0.76rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0;">
+                                            <input type="checkbox" class="modal-cli-ramo-chk" value="${op.val}" ${checked ? 'checked' : ''} onchange="window.toggleRamoAtividadeGenerico('.modal-cli-ramo-chk', 'modal-cli-ramo-atividade')" style="accent-color:#2563eb; width:0.85rem; height:0.85rem; cursor:pointer; margin:0;">
+                                            ${op.label}
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                            <input type="hidden" id="modal-cli-ramo-atividade" value="${client ? (client.ramo_atividade || '') : ''}">
+                        </div>
+                        <div class="mcli-field">
+                            <label>Observações</label>
+                            <textarea id="modal-cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." class="mcli-input" style="height:auto; min-height:52px; padding:0.45rem; resize:vertical; font-family:inherit;">${client ? (client.observacoes || '') : ''}</textarea>
+                        </div>
                     </div>
 
                     <!-- ACORDEÕES EXPANSÍVEIS -->
@@ -6254,7 +6388,7 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                                         </div>
                                         <div class="mcli-field">
                                             <label>Celular</label>
-                                            <input type="text" id="modal-new-con-celular" class="mcli-input" placeholder="(XX)XXXXX-XXXX">
+                                            <input type="text" id="modal-new-con-celular" class="mcli-input" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);">
                                         </div>
                                         <div class="mcli-field">
                                             <label>E-mail</label>
@@ -7034,6 +7168,7 @@ window.modalSalvarCliente = async function(clientId) {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('modal-cli-observacoes')?.value || '',
+        ramo_atividade: document.getElementById('modal-cli-ramo-atividade')?.value || '',
         criado_por: document.getElementById('modal-cli-cad-usuario')?.value || (clientId ? '' : window.obterNomeUsuarioLogado())
     };
 
@@ -7054,14 +7189,28 @@ window.modalSalvarCliente = async function(clientId) {
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(clientId ? 'Cliente atualizado com sucesso!' : 'Cliente cadastrado com sucesso!');
             }
-            // Atualizar o input de cliente na tela de proposta principal
-            const propClienteInput = document.getElementById('prop-cliente');
-            if (propClienteInput) {
-                propClienteInput.value = razaoSocial;
-                if (typeof window.onChangeClientePropostaInput === 'function') {
-                    window.onChangeClientePropostaInput(razaoSocial);
-                } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
-                    window.verificarBloqueioFaturamentoProposta(razaoSocial);
+            if (window._criarIntervenienteParaContrato) {
+                window._criarIntervenienteParaContrato = false;
+                const propIntervInput = document.getElementById('prop-interveniente');
+                if (propIntervInput) {
+                    const nomeFormatado = typeof window.formatarNomeClienteComIcone === 'function'
+                        ? window.formatarNomeClienteComIcone(razaoSocial, payload.grupo_clientes)
+                        : razaoSocial;
+                    propIntervInput.value = nomeFormatado;
+                    if (typeof window.onChangeIntervenienteContratoInput === 'function') {
+                        window.onChangeIntervenienteContratoInput(nomeFormatado);
+                    }
+                }
+            } else {
+                // Atualizar o input de cliente na tela de proposta principal
+                const propClienteInput = document.getElementById('prop-cliente');
+                if (propClienteInput) {
+                    propClienteInput.value = razaoSocial;
+                    if (typeof window.onChangeClientePropostaInput === 'function') {
+                        window.onChangeClientePropostaInput(razaoSocial);
+                    } else if (typeof window.verificarBloqueioFaturamentoProposta === 'function') {
+                        window.verificarBloqueioFaturamentoProposta(razaoSocial);
+                    }
                 }
             }
 
@@ -7471,22 +7620,44 @@ window._todosContatosPropostaCache = [];
 window.obterBadgesOpcoesContato = function(c) {
     if (!c) return '';
     const tags = [];
-    if (c.email_nfe === 1 || c.nfe === 'Sim' || c.email_nfe === true) {
-        tags.push('<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Envio NFe</span>');
-    }
-    if (c.email_cobranca === 1 || c.cobranca === 'Sim' || c.email_cobranca === true) {
-        tags.push('<span style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Cobrança</span>');
-    }
-    if (c.email_os === 1 || c.os === 'Sim' || c.email_os === true) {
-        tags.push('<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">OS</span>');
-    }
-    if (c.email_contrato === 1 || c.contrato === 'Sim' || c.email_contrato === true) {
-        tags.push('<span style="background:#f3e8ff; color:#6d28d9; border:1px solid #ddd6fe; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Contrato</span>');
-    }
     if (c.inativo === 1 || c.inativo === 'Sim' || c.inativo === true || String(c.situacao || '').toLowerCase() === 'inativo') {
         tags.push('<span style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:1px 6px; border-radius:4px; font-size:0.66rem; font-weight:700; white-space:nowrap;">Inativo</span>');
     }
     return tags.length > 0 ? `<div style="display:inline-flex; flex-wrap:wrap; gap:4px; align-items:center;">${tags.join('')}</div>` : '';
+};
+
+window.toggleRamoAtividadeCheckboxes = function(chkSelector, hiddenId) {
+    const boxes = document.querySelectorAll(chkSelector);
+    const selecionados = [];
+    boxes.forEach(b => {
+        const lbl = b.closest('label');
+        if (b.checked) {
+            selecionados.push(b.value);
+            if (lbl) {
+                lbl.style.background = '#eff6ff';
+                lbl.style.borderColor = '#3b82f6';
+                lbl.style.color = '#1d4ed8';
+            }
+        } else if (lbl) {
+            lbl.style.background = '#fff';
+            lbl.style.borderColor = '#cbd5e1';
+            lbl.style.color = '#334155';
+        }
+    });
+    const hiddenInput = document.getElementById(hiddenId);
+    if (hiddenInput) hiddenInput.value = selecionados.join(', ');
+};
+
+window.setRamoAtividadeCheckboxes = function(chkSelector, hiddenId, ramoStr) {
+    const raw = String(ramoStr || '');
+    const hiddenInput = document.getElementById(hiddenId);
+    if (hiddenInput) hiddenInput.value = raw;
+    const lower = raw.toLowerCase();
+    document.querySelectorAll(chkSelector).forEach(b => {
+        const v = String(b.value || '').toLowerCase();
+        b.checked = Boolean(v && lower.includes(v));
+    });
+    window.toggleRamoAtividadeCheckboxes(chkSelector, hiddenId);
 };
 
 window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
@@ -7818,6 +7989,7 @@ window.salvarNovoContatoModalProposta = async function() {
         fax: '',
         website: getVal('mcon-emp-site'),
         email: getVal('mcon-emp-email'),
+        ramo_atividade: getVal('mcon-ramo-atividade'),
         criado_por: repAuto
     };
 
@@ -7854,14 +8026,34 @@ window.salvarNovoContatoModalProposta = async function() {
         const res = await apiPost('/contatos', payload);
         if (res && res.success) {
             _clientesCache = [];
-            const propContatoInput = document.getElementById('prop-contato');
-            if (propContatoInput) propContatoInput.value = conNome;
-            const propCliInput = document.getElementById('prop-cliente');
-            if (propCliInput && !propCliInput.value.trim() && empRazao) {
-                propCliInput.value = empRazao;
-                propCliInput.dispatchEvent(new Event('input'));
-                propCliInput.dispatchEvent(new Event('change'));
+            if (window._novoContatoModalOrigemTarget === 'interveniente') {
+                const inpIntCon = document.getElementById('prop-interveniente-contato');
+                if (inpIntCon) inpIntCon.value = conNome;
+                const inpIntCli = document.getElementById('prop-interveniente');
+                if (inpIntCli && !inpIntCli.value.trim() && empRazao) {
+                    inpIntCli.value = typeof window.formatarNomeClienteComIcone === 'function' ? window.formatarNomeClienteComIcone(empRazao) : empRazao;
+                }
+                window._contatosDoIntervenienteContratoAtual = null;
+            } else if (window._novoContatoModalOrigemAssinaturaDigital) {
+                const inpSigNome = document.getElementById('prop-sig-add-nome');
+                const inpSigEmail = document.getElementById('prop-sig-add-email');
+                const selSigTipo = document.getElementById('prop-sig-add-tipo');
+                if (inpSigNome) inpSigNome.value = conNome;
+                if (inpSigEmail && (!selSigTipo || selSigTipo.value !== 'América Rental')) {
+                    inpSigEmail.value = conEmail.toLowerCase();
+                }
+            } else {
+                const propContatoInput = document.getElementById('prop-contato');
+                if (propContatoInput) propContatoInput.value = conNome;
+                const propCliInput = document.getElementById('prop-cliente');
+                if (propCliInput && !propCliInput.value.trim() && empRazao) {
+                    propCliInput.value = empRazao;
+                    propCliInput.dispatchEvent(new Event('input'));
+                    propCliInput.dispatchEvent(new Event('change'));
+                }
             }
+            window._novoContatoModalOrigemAssinaturaDigital = false;
+            window._novoContatoModalOrigemTarget = null;
             await window.carregarContatosVinculadosClienteProposta(empRazao, false);
             Swal.close();
             if (typeof mostrarToastSucesso === 'function') {
@@ -7876,8 +8068,13 @@ window.salvarNovoContatoModalProposta = async function() {
     }
 };
 
-window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
-    const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
+window.cadastrarNovoContatoProposta = async function(nomeInicial = null, origemAssinaturaDigital = false, targetOrigem = null) {
+    window._novoContatoModalOrigemAssinaturaDigital = Boolean(origemAssinaturaDigital);
+    window._novoContatoModalOrigemTarget = targetOrigem || null;
+    const rawClienteRef = targetOrigem === 'interveniente'
+        ? (document.getElementById('prop-interveniente')?.value || '')
+        : (document.getElementById('prop-cliente')?.value || '');
+    const clienteNome = (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(rawClienteRef) : rawClienteRef).trim();
     const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
     let fullCli = foundCli;
     if (foundCli && foundCli.id) {
@@ -7898,6 +8095,8 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
     const empTel = fullCli ? (fullCli.telefone || fullCli.celular || '') : '';
     const empSite = fullCli ? (fullCli.website || '') : '';
     const empEmail = fullCli ? (fullCli.email || '') : '';
+    const empRamo = fullCli ? (fullCli.ramo_atividade || '') : '';
+    const empRamoLower = String(empRamo || '').toLowerCase();
     const hojeFmt = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
     const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
     const nomePre = typeof nomeInicial === 'string' ? nomeInicial : '';
@@ -7923,11 +8122,11 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                         </button>
                     </div>
                     <div style="display:flex; gap:1rem; align-items:center; font-size:0.8rem; font-weight:600; color:#1e293b; flex-wrap:wrap; margin-right:1.5rem;">
-                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-nfe"> Envio NFe</label>
-                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-cobranca"> Cobrança</label>
-                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-os"> OS</label>
-                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-contrato"> Contrato</label>
-                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; border-left:1px solid #cbd5e1; padding-left:10px;"><input type="checkbox" id="mcon-inativo"> Inativo</label>
+                        <label style="display:none; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-nfe"> Envio NFe</label>
+                        <label style="display:none; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-cobranca"> Cobrança</label>
+                        <label style="display:none; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-os"> OS</label>
+                        <label style="display:none; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-email-contrato"> Contrato</label>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="mcon-inativo"> Inativo</label>
                     </div>
                 </div>
                 <div style="padding:1rem 1.25rem; max-height:76vh; overflow-y:auto;">
@@ -7952,7 +8151,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                             <input type="email" id="mcon-email" placeholder="nome@empresa.com" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns:1.8fr 1.3fr 1.1fr 2.2fr; gap:0.65rem; margin-bottom:1rem;">
+                    <div style="display:grid; grid-template-columns:1.8fr 1.3fr 1.1fr; gap:0.65rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">Cargo/Departamento</label>
                             <input type="text" id="mcon-cargo" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
@@ -7977,17 +8176,6 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                                 <option value="Sim">Sim</option>
                                 <option value="Não">Não</option>
                             </select>
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Ramo de Atividade</label>
-                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
-                                ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
-                                    <label style="display:inline-flex; align-items:center; gap:0.3rem; padding:0.38rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.78rem; font-weight:600; cursor:pointer;">
-                                        <input type="checkbox" class="mcon-ramo-chk" value="${op.val}" onchange="window.toggleModalConRamoAtividade()" style="margin:0;"> ${op.label}
-                                    </label>
-                                `).join('')}
-                            </div>
-                            <input type="hidden" id="mcon-ramo-atividade" value="">
                         </div>
                     </div>
 
@@ -8039,7 +8227,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                             </select>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:0.65rem;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1.6fr; gap:0.65rem;">
                         <div>
                             <label class="prop-lbl">Grupo de Clientes</label>
                             <select id="mcon-emp-grupo" style="width:100%; padding:0.48rem 0.5rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
@@ -8056,7 +8244,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                         </div>
                         <div>
                             <label class="prop-lbl">Telefone</label>
-                            <input type="text" id="mcon-emp-telefone" value="${_escHtmlProp(empTel)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                            <input type="text" id="mcon-emp-telefone" value="${_escHtmlProp(empTel)}" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" placeholder="(XX) XXXX-XXXX" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
                         </div>
                         <div>
                             <label class="prop-lbl">Website (Site)</label>
@@ -8065,6 +8253,19 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null) {
                         <div>
                             <label class="prop-lbl">E-mail Empresa</label>
                             <input type="email" id="mcon-emp-email" value="${_escHtmlProp(empEmail)}" style="width:100%; padding:0.48rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Ramo de Atividade</label>
+                            <div style="display:flex; gap:0.35rem; align-items:center; flex-wrap:wrap;">
+                                ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => {
+                                    const active = empRamoLower.includes(op.val.toLowerCase());
+                                    return `
+                                    <label style="display:inline-flex; align-items:center; gap:0.25rem; padding:0.36rem 0.55rem; border:1px solid ${active ? '#3b82f6' : '#cbd5e1'}; border-radius:6px; background:${active ? '#eff6ff' : '#fff'}; color:${active ? '#1d4ed8' : '#334155'}; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                                        <input type="checkbox" class="mcon-ramo-chk" value="${op.val}" ${active ? 'checked' : ''} onchange="window.toggleModalConRamoAtividade()" style="margin:0;"> ${op.label}
+                                    </label>`;
+                                }).join('')}
+                            </div>
+                            <input type="hidden" id="mcon-ramo-atividade" value="${_escHtmlProp(empRamo)}">
                         </div>
                     </div>
                     <input type="hidden" id="mcon-representante" value="${_escHtmlProp(window.obterNomeUsuarioLogado())}">
@@ -8594,7 +8795,9 @@ window.salvarPropostaNova = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        contrato_interveniente: Boolean(document.getElementById('prop-chk-interveniente')?.checked) ? 1 : 0,
         interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
+        interveniente_contato_nome: obter('prop-interveniente-contato').trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -9075,7 +9278,9 @@ window.estornarPropostaEdicao = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        contrato_interveniente: Boolean(document.getElementById('prop-chk-interveniente')?.checked) ? 1 : 0,
         interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
+        interveniente_contato_nome: obter('prop-interveniente-contato').trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -9378,7 +9583,9 @@ window.aprovarPropostaEdicao = async function() {
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
+        contrato_interveniente: Boolean(document.getElementById('prop-chk-interveniente')?.checked) ? 1 : 0,
         interveniente_nome: (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(obter('prop-interveniente')) : obter('prop-interveniente')).trim(),
+        interveniente_contato_nome: obter('prop-interveniente-contato').trim(),
         periodo_inicio: obter('prop-periodo-ini'),
         periodo_fim: obter('prop-periodo-fim'),
         hora_inicio: obter('prop-hora-ini') || '00:00',
@@ -11606,11 +11813,11 @@ function _renderCadastroClienteInt() {
                     <div style="display:grid; grid-template-columns:1fr 1fr 1.2fr 1.2fr; gap:0.75rem; margin-top:0.85rem; align-items:end;">
                         <div>
                             <label class="prop-lbl">Telefone *</label>
-                            <input type="text" id="cli-telefone" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            <input type="text" id="cli-telefone" placeholder="(XX) XXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
                             <label class="prop-lbl">Celular / WhatsApp *</label>
-                            <input type="text" id="cli-celular" placeholder="(XX)XXXXX-XXXX" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            <input type="text" id="cli-celular" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div>
                             <label class="prop-lbl">Website (Site)</label>
@@ -11628,10 +11835,24 @@ function _renderCadastroClienteInt() {
                         </div>
                     </div>
 
-                    <!-- Observações -->
-                    <div style="margin-top:0.85rem;">
-                        <label class="prop-lbl">Observações</label>
-                        <textarea id="cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+                    <!-- Ramo de Atividade e Observações -->
+                    <div style="display:grid; grid-template-columns:300px 1fr; gap:0.75rem; margin-top:0.85rem; align-items:start;">
+                        <div>
+                            <label class="prop-lbl">Ramo de Atividade</label>
+                            <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; min-height:28px;">
+                                ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
+                                    <label style="display:inline-flex; align-items:center; gap:0.3rem; padding:0 0.6rem; height:28px; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:4px; background:#fff; color:#334155; font-size:0.78rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s; margin:0;">
+                                        <input type="checkbox" class="cli-ramo-chk" value="${op.val}" onchange="window.toggleRamoAtividadeGenerico('.cli-ramo-chk', 'cli-ramo-atividade')" style="accent-color:#2563eb; width:0.88rem; height:0.88rem; cursor:pointer; margin:0;">
+                                        ${op.label}
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <input type="hidden" id="cli-ramo-atividade" value="">
+                        </div>
+                        <div>
+                            <label class="prop-lbl">Observações</label>
+                            <textarea id="cli-observacoes" rows="2" placeholder="Digite uma observação sobre o cliente..." style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+                        </div>
                     </div>
                 </form>
 
@@ -12583,6 +12804,9 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         setElVal('cli-celular-ddi', c.celular_ddi || '+55 (BRASIL)');
         document.getElementById('cli-celular').value = c.celular || '';
         setElVal('cli-observacoes', c.observacoes || '');
+        if (typeof window.setRamoAtividadeCheckboxes === 'function') {
+            window.setRamoAtividadeCheckboxes('.cli-ramo-chk', 'cli-ramo-atividade', c.ramo_atividade || '');
+        }
         setElVal('cli-cad-usuario', (c.criado_por && c.criado_por !== 'Administrador') ? c.criado_por : '');
         const dataCadFmt = c.data_cadastro ? (c.data_cadastro.includes('-') ? c.data_cadastro.split('-').reverse().join('/') : c.data_cadastro) : '';
         setElVal('cli-cad-data', dataCadFmt);
@@ -12694,6 +12918,9 @@ window.limparFormCliente = function() {
     }
     const obsEl = document.getElementById('cli-observacoes');
     if (obsEl) obsEl.value = '';
+    if (typeof window.setRamoAtividadeCheckboxes === 'function') {
+        window.setRamoAtividadeCheckboxes('.cli-ramo-chk', 'cli-ramo-atividade', '');
+    }
     const cadUserEl = document.getElementById('cli-cad-usuario');
     if (cadUserEl) cadUserEl.value = window.obterNomeUsuarioLogado();
     const cadDataEl = document.getElementById('cli-cad-data');
@@ -12786,7 +13013,7 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
         dataCadAuto = new Date().toISOString().split('T')[0].split('-').reverse().join('/');
     }
 
-    const ramoRaw = String(c.ramo_atividade || '');
+    const ramoRaw = String(cli.ramo_atividade || c.ramo_atividade || '');
     const ramoLower = ramoRaw.toLowerCase();
     const isObra = ramoLower.includes('obra');
     const isEvento = ramoLower.includes('evento');
@@ -12924,11 +13151,11 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                     </span>
                 </div>
                 <div class="mcon-ribbon-checkboxes" style="color:#475569;">
-                    <label><input type="checkbox" id="mcon-email-nfe" ${c.email_nfe ? 'checked' : ''}> Envio NFe</label>
-                    <label><input type="checkbox" id="mcon-email-cobranca" ${c.email_cobranca ? 'checked' : ''}> Cobrança</label>
-                    <label><input type="checkbox" id="mcon-email-os" ${c.email_os ? 'checked' : ''}> OS</label>
-                    <label><input type="checkbox" id="mcon-email-contrato" ${c.email_contrato ? 'checked' : ''}> Contrato</label>
-                    <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;"><input type="checkbox" id="mcon-inativo" ${c.inativo ? 'checked' : ''}> Inativo</label>
+                    <label style="display:none;"><input type="checkbox" id="mcon-email-nfe" ${c.email_nfe ? 'checked' : ''}> Envio NFe</label>
+                    <label style="display:none;"><input type="checkbox" id="mcon-email-cobranca" ${c.email_cobranca ? 'checked' : ''}> Cobrança</label>
+                    <label style="display:none;"><input type="checkbox" id="mcon-email-os" ${c.email_os ? 'checked' : ''}> OS</label>
+                    <label style="display:none;"><input type="checkbox" id="mcon-email-contrato" ${c.email_contrato ? 'checked' : ''}> Contrato</label>
+                    <label><input type="checkbox" id="mcon-inativo" ${c.inativo ? 'checked' : ''}> Inativo</label>
                 </div>
                 <div style="display:flex; gap:0.4rem; align-items:center;">
                     <button type="button" onclick="${saveAttr}" style="background:#16a34a; color:white; border:none; padding:0.35rem 0.8rem; border-radius:4px; cursor:pointer; font-weight:600; font-size:0.76rem; display:inline-flex; align-items:center; gap:4px; height:28px; box-sizing:border-box;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
@@ -12957,11 +13184,11 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         </div>
                         <div class="mcon-field">
                             <label>Celular / WhatsApp *</label>
-                            <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" class="mcon-input" required>
+                            <input type="text" id="mcon-celular" value="${esc(c.celular)}" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="mcon-input" required>
                         </div>
                         <div class="mcon-field" style="display:none;">
                             <label>Telefone</label>
-                            <input type="text" id="mcon-telefone" value="${esc(c.telefone)}" placeholder="(XX) XXXX-XXXX" class="mcon-input">
+                            <input type="text" id="mcon-telefone" value="${esc(c.telefone)}" placeholder="(XX) XXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="mcon-input">
                         </div>
                         <div class="mcon-field">
                             <label>E-mail</label>
@@ -12969,8 +13196,8 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         </div>
                     </div>
 
-                    <!-- Linha 2: Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (múltipla seleção) -->
-                    <div class="mcon-grid mcon-grid-contact-row2">
+                    <!-- Linha 2: Cargo/Departamento, Origem, Influenciador -->
+                    <div class="mcon-grid" style="grid-template-columns: 2fr 1.5fr 1.3fr;">
                         <div class="mcon-field" style="display:none;">
                             <label>Tipo</label>
                             <select id="mcon-tipo" class="mcon-select">
@@ -13002,21 +13229,6 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                                 <option value="Sim" ${c.influenciador === 'Sim' ? 'selected' : ''}>Sim</option>
                                 <option value="Não" ${c.influenciador === 'Não' ? 'selected' : ''}>Não</option>
                             </select>
-                        </div>
-                        <div class="mcon-field">
-                            <label>Ramo de Atividade (pode selecionar mais de um)</label>
-                            <input type="hidden" id="mcon-ramo-atividade" value="${esc(ramoRaw)}">
-                            <div style="display:flex; align-items:center; gap:6px; height:28px; flex-wrap:wrap;">
-                                <label class="ramo-pill-lbl" style="${pillStyle(isObra)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💙Obra
-                                </label>
-                                <label class="ramo-pill-lbl" style="${pillStyle(isEvento)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💜Evento
-                                </label>
-                                <label class="ramo-pill-lbl" style="${pillStyle(isOutros)}">
-                                    <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💧Outros
-                                </label>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -13070,7 +13282,7 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 0.75rem;">
                         <div class="mcon-field">
                             <label>Grupo de Clientes</label>
                             <input type="text" id="memp-grupo" readonly class="mcon-input" value="${esc(cli.grupo_clientes)}">
@@ -13078,6 +13290,21 @@ window._buildPopupContatoHtml = function(contato, client, isEdit, saveAttr) {
                         <div class="mcon-field">
                             <label>Cliente Centralizador</label>
                             <input type="text" id="memp-centralizador" readonly class="mcon-input" value="${esc(cli.cliente_centralizador)}">
+                        </div>
+                        <div class="mcon-field">
+                            <label>Ramo de Atividade (Cliente)</label>
+                            <input type="hidden" id="mcon-ramo-atividade" value="${esc(ramoRaw)}">
+                            <div style="display:flex; align-items:center; gap:6px; height:28px; flex-wrap:wrap;">
+                                <label class="ramo-pill-lbl" style="${pillStyle(isObra)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Obra" ${isObra ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💙Obra
+                                </label>
+                                <label class="ramo-pill-lbl" style="${pillStyle(isEvento)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Evento" ${isEvento ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💜Evento
+                                </label>
+                                <label class="ramo-pill-lbl" style="${pillStyle(isOutros)}">
+                                    <input type="checkbox" class="mcon-ramo-chk" value="Outros" ${isOutros ? 'checked' : ''} onchange="window.toggleMconRamoAtividade(this)" style="margin:0; accent-color:#3b82f6;"> 💧Outros
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -13229,6 +13456,7 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
         uf: document.getElementById('cli-uf')?.value || '',
         grupo_clientes: document.getElementById('cli-grupo')?.value || '',
         cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+        ramo_atividade: document.getElementById('cli-ramo-atividade')?.value || '',
         telefone: document.getElementById('cli-telefone')?.value || '',
         ramal: document.getElementById('cli-ramal')?.value || '',
         telefone_2: document.getElementById('cli-telefone2')?.value || '',
@@ -13261,15 +13489,13 @@ window.abrirContatoDeCliente = async function(refId, nomeFallback = '', idx = -1
             const conCelular = document.getElementById('mcon-celular');
             if (conCelular) {
                 conCelular.addEventListener('input', (e) => {
-                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-                    e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                    e.target.value = window.aplicarMascaraTelefone(e.target.value);
                 });
             }
             const conTelefone = document.getElementById('mcon-telefone');
             if (conTelefone) {
                 conTelefone.addEventListener('input', (e) => {
-                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,4})(\d{0,4})/);
-                    e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                    e.target.value = window.aplicarMascaraTelefone(e.target.value);
                 });
             }
         }
@@ -13318,8 +13544,15 @@ window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = '
         email_os: document.getElementById('mcon-email-os')?.checked ? 1 : 0,
         email_contrato: document.getElementById('mcon-email-contrato')?.checked ? 1 : 0,
         cliente_id: _clienteEditandoId || null,
-        empresa_cliente: _clienteEditandoId ? { id: _clienteEditandoId } : null
+        empresa_cliente: _clienteEditandoId ? {
+            id: _clienteEditandoId,
+            ramo_atividade: document.getElementById('mcon-ramo-atividade')?.value || ''
+        } : null
     };
+    const mconRamoVal = document.getElementById('mcon-ramo-atividade')?.value || '';
+    if (mconRamoVal && typeof window.setRamoAtividadeCheckboxes === 'function') {
+        window.setRamoAtividadeCheckboxes('.cli-ramo-chk', 'cli-ramo-atividade', mconRamoVal);
+    }
 
     try {
         let savedId = contatoId;
@@ -13442,6 +13675,7 @@ window.encaminharNovoContato = async function(btnEl = null) {
                 uf: document.getElementById('cli-uf')?.value || '',
                 grupo_clientes: document.getElementById('cli-grupo')?.value || '',
                 cliente_centralizador: document.getElementById('cli-centralizador')?.value || '',
+                ramo_atividade: document.getElementById('cli-ramo-atividade')?.value || '',
                 telefone: document.getElementById('cli-telefone')?.value || '',
                 ramal: document.getElementById('cli-ramal')?.value || '',
                 telefone_2: document.getElementById('cli-telefone2')?.value || '',
@@ -13501,15 +13735,13 @@ window.encaminharNovoContato = async function(btnEl = null) {
                 const conCelular = document.getElementById('mcon-celular');
                 if (conCelular) {
                     conCelular.addEventListener('input', (e) => {
-                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-                        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                        e.target.value = window.aplicarMascaraTelefone(e.target.value);
                     });
                 }
                 const conTelefone = document.getElementById('mcon-telefone');
                 if (conTelefone) {
                     conTelefone.addEventListener('input', (e) => {
-                        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,4})(\d{0,4})/);
-                        e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+                        e.target.value = window.aplicarMascaraTelefone(e.target.value);
                     });
                 }
             }
@@ -13549,8 +13781,13 @@ window.modalSalvarNovoContato = async function() {
         return;
     }
 
+    const mconRamoNovo = document.getElementById('mcon-ramo-atividade')?.value || '';
+    if (mconRamoNovo && typeof window.setRamoAtividadeCheckboxes === 'function') {
+        window.setRamoAtividadeCheckboxes('.cli-ramo-chk', 'cli-ramo-atividade', mconRamoNovo);
+    }
     const empresa_cliente = _clienteEditandoId ? {
-        id: _clienteEditandoId
+        id: _clienteEditandoId,
+        ramo_atividade: mconRamoNovo
     } : {
         id: _clienteEditandoId,
         codigo: document.getElementById('memp-codigo')?.value || '',
@@ -13565,6 +13802,7 @@ window.modalSalvarNovoContato = async function() {
         uf: document.getElementById('memp-uf')?.value || '',
         grupo_clientes: document.getElementById('memp-grupo')?.value || '',
         cliente_centralizador: document.getElementById('memp-centralizador')?.value || '',
+        ramo_atividade: mconRamoNovo,
         telefone: document.getElementById('memp-telefone')?.value || '',
         ramal: document.getElementById('memp-ramal')?.value || '',
         telefone_2: document.getElementById('memp-telefone2')?.value || '',
@@ -14448,6 +14686,7 @@ window.salvarCliente = async function() {
         validacao_dados: '',
         anexo_arquivos: '',
         observacoes: document.getElementById('cli-observacoes')?.value || '',
+        ramo_atividade: document.getElementById('cli-ramo-atividade')?.value || '',
         criado_por: document.getElementById('cli-cad-usuario')?.value || (_clienteEditandoId ? '' : window.obterNomeUsuarioLogado())
     };
 
@@ -14790,19 +15029,19 @@ function _renderCadastroContatosInt() {
                         </button>
                     </div>
                     <div class="cc-ribbon-checkboxes" style="color:#1e293b; margin-left:auto;">
-                        <label>
+                        <label style="display:none;">
                             <input type="checkbox" id="con-email-nfe"> Envio NFe
                         </label>
-                        <label>
+                        <label style="display:none;">
                             <input type="checkbox" id="con-email-cobranca"> Cobrança
                         </label>
-                        <label>
+                        <label style="display:none;">
                             <input type="checkbox" id="con-email-os"> OS
                         </label>
-                        <label>
+                        <label style="display:none;">
                             <input type="checkbox" id="con-email-contrato"> Contrato
                         </label>
-                        <label style="margin-left:8px; border-left:1px solid #cbd5e1; padding-left:12px;">
+                        <label style="margin-left:8px;">
                             <input type="checkbox" id="con-inativo"> Inativo
                         </label>
                     </div>
@@ -14834,7 +15073,7 @@ function _renderCadastroContatosInt() {
                             </div>
                             <div class="cc-field">
                                 <label>Celular / WhatsApp *</label>
-                                <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" class="cc-input">
+                                <input type="text" id="con-celular" placeholder="(XX) XXXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="cc-input">
                             </div>
                             <div class="cc-field">
                                 <label>E-mail</label>
@@ -14842,8 +15081,8 @@ function _renderCadastroContatosInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 2: Cargo/Departamento, Origem, Influenciador, Ramo de Atividade (pode selecionar mais de um) -->
-                        <div class="cc-grid" style="grid-template-columns: 1.8fr 1.4fr 1.2fr 2.2fr;">
+                        <!-- Linha 2: Cargo/Departamento, Origem, Influenciador -->
+                        <div class="cc-grid" style="grid-template-columns: 1.8fr 1.4fr 1.2fr;">
                             <div class="cc-field" style="display:none;">
                                 <label>Tipo</label>
                                 <select id="con-tipo" class="cc-select">
@@ -14881,21 +15120,9 @@ function _renderCadastroContatosInt() {
                                     <option value="Não">Não</option>
                                 </select>
                             </div>
-                            <div class="cc-field">
-                                <label>Ramo de Atividade (pode selecionar mais de um)</label>
-                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; min-height:38px;">
-                                    ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
-                                        <label class="ramo-pill-lbl" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
-                                            <input type="checkbox" class="con-ramo-chk" value="${op.val}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
-                                            ${op.label}
-                                        </label>
-                                    `).join('')}
-                                </div>
-                                <input type="hidden" id="con-ramo-atividade" value="">
-                            </div>
                             <div class="cc-field" style="display:none;">
                                 <label>Telefone</label>
-                                <input type="text" id="con-telefone" placeholder="(XX) XXXX-XXXX" class="cc-input">
+                                <input type="text" id="con-telefone" placeholder="(XX) XXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="cc-input">
                             </div>
                         </div>
                     </div>
@@ -14965,8 +15192,8 @@ function _renderCadastroContatosInt() {
                             </div>
                         </div>
 
-                        <!-- Linha de controle: Grupo de Clientes e Cliente Centralizador -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <!-- Linha de controle: Grupo de Clientes, Cliente Centralizador e Ramo de Atividade -->
+                        <div style="display: grid; grid-template-columns: 1fr 1.2fr 1.4fr; gap: 1rem;">
                             <div class="cc-field">
                                 <label>Grupo de Clientes</label>
                                 <select id="emp-grupo" class="cc-select">
@@ -14984,13 +15211,25 @@ function _renderCadastroContatosInt() {
                                     <button type="button" id="btn-emp-busca-cent" onclick="window.buscarCentralizadorCNPJ('emp-centralizador', this)" class="cc-btn-addon" title="Buscar CNPJ Centralizador"><i class="ph ph-magnifying-glass"></i></button>
                                 </div>
                             </div>
+                            <div class="cc-field">
+                                <label>Ramo de Atividade</label>
+                                <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; min-height:38px;">
+                                    ${[{ val: 'Obra', label: '💙Obra' }, { val: 'Evento', label: '💜Evento' }, { val: 'Outros', label: '💧Outros' }].map(op => `
+                                        <label class="ramo-pill-lbl" style="display:inline-flex; align-items:center; gap:0.35rem; padding:0.42rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#334155; font-size:0.82rem; font-weight:600; cursor:pointer; user-select:none; transition:all 0.15s;">
+                                            <input type="checkbox" class="con-ramo-chk" value="${op.val}" onchange="window.toggleConRamoAtividade()" style="accent-color:#2563eb; width:0.95rem; height:0.95rem; cursor:pointer; margin:0;">
+                                            ${op.label}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                                <input type="hidden" id="con-ramo-atividade" value="">
+                            </div>
                         </div>
 
                         <!-- Linha 3: Telefone, Website, Endereço de E-mail -->
                         <div class="cc-grid cc-grid-company-row3">
                             <div class="cc-field">
                                 <label>Telefone</label>
-                                <input type="text" id="emp-telefone" class="cc-input">
+                                <input type="text" id="emp-telefone" placeholder="(XX) XXXX-XXXX" oninput="if(typeof window.aplicarMascaraTelefone === 'function') this.value = window.aplicarMascaraTelefone(this.value);" class="cc-input">
                             </div>
                             <div class="cc-field" style="display:none;">
                                 <label>Ramal</label>
@@ -15456,6 +15695,9 @@ window.carregarEmpresaSelecionada = async function(id) {
         document.getElementById('emp-uf').value = c.uf || '';
         document.getElementById('emp-grupo').value = c.grupo_clientes || '';
         await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
+        if (typeof window.setRamoAtividadeCheckboxes === 'function') {
+            window.setRamoAtividadeCheckboxes('.con-ramo-chk', 'con-ramo-atividade', c.ramo_atividade || '');
+        }
         document.getElementById('emp-telefone').value = c.telefone || '';
         document.getElementById('emp-ramal').value = c.ramal || '';
         document.getElementById('emp-telefone2').value = c.telefone_2 || '';
@@ -15584,8 +15826,9 @@ window.carregarContatoParaEdicao = async function(id) {
             origemEl.value = origVal;
         }
         setVal('con-influenciador', c.influenciador || '');
-        setVal('con-ramo-atividade', c.ramo_atividade || '');
-        const ramosArr = String(c.ramo_atividade || '').split(',').map(s => s.trim()).filter(Boolean);
+        const ramoValCarregado = c.cliente_ramo_atividade || c.ramo_atividade || '';
+        setVal('con-ramo-atividade', ramoValCarregado);
+        const ramosArr = String(ramoValCarregado).split(',').map(s => s.trim()).filter(Boolean);
         document.querySelectorAll('.con-ramo-chk').forEach(chk => {
             chk.checked = ramosArr.some(r => r.toLowerCase() === chk.value.toLowerCase());
         });
@@ -15802,6 +16045,7 @@ window.salvarContato = async function() {
         uf: document.getElementById('emp-uf')?.value || '',
         grupo_clientes: document.getElementById('emp-grupo')?.value || '',
         cliente_centralizador: document.getElementById('emp-centralizador')?.value || '',
+        ramo_atividade: document.getElementById('con-ramo-atividade')?.value || '',
         telefone: document.getElementById('emp-telefone')?.value || '',
         ramal: document.getElementById('emp-ramal')?.value || '',
         telefone_2: document.getElementById('emp-telefone2')?.value || '',
@@ -21031,7 +21275,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     : '—';
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
-                    ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, true)
+                    ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato, false)
                     : window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
@@ -27295,7 +27539,7 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{CONTATO_CARGO}}', label: 'Cargo / Departamento do Contato', categoria: 'Contato', exemplo: 'Engenheiro Residente' },
 
     // Dados do Interveniente
-    { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: ' CONSÓRCIO INTERVENIENTE LTDA' },
+    { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: 'CONSÓRCIO INTERVENIENTE LTDA' },
     { tag: '{{INTERVENIENTE_CNPJ}}', label: 'CNPJ / CPF do Interveniente', categoria: 'Interveniente', exemplo: '98.765.432/0001-10' },
     { tag: '{{INTERVENIENTE_IE}}', label: 'Inscrição Estadual do Interveniente', categoria: 'Interveniente', exemplo: '220.111.333.444' },
     { tag: '{{INTERVENIENTE_ENDERECO}}', label: 'Endereço do Interveniente', categoria: 'Interveniente', exemplo: 'Rua das Palmeiras' },
@@ -27307,6 +27551,7 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{INTERVENIENTE_CEP}}', label: 'CEP do Interveniente', categoria: 'Interveniente', exemplo: '07000-000' },
     { tag: '{{INTERVENIENTE_TELEFONE}}', label: 'Telefone do Interveniente', categoria: 'Interveniente', exemplo: '(11) 2400-5000' },
     { tag: '{{INTERVENIENTE_EMAIL}}', label: 'E-mail do Interveniente', categoria: 'Interveniente', exemplo: 'contratos@interveniente.com.br' },
+    { tag: '{{INTERVENIENTE_CONTATO_NOME}}', label: 'Contato do Interveniente', categoria: 'Interveniente', exemplo: 'Roberto Mendes' },
 
     // Período, Evento e Local de Instalação
     { tag: '{{PERIODO_INICIO}}', label: 'Período Início (Data de Entrega)', categoria: 'Período e Local', exemplo: '20/11/2026' },
@@ -27339,12 +27584,24 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{DATA_ATUAL_EXTENSO}}', label: 'Data Atual por Extenso', categoria: 'Contrato', exemplo: '19 DE NOVEMBRO DE 2026' }
 ];
 
+window.onToggleContratoInterveniente = function(checked) {
+    window.atualizarVisibilidadeIntervenienteContrato();
+    if (typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') {
+        window.atualizarQuadroAssinaturaDigitalDom();
+    }
+};
+
 window.atualizarVisibilidadeIntervenienteContrato = function(tipoVal) {
     const t = String(tipoVal !== undefined ? tipoVal : (document.getElementById('prop-tipo')?.value || '')).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const wrap = document.getElementById('prop-wrapper-interveniente');
     if (!wrap) return;
     const inp = document.getElementById('prop-interveniente');
-    const mostrar = t === 'INTERVENIENTE' || (window._modoTelaComercial === 'contrato' && Boolean(inp && inp.value.trim()));
+    const chk = document.getElementById('prop-chk-interveniente');
+    const isModoContr = window._modoTelaComercial === 'contrato';
+    const mostrar = isModoContr && Boolean((chk && chk.checked) || t === 'INTERVENIENTE' || (inp && inp.value.trim() && (!chk || chk.checked)));
+    if (mostrar && chk && !chk.checked) {
+        chk.checked = true;
+    }
     wrap.style.display = mostrar ? 'block' : 'none';
     if (mostrar && inp && !inp.value.trim()) {
         // Se o cliente selecionado tiver cliente_centralizador cadastrado, sugere automaticamente
@@ -27355,11 +27612,134 @@ window.atualizarVisibilidadeIntervenienteContrato = function(tipoVal) {
             const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
             const cliObj = _clientesCache.find(c => norm(c.nome_razao_social) === norm(cliNome) || norm(c.nome_fantasia) === norm(cliNome));
             if (cliObj && cliObj.cliente_centralizador) {
+                const centLimpo = String(cliObj.cliente_centralizador).replace(/^\d+\s*-\s*/, '').trim();
                 inp.value = typeof window.formatarNomeClienteComIcone === 'function'
-                    ? window.formatarNomeClienteComIcone(cliObj.cliente_centralizador)
-                    : cliObj.cliente_centralizador;
+                    ? window.formatarNomeClienteComIcone(centLimpo)
+                    : centLimpo;
             }
         }
+    }
+};
+
+window.onChangeIntervenienteContratoInput = function(valor) {
+    const dropCt = document.getElementById('prop-interveniente-contato-dropdown');
+    if (dropCt) dropCt.style.display = 'none';
+};
+
+window.cadastrarNovoClienteIntervenienteContrato = async function() {
+    const cliNomeRaw = document.getElementById('prop-cliente')?.value || '';
+    const cliNomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(cliNomeRaw)
+        : String(cliNomeRaw || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+
+    let centralizadorTexto = cliNomeLimpo;
+    if (cliNomeLimpo) {
+        let lista = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+        if (!lista.length && typeof window.obterClientesCache === 'function') {
+            lista = await window.obterClientesCache().catch(() => []);
+        }
+        const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const found = lista.find(c => norm(c.nome_razao_social) === norm(cliNomeLimpo) || norm(c.nome_fantasia) === norm(cliNomeLimpo));
+        if (found) {
+            centralizadorTexto = found.codigo ? `${found.codigo} - ${found.nome_razao_social}` : found.nome_razao_social;
+        }
+    }
+
+    window._criarIntervenienteParaContrato = true;
+    await window.abrirModalCadastroCliente(null, '');
+    setTimeout(() => {
+        const centEl = document.getElementById('modal-cli-centralizador');
+        if (centEl && centralizadorTexto) {
+            centEl.value = centralizadorTexto;
+        }
+    }, 80);
+};
+
+window.cadastrarNovoContatoIntervenienteContrato = async function() {
+    const intervInput = document.getElementById('prop-interveniente');
+    const intervNome = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(intervInput?.value || '')
+        : String(intervInput?.value || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (!intervNome) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Aviso', 'Selecione ou cadastre o Interveniente (Cliente) primeiro para vincular o contato a ele.', 'warning');
+        } else {
+            alert('Selecione o Interveniente (Cliente) primeiro.');
+        }
+        return;
+    }
+    await window.cadastrarNovoContatoProposta('', false, 'interveniente');
+};
+
+window.obterContatosDoIntervenienteAtual = async function() {
+    const intervRaw = document.getElementById('prop-interveniente')?.value || '';
+    const intervNome = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(intervRaw)
+        : String(intervRaw || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (!intervNome) return [];
+    let clientes = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+    if (!clientes.length && typeof window.obterClientesCache === 'function') {
+        clientes = await window.obterClientesCache().catch(() => []);
+    }
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const cli = clientes.find(c => norm(c.nome_razao_social) === norm(intervNome) || norm(c.nome_fantasia) === norm(intervNome));
+    let contatos = [];
+    if (cli && cli.id) {
+        try {
+            contatos = await apiGet(`/contatos?cliente_id=${cli.id}`).catch(() => []);
+        } catch (_) {}
+    }
+    if (cli && cli.contatos) {
+        try {
+            const arr = typeof cli.contatos === 'string' ? JSON.parse(cli.contatos) : cli.contatos;
+            if (Array.isArray(arr)) {
+                arr.forEach(ct => {
+                    if (ct && ct.nome && !contatos.some(x => norm(x.nome) === norm(ct.nome))) {
+                        contatos.push(ct);
+                    }
+                });
+            }
+        } catch (_) {}
+    }
+    return contatos;
+};
+
+window.filtrarDropdownContatosIntervenienteContrato = async function(termo = '') {
+    const drop = document.getElementById('prop-interveniente-contato-dropdown');
+    if (!drop) return;
+    const contatos = await window.obterContatosDoIntervenienteAtual();
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
+    const filtrados = (!q ? contatos : contatos.filter(c => norm(c.nome).includes(q) || norm(c.email).includes(q) || norm(c.cargo).includes(q)));
+    if (!filtrados.length) {
+        drop.innerHTML = '<div style="padding:8px 10px; font-size:0.78rem; color:#94a3b8;">Nenhum contato encontrado para este interveniente.</div>';
+        drop.style.display = 'block';
+        return;
+    }
+    drop.innerHTML = filtrados.map(c => {
+        const nomeEsc = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `<div onmousedown="event.preventDefault(); const el=document.getElementById('prop-interveniente-contato'); if(el){ el.value='${nomeEsc}'; } document.getElementById('prop-interveniente-contato-dropdown').style.display='none';"
+            style="padding:7px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.82rem; display:flex; justify-content:space-between; gap:8px;"
+            onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'">
+            <span style="font-weight:700; color:#1e293b;">${_escHtmlProp(c.nome || '')}</span>
+            <span style="color:#64748b; font-size:0.75rem;">${_escHtmlProp(c.email || c.celular || '')}</span>
+        </div>`;
+    }).join('');
+    drop.style.display = 'block';
+};
+
+window.abrirDropdownContatosIntervenienteContrato = function(forcar = false) {
+    const inp = document.getElementById('prop-interveniente-contato');
+    window.filtrarDropdownContatosIntervenienteContrato(forcar ? '' : (inp?.value || ''));
+};
+
+window.toggleDropdownContatosIntervenienteContrato = function(e) {
+    if (e) e.stopPropagation();
+    const drop = document.getElementById('prop-interveniente-contato-dropdown');
+    if (drop && drop.style.display === 'block') {
+        drop.style.display = 'none';
+    } else {
+        window.abrirDropdownContatosIntervenienteContrato(true);
     }
 };
 
@@ -27622,6 +28002,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{INTERVENIENTE_CEP}}': String(inter.cep || '00000-000').trim(),
         '{{INTERVENIENTE_TELEFONE}}': String(inter.telefone || inter.celular || '—').trim(),
         '{{INTERVENIENTE_EMAIL}}': String(inter.email || '—').trim(),
+        '{{INTERVENIENTE_CONTATO_NOME}}': String(p.interveniente_contato_nome || '—').trim(),
 
         '{{PERIODO_INICIO}}': fmtDataBr(p.periodo_inicio || dataAtualBr),
         '{{PERIODO_FIM}}': fmtDataBr(p.periodo_fim || dataAtualBr),
@@ -27806,6 +28187,13 @@ window._padraoAssinaturasContrato = function(ehInterveniente) {
     return arr;
 };
 
+window._padraoTextoLegalIntervenienteContrato = function() {
+    return [
+        'CLÁUSULA – DA CIÊNCIA E ANUÊNCIA DO INTERVENIENTE',
+        'O(A) {{INTERVENIENTE_RAZAO_SOCIAL}}, inscrito(a) no CNPJ/CPF sob o nº {{INTERVENIENTE_CNPJ}}, doravante denominado(a) INTERVENIENTE, por meio de sua assinatura neste instrumento, declara ter total ciência, concordância e conhecimento de todas as cláusulas, termos e condições do presente contrato de locação, incluindo o objeto, prazos, valores e responsabilidades assumidas pelas partes.'
+    ].join('\n');
+};
+
 /* Extrai ou migra a estrutura (Preâmbulo + Tabela de Dados do Cliente + Cláusulas + Assinaturas) do modelo */
 window.extrairEstruturaModeloContrato = function(m) {
     if (!m) {
@@ -27815,6 +28203,7 @@ window.extrairEstruturaModeloContrato = function(m) {
             quadro_cliente: window._padraoQuadroClienteContrato(),
             quadro_interveniente: window._padraoQuadroIntervenienteContrato(),
             clausulas: '',
+            clausula_interveniente: window._padraoTextoLegalIntervenienteContrato(),
             assinaturas: window._padraoAssinaturasContrato(false)
         };
     }
@@ -27833,12 +28222,20 @@ window.extrairEstruturaModeloContrato = function(m) {
     const qIntPadrao = window._padraoQuadroIntervenienteContrato();
 
     if (parsedCaputs) {
+        let clauInterv = parsedCaputs.clausula_interveniente;
+        if (clauInterv === undefined && ehInterveniente) {
+            // Extrair cláusula de interveniente se já estiver nas cláusulas ou usar padrão
+            const rawC = String(parsedCaputs.clausulas || m.texto_contrato || '');
+            const mIdx = rawC.search(/\d*\s*[–-]?\s*CL[ÁA]USULA[^<\n]*INTERVENIENTE/i);
+            clauInterv = mIdx >= 0 ? rawC.slice(mIdx).trim() : window._padraoTextoLegalIntervenienteContrato();
+        }
         return {
             v: 2,
             preambulo: parsedCaputs.preambulo !== undefined ? String(parsedCaputs.preambulo) : '',
             quadro_cliente: Object.assign({}, qCliPadrao, parsedCaputs.quadro_cliente || {}),
             quadro_interveniente: Object.assign({}, qIntPadrao, parsedCaputs.quadro_interveniente || {}),
             clausulas: parsedCaputs.clausulas !== undefined ? String(parsedCaputs.clausulas) : String(m.texto_contrato || ''),
+            clausula_interveniente: clauInterv !== undefined ? String(clauInterv) : window._padraoTextoLegalIntervenienteContrato(),
             assinaturas: Array.isArray(parsedCaputs.assinaturas)
                 ? parsedCaputs.assinaturas
                 : window._padraoAssinaturasContrato(ehInterveniente),
@@ -27882,12 +28279,17 @@ window.extrairEstruturaModeloContrato = function(m) {
         }
     }
 
+    const joinedClau = clausulasLinhas.join('\n').trim();
+    const mIdxMig = joinedClau.search(/\d*\s*[–-]?\s*CL[ÁA]USULA[^<\n]*INTERVENIENTE/i);
+    const clauIntervMig = (ehInterveniente && mIdxMig >= 0) ? joinedClau.slice(mIdxMig).trim() : window._padraoTextoLegalIntervenienteContrato();
+
     return {
         v: 2,
         preambulo: preambuloLinhas.join('\n').trim(),
         quadro_cliente: qCliPadrao,
         quadro_interveniente: qIntPadrao,
-        clausulas: clausulasLinhas.join('\n').trim(),
+        clausulas: joinedClau,
+        clausula_interveniente: clauIntervMig,
         assinaturas: window._padraoAssinaturasContrato(ehInterveniente),
         assinaturas_avarias: window._padraoAssinaturasContrato(ehInterveniente)
     };
@@ -28031,8 +28433,9 @@ window.resolverHtmlRicoModeloContrato = function(htmlOuTextoBruto, ctx) {
 
 window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvarias) {
     const m = modelo || {};
+    const pObj = dadosContrato?.proposta || dadosContrato || {};
     const ctx = window.montarContextoMnemonicosContrato(
-        dadosContrato?.proposta || dadosContrato || {},
+        pObj,
         dadosContrato?.cliente || null,
         dadosContrato?.contato || null,
         dadosContrato?.interveniente || null,
@@ -28040,10 +28443,20 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
     );
 
     const est = window.extrairEstruturaModeloContrato(m);
-    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
-        Boolean(dadosContrato?.proposta?.interveniente_nome);
+    const modeloInterv = dadosContrato?.modeloInterveniente || null;
+    const estInterv = modeloInterv ? window.extrairEstruturaModeloContrato(modeloInterv) : null;
+    if (estInterv && estInterv.quadro_interveniente) {
+        est.quadro_interveniente = estInterv.quadro_interveniente;
+    }
 
-    const rawTitulo = m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`;
+    const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
+        Number(pObj.contrato_interveniente) === 1 ||
+        pObj.contrato_interveniente === true ||
+        Boolean(pObj.interveniente_nome && String(pObj.interveniente_nome).trim());
+
+    const rawTitulo = (pObj.titulo_contrato && String(pObj.titulo_contrato).trim())
+        ? String(pObj.titulo_contrato).trim()
+        : (m.titulo_contrato || `CONTRATO DE LOCAÇÃO Nº {{NUMERO_CONTRATO}} - ${m.nome || 'LOCAÇÃO'}`);
     const tituloTemHtml = /<(div|p|br|span|b|strong|i|em|u|font)\b/i.test(rawTitulo);
     const tituloResolvidoHtml = tituloTemHtml
         ? window.resolverHtmlRicoModeloContrato(rawTitulo, ctx)
@@ -28052,10 +28465,41 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
 
     const htmlPreambulo = window.resolverHtmlRicoModeloContrato(est.preambulo, ctx);
     const htmlTabelaCliente = window.gerarHtmlTabelaDadosClienteContrato(est, ctx, ehInterveniente);
-    const htmlClausulas = window.resolverHtmlRicoModeloContrato(est.clausulas, ctx);
+    let htmlClausulas = window.resolverHtmlRicoModeloContrato(est.clausulas, ctx);
+
+    // Se o contrato possuir Interveniente e o modelo base não for o próprio INTERVENIENTE, injeta o texto legal do Interveniente
+    const ehModeloIntervProprio = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
+    if (ehInterveniente && !ehModeloIntervProprio) {
+        const rawClauInterv = (estInterv && estInterv.clausula_interveniente)
+            ? estInterv.clausula_interveniente
+            : window._padraoTextoLegalIntervenienteContrato();
+        if (rawClauInterv && !String(est.clausulas || '').toUpperCase().includes('DA CIÊNCIA') && !String(est.clausulas || '').toUpperCase().includes('INTERVENIENTE')) {
+            const htmlClauInterv = window.resolverHtmlRicoModeloContrato(rawClauInterv, ctx);
+            htmlClausulas += `<div style="margin-top:12px;">${htmlClauInterv}</div>`;
+        }
+    }
+
+    const garantirAssinaturaInterveniente = (listaAss) => {
+        const arr = Array.isArray(listaAss) ? listaAss.map(a => Object.assign({}, a)) : [];
+        if (!ehInterveniente) return arr;
+        const jaTemInterv = arr.some(a => String(a.titulo || '').toUpperCase().includes('INTERVENIENTE') || String(a.linha1 || '').includes('INTERVENIENTE'));
+        if (!jaTemInterv) {
+            const blocoInt = {
+                titulo: 'INTERVENIENTE',
+                linha1: '{{INTERVENIENTE_RAZAO_SOCIAL}}',
+                linha2: 'CNPJ/CPF: {{INTERVENIENTE_CNPJ}}'
+            };
+            if (arr.length >= 2) {
+                arr.splice(1, 0, blocoInt);
+            } else {
+                arr.push(blocoInt);
+            }
+        }
+        return arr;
+    };
 
     const renderAssinaturasPdfHtml = (listaAss) => {
-        const arr = Array.isArray(listaAss) ? listaAss : [];
+        const arr = garantirAssinaturaInterveniente(listaAss);
         if (!arr.length) return '';
         return `
             <div style="margin-top:34px; page-break-inside:avoid; display:grid; grid-template-columns:repeat(${arr.length}, 1fr); gap:28px; padding-top:16px;">
@@ -28183,13 +28627,15 @@ window.gerarHtmlContratoParaPropostaObj = async function(pObj, documentoCompleto
         } catch (_) {}
     }
     let intervenienteObj = null;
-    const interNome = pObj.interveniente_nome || (clientObj && clientObj.cliente_centralizador) || '';
+    const temIntervFlag = Number(pObj.contrato_interveniente) === 1 || pObj.contrato_interveniente === true || Boolean(pObj.interveniente_nome && String(pObj.interveniente_nome).trim());
+    const interNome = pObj.interveniente_nome || (temIntervFlag && clientObj && clientObj.cliente_centralizador) || '';
     if (interNome) {
-        const interNorm = norm(interNome);
+        const interNorm = norm(String(interNome).replace(/^\d+\s*-\s*/, ''));
         intervenienteObj = (clientes || []).find(c => norm(c.nome_razao_social) === interNorm || norm(c.nome_fantasia) === interNorm) || { nome_razao_social: interNome };
     }
+    const modeloInterveniente = (modelos || []).find(m => norm(m.codigo_tipo) === 'INTERVENIENTE' || norm(m.nome) === 'INTERVENIENTE') || null;
 
-    const dadosContrato = { proposta: pObj, cliente: clientObj, contato: contatoObj, interveniente: intervenienteObj };
+    const dadosContrato = { proposta: pObj, cliente: clientObj, contato: contatoObj, interveniente: intervenienteObj, modeloInterveniente };
     return documentoCompleto
         ? window.gerarHtmlDocumentoContratoCompleto(modelo, dadosContrato, avarias)
         : window.gerarHtmlLayoutContratoPadrao(modelo, dadosContrato, avarias);
@@ -28792,7 +29238,12 @@ window._sincronizarEstruturaParaModeloContratoAtivo = function() {
 
     const inpClau = document.getElementById('mc-edit-texto');
     if (inpClau) {
-        est.clausulas = inpClau.isContentEditable ? inpClau.innerHTML : inpClau.value;
+        const ehInterv = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
+        const valClau = inpClau.isContentEditable ? inpClau.innerHTML : inpClau.value;
+        est.clausulas = valClau;
+        if (ehInterv) {
+            est.clausula_interveniente = valClau;
+        }
     }
 
     document.querySelectorAll('#mc-live-preview [data-q-cli]').forEach(inp => {
@@ -29032,7 +29483,10 @@ window.atualizarPreviewModeloContratoAtivo = function() {
         ? String(m.titulo_contrato || '')
         : _escHtmlProp(m.titulo_contrato || '');
     const htmlPreambuloEditavel = window.converterTextoContratoParaHtmlEditavel(est.preambulo || '');
-    const htmlClausulasEditavel = window.converterTextoContratoParaHtmlEditavel(est.clausulas || '');
+    const textoClausulasBase = ehInterveniente
+        ? (est.clausula_interveniente || window._padraoTextoLegalIntervenienteContrato())
+        : (est.clausulas || '');
+    const htmlClausulasEditavel = window.converterTextoContratoParaHtmlEditavel(textoClausulasBase);
 
     previewEl.innerHTML = `
         <style>
@@ -29111,6 +29565,12 @@ window.atualizarPreviewModeloContratoAtivo = function() {
             </div>
 
             <!-- Título do Contrato (Editável diretamente na folha do contrato com suporte a formatação) -->
+            ${ehInterveniente ? `
+            <div style="background:#f5f3ff; border:1px solid #c4b5fd; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:9.5pt; color:#4c1d95;">
+                <strong><i class="ph ph-Handshake"></i> Configuração Universal de Interveniente:</strong><br>
+                O tipo de modelo do contrato continua vinculado ao tipo da proposta (Obra Mensal, Evento, Equipamentos, etc.). Quando a opção <b>Interveniente</b> for marcada no contrato, o <b>Quadro de Dados do Interveniente</b> e o <b>Texto Legal do Interveniente</b> abaixo serão incluídos automaticamente em <b>todos os modelos de contratos</b>.
+            </div>
+            ` : `
             <div style="margin-bottom:14px;">
                 <div id="mc-sheet-edit-titulo" contenteditable="true"
                     onfocus="window._mcSalvarSelecaoRichText(this)"
@@ -29132,16 +29592,18 @@ window.atualizarPreviewModeloContratoAtivo = function() {
 
             <!-- Dados do Cliente mostrados como TABELA na Pré-visualização -->
             ${tabelaClienteEditavelHtml}
+            `}
             ${tabelaIntervenienteEditavelHtml}
 
             <!-- Cláusulas do Contrato (Editável com Negrito, Sublinhado, Itálico, Fonte, Tamanho e Cor) -->
+            ${ehInterveniente ? `<div style="font-size:9.5pt; font-weight:700; color:#4c1d95; margin:12px 0 4px 0;">Texto Legal / Cláusula do Interveniente (aparecerá em todos os modelos quando o contrato tiver Interveniente):</div>` : ''}
             <div class="america-contrato-body">
                 <div id="mc-edit-texto" class="mc-rich-editor" contenteditable="true"
                     onfocus="window._mcSalvarSelecaoRichText(this)"
                     onkeyup="window._mcSalvarSelecaoRichText(this)"
                     onmouseup="window._mcSalvarSelecaoRichText(this)"
                     oninput="window._sincronizarEstruturaParaModeloContratoAtivo()"
-                    style="min-height:420px;">${htmlClausulasEditavel}</div>
+                    style="min-height:${ehInterveniente ? '180px' : '420px'};">${htmlClausulasEditavel}</div>
             </div>
 
             <!-- Assinaturas (Editáveis e Excluíveis) -->

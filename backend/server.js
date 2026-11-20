@@ -41925,6 +41925,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     });
     db.run("ALTER TABLE propostas ADD COLUMN titulo_contrato TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN assinafy_signatarios_json TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN contrato_interveniente INTEGER DEFAULT 0", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN interveniente_contato_nome TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Garantir que propostas de ADITIVO nunca tenham número de contrato próprio
     db.run("UPDATE propostas SET contrato = NULL WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')", () => {});
@@ -42395,6 +42397,22 @@ app.get('/api/comercial/me-contexto', authenticateToken, async (req, res) => {
   }
 });
 
+// PATCH /api/propostas/:id/signatarios-draft - Auto-save imediato dos signatários da lista de Assinatura Digital
+app.patch('/api/propostas/:id/signatarios-draft', authenticateToken, (req, res) => {
+  const proposalId = req.params.id;
+  const sigs = Array.isArray(req.body?.signatarios) ? req.body.signatarios : [];
+  const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+  const sigsJson = JSON.stringify(sigs);
+  db.run(
+    'UPDATE propostas SET assinafy_signatarios_json = ?, atualizado_em = ? WHERE id = ?',
+    [sigsJson, agora, proposalId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, assinafy_signatarios_json: sigsJson });
+    }
+  );
+});
+
 app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res) => {
   try {
     const proposalId = req.params.id;
@@ -42664,8 +42682,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         valor_frete_ida, valor_frete_volta, observacoes, valor_total,
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
-        itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -42689,6 +42707,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.proposta_comparativa ? 1 : 0,
         d.produtos_aprovados ? (typeof d.produtos_aprovados === 'string' ? d.produtos_aprovados : JSON.stringify(d.produtos_aprovados)) : '[]',
         d.interveniente_nome || null,
+        d.contrato_interveniente ? 1 : 0,
+        d.interveniente_contato_nome || null,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -42921,7 +42941,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       valor_frete_ida=?, valor_frete_volta=?, observacoes=?, valor_total=?,
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
-      itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, atualizado_em=?
+      itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, contrato_interveniente=?, interveniente_contato_nome=?, atualizado_em=?
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
@@ -42954,6 +42974,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       propComparativaFinal,
       produtosAprovadosFinal,
       d.interveniente_nome !== undefined ? (d.interveniente_nome || null) : (oldRow.interveniente_nome || null),
+      d.contrato_interveniente !== undefined ? (d.contrato_interveniente ? 1 : 0) : (Number(oldRow.contrato_interveniente) === 1 ? 1 : 0),
+      d.interveniente_contato_nome !== undefined ? (d.interveniente_contato_nome || null) : (oldRow.interveniente_contato_nome || null),
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });
@@ -44826,14 +44848,15 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
         const ramal2 = cliData.ramal_2 || row.ramal_2;
         const website = cliData.website !== undefined ? (cliData.website || row.website) : row.website;
         const email = cliData.email !== undefined ? (cliData.email || row.email) : row.email;
+        const ramoAtiv = cliData.ramo_atividade !== undefined ? (cliData.ramo_atividade || row.ramo_atividade) : row.ramo_atividade;
 
         db.run(`UPDATE clientes SET
           nome_razao_social=?, nome_fantasia=?, cpf_cnpj=?, cep=?, endereco=?, numero=?, bairro=?,
-          municipio=?, uf=?, grupo_clientes=?, cliente_centralizador=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?, email=?,
+          municipio=?, uf=?, grupo_clientes=?, cliente_centralizador=?, telefone=?, ramal=?, fax=?, telefone_2=?, ramal_2=?, website=?, email=?, ramo_atividade=?,
           atualizado_em=?
           WHERE id=?`,
         [
-          rSocial, nFantasia, cnpj, cep, endereco, numero, bairro, municipio, uf, grupo, centralizador, tel, ramal, fax, tel2, ramal2, website, email,
+          rSocial, nFantasia, cnpj, cep, endereco, numero, bairro, municipio, uf, grupo, centralizador, tel, ramal, fax, tel2, ramal2, website, email, ramoAtiv || '',
           agora, idExistente
         ], function(err2) {
           if (err2) return callback(err2);
@@ -44852,15 +44875,15 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
         gerarCodigoCliente((novoCodigo) => {
           db.run(`INSERT INTO clientes (
             codigo, data_cadastro, inativo, cpf_cnpj, nome_razao_social, nome_fantasia, cep, endereco,
-            numero, bairro, municipio, uf, grupo_clientes, cliente_centralizador, telefone, ramal, fax, telefone_2, ramal_2, website, email,
+            numero, bairro, municipio, uf, grupo_clientes, cliente_centralizador, telefone, ramal, fax, telefone_2, ramal_2, website, email, ramo_atividade,
             criado_por, criado_em, atualizado_em
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
           [
             novoCodigo, agora.substring(0,10), 0, cpfCnpj, cliData.nome_razao_social, cliData.nome_fantasia || cliData.nome_razao_social || '',
             cliData.cep || '', cliData.endereco || '', cliData.numero || '', cliData.bairro || '', cliData.municipio || '',
             cliData.uf || '', cliData.grupo_clientes || '', cliData.cliente_centralizador || '',
             cliData.telefone || '', cliData.ramal || '', cliData.fax || '', cliData.telefone_2 || '', cliData.ramal_2 || '',
-            cliData.website || '', cliData.email || '', cliData.criado_por || '', agora, agora
+            cliData.website || '', cliData.email || '', cliData.ramo_atividade || '', cliData.criado_por || '', agora, agora
           ], function(err2) {
             if (err2) return callback(err2);
             const newCliId = this.lastID;
@@ -44879,6 +44902,13 @@ function salvarOuAtualizarEmpresa(cliData, callback) {
 // Inicialização de índices de performance e tabela clientes_anexos (Cloudflare R2)
 db.serialize(() => {
   db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
+  db.run("ALTER TABLE clientes ADD COLUMN ramo_atividade TEXT", () => {});
+  // Migrar ramo_atividade já cadastrado em contatos para o respectivo cliente quando vazio
+  db.run(`UPDATE clientes SET ramo_atividade = (
+    SELECT ct.ramo_atividade FROM contatos ct
+    WHERE ct.cliente_id = clientes.id AND ct.ramo_atividade IS NOT NULL AND TRIM(ct.ramo_atividade) != ''
+    ORDER BY ct.id DESC LIMIT 1
+  ) WHERE (ramo_atividade IS NULL OR TRIM(ramo_atividade) = '')`, () => {});
   db.run('CREATE INDEX IF NOT EXISTS idx_contatos_cliente_id ON contatos(cliente_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_clientes_codigo ON clientes(codigo)');
   db.run('CREATE INDEX IF NOT EXISTS idx_clientes_cpf_cnpj ON clientes(cpf_cnpj)');
@@ -46687,15 +46717,15 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
         nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
         pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
         celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
-        observacoes, criado_por, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        observacoes, ramo_atividade, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
         d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.nome_razao_social,
         d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
         d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
         d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-        d.observacoes || '', d.criado_por, agora, agora
+        d.observacoes || '', d.ramo_atividade || '', d.criado_por, agora, agora
       ], function(err) {
         if (err) {
           return res.status(500).json({ error: err.message });
@@ -46754,7 +46784,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
   db.get(
-    'SELECT id, codigo, cpf_cnpj, nome_razao_social FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
+    'SELECT id, codigo, cpf_cnpj, nome_razao_social, ramo_atividade FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
     [req.params.id, req.params.id, req.params.id],
     (curErr, curRow) => {
       if (curErr) return res.status(500).json({ error: curErr.message });
@@ -46768,7 +46798,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
           nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
           pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
           celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
-          observacoes=?, atualizado_em=?
+          observacoes=?, ramo_atividade=?, atualizado_em=?
           WHERE id=?`,
         [
           d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
@@ -46776,7 +46806,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
           d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
           d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
           d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-          d.observacoes || '', agora, targetId
+          d.observacoes || '', d.ramo_atividade !== undefined ? (d.ramo_atividade || '') : (curRow.ramo_atividade || ''), agora, targetId
         ], function(err) {
           if (err) {
             return res.status(500).json({ error: err.message });
@@ -46976,7 +47006,7 @@ app.get('/api/contatos/:id', authenticateToken, (req, res) => {
   db.get(`
     SELECT c.*, cli.nome_razao_social as cliente_nome, cli.nome_fantasia as cliente_nome_fantasia, cli.codigo as cliente_codigo,
            cli.cpf_cnpj, cli.cep, cli.endereco, cli.numero, cli.bairro, cli.municipio as cliente_cidade,
-           cli.uf, cli.grupo_clientes, cli.cliente_centralizador,
+           cli.uf, cli.grupo_clientes, cli.cliente_centralizador, cli.ramo_atividade as cliente_ramo_atividade,
            cli.telefone as cliente_telefone, cli.ramal as cliente_ramal, cli.fax as cliente_fax,
            cli.telefone_2 as cliente_telefone2, cli.ramal_2 as cliente_ramal2, cli.website as cliente_site,
            cli.email as cliente_email
