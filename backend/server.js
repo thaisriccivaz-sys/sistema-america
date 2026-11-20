@@ -41924,6 +41924,7 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
       db.run(`ALTER TABLE propostas ADD COLUMN ${colDef}`, () => {});
     });
     db.run("ALTER TABLE propostas ADD COLUMN titulo_contrato TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN assinafy_signatarios_json TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Garantir que propostas de ADITIVO nunca tenham número de contrato próprio
     db.run("UPDATE propostas SET contrato = NULL WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')", () => {});
@@ -42911,6 +42912,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       assinafy_sent_at = CASE WHEN ? = 1 THEN NULL ELSE assinafy_sent_at END,
       assinafy_signed_at = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signed_at END,
       assinafy_signed_r2_key = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signed_r2_key END,
+      assinafy_signatarios_json = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signatarios_json END,
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
@@ -42923,6 +42925,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
+      limparAssinafyPorEstorno ? 1 : 0,
       limparAssinafyPorEstorno ? 1 : 0,
       limparAssinafyPorEstorno ? 1 : 0,
       limparAssinafyPorEstorno ? 1 : 0,
@@ -43666,6 +43669,52 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
           (statusRaw.includes('sign') && !statusRaw.includes('wait') && !statusRaw.includes('pend'))
         );
 
+        let signatariosLocais = [];
+        try {
+          if (prop.assinafy_signatarios_json) {
+            const parsedSigs = JSON.parse(prop.assinafy_signatarios_json);
+            if (Array.isArray(parsedSigs)) signatariosLocais = parsedSigs;
+          }
+        } catch (_) {}
+
+        const agoraIsoBr = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+        const signedAtRaw = docData.signed_at || docData.finished_at || docData.certificated_at || docData.updated_at || null;
+        const signedAtVal = signedAtRaw
+          ? new Date(signedAtRaw).toISOString().replace('T', ' ').substring(0, 19)
+          : agoraIsoBr;
+
+        if (signatariosLocais.length > 0) {
+          const remoteAssignments = Array.isArray(docData.assignments)
+            ? docData.assignments
+            : (Array.isArray(docData.signers) ? docData.signers : (Array.isArray(docData.signing_urls) ? docData.signing_urls : []));
+          let houveMudancaParcialSigs = false;
+          signatariosLocais = signatariosLocais.map(sig => {
+            const rMatch = remoteAssignments.find(ra => {
+              if (!ra) return false;
+              const raId = ra.signer_id || (ra.signer && ra.signer.id) || ra.id || '';
+              const raEmail = String(ra.email || (ra.signer && ra.signer.email) || '').trim().toLowerCase();
+              return (sig.signer_id && raId && String(raId) === String(sig.signer_id))
+                || (sig.email && raEmail && raEmail === String(sig.email).trim().toLowerCase());
+            });
+            const stRem = rMatch ? String(rMatch.status || rMatch.assignment_status || '').toLowerCase() : '';
+            const dtRemRaw = rMatch ? (rMatch.signed_at || rMatch.completed_at || rMatch.finished_at || null) : null;
+            const assinouIndividual = isSigned || Boolean(dtRemRaw) || stRem === 'signed' || stRem === 'completed' || stRem === 'certificated' || stRem === '3' || stRem === '4';
+            if (assinouIndividual && sig.status !== 'Assinado') {
+              houveMudancaParcialSigs = true;
+              const dtIndiv = dtRemRaw
+                ? new Date(dtRemRaw).toISOString().replace('T', ' ').substring(0, 19)
+                : (sig.assinado_em || signedAtVal);
+              return { ...sig, status: 'Assinado', assinado_em: dtIndiv };
+            }
+            return sig;
+          });
+          if (!isSigned && houveMudancaParcialSigs) {
+            await new Promise((resolve) => {
+              db.run("UPDATE propostas SET assinafy_signatarios_json = ?, atualizado_em = ? WHERE id = ?", [JSON.stringify(signatariosLocais), agoraIsoBr, prop.id], () => resolve());
+            });
+          }
+        }
+
         if (!isSigned) continue;
 
         const tipoPropPoll = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -43700,12 +43749,6 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
           }
         }
 
-        const agoraIsoBr = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
-        const signedAtRaw = docData.signed_at || docData.finished_at || docData.certificated_at || docData.updated_at || null;
-        const signedAtVal = signedAtRaw
-          ? new Date(signedAtRaw).toISOString().replace('T', ' ').substring(0, 19)
-          : agoraIsoBr;
-
         const faseAnterior = String(prop.fase_negociacao || 'ENVIADO PARA ASSINATURA');
         const faseAntUpper = faseAnterior.trim().toUpperCase();
         const estavaReprovada = faseAntUpper === 'REPROVADA' || faseAntUpper === 'REPROVADO';
@@ -43724,6 +43767,9 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
         const sitContratoAssinadoFinal = (!ehAssinafyTipoPoll && contratoAssinadoFinal)
           ? 'CONTRATO ASSINADO'
           : (prop.situacao_contrato || null);
+        const signatariosJsonAssinadoFinal = signatariosLocais.length > 0
+          ? JSON.stringify(signatariosLocais.map(s => ({ ...s, status: 'Assinado', assinado_em: s.assinado_em || signedAtVal })))
+          : (prop.assinafy_signatarios_json || null);
 
         await new Promise((resolve, reject) => {
           db.run(
@@ -43734,10 +43780,11 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
                  assinafy_status = 'Assinado',
                  assinafy_signed_at = COALESCE(assinafy_signed_at, ?),
                  assinafy_signed_r2_key = COALESCE(?, assinafy_signed_r2_key),
+                 assinafy_signatarios_json = COALESCE(?, assinafy_signatarios_json),
                  aprovado_em = COALESCE(aprovado_em, ?),
                  atualizado_em = ?
              WHERE id = ?`,
-            [faseAlvoAssinada, contratoAssinadoFinal, sitContratoAssinadoFinal, signedAtVal, signedR2Key, signedAtVal, agoraIsoBr, prop.id],
+            [faseAlvoAssinada, contratoAssinadoFinal, sitContratoAssinadoFinal, signedAtVal, signedR2Key, signatariosJsonAssinadoFinal, signedAtVal, agoraIsoBr, prop.id],
             (errUp) => errUp ? reject(errUp) : resolve()
           );
         });
@@ -43792,7 +43839,7 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
 
 app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async (req, res) => {
   const propId = Number(req.params.id);
-  const { html_impressao_simples, email_signatario, nome_signatario, produtos_aprovados, reenviar, modo_contrato } = req.body || {};
+  const { html_impressao_simples, email_signatario, nome_signatario, tipo_signatario, signatarios, produtos_aprovados, reenviar, modo_contrato } = req.body || {};
 
   db.get('SELECT * FROM propostas WHERE id = ?', [propId], async (err, p) => {
     if (err || !p) return res.status(404).json({ error: 'Proposta não encontrada.' });
@@ -43894,14 +43941,49 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
         emailSig = emailSig.split(/[;,]/).map(s => s.trim()).find(s => s.includes('@')) || '';
       }
 
-      if (!emailSig || !emailSig.includes('@')) {
-        return res.status(200).json({
-          precisa_email: true,
-          nome_sugerido: nomeSig,
-          error: contatoAlvo
-            ? `O contato selecionado ("${contatoAlvo}") não possui e-mail cadastrado. Informe o e-mail de "${contatoAlvo}" para enviar via Assinafy.`
-            : 'O contato/cliente não possui e-mail cadastrado. Informe o e-mail do signatário para enviar via Assinafy.'
-        });
+      const listaSignatariosBody = Array.isArray(signatarios) && signatarios.length > 0
+        ? signatarios.map((s, idx) => {
+            const tipoRaw = String(s.tipo || 'Responsável Legal').trim();
+            const ehAmRental = tipoRaw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === 'AMERICA RENTAL';
+            const em = ehAmRental ? 'nicolle.mezuraro@americarental.com.br' : String(s.email || '').trim().toLowerCase();
+            const nm = String(s.nome || (ehAmRental ? 'América Rental' : (nomeSig || `Signatário ${idx + 1}`))).trim();
+            return {
+              nome: nm,
+              email: em,
+              tipo: ehAmRental ? 'América Rental' : tipoRaw,
+              cpf: idx === 0 && !ehAmRental ? cpfSig : String(s.cpf || '').trim(),
+              whatsapp: idx === 0 && !ehAmRental ? whatsappSig : String(s.whatsapp || '').trim()
+            };
+          })
+        : null;
+
+      if (listaSignatariosBody) {
+        const invalido = listaSignatariosBody.find(s => !s.email || !s.email.includes('@'));
+        if (invalido) {
+          return res.status(200).json({
+            precisa_email: true,
+            nome_sugerido: invalido.nome || nomeSig,
+            error: `Informe um e-mail válido para o signatário "${invalido.nome}" (${invalido.tipo}).`
+          });
+        }
+        emailSig = listaSignatariosBody.map(s => s.email).join(', ');
+        nomeSig = listaSignatariosBody.map(s => s.nome).join(', ');
+      } else {
+        const tipoUnicoRaw = String(tipo_signatario || 'Responsável Legal').trim();
+        const ehUnicoAmRental = tipoUnicoRaw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === 'AMERICA RENTAL';
+        if (ehUnicoAmRental) {
+          emailSig = 'nicolle.mezuraro@americarental.com.br';
+          if (!nome_signatario) nomeSig = 'América Rental';
+        }
+        if (!emailSig || !emailSig.includes('@')) {
+          return res.status(200).json({
+            precisa_email: true,
+            nome_sugerido: nomeSig,
+            error: contatoAlvo
+              ? `O contato selecionado ("${contatoAlvo}") não possui e-mail cadastrado. Informe o e-mail de "${contatoAlvo}" para enviar via Assinafy.`
+              : 'O contato/cliente não possui e-mail cadastrado. Informe o e-mail do signatário para enviar via Assinafy.'
+          });
+        }
       }
 
       // Se for reenvio e existir um assinafy_id pendente anterior, cancelar em background sem bloquear
@@ -43964,7 +44046,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
           nomeSignatario: nomeSig,
           emailSignatario: emailSig,
           cpfSignatario: cpfSig,
-          whatsappSignatario: whatsappSig
+          whatsappSignatario: whatsappSig,
+          tipoSignatario: tipo_signatario || 'Responsável Legal',
+          signatarios: listaSignatariosBody
         }),
         r2UploadPromise
       ]);
@@ -43976,6 +44060,7 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
       const faseAnterior = p.fase_negociacao || 'Em Elaboração';
       const faseNovaAssinafy = ehContratoAssinafy ? (p.fase_negociacao || 'Aprovada') : 'ENVIADO PARA ASSINATURA';
       const sitContratoNovaAssinafy = ehContratoAssinafy ? 'ENVIADO PARA ASSINATURA' : (p.situacao_contrato || null);
+      const signatariosJsonSalvo = JSON.stringify(resultadoAssinafy.signatarios || []);
 
       const prodsAprovArr = Array.isArray(produtos_aprovados) ? produtos_aprovados.map(x => String(x || '').trim()).filter(Boolean) : [];
       const produtosAprovadosJson = prodsAprovArr.length > 0
@@ -43995,6 +44080,7 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
                assinafy_sent_at = ?,
                assinafy_email = ?,
                assinafy_signer_name = ?,
+               assinafy_signatarios_json = ?,
                pdf_enviado_assinafy_r2_key = COALESCE(?, pdf_enviado_assinafy_r2_key),
                aprovado_por = COALESCE(aprovado_por, ?),
                aprovado_em = COALESCE(aprovado_em, ?),
@@ -44009,8 +44095,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
             resultadoAssinafy.assinafyDocId,
             resultadoAssinafy.urlAssinatura,
             agora,
-            emailSig,
-            nomeSig,
+            resultadoAssinafy.emailSignatario || emailSig,
+            resultadoAssinafy.nomeSignatario || nomeSig,
+            signatariosJsonSalvo,
             pdfEnviadoR2Key,
             loggedUser,
             agora,
@@ -44065,8 +44152,9 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
         assinafy_id: resultadoAssinafy.assinafyDocId,
         assinafy_url: resultadoAssinafy.urlAssinatura,
         assinafy_sent_at: agora,
-        email_signatario: emailSig,
-        nome_signatario: nomeSig
+        email_signatario: resultadoAssinafy.emailSignatario || emailSig,
+        nome_signatario: resultadoAssinafy.nomeSignatario || nomeSig,
+        signatarios: resultadoAssinafy.signatarios || []
       });
     } catch (e) {
       console.error('[PROPOSTAS ASSINAFY] Erro:', e);

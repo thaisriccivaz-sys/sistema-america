@@ -402,7 +402,7 @@ async function cancelarDocumentoAssinafy(assinafyDocId) {
 }
 
 
-async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSignatario, emailSignatario, cpfSignatario, whatsappSignatario }) {
+async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSignatario, emailSignatario, cpfSignatario, whatsappSignatario, tipoSignatario, signatarios }) {
     console.log('\n========================================');
     console.log('[ASSINAFY ADITIVO] Iniciando envio de PDF em buffer');
     console.log('========================================');
@@ -411,30 +411,57 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
         throw new Error('ASSINAFY_API_KEY ou ASSINAFY_ACCOUNT_ID não configuradas no ambiente.');
     }
     if (!pdfBuffer || pdfBuffer.length === 0) {
-        throw new Error('Buffer do PDF do aditivo está vazio.');
+        throw new Error('Buffer do PDF do documento está vazio.');
     }
-    const email = String(emailSignatario || '').trim().toLowerCase();
-    const nome = String(nomeSignatario || 'Cliente').trim();
-    if (!email || !email.includes('@')) {
-        throw new Error('O contato/cliente da proposta de aditivo não possui e-mail válido cadastrado para assinatura no Assinafy.');
-    }
+
+    const normalizarFoneE164 = (raw) => {
+        const foneRaw = String(raw || '').replace(/\D/g, '');
+        if (foneRaw.length >= 10) {
+            const semPais = foneRaw.startsWith('55') && foneRaw.length > 11 ? foneRaw.slice(2) : foneRaw;
+            const ddd = semPais.slice(0, 2);
+            const numero = semPais.slice(2);
+            if (numero.length === 9) {
+                return `+55${ddd}${numero}`;
+            }
+        }
+        return '';
+    };
+
+    const listaEntrada = (Array.isArray(signatarios) && signatarios.length > 0)
+        ? signatarios
+        : [{
+            nome: nomeSignatario || 'Cliente',
+            email: emailSignatario || '',
+            cpf: cpfSignatario || '',
+            whatsapp: whatsappSignatario || '',
+            tipo: tipoSignatario || 'Responsável Legal'
+        }];
+
+    const listaNormalizada = listaEntrada.map((item, idx) => {
+        const tipoLimpo = String(item.tipo || 'Responsável Legal').trim();
+        const ehAmericaRental = tipoLimpo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === 'AMERICA RENTAL';
+        const emailItem = ehAmericaRental
+            ? 'nicolle.mezuraro@americarental.com.br'
+            : String(item.email || '').trim().toLowerCase();
+        const nomeItem = String(item.nome || (ehAmericaRental ? 'América Rental' : `Signatário ${idx + 1}`)).trim();
+        const cpfDigits = String(item.cpf || '').replace(/\D/g, '');
+        const cpfValido = cpfDigits.length === 11 ? cpfDigits : '';
+        const foneE164 = normalizarFoneE164(item.whatsapp || '');
+        if (!emailItem || !emailItem.includes('@')) {
+            throw new Error(`O signatário "${nomeItem}" (${tipoLimpo}) não possui um e-mail válido para assinatura no Assinafy.`);
+        }
+        return {
+            nome: nomeItem,
+            email: emailItem,
+            tipo: ehAmericaRental ? 'América Rental' : tipoLimpo,
+            cpf: cpfValido,
+            whatsapp: foneE164
+        };
+    });
 
     const fileNameSafe = String(nomeArquivoPdf || 'Proposta_Aditivo.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
 
-    const cpfDigits = String(cpfSignatario || '').replace(/\D/g, '');
-    const cpfValido = cpfDigits.length === 11 ? cpfDigits : '';
-    const foneRaw = String(whatsappSignatario || '').replace(/\D/g, '');
-    let fone = '';
-    if (foneRaw.length >= 10) {
-        const semPais = foneRaw.startsWith('55') && foneRaw.length > 11 ? foneRaw.slice(2) : foneRaw;
-        const ddd = semPais.slice(0, 2);
-        const numero = semPais.slice(2);
-        if (numero.length === 9) {
-            fone = `+55${ddd}${numero}`;
-        }
-    }
-
-    // Executa upload + processamento do PDF em paralelo com a resolução/criação do signatário
+    // Executa upload + processamento do PDF em paralelo com a resolução/criação dos signatários
     const uploadAndPollPromise = (async () => {
         const form = new FormData();
         form.append('file', pdfBuffer, {
@@ -461,26 +488,44 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
         return docId;
     })();
 
-    const signerPromise = resolverSignatario({
-        full_name: nome,
-        email,
-        tax_id: cpfValido,
-        whatsapp_phone_number: fone || undefined
-    });
+    const signersResolvedPromise = (async () => {
+        const resolved = [];
+        for (const sig of listaNormalizada) {
+            const sid = await resolverSignatario({
+                full_name: sig.nome,
+                email: sig.email,
+                tax_id: sig.cpf,
+                whatsapp_phone_number: sig.whatsapp || undefined
+            });
+            if (!sid) {
+                throw new Error(`ID do signatário "${sig.nome}" (${sig.email}) não obtido no Assinafy.`);
+            }
+            resolved.push({
+                ...sig,
+                signer_id: sid
+            });
+        }
+        return resolved;
+    })();
 
-    const [assinafyDocId, signerId] = await Promise.all([uploadAndPollPromise, signerPromise]);
-    if (!signerId) throw new Error('ID do signatário não obtido no Assinafy.');
-    console.log(`[ASSINAFY ADITIVO] SignerID=${signerId}`);
+    const [assinafyDocId, signatariosResolvidos] = await Promise.all([uploadAndPollPromise, signersResolvedPromise]);
+    const uniqueSignerIds = [];
+    const seenIds = new Set();
+    for (const s of signatariosResolvidos) {
+        if (!seenIds.has(s.signer_id)) {
+            seenIds.add(s.signer_id);
+            uniqueSignerIds.push(s.signer_id);
+        }
+    }
+    console.log(`[ASSINAFY ADITIVO] SignerIDs=${uniqueSignerIds.join(', ')}`);
 
     const assignRes = await req('POST', `/v1/documents/${assinafyDocId}/assignments`, {
-        signers: [
-            {
-                id: signerId,
-                role: 'signer',
-                notification_methods: ['Email'],
-                require_initials: false
-            }
-        ],
+        signers: uniqueSignerIds.map(sid => ({
+            id: sid,
+            role: 'signer',
+            notification_methods: ['Email'],
+            require_initials: false
+        })),
         method: 'virtual',
         copy_receivers: [{ email: 'americasistema48@gmail.com', name: 'Sistema America' }]
     });
@@ -503,7 +548,30 @@ async function enviarPdfBufferParaAssinafy({ pdfBuffer, nomeArquivoPdf, nomeSign
     );
     console.log(`[ASSINAFY ADITIVO] Assignment OK! URL: ${urlAssinatura}`);
 
-    return { assinafyDocId, signerId, urlAssinatura, emailSignatario: email, nomeSignatario: nome };
+    const agoraEnvio = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const signatariosDetalhados = signatariosResolvidos.map((s, idx) => {
+        const aMatch = assignList.find(a => (a && (a.signer_id === s.signer_id || (a.signer && a.signer.id === s.signer_id)))) || assignList[idx] || null;
+        const urlSig = (aMatch && (aMatch.url || aMatch.signature_url || aMatch.signing_url)) || urlAssinatura;
+        return {
+            signer_id: s.signer_id,
+            nome: s.nome,
+            email: s.email,
+            tipo: s.tipo,
+            status: 'Aguardando Assinatura',
+            enviado_em: agoraEnvio,
+            assinado_em: null,
+            url: urlSig
+        };
+    });
+
+    return {
+        assinafyDocId,
+        signerId: signatariosResolvidos[0]?.signer_id || null,
+        urlAssinatura,
+        emailSignatario: signatariosResolvidos.map(s => s.email).join(', '),
+        nomeSignatario: signatariosResolvidos.map(s => s.nome).join(', '),
+        signatarios: signatariosDetalhados
+    };
 }
 
 module.exports = { enviarDocumentoParaAssinafy, cancelarDocumentoAssinafy, enviarPdfBufferParaAssinafy };

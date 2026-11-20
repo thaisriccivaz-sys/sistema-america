@@ -632,6 +632,292 @@ window.tipoPropostaUsaContratoBase = function(tipoRaw) {
     return t === 'ADITIVO' || t === 'ADTIVO' || t === 'AVARIA' || t === 'AVARIAS';
 };
 
+window.ASSINAFY_TIPOS_SIGNATARIO = [
+    'Responsável Legal',
+    'América Rental',
+    'Testemunha',
+    'Interveniente',
+    'Procurador'
+];
+
+window.obterListaSignatariosProposta = function(prop) {
+    if (!prop) return [];
+    let lista = [];
+    try {
+        if (prop.assinafy_signatarios_json) {
+            const parsed = typeof prop.assinafy_signatarios_json === 'string'
+                ? JSON.parse(prop.assinafy_signatarios_json)
+                : prop.assinafy_signatarios_json;
+            if (Array.isArray(parsed)) lista = parsed.filter(Boolean);
+        }
+    } catch (_) {}
+    const foiAssinadoGeral = Boolean(
+        String(prop.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
+        (prop.assinafy_signed_r2_key && String(prop.assinafy_signed_r2_key).trim()) ||
+        (prop.assinafy_signed_at && String(prop.assinafy_signed_at).trim())
+    );
+    if (lista.length > 0) {
+        return lista.map(s => ({
+            ...s,
+            tipo: s.tipo || 'Responsável Legal',
+            status: (foiAssinadoGeral || s.status === 'Assinado' || s.assinado_em) ? 'Assinado' : 'Aguardando Assinatura',
+            enviado_em: s.enviado_em || prop.assinafy_sent_at || '',
+            assinado_em: s.assinado_em || (foiAssinadoGeral ? (prop.assinafy_signed_at || '') : '')
+        }));
+    }
+    if (prop.assinafy_id || prop.assinafy_email || prop.assinafy_signer_name) {
+        const emails = String(prop.assinafy_email || '').split(',').map(x => x.trim()).filter(Boolean);
+        const nomes = String(prop.assinafy_signer_name || prop.contato_nome || '').split(',').map(x => x.trim()).filter(Boolean);
+        const total = Math.max(emails.length, nomes.length, 1);
+        const fallback = [];
+        for (let i = 0; i < total; i++) {
+            const em = emails[i] || emails[0] || '—';
+            const nm = nomes[i] || nomes[0] || prop.contato_nome || '—';
+            const ehAm = em.toLowerCase() === 'nicolle.mezuraro@americarental.com.br';
+            fallback.push({
+                nome: nm,
+                email: em,
+                tipo: ehAm ? 'América Rental' : 'Responsável Legal',
+                status: foiAssinadoGeral ? 'Assinado' : 'Aguardando Assinatura',
+                enviado_em: prop.assinafy_sent_at || '',
+                assinado_em: foiAssinadoGeral ? (prop.assinafy_signed_at || '') : ''
+            });
+        }
+        return fallback;
+    }
+    return [];
+};
+
+window.renderQuadroAssinaturaDigitalContratoHtml = function(prop) {
+    const sigs = window.obterListaSignatariosProposta(prop);
+    const fmtDtHr = (s) => {
+        if (!s) return '—';
+        try {
+            const iso = String(s).includes('T') ? String(s) : String(s).replace(' ', 'T');
+            const dt = new Date(iso);
+            if (!isNaN(dt.getTime())) return dt.toLocaleString('pt-BR');
+            return String(s);
+        } catch (_) { return String(s); }
+    };
+    if (sigs.length === 0) {
+        return `
+            <div style="padding:1rem; text-align:center; color:#64748b; font-size:0.83rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px;">
+                <i class="ph ph-signature" style="font-size:1.3rem; color:#0f766e; display:block; margin-bottom:4px;"></i>
+                Este contrato ainda não foi enviado para assinatura digital via Assinafy.
+            </div>
+        `;
+    }
+    const rowsHtml = sigs.map(s => {
+        const isAssin = String(s.status || '').toUpperCase() === 'ASSINADO' || Boolean(s.assinado_em);
+        const badgeStatus = isAssin
+            ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-check-circle"></i> Assinado</span>`
+            : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;"><i class="ph ph-clock"></i> Aguardando Assinatura</span>`;
+        const ehAm = String(s.tipo || '').toUpperCase().includes('AMERICA RENTAL') || String(s.tipo || '').toUpperCase().includes('AMÉRICA RENTAL');
+        const badgeTipo = `<span style="background:${ehAm ? '#ede9fe' : '#f1f5f9'}; color:${ehAm ? '#6d28d9' : '#334155'}; border:1px solid ${ehAm ? '#c4b5fd' : '#cbd5e1'}; padding:2px 9px; border-radius:6px; font-size:0.73rem; font-weight:800; white-space:nowrap;">${_escHtmlProp(s.tipo || 'Responsável Legal')}</span>`;
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:8px 10px; white-space:nowrap;">${badgeTipo}</td>
+                <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${_escHtmlProp(s.nome || '—')}</td>
+                <td style="padding:8px 10px; color:#0369a1; font-weight:600; text-transform:lowercase;">${_escHtmlProp((s.email || '—').toLowerCase())}</td>
+                <td style="padding:8px 10px; color:#475569; text-align:center; white-space:nowrap;">${_escHtmlProp(fmtDtHr(s.enviado_em))}</td>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${badgeStatus}</td>
+                <td style="padding:8px 10px; color:${isAssin ? '#15803d' : '#94a3b8'}; font-weight:${isAssin ? '700' : '400'}; text-align:center; white-space:nowrap;">${_escHtmlProp(s.assinado_em ? fmtDtHr(s.assinado_em) : '—')}</td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div style="overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:2px solid #e2e8f0; color:#475569; font-weight:800; font-size:0.72rem; text-transform:uppercase;">
+                        <th style="padding:8px 10px; white-space:nowrap;">Tipo de Signatário</th>
+                        <th style="padding:8px 10px;">Nome do Signatário</th>
+                        <th style="padding:8px 10px;">E-mail Enviado</th>
+                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora do Envio</th>
+                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Situação</th>
+                        <th style="padding:8px 10px; text-align:center; white-space:nowrap;">Dia / Hora da Assinatura</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+    `;
+};
+
+window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Enviar para Assinatura (Assinafy)', nomePadrao = '', emailPadrao = '', signatariosIniciais = null } = {}) {
+    const tipos = window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador'];
+    let linhas = Array.isArray(signatariosIniciais) && signatariosIniciais.length > 0
+        ? signatariosIniciais.map(s => ({
+            tipo: s.tipo || 'Responsável Legal',
+            nome: s.nome || '',
+            email: (String(s.tipo || '').toUpperCase().includes('AMERICA RENTAL') || String(s.tipo || '').toUpperCase().includes('AMÉRICA RENTAL'))
+                ? 'nicolle.mezuraro@americarental.com.br'
+                : (s.email || '')
+        }))
+        : [{
+            tipo: 'Responsável Legal',
+            nome: nomePadrao || '',
+            email: emailPadrao || ''
+        }];
+
+    return await Swal.fire({
+        title: tituloModal,
+        width: '780px',
+        html: `
+            <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.84rem;">
+                <p style="color:#475569; margin:0 0 12px 0;">Configure abaixo os signatários que receberão o link por e-mail para assinar o documento via Assinafy. Você pode adicionar mais de uma pessoa para assinar o mesmo PDF:</p>
+                <div id="swal-assinafy-multi-rows" style="display:flex; flex-direction:column; gap:10px; max-height:52vh; overflow-y:auto; padding-right:2px;"></div>
+                <div style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                    <button type="button" id="btn-swal-add-signatario" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:7px 14px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                        <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Adicionar Signatário
+                    </button>
+                    <span style="font-size:0.74rem; color:#64748b;">* Ao selecionar <strong>América Rental</strong>, o envio é feito automaticamente para <strong>nicolle.mezuraro@americarental.com.br</strong>.</span>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#0f766e',
+        confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Enviar para Assinatura',
+        cancelButtonText: 'Cancelar',
+        didOpen: () => {
+            const container = document.getElementById('swal-assinafy-multi-rows');
+            const btnAdd = document.getElementById('btn-swal-add-signatario');
+
+            const lerEstadoAtual = () => {
+                if (!container) return;
+                const rowsDom = Array.from(container.querySelectorAll('.swal-sig-row'));
+                if (rowsDom.length > 0) {
+                    linhas = rowsDom.map(r => {
+                        const tp = r.querySelector('.swal-sig-tipo')?.value || 'Responsável Legal';
+                        const ehAm = tp === 'América Rental';
+                        return {
+                            tipo: tp,
+                            nome: r.querySelector('.swal-sig-nome')?.value || '',
+                            email: ehAm ? 'nicolle.mezuraro@americarental.com.br' : (r.querySelector('.swal-sig-email')?.value || '')
+                        };
+                    });
+                }
+            };
+
+            const renderLinhas = () => {
+                if (!container) return;
+                container.innerHTML = linhas.map((l, idx) => {
+                    const ehAm = l.tipo === 'América Rental';
+                    const emailVal = ehAm ? 'nicolle.mezuraro@americarental.com.br' : (l.email || '');
+                    const nomeVal = l.nome || (ehAm ? 'América Rental' : '');
+                    const optsHtml = tipos.map(t => `<option value="${_escHtmlProp(t)}" ${l.tipo === t ? 'selected' : ''}>${_escHtmlProp(t)}</option>`).join('');
+                    return `
+                        <div class="swal-sig-row" data-idx="${idx}" style="display:grid; grid-template-columns: 1.1fr 1.25fr 1.55fr auto; gap:8px; align-items:end; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+                            <div>
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">Tipo de Signatário *</label>
+                                <select class="swal-sig-tipo" data-idx="${idx}" style="width:100%; height:36px; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.8rem; font-weight:600; box-sizing:border-box; text-transform:none !important;">
+                                    ${optsHtml}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">Nome *</label>
+                                <input type="text" class="swal-sig-nome" value="${_escHtmlProp(nomeVal)}" placeholder="Nome do signatário..." style="width:100%; height:36px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.8rem; box-sizing:border-box; text-transform:none !important;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">E-mail para Assinatura *</label>
+                                <input type="email" class="swal-sig-email" value="${_escHtmlProp(emailVal)}" ${ehAm ? 'readonly' : ''} placeholder="email@empresa.com.br" style="width:100%; height:36px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:${ehAm ? '#f1f5f9' : '#fff'}; color:${ehAm ? '#475569' : '#0f172a'}; font-size:0.8rem; box-sizing:border-box; text-transform:none !important;">
+                            </div>
+                            <div>
+                                <button type="button" class="swal-sig-del" data-idx="${idx}" title="Remover signatário" ${linhas.length <= 1 ? 'disabled' : ''} style="height:36px; width:36px; border-radius:6px; border:1px solid ${linhas.length <= 1 ? '#e2e8f0' : '#fecaca'}; background:${linhas.length <= 1 ? '#f8fafc' : '#fef2f2'}; color:${linhas.length <= 1 ? '#cbd5e1' : '#dc2626'}; cursor:${linhas.length <= 1 ? 'not-allowed' : 'pointer'}; display:inline-flex; align-items:center; justify-content:center;">
+                                    <i class="ph ph-trash" style="font-size:1rem;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.querySelectorAll('.swal-sig-tipo').forEach(sel => {
+                    sel.addEventListener('change', (e) => {
+                        const i = Number(e.target.getAttribute('data-idx'));
+                        lerEstadoAtual();
+                        const novoTipo = e.target.value;
+                        linhas[i].tipo = novoTipo;
+                        if (novoTipo === 'América Rental') {
+                            linhas[i].email = 'nicolle.mezuraro@americarental.com.br';
+                            if (!linhas[i].nome || linhas[i].nome === nomePadrao) {
+                                linhas[i].nome = 'América Rental';
+                            }
+                        } else if (linhas[i].email === 'nicolle.mezuraro@americarental.com.br') {
+                            linhas[i].email = i === 0 ? (emailPadrao || '') : '';
+                            if (linhas[i].nome === 'América Rental') {
+                                linhas[i].nome = i === 0 ? (nomePadrao || '') : '';
+                            }
+                        }
+                        renderLinhas();
+                    });
+                });
+
+                container.querySelectorAll('.swal-sig-del').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (linhas.length <= 1) return;
+                        lerEstadoAtual();
+                        const i = Number(e.currentTarget.getAttribute('data-idx'));
+                        linhas.splice(i, 1);
+                        renderLinhas();
+                    });
+                });
+            };
+
+            if (btnAdd) {
+                btnAdd.addEventListener('click', () => {
+                    lerEstadoAtual();
+                    const jaTemAm = linhas.some(x => x.tipo === 'América Rental');
+                    if (!jaTemAm) {
+                        linhas.push({
+                            tipo: 'América Rental',
+                            nome: 'América Rental',
+                            email: 'nicolle.mezuraro@americarental.com.br'
+                        });
+                    } else {
+                        linhas.push({
+                            tipo: 'Testemunha',
+                            nome: '',
+                            email: ''
+                        });
+                    }
+                    renderLinhas();
+                });
+            }
+
+            renderLinhas();
+        },
+        preConfirm: () => {
+            const container = document.getElementById('swal-assinafy-multi-rows');
+            const rowsDom = Array.from(container?.querySelectorAll('.swal-sig-row') || []);
+            if (rowsDom.length === 0) {
+                Swal.showValidationMessage('Adicione pelo menos um signatário.');
+                return false;
+            }
+            const resultado = [];
+            for (let i = 0; i < rowsDom.length; i++) {
+                const r = rowsDom[i];
+                const tp = (r.querySelector('.swal-sig-tipo')?.value || 'Responsável Legal').trim();
+                const ehAm = tp === 'América Rental';
+                const nm = (r.querySelector('.swal-sig-nome')?.value || (ehAm ? 'América Rental' : '')).trim();
+                const em = ehAm ? 'nicolle.mezuraro@americarental.com.br' : (r.querySelector('.swal-sig-email')?.value || '').trim().toLowerCase();
+                if (!nm) {
+                    Swal.showValidationMessage(`Informe o nome do ${i + 1}º signatário (${tp}).`);
+                    return false;
+                }
+                if (!em || !em.includes('@')) {
+                    Swal.showValidationMessage(`Informe um e-mail válido para "${nm}" (${tp}).`);
+                    return false;
+                }
+                resultado.push({ tipo: tp, nome: nm, email: em });
+            }
+            return resultado;
+        }
+    });
+};
+
 window.propostaFoiAssinadaViaAssinafy = function(p) {
     if (!p) return false;
     if (typeof window.contratoFoiEstornado === 'function' && window.contratoFoiEstornado(p)) return false;
@@ -2964,7 +3250,8 @@ function _renderFormPropostaInt() {
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
     const isModoContratoRender = window._modoTelaComercial === 'contrato';
-    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false };
+    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    if (window._contratoSecoesAbertas.assinatura_digital === undefined) window._contratoSecoesAbertas.assinatura_digital = true;
     window.toggleSecaoContratoAccordion = function(chave, event) {
         if (event) event.stopPropagation();
         if (window._modoTelaComercial !== 'contrato') return;
@@ -3802,6 +4089,24 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Assinatura Digital (Exclusiva na tela de Contratos) -->
+                    <div id="prop-secao-assinatura-digital" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <div onclick="window.toggleSecaoContratoAccordion('assinatura_digital', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
+                            <h4 style="margin:0; font-size:0.82rem; color:#0f766e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
+                                <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital (Assinafy)
+                                <span style="background:#ccfbf1; color:#115e59; border:1px solid #5eead4; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${window.obterListaSignatariosProposta(prop).length} signatário(s)</span>
+                            </h4>
+                            <button type="button" tabindex="-1" style="background:#ccfbf1; border:1px solid #5eead4; color:#0f766e; width:26px; height:26px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                <i id="prop-caret-assinatura_digital" class="ph ph-caret-down" style="font-size:0.95rem; transition:transform 0.2s; transform:${window._contratoSecoesAbertas.assinatura_digital ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                            </button>
+                        </div>
+                        <div id="prop-secao-assinatura_digital-body" style="display:${window._contratoSecoesAbertas.assinatura_digital ? 'block' : 'none'}; margin-top:0.6rem;">
+                            <div id="prop-quadro-assinatura-digital-conteudo">
+                                ${window.renderQuadroAssinaturaDigitalContratoHtml(prop)}
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Observações -->
                     <div style="margin-bottom:0.5rem;">
                         <label class="prop-lbl">Observações</label>
@@ -3907,10 +4212,16 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     const faseForm = String(document.getElementById('prop-fase')?.value || (prop && prop.fase_negociacao) || '').trim().toUpperCase();
     const foiAssinadaAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
     const isApOuPreAp = foiAssinadaAssinafy || faseForm === 'APROVADA' || faseForm === 'PRÉ APROVADA' || faseForm === 'APROVADO - ADITIVO ASSINADO' || faseForm === 'ENVIADO PARA ASSINATURA';
+    const temTituloSalvoContrato = window._modoTelaComercial !== 'contrato'
+        || Boolean(prop && prop.titulo_contrato && String(prop.titulo_contrato).trim());
 
     document.querySelectorAll('#prop-toolbar-form .prop-btn-pos-salvo').forEach(btn => {
         if (window._modoTelaComercial === 'contrato' && (btn.id === 'btn-prop-copiar-link' || btn.id === 'btn-prop-desativar-link')) {
             btn.style.display = 'none';
+            return;
+        }
+        if (window._modoTelaComercial === 'contrato' && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
+            btn.style.display = (mostrar && temTituloSalvoContrato) ? 'inline-flex' : 'none';
             return;
         }
         if (window._modoTelaComercial !== 'contrato' && isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
@@ -8619,7 +8930,27 @@ window.aprovarPropostaEdicao = async function() {
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0
     };
     if (usaFluxoAssinafy) {
+        if (ehModoContratoAssinafy && !obter('prop-titulo-contrato').trim()) {
+            Swal.fire('Aviso', 'Preencha e salve o campo Título do contrato antes de enviar para assinatura.', 'warning');
+            document.getElementById('prop-titulo-contrato')?.focus();
+            return;
+        }
         const labelDocAssinafy = ehModoContratoAssinafy ? 'PDF do Contrato' : (ehVendaAprov ? 'Proposta de Venda' : (ehAvariaAprov ? 'Proposta de Avaria' : 'Aditivo'));
+        const dadosCtEstrito = typeof window.obterDadosContatoPropostaAtual === 'function'
+            ? await window.obterDadosContatoPropostaAtual(null, true)
+            : { email: '', contatoNome: obter('prop-contato') };
+        const sigsExist = window.obterListaSignatariosProposta(propExistente);
+        const modalSigResp = await window.solicitarSignatariosAssinafyModal({
+            tituloModal: `Enviar ${ehModoContratoAssinafy ? 'Contrato' : 'Proposta'} para Assinatura (Assinafy)`,
+            nomePadrao: dadosCtEstrito.contatoNome || obter('prop-contato') || '',
+            emailPadrao: dadosCtEstrito.email || '',
+            signatariosIniciais: sigsExist.length > 0 ? sigsExist : null
+        });
+        if (!modalSigResp || !modalSigResp.isConfirmed || !Array.isArray(modalSigResp.value) || modalSigResp.value.length === 0) {
+            return;
+        }
+        const listaSignatariosEscolhidos = modalSigResp.value;
+
         Swal.fire({ title: `Gerando ${labelDocAssinafy} e enviando via Assinafy...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         try {
             const respSave = _propostasEditandoId
@@ -8633,10 +8964,6 @@ window.aprovarPropostaEdicao = async function() {
             _propostasEditandoId = finalId;
             if (ehModoContratoAssinafy) window._propostasEditandoId_contrato = finalId;
             else window._propostasEditandoId_proposta = finalId;
-
-            const dadosCtEstrito = typeof window.obterDadosContatoPropostaAtual === 'function'
-                ? await window.obterDadosContatoPropostaAtual(null, true)
-                : { email: '', contatoNome: obter('prop-contato') };
 
             let htmlImpressaoSimples = '';
             try {
@@ -8670,8 +8997,10 @@ window.aprovarPropostaEdicao = async function() {
                 modo_contrato: ehModoContratoAssinafy,
                 html_impressao_simples: htmlImpressaoSimples,
                 produtos_aprovados: produtosAprovadosSel,
-                nome_signatario: dadosCtEstrito.contatoNome || obter('prop-contato') || '',
-                email_signatario: dadosCtEstrito.email || ''
+                signatarios: listaSignatariosEscolhidos,
+                nome_signatario: listaSignatariosEscolhidos[0]?.nome || '',
+                email_signatario: listaSignatariosEscolhidos[0]?.email || '',
+                tipo_signatario: listaSignatariosEscolhidos[0]?.tipo || 'Responsável Legal'
             });
 
             if (respAssinafy && respAssinafy.precisa_email) {
@@ -8959,35 +9288,20 @@ window.reenviarPropostaAssinafy = async function(idOpcional = null) {
 
         const emailSugerido = dadosCtEstrito.email || propRef?.assinafy_email || '';
         const nomeSugerido = dadosCtEstrito.contatoNome || (isEstaPropostaAberta ? (document.getElementById('prop-contato')?.value || '') : '') || propRef?.contato_nome || propRef?.assinafy_signer_name || '';
+        const sigsExistReenvio = window.obterListaSignatariosProposta(propRef);
 
-        const confReenvio = await Swal.fire({
-            title: 'Reenviar para Assinatura (Assinafy)',
-            html: `
-                <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.86rem;">
-                    <p style="color:#475569; margin:0 0 10px 0;">Confirme os dados do contato selecionado para reenviar o documento para assinatura via Assinafy:</p>
-                    <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">Contato (Signatário) *</label>
-                    <input type="text" id="swal-reenviar-assinafy-nome" value="${_escHtmlProp(nomeSugerido)}" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; margin-bottom:10px; box-sizing:border-box;">
-                    <label style="font-weight:700; color:#334155; display:block; margin-bottom:4px;">E-mail do Contato *</label>
-                    <input type="email" id="swal-reenviar-assinafy-email" value="${_escHtmlProp(emailSugerido)}" placeholder="contato@empresa.com.br" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; box-sizing:border-box; text-transform:none !important;">
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonColor: '#0284c7',
-            confirmButtonText: '<i class="ph ph-paper-plane-tilt"></i> Reenviar Agora',
-            cancelButtonText: 'Cancelar',
-            preConfirm: () => {
-                const nm = (document.getElementById('swal-reenviar-assinafy-nome')?.value || '').trim();
-                const em = (document.getElementById('swal-reenviar-assinafy-email')?.value || '').trim();
-                if (!nm) { Swal.showValidationMessage('Informe o nome do contato.'); return false; }
-                if (!em || !em.includes('@')) { Swal.showValidationMessage('Informe um e-mail válido.'); return false; }
-                return { nome_signatario: nm, email_signatario: em };
-            }
+        const confReenvio = await window.solicitarSignatariosAssinafyModal({
+            tituloModal: 'Reenviar para Assinatura (Assinafy)',
+            nomePadrao: nomeSugerido,
+            emailPadrao: emailSugerido,
+            signatariosIniciais: sigsExistReenvio.length > 0 ? sigsExistReenvio : null
         });
-        if (!confReenvio.isConfirmed) return;
+        if (!confReenvio || !confReenvio.isConfirmed || !Array.isArray(confReenvio.value) || confReenvio.value.length === 0) return;
+        const listaSignatariosReenvio = confReenvio.value;
 
         Swal.fire({ title: 'Reenviando documento via Assinafy...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-        const ehModoCtrReenvio = window._modoTelaComercial === 'contrato';
+        const ehModoCtrReenvio = window._modoTelaComercial === 'contrato' || Boolean(propRef && propRef.contrato && !(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(propRef.tipo)));
         let htmlImpressaoSimples = '';
         try {
             if (ehModoCtrReenvio && propRef && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
@@ -9012,8 +9326,10 @@ window.reenviarPropostaAssinafy = async function(idOpcional = null) {
             reenviar: true,
             modo_contrato: ehModoCtrReenvio,
             html_impressao_simples: htmlImpressaoSimples,
-            nome_signatario: confReenvio.value.nome_signatario,
-            email_signatario: confReenvio.value.email_signatario
+            signatarios: listaSignatariosReenvio,
+            nome_signatario: listaSignatariosReenvio[0]?.nome || '',
+            email_signatario: listaSignatariosReenvio[0]?.email || '',
+            tipo_signatario: listaSignatariosReenvio[0]?.tipo || 'Responsável Legal'
         });
 
         Swal.close();
@@ -20164,7 +20480,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
-        const totalColunasModal = 8 + (exibirColExcluirModal ? 1 : 0);
+        const totalColunasModal = (isModoContratoModal ? 9 : 8) + (exibirColExcluirModal ? 1 : 0);
 
         const renderRows = (list) => {
             if (list.length === 0) {
@@ -20179,6 +20495,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const dataFmt = dataIsoModal ? dataIsoModal.split('-').reverse().join('/') : '';
                 const codPropLimpo = String(p.codigo || '').trim();
                 const numContratoProp = String(p.contrato || '').trim();
+                const tituloContratoExib = String(p.titulo_contrato || '').trim() || '—';
                 const btnPropAzulHtml = codPropLimpo
                     ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirPropostaDiretoId(${p.id});" title="Clique para abrir a Proposta Nº ${_escHtmlProp(codPropLimpo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'">${_escHtmlProp(codPropLimpo)}</button>`
                     : '—';
@@ -20191,8 +20508,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     : window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração');
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                        <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${isModoContratoModal ? btnContratoAmareloHtml : btnPropAzulHtml}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${isModoContratoModal ? btnPropAzulHtml : btnContratoAmareloHtml}</td>
+                        <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnPropAzulHtml}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnContratoAmareloHtml}</td>
+                        ${isModoContratoModal ? `<td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(tituloContratoExib)}</td>` : ''}
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${p.cliente_cnpj || '—'}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#334155; text-align:center; white-space:nowrap;">${tipoExib}</td>
@@ -20244,8 +20562,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Proposta'}</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:105px; white-space:nowrap;">${isModoContratoModal ? 'Proposta' : 'Contrato'}</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Proposta</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Contrato'}</th>
+                                        ${isModoContratoModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; min-width:150px;">Título</th>' : ''}
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; width:130px; white-space:nowrap;">CNPJ</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:130px; white-space:nowrap;">Tipo</th>
