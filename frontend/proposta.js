@@ -25738,15 +25738,13 @@ window._renderTabelaPrecosInt = async function() {
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem 1rem; margin-bottom:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                 <div style="font-size:0.8rem; font-weight:800; color:#5f3dc4; margin-bottom:0.65rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                     <span style="display:inline-flex; align-items:center; gap:6px;">
-                        <i class="ph ph-plus-circle" style="font-size:1.05rem;"></i> Adicionar Custo de Reposição (cria mnemônico automaticamente para o Contrato)
+                        <i class="ph ph-plus-circle" style="font-size:1.05rem;"></i> Adicionar Custo de Reposição
                     </span>
-                    <span id="rep-preview-mnemonico-novo" style="font-size:0.72rem; color:#6d28d9; background:#f5f3ff; border:1px dashed #c4b5fd; padding:2px 8px; border-radius:6px; font-family:monospace;">Mnemônico: {{REPOSICAO_...}}</span>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 180px auto; gap:0.65rem; align-items:end;">
                     <div>
                         <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:4px;">Descrição / Tipo de Equipamento ou Serviço *</label>
                         <input type="text" id="rep-novo-nome" placeholder="Ex: Cabine PCD, Guaritas Dupla, Manutenção Avulsa..." autocomplete="off"
-                            oninput="const el=document.getElementById('rep-preview-mnemonico-novo'); if(el) el.textContent='Mnemônico: ' + window.gerarMnemonicoReposicaoFront(this.value);"
                             onkeydown="if(event.key==='Enter'){event.preventDefault(); window.adicionarItemValorReposicao();}"
                             style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
                     </div>
@@ -25768,8 +25766,8 @@ window._renderTabelaPrecosInt = async function() {
             <!-- Card de Busca na Aba Reposição -->
             <div style="background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.85rem;">
                 <div>
-                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtrar Custo de Reposição ou Mnemônico</label>
-                    <input type="text" id="tp-filtro-equipamento" placeholder="🔍 Filtrar por descrição ou mnemônico..."
+                    <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Filtrar Custo de Reposição</label>
+                    <input type="text" id="tp-filtro-equipamento" placeholder="🔍 Filtrar por descrição..."
                         oninput="window.filtrarLinhasTabelaPrecos(this.value)"
                         style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; text-transform:none;">
                 </div>
@@ -25781,7 +25779,6 @@ window._renderTabelaPrecosInt = async function() {
                     <thead>
                         <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.73rem; text-transform:uppercase; letter-spacing:0.03em;">
                             <th style="padding:10px 14px;">Descrição do Custo de Reposição</th>
-                            <th style="padding:10px 12px; width:340px;">Mnemônico no Contrato (Clique para copiar)</th>
                             <th style="padding:10px 12px; width:165px; text-align:right;">Valor (R$)</th>
                             <th style="padding:10px 12px; width:115px; text-align:center;">Ações</th>
                         </tr>
@@ -25789,22 +25786,14 @@ window._renderTabelaPrecosInt = async function() {
                     <tbody id="tp-itens-tbody">
                         ${itensReposicao.length === 0 ? `
                             <tr>
-                                <td colspan="4" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
+                                <td colspan="3" style="text-align:center; padding:2.5rem; color:#94a3b8; font-size:0.88rem;">
                                     Nenhum custo de reposição cadastrado. Utilize os campos acima para adicionar.
                                 </td>
                             </tr>
                         ` : itensReposicao.map(item => `
-                            <tr class="tp-row-item" data-search="${_escHtmlProp((String(item.nome || '') + ' ' + String(item.mnemonico || '')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
+                            <tr class="tp-row-item" data-search="${_escHtmlProp(String(item.nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())}" style="border-bottom:1px solid #f1f5f9;">
                                 <td style="padding:8px 14px; font-weight:700; color:#1e293b;">
                                     ${_escHtmlProp(item.nome || '—')}
-                                </td>
-                                <td style="padding:8px 12px;">
-                                    <button type="button" onclick="window.copiarMnemonicoContratoParaAreaTransferencia('${_escHtmlProp(item.mnemonico)}')"
-                                        title="Clique para copiar o mnemônico ${_escHtmlProp(item.mnemonico)}"
-                                        style="background:#f5f3ff; border:1px dashed #a78bfa; color:#5b21b6; border-radius:6px; padding:4px 9px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                                        <i class="ph ph-copy" style="font-size:0.85rem;"></i>
-                                        <code>${_escHtmlProp(item.mnemonico)}</code>
-                                    </button>
                                 </td>
                                 <td style="padding:8px 12px; text-align:right;">
                                     <input type="number" step="0.01" id="rep-val-${item.id}" value="${Number(item.valor || 0).toFixed(2)}"
@@ -25820,7 +25809,7 @@ window._renderTabelaPrecosInt = async function() {
                                         style="background:#e0f2fe; color:#0369a1; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; margin-right:4px;">
                                         <i class="ph ph-pencil-simple" style="font-size:0.95rem;"></i>
                                     </button>
-                                    <button type="button" onclick="window.excluirItemValorReposicao(${item.id})" title="Excluir Custo de Reposição e Mnemônico"
+                                    <button type="button" onclick="window.excluirItemValorReposicao(${item.id})" title="Excluir Custo de Reposição"
                                         style="background:#fee2e2; color:#ef4444; border:none; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
                                         <i class="ph ph-trash" style="font-size:0.95rem;"></i>
                                     </button>
@@ -25944,11 +25933,6 @@ window.abrirModalEditarValorReposicao = async function(id) {
                     <input type="number" step="0.01" id="swal-rep-valor" value="${Number(item.valor || 0).toFixed(2)}"
                         style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #86efac; background:#f0fdf4; color:#166534; font-weight:800; border-radius:6px; font-size:0.86rem; box-sizing:border-box;">
                 </div>
-                <div>
-                    <label style="display:block; font-size:0.76rem; font-weight:700; color:#64748b; margin-bottom:4px;">Mnemônico Vinculado</label>
-                    <input type="text" id="swal-rep-mnemonico" value="${_escHtmlProp(item.mnemonico || '')}"
-                        style="width:100%; height:36px; padding:0 0.75rem; border:1px solid #cbd5e1; background:#f8fafc; color:#5b21b6; font-family:monospace; font-weight:700; border-radius:6px; font-size:0.8rem; box-sizing:border-box; text-transform:none;">
-                </div>
             </div>
         `,
         showCancelButton: true,
@@ -25958,12 +25942,11 @@ window.abrirModalEditarValorReposicao = async function(id) {
         preConfirm: () => {
             const nome = String(document.getElementById('swal-rep-nome')?.value || '').trim();
             const valor = parseFloat(String(document.getElementById('swal-rep-valor')?.value || '0').replace(',', '.')) || 0;
-            const mnemonico = String(document.getElementById('swal-rep-mnemonico')?.value || '').trim();
             if (!nome) {
                 Swal.showValidationMessage('A descrição é obrigatória.');
                 return false;
             }
-            return { nome, valor, mnemonico };
+            return { nome, valor };
         }
     });
     if (formValues) {
@@ -25984,7 +25967,7 @@ window.excluirItemValorReposicao = async function(id) {
     const item = (window._valoresReposicaoList || []).find(r => Number(r.id) === Number(id));
     const conf = await Swal.fire({
         title: 'Excluir custo de reposição?',
-        text: item ? `Deseja excluir "${item.nome}" e remover automaticamente o mnemônico ${item.mnemonico}?` : 'Deseja excluir este item?',
+        text: item ? `Deseja excluir "${item.nome}"?` : 'Deseja excluir este item?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -29394,12 +29377,12 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
     const cobrancaFimBr = fmtDataBr(p.periodo_cobranca_fim || p.periodo_fim || dataAtualBr);
     const tipoLimpoContrato = String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, '');
     const numContratoLimpo = String(p.contrato || p.numero_contrato || p.codigo || '0001').trim();
-    const tituloContratoPadrao = `CONTRATO DE LOCAÇÃO Nº ${numContratoLimpo} - ${tipoLimpoContrato}`;
+    const tituloCampoContrato = String(p.titulo_contrato || '').trim() || (p._isPreviewModelo ? 'Título do Contrato' : '');
 
     const ctxResult = {
         '{{NUMERO_CONTRATO}}': numContratoLimpo,
-        '{{TITULO_CONTRATO}}': tituloContratoPadrao,
-        '{{TITULO_INTERNO_CONTRATO}}': String(p.titulo_contrato || '').trim(),
+        '{{TITULO_CONTRATO}}': tituloCampoContrato,
+        '{{TITULO_INTERNO_CONTRATO}}': tituloCampoContrato,
         '{{CODIGO_PROPOSTA}}': String(p.codigo || '0001').trim(),
         '{{TIPO_CONTRATO}}': tipoLimpoContrato,
         '{{ATENDENTE}}': String(p.atendente_nome || p.atendente || window.obterNomeUsuarioLogado() || 'Thais Ricci').trim(),
@@ -29561,6 +29544,8 @@ window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText
         Object.keys(map).forEach(k => {
             s = s.split(k).join(String(map[k] ?? ''));
         });
+        // Se algum mnemônico como {{TITULO_CONTRATO}} ficou vazio entre parênteses "( )", remove os parênteses vazios
+        s = s.replace(/\s*\(\s*\)/g, '');
         return s;
     }
 
@@ -29571,6 +29556,7 @@ window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText
             s = s.split(k).join(String(map[k] ?? ''));
         }
     });
+    s = s.replace(/\s*\(\s*\)/g, '');
     return s;
 };
 
