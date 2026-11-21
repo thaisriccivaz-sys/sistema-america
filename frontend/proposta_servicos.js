@@ -829,6 +829,7 @@
         const lista = window._propServicosAdicionados || [];
         if (lista.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum serviço adicionado à proposta.</td></tr>';
+            if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') window.aplicarBloqueioCamposPropostaNoContrato();
             return;
         }
         const fmtM = typeof window.formatarMoedaCentavosProposta === 'function'
@@ -911,6 +912,7 @@
             </tr>`;
         }).join('');
         tbody.innerHTML = linhas;
+        if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') window.aplicarBloqueioCamposPropostaNoContrato();
     };
 
     /* Validação usada ao salvar/estornar. Retorna true se pode prosseguir. */

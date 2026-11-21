@@ -4996,8 +4996,8 @@ function _renderFormPropostaInt() {
                             <div style="background:#ffffff; border:1px solid #fde047; border-radius:8px; padding:0.65rem 0.85rem; margin-bottom:0.6rem;">
                                 <div style="display:grid; grid-template-columns:1fr auto; gap:0.6rem; align-items:end;">
                                     <div>
-                                        <label class="prop-lbl" style="color:#713f12;">Título do Anexo <span style="font-weight:500; color:#64748b; font-size:0.73rem;">(opcional — você também pode adicionar vários anexos de uma vez e colocar os títulos depois)</span></label>
-                                        <input type="text" id="prop-anexo-contrato-titulo-inp" placeholder="Escreva o título do anexo (ou deixe em branco para preencher depois)..."
+                                        <label class="prop-lbl" style="color:#713f12;">Título do Anexo</label>
+                                        <input type="text" id="prop-anexo-contrato-titulo-inp" placeholder="Escreva o título do anexo..."
                                             style="width:100%; padding:0.52rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none !important;">
                                     </div>
                                     <div>
@@ -5123,6 +5123,9 @@ function _renderFormPropostaInt() {
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
     }
+    if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') {
+        window.aplicarBloqueioCamposPropostaNoContrato();
+    }
     const faseUpRender = String(v('fase_negociacao') || '').trim().toUpperCase();
     const foiAssinadaAssinafyRender = window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop);
     const virouContratoRender = Boolean(window.propostaVirouContrato && window.propostaVirouContrato(prop));
@@ -5155,6 +5158,103 @@ function _renderFormPropostaInt() {
         }).catch(() => {});
     }
 }
+
+window.aplicarBloqueioCamposPropostaNoContrato = function() {
+    const isCtr = window._modoTelaComercial === 'contrato';
+    const msgAviso = 'Para alterar Produto, Serviço ou Período e Condições, estorne a proposta e faça a alteração na Proposta.';
+
+    const garantirBannerSomenteLeitura = (bodyEl, idBanner) => {
+        if (!bodyEl) return;
+        let banner = document.getElementById(idBanner);
+        if (!isCtr) {
+            if (banner) banner.remove();
+            return;
+        }
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = idBanner;
+            banner.style.cssText = 'background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:6px; padding:6px 10px; font-size:0.76rem; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:6px;';
+            banner.innerHTML = `<i class="ph ph-lock-key" style="font-size:0.95rem; color:#ea580c; flex-shrink:0;"></i> <span>Somente leitura no Contrato. Para alterar estas informações, estorne a proposta e realize a alteração na tela de Proposta.</span>`;
+            bodyEl.insertBefore(banner, bodyEl.firstChild);
+        }
+    };
+
+    // 1. Período e Condições
+    const bodyPeriodo = document.getElementById('prop-secao-periodo-body');
+    if (bodyPeriodo) {
+        garantirBannerSomenteLeitura(bodyPeriodo, 'prop-banner-lock-periodo');
+        bodyPeriodo.querySelectorAll('input, select, textarea, button').forEach(el => {
+            if (isCtr) {
+                el.disabled = true;
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.readOnly = true;
+                if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
+                el.title = msgAviso;
+            }
+        });
+    }
+
+    // 2. Produtos
+    const secaoProd = document.getElementById('prop-secao-produtos');
+    const bodyProd = document.getElementById('prop-secao-produtos-body');
+    if (secaoProd && bodyProd) {
+        garantirBannerSomenteLeitura(bodyProd, 'prop-banner-lock-produtos');
+        const btnComp = document.getElementById('btn-prop-comparar-valores');
+        if (btnComp && isCtr) {
+            btnComp.disabled = true;
+            btnComp.style.pointerEvents = 'none';
+            btnComp.style.display = 'none';
+        }
+        const chkComp = document.getElementById('prop-comparativa');
+        if (chkComp && isCtr) {
+            chkComp.disabled = true;
+            if (chkComp.parentElement && chkComp.parentElement.tagName === 'LABEL') {
+                chkComp.parentElement.style.pointerEvents = 'none';
+                chkComp.parentElement.style.opacity = '0.65';
+            }
+        }
+        ['prop-prod-add-grid', 'prop-prod-valores-grid', 'prop-wrapper-dias-evento'].forEach(idBloco => {
+            const bl = document.getElementById(idBloco);
+            if (bl && isCtr) bl.style.display = 'none';
+        });
+        bodyProd.querySelectorAll('input, select, textarea, button').forEach(el => {
+            if (!isCtr) return;
+            const onclickStr = String(el.getAttribute('onclick') || '');
+            if (onclickStr.includes('toggleDetalhesDiasProdutoGrid')) return;
+            if (onclickStr.includes('removerProdutoProposta') || onclickStr.includes('removerDiaEventoDeProduto')) {
+                el.style.display = 'none';
+                el.disabled = true;
+                return;
+            }
+            el.disabled = true;
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.readOnly = true;
+            if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
+            el.title = msgAviso;
+        });
+    }
+
+    // 3. Serviços
+    const bodyServ = document.getElementById('prop-secao-servicos-body');
+    if (bodyServ) {
+        garantirBannerSomenteLeitura(bodyServ, 'prop-banner-lock-servicos');
+        const gridAddServ = bodyServ.querySelector('#prop-serv-codigo')?.closest('div[style*="grid-template-columns"]');
+        if (gridAddServ) gridAddServ.style.display = isCtr ? 'none' : 'grid';
+        const gridValServ = document.getElementById('prop-serv-valores-grid');
+        if (gridValServ && isCtr) gridValServ.style.display = 'none';
+        bodyServ.querySelectorAll('input, select, textarea, button').forEach(el => {
+            if (!isCtr) return;
+            const onclickStr = String(el.getAttribute('onclick') || '');
+            if (onclickStr.includes('removerServicoProposta')) {
+                el.style.display = 'none';
+                el.disabled = true;
+                return;
+            }
+            el.disabled = true;
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.readOnly = true;
+            if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
+            el.title = msgAviso;
+        });
+    }
+};
 
 window.contratoTemCamposObrigatoriosEnvioPreenchidos = function(propOverride = null) {
     if (window._modoTelaComercial !== 'contrato') return true;
@@ -23311,6 +23411,9 @@ window.atualizarBloqueioProdutoPorContratoBase = function() {
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
     }
+    if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') {
+        window.aplicarBloqueioCamposPropostaNoContrato();
+    }
 };
 
 window.onClickProdutoBloqueadoPorContratoBase = function(event) {
@@ -25784,6 +25887,7 @@ window.renderizarProdutosPropostaGrid = function() {
             </tr>
         `;
         if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
+        if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') window.aplicarBloqueioCamposPropostaNoContrato();
         return;
     }
 
@@ -25934,6 +26038,9 @@ window.renderizarProdutosPropostaGrid = function() {
 
     if (typeof window.calcularValorTotalProposta === 'function') {
         window.calcularValorTotalProposta();
+    }
+    if (typeof window.aplicarBloqueioCamposPropostaNoContrato === 'function') {
+        window.aplicarBloqueioCamposPropostaNoContrato();
     }
 };
 
