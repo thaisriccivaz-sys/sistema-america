@@ -1056,8 +1056,8 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
-        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
-        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
         datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
         contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
@@ -4848,13 +4848,13 @@ function _renderFormPropostaInt() {
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem 0.85rem; align-items:start;">
                             <div>
                                 <label class="prop-lbl">Período de Cobrança — Início *</label>
-                                <input type="date" id="prop-cobranca-ini" value="${_escHtmlProp(v('periodo_cobranca_inicio') || v('periodo_inicio') || '')}"
+                                <input type="date" id="prop-cobranca-ini" value="${_escHtmlProp(v('periodo_cobranca_inicio'))}"
                                     onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
                                     style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
                             </div>
                             <div>
                                 <label class="prop-lbl">Período de Cobrança — Fim *</label>
-                                <input type="date" id="prop-cobranca-fim" value="${_escHtmlProp(v('periodo_cobranca_fim') || v('periodo_fim') || '')}"
+                                <input type="date" id="prop-cobranca-fim" value="${_escHtmlProp(v('periodo_cobranca_fim'))}"
                                     onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
                                     style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
                             </div>
@@ -5267,8 +5267,8 @@ window.contratoTemCamposObrigatoriosEnvioPreenchidos = function(propOverride = n
     const titulo = obterVal('prop-titulo-contrato', 'titulo_contrato');
     if (!titulo) return false;
 
-    const cobIni = obterVal('prop-cobranca-ini', 'periodo_cobranca_inicio') || String(prop.periodo_inicio || '').trim();
-    const cobFim = obterVal('prop-cobranca-fim', 'periodo_cobranca_fim') || String(prop.periodo_fim || '').trim();
+    const cobIni = obterVal('prop-cobranca-ini', 'periodo_cobranca_inicio');
+    const cobFim = obterVal('prop-cobranca-fim', 'periodo_cobranca_fim');
     if (!cobIni || !cobFim) return false;
 
     let respObj = (window._propResponsaveisContrato && typeof window._propResponsaveisContrato === 'object')
@@ -5306,7 +5306,9 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             return;
         }
         if (window._modoTelaComercial === 'contrato' && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
-            btn.style.display = (mostrar && infoContratoCompleta) ? 'inline-flex' : 'none';
+            const sitCtrBtnUp = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
+            const ctrAssinadoAtivo = (sitCtrBtnUp === 'CONTRATO ASSINADO' || sitCtrBtnUp === 'CONTRATO DIGITAL ASSINADO');
+            btn.style.display = (mostrar && infoContratoCompleta && !ctrAssinadoAtivo) ? 'inline-flex' : 'none';
             btn.disabled = false;
             return;
         }
@@ -5409,7 +5411,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnDocAssinado.style.display = 'none';
         } else if (isModoContratoBtn) {
             const sitCtrUp = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
-            const ctrAssinado = Boolean(foiAssinadaAssinafy || sitCtrUp === 'CONTRATO ASSINADO');
+            const ctrAssinado = Boolean(mostrar && (sitCtrUp === 'CONTRATO ASSINADO' || sitCtrUp === 'CONTRATO DIGITAL ASSINADO'));
             btnDocAssinado.style.display = ctrAssinado ? 'inline-flex' : 'none';
         } else if (jaAssinadaReal) {
             btnDocAssinado.style.display = 'inline-flex';
@@ -5487,12 +5489,26 @@ window.marcarPropostaComoEditada = function(opcoes = {}) {
     if (!_propostasEditandoId) return;
     const prop = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
     const foiAssinadaAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
-    if (!(opcoes && opcoes.preservarFase) && !foiAssinadaAssinafy) {
+    const isModoCtrEdicao = window._modoTelaComercial === 'contrato';
+    if (!(opcoes && opcoes.preservarFase) && (isModoCtrEdicao || !foiAssinadaAssinafy)) {
         const selFase = document.getElementById('prop-fase');
         if (selFase) {
             const faseNorm = String(selFase.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-            if (window._modoTelaComercial === 'contrato') {
-                if (faseNorm === 'ENVIADO PARA ASSINATURA' || faseNorm === 'AGUARDANDO ASSINATURA') {
+            if (isModoCtrEdicao) {
+                const sitsVoltamElaboracao = [
+                    'ENVIADO PARA ASSINATURA',
+                    'AGUARDANDO ASSINATURA',
+                    'CONTRATO ASSINADO',
+                    'CONTRATO DIGITAL ASSINADO',
+                    'ASSINADO',
+                    'REPROVADO | CANCELADO',
+                    'REPROVADO / CANCELADO',
+                    'REPROVADA',
+                    'REPROVADO',
+                    'CANCELADA',
+                    'CANCELADO'
+                ];
+                if (sitsVoltamElaboracao.includes(faseNorm)) {
                     selFase.value = 'EM ELABORAÇÃO';
                     if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
                         window.atualizarBadgeSituacaoContratoForm('EM ELABORAÇÃO');
@@ -5507,7 +5523,7 @@ window.marcarPropostaComoEditada = function(opcoes = {}) {
         }
     }
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
-    if (btnDocAssinado && !foiAssinadaAssinafy) btnDocAssinado.style.display = 'none';
+    if (btnDocAssinado && (isModoCtrEdicao || !foiAssinadaAssinafy)) btnDocAssinado.style.display = 'none';
     window.atualizarVisibilidadeBotoesPosSalvoProposta();
 };
 
@@ -9231,9 +9247,23 @@ window.salvarPropostaNova = async function() {
         await window.confirmarSalvarProposta(false);
         return;
     }
-    if (_propostasEditandoId && window._modoTelaComercial === 'contrato' && !foiAssinadaProp) {
+    if (_propostasEditandoId && window._modoTelaComercial === 'contrato') {
         const sitNormSalvar = String(fase || (propExistAssinafy && propExistAssinafy.situacao_contrato) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-        if (sitNormSalvar === 'ENVIADO PARA ASSINATURA' || sitNormSalvar === 'AGUARDANDO ASSINATURA') {
+        const oldSitCtrSalvar = String((propExistAssinafy && propExistAssinafy.situacao_contrato) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        const sitsVoltamElabSalvar = [
+            'ENVIADO PARA ASSINATURA',
+            'AGUARDANDO ASSINATURA',
+            'CONTRATO ASSINADO',
+            'CONTRATO DIGITAL ASSINADO',
+            'ASSINADO',
+            'REPROVADO | CANCELADO',
+            'REPROVADO / CANCELADO',
+            'REPROVADA',
+            'REPROVADO',
+            'CANCELADA',
+            'CANCELADO'
+        ];
+        if (sitsVoltamElabSalvar.includes(sitNormSalvar) && (sitNormSalvar === oldSitCtrSalvar || sitNormSalvar === 'ENVIADO PARA ASSINATURA' || sitNormSalvar === 'AGUARDANDO ASSINATURA' || sitNormSalvar === 'CONTRATO ASSINADO' || sitNormSalvar === 'CONTRATO DIGITAL ASSINADO')) {
             fase = 'EM ELABORAÇÃO';
             const selF = document.getElementById('prop-fase');
             if (selF) selF.value = 'EM ELABORAÇÃO';
@@ -9400,8 +9430,8 @@ window.salvarPropostaNova = async function() {
         modo_contrato: window._modoTelaComercial === 'contrato',
         titulo_contrato: obter('prop-titulo-contrato').trim(),
         situacao_contrato: window._modoTelaComercial === 'contrato' ? fase : undefined,
-        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
-        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
         datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
         contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
@@ -10204,8 +10234,8 @@ window.aprovarPropostaEdicao = async function() {
         distancia_km: parseFloat(obter('prop-distancia-km').replace(' km', '').replace(',', '.')) || 0,
         valor_zona_calculado: parseFloat(obter('prop-valor-zona-calculado').replace('R$ ', '').replace(',', '.')) || 0,
         valor_distancia_calculado: parseFloat(obter('prop-valor-distancia-calculado').replace('R$ ', '').replace(',', '.')) || 0,
-        periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
-        periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
+        periodo_cobranca_inicio: obter('prop-cobranca-ini') || '',
+        periodo_cobranca_fim: obter('prop-cobranca-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
         datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
         contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
@@ -11841,8 +11871,37 @@ window.verDocumentoHistoricoProposta = async function(propId, logId, ehLogContra
         let docCompletoHtml = '';
         let tituloModal = '';
 
-        if (ehLogContrato && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
-            const propSnap = resp.proposta || (_propostasData || []).find(p => Number(p.id) === Number(propId)) || d;
+        const propSnap = resp.proposta || (_propostasData || []).find(p => Number(p.id) === Number(propId)) || d;
+        const logAtuUp = String(resp.log?.conteudo_atual || '').toUpperCase();
+        const temPdfAssinafyNoLog = Boolean(
+            propSnap && propSnap.assinafy_signed_r2_key && (
+                logAtuUp.includes('ASSINADO') ||
+                logAtuUp.includes('ASSINADA') ||
+                String(propSnap.situacao_contrato || '').toUpperCase().includes('ASSINADO') ||
+                String(propSnap.assinafy_status || '').toLowerCase() === 'assinado'
+            )
+        );
+
+        if (temPdfAssinafyNoLog) {
+            const tokenHist = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+            const urlPdfHist = `/api/propostas/${Number(propId)}/logs/${Number(logId)}/assinafy-pdf?token=${encodeURIComponent(tokenHist)}`;
+            const numRefDoc = ehLogContrato ? (propSnap.contrato || d.contrato || d.codigo_proposta || '') : (d.codigo_proposta || propSnap.codigo || '');
+            tituloModal = (ehLogContrato ? 'Contrato Assinado — Nº ' : 'Documento Assinado — Nº ') + _escHtmlProp(numRefDoc);
+            docCompletoHtml = `
+                <div style="max-width:1040px; margin:0 auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden;">
+                    <div style="background:#f0fdfa; border-bottom:1px solid #99f6e4; padding:8px 14px; display:flex; align-items:center; justify-content:space-between;">
+                        <span style="font-size:0.82rem; font-weight:800; color:#0f766e; display:inline-flex; align-items:center; gap:6px;">
+                            <i class="ph ph-seal-check" style="font-size:1.05rem;"></i> Documento Assinado Digitalmente (Assinafy)
+                        </span>
+                        <a href="${_escHtmlProp(urlPdfHist)}" target="_blank" rel="noopener" style="background:#0d9488; color:#fff; text-decoration:none; padding:4px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="ph ph-arrow-square-out"></i> Abrir PDF Assinado em Nova Guia
+                        </a>
+                    </div>
+                    <iframe src="${_escHtmlProp(urlPdfHist)}" style="width:100%; height:70vh; border:none; display:block;"></iframe>
+                </div>
+            `;
+            Swal.close();
+        } else if (ehLogContrato && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
             const htmlCtr = await window.gerarHtmlContratoParaPropostaObj(propSnap, false);
             docCompletoHtml = '<div id="doc-historico-proposta-print" style="max-width:960px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlCtr + '</div>';
             const numCtrDoc = propSnap.contrato || d.contrato || d.codigo_proposta || '';
@@ -30751,6 +30810,20 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         contatoInstalacaoTelefoneTxt = String(con.celular || con.telefone || cli.telefone || '(11) 98888-7777').trim();
     }
 
+    const fmtTelContrato = (v) => {
+        if (typeof window.formatarTelefoneTabelaContrato === 'function') {
+            return window.formatarTelefoneTabelaContrato(v);
+        }
+        const s = String(v || '').trim();
+        let d = s.replace(/\D+/g, '');
+        if (!d) return s || '—';
+        if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+        if ((d.length === 11 || d.length === 12) && d.startsWith('0')) d = d.slice(1);
+        if (d.length > 11) d = d.slice(0, 11);
+        if (d.length >= 3) return `(${d.slice(0, 2)})${d.slice(2)}`;
+        return d;
+    };
+
     const ctxResult = {
         '{{NUMERO_CONTRATO}}': numContratoLimpo,
         '{{TITULO_CONTRATO}}': tituloCampoContrato,
@@ -30780,15 +30853,15 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{CLIENTE_MUNICIPIO}}': String(cli.municipio || p.cliente_municipio || 'Guarulhos').trim(),
         '{{CLIENTE_UF}}': String(cli.uf || p.cliente_uf || 'SP').trim(),
         '{{CLIENTE_CEP}}': String(cli.cep || p.cliente_cep || '07000-000').trim(),
-        '{{CLIENTE_TELEFONE}}': String(cli.telefone || cli.celular || p.cliente_telefone || '(11) 2499-3353').trim(),
+        '{{CLIENTE_TELEFONE}}': fmtTelContrato(cli.telefone || cli.celular || p.cliente_telefone || '(11)24993353'),
         '{{CLIENTE_EMAIL}}': String(cli.email || con.email || 'contato@cliente.com.br').trim(),
 
         '{{CONTATO_NOME}}': String(p.contato_nome || con.nome || 'Contato Responsável').trim(),
         '{{CONTATO_EMAIL}}': String(con.email || p.assinafy_email || cli.email || 'contato@cliente.com.br').trim(),
-        '{{CONTATO_TELEFONE}}': String(con.celular || con.telefone || cli.telefone || '(11) 99999-0000').trim(),
+        '{{CONTATO_TELEFONE}}': fmtTelContrato(con.celular || con.telefone || cli.telefone || '(11)999990000'),
         '{{CONTATO_CARGO}}': String(con.cargo || con.departamento || '').trim(),
         '{{CONTATO_INSTALACAO}}': contatoInstalacaoNomeTxt,
-        '{{CONTATO_INSTALACAO_TELEFONE}}': contatoInstalacaoTelefoneTxt,
+        '{{CONTATO_INSTALACAO_TELEFONE}}': fmtTelContrato(contatoInstalacaoTelefoneTxt),
 
         '{{INTERVENIENTE_RAZAO_SOCIAL}}': interRazao,
         '{{INTERVENIENTE_CNPJ}}': String(inter.cpf_cnpj || '00.000.000/0001-00').trim(),
@@ -30800,7 +30873,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{INTERVENIENTE_MUNICIPIO}}': String(inter.municipio || 'São Paulo').trim(),
         '{{INTERVENIENTE_UF}}': String(inter.uf || 'SP').trim(),
         '{{INTERVENIENTE_CEP}}': String(inter.cep || '00000-000').trim(),
-        '{{INTERVENIENTE_TELEFONE}}': String(inter.telefone || inter.celular || '—').trim(),
+        '{{INTERVENIENTE_TELEFONE}}': fmtTelContrato(inter.telefone || inter.celular || '—'),
         '{{INTERVENIENTE_EMAIL}}': String(inter.email || '—').trim(),
         '{{INTERVENIENTE_CONTATO_NOME}}': String(p.interveniente_contato_nome || '—').trim(),
 
@@ -31148,14 +31221,27 @@ window.extrairEstruturaModeloContrato = function(m) {
     };
 };
 
+window.formatarTelefoneTabelaContrato = function(raw) {
+    const s = String(raw || '').trim();
+    if (!s || s === '—' || s === '-') return s || '—';
+    let d = s.replace(/\D+/g, '');
+    if (!d) return s;
+    if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+    if ((d.length === 11 || d.length === 12) && d.startsWith('0')) d = d.slice(1);
+    if (d.length > 11) d = d.slice(0, 11);
+    if (d.length >= 3) return `(${d.slice(0, 2)})${d.slice(2)}`;
+    return d;
+};
+
 /* Renderiza a Tabela de Dados do Cliente (somente leitura para PDF/Impressão) */
 window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente) {
     const q = (est && est.quadro_cliente) ? est.quadro_cliente : window._padraoQuadroClienteContrato();
     const res = (txt) => _escHtmlProp(window.resolverTextoModeloContrato(txt || '', ctx, false));
+    const resTel = (txt) => _escHtmlProp(window.formatarTelefoneTabelaContrato(window.resolverTextoModeloContrato(txt || '', ctx, false)));
     const colgroup12 = '<colgroup>' + Array(12).fill('<col style="width:8.3333%;">').join('') + '</colgroup>';
 
     const tabelaCliente = `
-        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:10px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:10px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1; text-align:left;">
             ${colgroup12}
             <tbody>
                 <tr style="background:#f8fafc;">
@@ -31187,7 +31273,7 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
                         <strong>${res(q.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(q.val_ie)}
                     </td>
                     <td colspan="4" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
-                        <strong>${res(q.lbl_telefone || 'Telefone:')}</strong> ${res(q.val_telefone)}
+                        <strong>${res(q.lbl_telefone || 'Telefone:')}</strong> ${resTel(q.val_telefone)}
                     </td>
                 </tr>
                 <tr style="background:#f8fafc;">
@@ -31195,7 +31281,7 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
                         <strong>${res(q.lbl_contato || 'Contato:')}</strong> ${res(q.val_contato)}
                     </td>
                     <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
-                        <strong>${res(q.lbl_tel_contato || 'Tel. Contato:')}</strong> ${res(q.val_tel_contato)}
+                        <strong style="white-space:nowrap;">${res(q.lbl_tel_contato || 'Tel. Contato:')}</strong> <span style="white-space:nowrap;">${resTel(q.val_tel_contato)}</span>
                     </td>
                     <td colspan="6" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(q.lbl_email || 'E-mail:')}</strong> ${res(q.val_email)}
@@ -31210,7 +31296,7 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
     const qi = (est && est.quadro_interveniente) ? est.quadro_interveniente : window._padraoQuadroIntervenienteContrato();
     const tabelaInterv = `
         <div style="font-size:10pt; font-weight:700; color:#0f172a; margin:8px 0 4px 0;">E como INTERVENIENTE, abaixo qualificado(a):</div>
-        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:4px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1;">
+        <table style="width:100%; table-layout:fixed; border-collapse:collapse; margin:4px 0 14px 0; font-size:9.5pt; font-family:Arial, Helvetica, sans-serif; border:1px solid #cbd5e1; text-align:left;">
             ${colgroup12}
             <tbody>
                 <tr style="background:#f8fafc;">
@@ -31242,7 +31328,7 @@ window.gerarHtmlTabelaDadosClienteContrato = function(est, ctx, ehInterveniente)
                         <strong>${res(qi.lbl_ie || 'Inscrição Estadual:')}</strong> ${res(qi.val_ie)}
                     </td>
                     <td colspan="3" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
-                        <strong>${res(qi.lbl_telefone || 'Telefone:')}</strong> ${res(qi.val_telefone)}
+                        <strong style="white-space:nowrap;">${res(qi.lbl_telefone || 'Telefone:')}</strong> <span style="white-space:nowrap;">${resTel(qi.val_telefone)}</span>
                     </td>
                     <td colspan="6" style="padding:6px 10px; border:1px solid #cbd5e1; color:#0f172a; word-break:break-word;">
                         <strong>${res(qi.lbl_email || 'E-mail:')}</strong> ${res(qi.val_email)}

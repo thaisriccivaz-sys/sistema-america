@@ -41934,6 +41934,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN contatos_responsaveis_contrato_json TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN contato_instalacao_contrato TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
+    // Limpar datas de período de cobrança que foram pré-preenchidas automaticamente a partir do período da proposta
+    db.run("UPDATE propostas SET periodo_cobranca_inicio = NULL, periodo_cobranca_fim = NULL WHERE periodo_cobranca_inicio = periodo_inicio AND periodo_cobranca_fim = periodo_fim AND (contatos_responsaveis_contrato_json IS NULL OR TRIM(contatos_responsaveis_contrato_json) IN ('', '{}', '{\"nfe\":[],\"cobranca\":[],\"os\":[],\"instalacao\":\"\"}'))", () => {});
     // Garantir que propostas de ADITIVO nunca tenham número de contrato próprio
     db.run("UPDATE propostas SET contrato = NULL WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')", () => {});
     db.run("DELETE FROM contratos WHERE proposta_id IN (SELECT id FROM propostas WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO'))", () => {});
@@ -42569,7 +42571,7 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
         if (item.snapshot_json) {
           try {
             const sp = JSON.parse(item.snapshot_json);
-            snapHasSig = Boolean(sp && sp.assinatura_r2_key);
+            snapHasSig = Boolean(sp && (sp.assinatura_r2_key || sp.assinafy_signed_r2_key));
             if (sp && sp._origem_log) snapOrigemLog = String(sp._origem_log).toLowerCase();
           } catch (_) {}
         }
@@ -42627,8 +42629,16 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
           cNorm.includes('ASSINAFY') ||
           cNorm === 'SITUACAO DO CONTRATO'
         );
-        item.tem_documento = ehAcaoDocumentoContrato || (!ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc));
-        item.tem_assinatura = Boolean(snapHasSig || atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO'));
+        const ehLogAssinado = Boolean(
+          snapHasSig ||
+          atuNorm.startsWith('PRE APROVADA') ||
+          atuNorm.includes('ACEITE ASSINADO') ||
+          atuNorm === 'CONTRATO ASSINADO' ||
+          atuNorm === 'PROPOSTA ASSINADA' ||
+          atuNorm === 'APROVADO - ADITIVO ASSINADO'
+        );
+        item.tem_documento = ehLogAssinado || ehAcaoDocumentoContrato || (!ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc));
+        item.tem_assinatura = ehLogAssinado;
         delete item.snapshot_json;
         return item;
       });
@@ -42639,6 +42649,39 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
       res.json([...semCriacao, ...apenasCriacao]);
     });
   });
+});
+
+// GET /api/propostas/:id/logs/:logId/assinafy-pdf - Servir PDF assinado pelo Assinafy preservado no histórico (snapshot_json)
+app.get('/api/propostas/:id/logs/:logId/assinafy-pdf', authenticateToken, async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    const logId = Number(req.params.logId);
+    const [propRow, logRow] = await Promise.all([
+      new Promise((resolve) => db.get('SELECT id, codigo, contrato, assinafy_signed_r2_key, pdf_enviado_assinafy_r2_key FROM propostas WHERE id = ?', [propId], (e, r) => resolve(r || null))),
+      new Promise((resolve) => db.get("SELECT * FROM auditoria WHERE id = ? AND programa = 'Proposta'", [logId], (e, r) => resolve(r || null)))
+    ]);
+    let r2Key = null;
+    if (logRow && logRow.snapshot_json) {
+      try {
+        const sp = JSON.parse(logRow.snapshot_json);
+        if (sp && (sp.assinafy_signed_r2_key || sp.pdf_enviado_assinafy_r2_key)) {
+          r2Key = sp.assinafy_signed_r2_key || sp.pdf_enviado_assinafy_r2_key;
+        }
+      } catch (_) {}
+    }
+    if (!r2Key && propRow) {
+      r2Key = propRow.assinafy_signed_r2_key || propRow.pdf_enviado_assinafy_r2_key || null;
+    }
+    if (!r2Key) return res.status(404).send('PDF assinado não encontrado neste registro de histórico.');
+    const r2b = require('./utils/r2');
+    if (!r2b.isReady()) return res.status(503).send('Armazenamento R2 não configurado.');
+    const { stream, contentType } = await r2b.downloadStreamFromR2(r2Key);
+    res.setHeader('Content-Type', contentType || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Documento_Assinado_${(propRow && (propRow.contrato || propRow.codigo)) || propId}_Hist_${logId}.pdf"`);
+    stream.pipe(res);
+  } catch (e) {
+    res.status(500).send('Erro ao abrir PDF assinado do histórico: ' + e.message);
+  }
 });
 
 // ── ANEXOS DO CONTRATO (Cloudflare R2 — nunca apaga do R2 ao excluir do banco) ──
@@ -43186,22 +43229,82 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         if (!d.previsao_fechamento && oldRow.previsao_fechamento) d.previsao_fechamento = oldRow.previsao_fechamento;
       }
 
+      const oldSitNormPut = String(oldRow.situacao_contrato || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+      const reqSitNormPut = String(d.situacao_contrato || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+      const sitsCtrVoltamElabPut = [
+        'ENVIADO PARA ASSINATURA',
+        'AGUARDANDO ASSINATURA',
+        'CONTRATO ASSINADO',
+        'CONTRATO DIGITAL ASSINADO',
+        'ASSINADO',
+        'REPROVADO | CANCELADO',
+        'REPROVADO / CANCELADO',
+        'REPROVADA',
+        'REPROVADO',
+        'CANCELADA',
+        'CANCELADO'
+      ];
+      const contratoEditadoVoltaElab = Boolean(
+        d.modo_contrato &&
+        sitsCtrVoltamElabPut.includes(oldSitNormPut) &&
+        (!reqSitNormPut || reqSitNormPut === 'EM ELABORACAO' || reqSitNormPut === oldSitNormPut)
+      );
+
       const sitContratoFinal = d.acao_estornar
         ? 'CONTRATO ESTORNADO'
-        : (isReaprovacaoContrato
+        : (isReaprovacaoContrato || contratoEditadoVoltaElab
             ? 'EM ELABORAÇÃO'
-            : ((d.modo_contrato && !jaAssinadoAssinafy && ['ENVIADO PARA ASSINATURA', 'AGUARDANDO ASSINATURA'].includes(String(oldRow.situacao_contrato || '').trim().toUpperCase()) && (!d.situacao_contrato || ['ENVIADO PARA ASSINATURA', 'AGUARDANDO ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(String(d.situacao_contrato || '').trim().toUpperCase())))
-                ? 'EM ELABORAÇÃO'
-                : (d.situacao_contrato !== undefined
-                    ? d.situacao_contrato
-                    : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
-                        ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && !['ESTORNADO', 'CONTRATO ESTORNADO'].includes(String(oldRow.situacao_contrato).toUpperCase()) ? oldRow.situacao_contrato : 'EM ELABORAÇÃO')
-                        : (oldRow.situacao_contrato || null)))));
+            : (d.situacao_contrato !== undefined
+                ? d.situacao_contrato
+                : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
+                    ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && !['ESTORNADO', 'CONTRATO ESTORNADO'].includes(String(oldRow.situacao_contrato).toUpperCase()) ? oldRow.situacao_contrato : 'EM ELABORAÇÃO')
+                    : (oldRow.situacao_contrato || null))));
 
       const tituloContratoFinal = d.titulo_contrato !== undefined
         ? (String(d.titulo_contrato || '').trim() || null)
         : (oldRow.titulo_contrato || null);
       const limparAssinafyPorEstorno = Boolean(d.acao_estornar);
+      const limparAssinafyContratoEditado = Boolean(contratoEditadoVoltaElab);
+
+      // Se o contrato estava ASSINADO e sofreu alteração voltando para EM ELABORAÇÃO, garante que o documento assinado
+      // fique salvo no Histórico (auditoria.snapshot_json) antes de limpar os campos Assinafy ativos do contrato.
+      if (limparAssinafyContratoEditado && (oldRow.assinafy_signed_r2_key || oldRow.pdf_enviado_assinafy_r2_key || oldSitNormPut.includes('ASSINADO'))) {
+        const snapAssinadoAnterior = JSON.stringify(Object.assign({}, oldRow, {
+          _origem_log: 'contrato',
+          situacao_contrato: oldRow.situacao_contrato || 'CONTRATO ASSINADO',
+          assinafy_status: oldRow.assinafy_status || 'Assinado',
+          assinafy_signed_r2_key: oldRow.assinafy_signed_r2_key || oldRow.pdf_enviado_assinafy_r2_key || null
+        }));
+        db.get(
+          "SELECT id, snapshot_json FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND UPPER(TRIM(COALESCE(conteudo_atual, ''))) IN ('CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO') ORDER BY id DESC LIMIT 1",
+          [proposalId],
+          (errAud, rowAud) => {
+            if (!errAud && rowAud) {
+              db.run("UPDATE auditoria SET snapshot_json = ? WHERE id = ?", [snapAssinadoAnterior, rowAud.id]);
+            } else if (!errAud) {
+              db.run(
+                `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)
+                 VALUES (?, 'Proposta', 'Situação do Contrato', 'ENVIADO PARA ASSINATURA', 'CONTRATO ASSINADO', ?, ?)`,
+                ['CLIENTE (Assinafy)', proposalId, snapAssinadoAnterior]
+              );
+            }
+          }
+        );
+      }
+
+      let signatariosJsonResetado = oldRow.assinafy_signatarios_json || null;
+      if (limparAssinafyContratoEditado && signatariosJsonResetado) {
+        try {
+          const arrSigs = JSON.parse(signatariosJsonResetado);
+          if (Array.isArray(arrSigs)) {
+            signatariosJsonResetado = JSON.stringify(arrSigs.map(s => Object.assign({}, s, {
+              status: 'Na lista para envio',
+              enviado_em: '',
+              assinado_em: ''
+            })));
+          }
+        } catch (_) {}
+      }
 
       const propComparativaFinal = d.proposta_comparativa !== undefined ? (d.proposta_comparativa ? 1 : 0) : (Number(oldRow.proposta_comparativa) === 1 ? 1 : 0);
       const produtosAprovadosFinal = invalidarAssinaturaPorEdicao
@@ -43209,6 +43312,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         : (d.produtos_aprovados !== undefined
             ? (typeof d.produtos_aprovados === 'string' ? d.produtos_aprovados : JSON.stringify(d.produtos_aprovados || []))
             : (oldRow.produtos_aprovados || '[]'));
+
+      const limparCamposAssinafyAtivos = (limparAssinafyPorEstorno || limparAssinafyContratoEditado) ? 1 : 0;
 
       db.run(`UPDATE propostas SET
       contrato=?, situacao_contrato=?, titulo_contrato=?, assinatura_r2_key=?, assinatura_mime_type=?, aceite_publico_em=?, aprovado_por=?, aprovado_em=?,
@@ -43218,7 +43323,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       assinafy_sent_at = CASE WHEN ? = 1 THEN NULL ELSE assinafy_sent_at END,
       assinafy_signed_at = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signed_at END,
       assinafy_signed_r2_key = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signed_r2_key END,
-      assinafy_signatarios_json = CASE WHEN ? = 1 THEN NULL ELSE assinafy_signatarios_json END,
+      assinafy_signatarios_json = CASE WHEN ? = 1 THEN NULL WHEN ? = 1 THEN ? ELSE assinafy_signatarios_json END,
       local=?, tipo=?, atendente=?, data_cadastro=?, validade_proposta=?, previsao_fechamento=?,
       fase_negociacao=?, modelo_impressao=?, cliente_nome=?, contato_nome=?,
       periodo_inicio=?, periodo_fim=?, hora_inicio=?, hora_fim=?, dias_contrato=?, dias_evento=?,
@@ -43232,13 +43337,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
-      limparAssinafyPorEstorno ? 1 : 0,
+      limparCamposAssinafyAtivos,
+      limparCamposAssinafyAtivos,
+      limparCamposAssinafyAtivos,
+      limparCamposAssinafyAtivos,
+      limparCamposAssinafyAtivos,
+      limparCamposAssinafyAtivos,
+      limparAssinafyPorEstorno ? 1 : 0, limparAssinafyContratoEditado ? 1 : 0, signatariosJsonResetado,
       d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
       d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
       d.periodo_inicio, d.periodo_fim, d.hora_inicio||'00:00', d.hora_fim||'00:00',
@@ -43263,8 +43368,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.interveniente_nome !== undefined ? (d.interveniente_nome || null) : (oldRow.interveniente_nome || null),
       d.contrato_interveniente !== undefined ? (d.contrato_interveniente ? 1 : 0) : (Number(oldRow.contrato_interveniente) === 1 ? 1 : 0),
       d.interveniente_contato_nome !== undefined ? (d.interveniente_contato_nome || null) : (oldRow.interveniente_contato_nome || null),
-      d.periodo_cobranca_inicio !== undefined ? (d.periodo_cobranca_inicio || null) : (oldRow.periodo_cobranca_inicio || null),
-      d.periodo_cobranca_fim !== undefined ? (d.periodo_cobranca_fim || null) : (oldRow.periodo_cobranca_fim || null),
+      isReaprovacaoContrato ? null : (d.periodo_cobranca_inicio !== undefined ? (d.periodo_cobranca_inicio || null) : (oldRow.periodo_cobranca_inicio || null)),
+      isReaprovacaoContrato ? null : (d.periodo_cobranca_fim !== undefined ? (d.periodo_cobranca_fim || null) : (oldRow.periodo_cobranca_fim || null)),
       d.datas_entrega_equipamentos !== undefined ? (typeof d.datas_entrega_equipamentos === 'string' ? d.datas_entrega_equipamentos : JSON.stringify(d.datas_entrega_equipamentos || [])) : (oldRow.datas_entrega_equipamentos || '[]'),
       d.datas_retirada_equipamentos !== undefined ? (typeof d.datas_retirada_equipamentos === 'string' ? d.datas_retirada_equipamentos : JSON.stringify(d.datas_retirada_equipamentos || [])) : (oldRow.datas_retirada_equipamentos || '[]'),
       d.contatos_responsaveis_contrato_json !== undefined ? (typeof d.contatos_responsaveis_contrato_json === 'string' ? d.contatos_responsaveis_contrato_json : JSON.stringify(d.contatos_responsaveis_contrato_json || {})) : (oldRow.contatos_responsaveis_contrato_json || '{}'),
@@ -43297,6 +43402,10 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         codigo: oldRow.codigo,
         contrato: contratoFinal,
         situacao_contrato: sitContratoFinal,
+        assinafy_id: limparCamposAssinafyAtivos ? null : oldRow.assinafy_id,
+        assinafy_status: limparCamposAssinafyAtivos ? null : oldRow.assinafy_status,
+        assinafy_signed_at: limparCamposAssinafyAtivos ? null : oldRow.assinafy_signed_at,
+        assinafy_signed_r2_key: limparCamposAssinafyAtivos ? null : oldRow.assinafy_signed_r2_key,
         assinatura_r2_key: assinaturaR2Final,
         assinatura_mime_type: assinaturaMimeFinal,
         aceite_publico_em: aceiteEmFinal,
