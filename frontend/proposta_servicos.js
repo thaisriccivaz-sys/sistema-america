@@ -36,10 +36,10 @@
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tipoLimpo(tipo));
     };
 
-    /* O quadro de Serviços aparece em OBRA, EQUIPAMENTOS e ADITIVO de Obra/Equipamentos */
+    /* O quadro de Serviços aparece em todos os modelos na tela de Contratos, e na proposta em OBRA, EQUIPAMENTOS e ADITIVO */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
-        if (window._modoTelaComercial === 'contrato' && !t) return true;
+        if (window._modoTelaComercial === 'contrato') return true;
         if (Array.isArray(window._propServicosAdicionados) && window._propServicosAdicionados.length > 0) return true;
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
     };

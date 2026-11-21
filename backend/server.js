@@ -42919,11 +42919,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         ? 'CONTRATO ESTORNADO'
         : (isReaprovacaoContrato
             ? 'EM ELABORAÇÃO'
-            : (d.situacao_contrato !== undefined
-                ? d.situacao_contrato
-                : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
-                    ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && !['ESTORNADO', 'CONTRATO ESTORNADO'].includes(String(oldRow.situacao_contrato).toUpperCase()) ? oldRow.situacao_contrato : 'EM ELABORAÇÃO')
-                    : (oldRow.situacao_contrato || null))));
+            : ((d.modo_contrato && !jaAssinadoAssinafy && ['ENVIADO PARA ASSINATURA', 'AGUARDANDO ASSINATURA'].includes(String(oldRow.situacao_contrato || '').trim().toUpperCase()) && (!d.situacao_contrato || ['ENVIADO PARA ASSINATURA', 'AGUARDANDO ASSINATURA', 'EM ELABORAÇÃO', 'EM ELABORACAO'].includes(String(d.situacao_contrato || '').trim().toUpperCase())))
+                ? 'EM ELABORAÇÃO'
+                : (d.situacao_contrato !== undefined
+                    ? d.situacao_contrato
+                    : (String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
+                        ? (oldFaseUpper === 'APROVADA' && oldRow.situacao_contrato && !['ESTORNADO', 'CONTRATO ESTORNADO'].includes(String(oldRow.situacao_contrato).toUpperCase()) ? oldRow.situacao_contrato : 'EM ELABORAÇÃO')
+                        : (oldRow.situacao_contrato || null)))));
 
       const tituloContratoFinal = d.titulo_contrato !== undefined
         ? (String(d.titulo_contrato || '').trim() || null)
