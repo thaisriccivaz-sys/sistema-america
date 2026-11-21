@@ -31062,7 +31062,7 @@ window._renderModelosContratoInt = async function() {
             <!-- Grid Principal: Coluna Esquerda (Tipos de Contrato) + Coluna Direita (Mnemônicos Minimizados + Pré-visualização Editável do Contrato) -->
             <div style="display:grid; grid-template-columns: 260px 1fr; gap:0.85rem; align-items:start;">
                 <!-- Coluna Esquerda: Tipos de Contrato -->
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:60px;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:0.85rem; box-shadow:0 1px 3px rgba(0,0,0,0.02); position:sticky; top:104px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.55rem;">
                         <span style="font-size:0.76rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em;">
                             <i class="ph ph-folders" style="color:#7048e8;"></i> Tipos de Contrato
@@ -31094,7 +31094,7 @@ window._renderModelosContratoInt = async function() {
                         </div>
 
                         <!-- Barra de Formatação de Texto (Fonte, Tamanho, Negrito, Itálico, Sublinhado, Cor da Fonte, Alinhamento) -->
-                        <div id="mc-richtext-toolbar" style="position:sticky; top:58px; z-index:40; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:6px 10px; margin-bottom:0.75rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap; box-shadow:0 2px 6px rgba(15,23,42,0.05);">
+                        <div id="mc-richtext-toolbar" style="position:sticky; top:104px; z-index:990; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:7px 12px; margin-bottom:0.75rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap; box-shadow:0 6px 16px rgba(15,23,42,0.12);">
                             <!-- Seletor de Fonte -->
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span style="font-size:0.72rem; font-weight:700; color:#475569;">Fonte:</span>
