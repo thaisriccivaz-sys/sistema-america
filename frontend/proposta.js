@@ -29778,7 +29778,7 @@ window.renderizarResponsaveisContratoChips = function() {
     const inpInst = document.getElementById('prop-resp-inp-instalacao');
     const valInst = String(st.instalacao || '').trim();
     if (inpInst && document.activeElement !== inpInst) {
-        inpInst.value = valInst;
+        inpInst.value = '';
     }
     if (boxInst) {
         if (!valInst) {
@@ -29851,16 +29851,30 @@ window.filtrarDropdownRespContrato = function(tipo, termoRaw) {
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const q = norm(termoRaw);
     const contatos = Array.isArray(window._contatosDoClientePropostaAtual) ? window._contatosDoClientePropostaAtual : [];
+    const st = window._garantirEstruturaResponsaveisContrato();
+    const selecionadosAtuais = tipo === 'instalacao'
+        ? (st.instalacao ? [st.instalacao] : [])
+        : (Array.isArray(st[tipo]) ? st[tipo] : []);
+    const selecionadosNorm = selecionadosAtuais.map(s => norm(s)).filter(Boolean);
+    const selecionadosNomesNorm = selecionadosAtuais.map(s => norm(String(s || '').split(' - ')[0])).filter(Boolean);
+
     const filtrados = contatos.filter(c => {
+        const rotuloC = norm(window._montarRotuloContatoRespContrato(c, tipo));
+        const nomeC = norm(c.nome || '');
+        if ((rotuloC && selecionadosNorm.includes(rotuloC)) || (nomeC && (selecionadosNorm.includes(nomeC) || selecionadosNomesNorm.includes(nomeC)))) {
+            return false;
+        }
         if (!q) return true;
         const alvo = norm(`${c.nome || ''} ${c.email || ''} ${c.celular || ''} ${c.telefone || ''} ${c.cargo || ''} ${c.departamento || ''}`);
         return alvo.includes(q);
     });
     if (!filtrados.length) {
         const txtDig = String(termoRaw || '').trim();
-        dd.innerHTML = txtDig
+        const txtDigNorm = norm(txtDig);
+        const jaSelTxt = txtDigNorm && (selecionadosNorm.includes(txtDigNorm) || selecionadosNomesNorm.includes(txtDigNorm));
+        dd.innerHTML = (txtDig && !jaSelTxt)
             ? `<div onmousedown="event.preventDefault(); window.selecionarContatoRespDropdown('${tipo}', '${_escHtmlProp(txtDig).replace(/'/g, "\\'")}')" style="padding:8px 12px; font-size:0.78rem; color:#4338ca; font-weight:700; cursor:pointer;">+ Selecionar "${_escHtmlProp(txtDig)}"</div>`
-            : `<div style="padding:8px 12px; font-size:0.76rem; color:#94a3b8;">Nenhum contato cadastrado para o cliente. Clique no botão + amarelo ao lado para cadastrar.</div>`;
+            : `<div style="padding:8px 12px; font-size:0.76rem; color:#94a3b8;">${contatos.length > 0 && selecionadosAtuais.length > 0 ? 'Todos os contatos do cliente já foram selecionados neste campo.' : 'Nenhum contato cadastrado para o cliente. Clique no botão + amarelo ao lado para cadastrar.'}</div>`;
         dd.style.display = 'block';
         return;
     }
@@ -29889,7 +29903,7 @@ window.selecionarContatoRespDropdown = function(tipo, textoContato) {
     const inp = document.getElementById(`prop-resp-inp-${tipo}`);
     if (tipo === 'instalacao') {
         st.instalacao = val;
-        if (inp) inp.value = val;
+        if (inp) inp.value = '';
     } else {
         if (!st[tipo].includes(val)) {
             st[tipo].push(val);
@@ -29912,6 +29926,7 @@ window.adicionarResponsavelContrato = function(tipo) {
     const st = window._garantirEstruturaResponsaveisContrato();
     if (tipo === 'instalacao') {
         st.instalacao = val;
+        if (inp) inp.value = '';
     } else {
         if (!st[tipo].includes(val)) {
             st[tipo].push(val);
