@@ -29996,6 +29996,8 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
 
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias);
     const topoImgSrc = window.obterUrlTopoModeloContrato(m);
+    const tipoModUpper = String(m.codigo_tipo || m.nome || pObj.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const semAnexoAvarias = tipoModUpper.includes('LIMPA FOSSA') || tipoModUpper === 'EQUIPAMENTOS' || tipoModUpper === 'INTERVENIENTE';
 
     return `
         <div class="america-contrato-sheet" style="background:#ffffff; color:#0f172a; font-family:Arial, Helvetica, sans-serif; max-width:860px; margin:0 auto; padding:24px 32px; box-sizing:border-box; border:1px solid #e2e8f0; border-radius:8px;">
@@ -30019,6 +30021,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
             <!-- Assinaturas -->
             ${blocoAssinaturasHtml}
 
+            ${semAnexoAvarias ? '' : `
             <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS -->
             <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
                 <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
@@ -30033,6 +30036,7 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
                 ${tabelaAvariasHtml}
                 ${blocoAssinaturasAvariasHtml}
             </div>
+            `}
         </div>
     `;
 };
@@ -30256,6 +30260,9 @@ window.mnemonicoPertenceAoTipoContrato = function(item, codigoTipoRaw) {
     }
     if (tag === '{{TABELA_SERVICOS}}') {
         return ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'EQUIPAMENTOS', 'ADITIVO', 'INTERVENIENTE'].includes(t);
+    }
+    if (tag === '{{TABELA_VALORES_AVARIAS}}') {
+        return !t.includes('LIMPA FOSSA') && t !== 'EQUIPAMENTOS' && t !== 'INTERVENIENTE';
     }
     return true;
 };
@@ -30842,6 +30849,8 @@ window.atualizarPreviewModeloContratoAtivo = function() {
         null, null, null, window._valoresAvariasList || []
     );
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
+    const tipoModPreviewUpper = String(m.codigo_tipo || m.nome || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const semAnexoAvariasPreview = tipoModPreviewUpper.includes('LIMPA FOSSA') || tipoModPreviewUpper === 'EQUIPAMENTOS' || ehInterveniente;
     const tabelaAvariasHtml = window.gerarHtmlTabelaValoresAvariasContrato(window._valoresAvariasList || []);
     const colgroup12Edit = '<colgroup>' + Array(12).fill('<col style="width:8.3333%;">').join('') + '</colgroup>';
 
@@ -31132,6 +31141,7 @@ window.atualizarPreviewModeloContratoAtivo = function() {
             <!-- Assinaturas (Editáveis e Excluíveis) -->
             ${blocoAssinaturasEditavelHtml}
 
+            ${semAnexoAvariasPreview ? '' : `
             <!-- ÚLTIMA PÁGINA OBRIGATÓRIA: ANEXO I - TABELA DE VALORES DE AVARIAS (Somente leitura na pré-visualização) -->
             <div style="page-break-before:always; break-before:page; margin-top:36px; padding-top:24px; border-top:2px dashed #cbd5e1;">
                 <div style="padding-bottom:10px; margin-bottom:14px; border-bottom:2px solid #0f172a;">
@@ -31146,6 +31156,7 @@ window.atualizarPreviewModeloContratoAtivo = function() {
                 ${tabelaAvariasHtml}
                 ${blocoAssinaturasAvariasEditavelHtml}
             </div>
+            `}
         </div>
     `;
 };
