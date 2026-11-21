@@ -41931,6 +41931,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN periodo_cobranca_fim TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN datas_entrega_equipamentos TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN datas_retirada_equipamentos TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN contatos_responsaveis_contrato_json TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN contato_instalacao_contrato TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Garantir que propostas de ADITIVO nunca tenham número de contrato próprio
     db.run("UPDATE propostas SET contrato = NULL WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')", () => {});
@@ -42687,8 +42689,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome,
-        periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, datas_retirada_equipamentos, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, datas_retirada_equipamentos, contatos_responsaveis_contrato_json, contato_instalacao_contrato, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -42718,6 +42720,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.periodo_cobranca_fim || null,
         d.datas_entrega_equipamentos ? (typeof d.datas_entrega_equipamentos === 'string' ? d.datas_entrega_equipamentos : JSON.stringify(d.datas_entrega_equipamentos)) : '[]',
         d.datas_retirada_equipamentos ? (typeof d.datas_retirada_equipamentos === 'string' ? d.datas_retirada_equipamentos : JSON.stringify(d.datas_retirada_equipamentos)) : '[]',
+        d.contatos_responsaveis_contrato_json ? (typeof d.contatos_responsaveis_contrato_json === 'string' ? d.contatos_responsaveis_contrato_json : JSON.stringify(d.contatos_responsaveis_contrato_json)) : '{}',
+        d.contato_instalacao_contrato || null,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -42951,7 +42955,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
       itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, contrato_interveniente=?, interveniente_contato_nome=?,
-      periodo_cobranca_inicio=?, periodo_cobranca_fim=?, datas_entrega_equipamentos=?, datas_retirada_equipamentos=?, atualizado_em=?
+      periodo_cobranca_inicio=?, periodo_cobranca_fim=?, datas_entrega_equipamentos=?, datas_retirada_equipamentos=?, contatos_responsaveis_contrato_json=?, contato_instalacao_contrato=?, atualizado_em=?
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
@@ -42990,6 +42994,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.periodo_cobranca_fim !== undefined ? (d.periodo_cobranca_fim || null) : (oldRow.periodo_cobranca_fim || null),
       d.datas_entrega_equipamentos !== undefined ? (typeof d.datas_entrega_equipamentos === 'string' ? d.datas_entrega_equipamentos : JSON.stringify(d.datas_entrega_equipamentos || [])) : (oldRow.datas_entrega_equipamentos || '[]'),
       d.datas_retirada_equipamentos !== undefined ? (typeof d.datas_retirada_equipamentos === 'string' ? d.datas_retirada_equipamentos : JSON.stringify(d.datas_retirada_equipamentos || [])) : (oldRow.datas_retirada_equipamentos || '[]'),
+      d.contatos_responsaveis_contrato_json !== undefined ? (typeof d.contatos_responsaveis_contrato_json === 'string' ? d.contatos_responsaveis_contrato_json : JSON.stringify(d.contatos_responsaveis_contrato_json || {})) : (oldRow.contatos_responsaveis_contrato_json || '{}'),
+      d.contato_instalacao_contrato !== undefined ? (d.contato_instalacao_contrato || null) : (oldRow.contato_instalacao_contrato || null),
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });

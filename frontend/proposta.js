@@ -1059,7 +1059,9 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
         periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
-        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : []
+        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
+        contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
+        contato_instalacao_contrato: String((window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) || '').trim()
     };
 
     Swal.fire({ title: 'Gerando PDF do Contrato e enviando para assinatura...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -2677,6 +2679,7 @@ window._resetarEstadoMemoriaFormComercial = function(modo) {
     window._propServicosAdicionados = [];
     window._propDatasEntregaEquipamentos = [];
     window._propDatasRetiradaEquipamentos = [];
+    window._propResponsaveisContrato = { nfe: [], cobranca: [], os: [], instalacao: '' };
     window._propFormEditadoNaoSalvo = false;
     _propRegiaoIdentificada = '';
     window._ultimoClienteNomePropostaAtivo = '';
@@ -2718,6 +2721,7 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         servicos: JSON.parse(JSON.stringify(window._propServicosAdicionados || [])),
         datasEntregaEquipamentos: JSON.parse(JSON.stringify(window._propDatasEntregaEquipamentos || [])),
         datasRetiradaEquipamentos: JSON.parse(JSON.stringify(window._propDatasRetiradaEquipamentos || [])),
+        responsaveisContrato: JSON.parse(JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' })),
         diasEvento: JSON.parse(JSON.stringify(window._propDiasEventoSelecionados || [])),
         diasHorarios: JSON.parse(JSON.stringify(window._propDiasEventoHorarios || {})),
         ultimoHorario: window._ultimoHorarioDiaEventoEditado || '',
@@ -2757,6 +2761,10 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     if (Array.isArray(snap.datasRetiradaEquipamentos)) {
         window._propDatasRetiradaEquipamentos = JSON.parse(JSON.stringify(snap.datasRetiradaEquipamentos));
         if (typeof window.renderizarChipsDatasRetiradaContrato === 'function') window.renderizarChipsDatasRetiradaContrato();
+    }
+    if (snap.responsaveisContrato && typeof snap.responsaveisContrato === 'object') {
+        window._propResponsaveisContrato = JSON.parse(JSON.stringify(snap.responsaveisContrato));
+        if (typeof window.renderizarResponsaveisContratoChips === 'function') window.renderizarResponsaveisContratoChips();
     }
     window._propDiasEventoSelecionados = JSON.parse(JSON.stringify(snap.diasEvento || []));
     window._propDiasEventoHorarios = JSON.parse(JSON.stringify(snap.diasHorarios || {}));
@@ -3918,6 +3926,24 @@ function _renderFormPropostaInt() {
     if (!window._propDatasRetiradaEquipamentos.length && prop && prop.periodo_fim) {
         window._propDatasRetiradaEquipamentos = [String(prop.periodo_fim).trim().slice(0, 10)];
     }
+    try {
+        const rawResp = prop && prop.contatos_responsaveis_contrato_json
+            ? (typeof prop.contatos_responsaveis_contrato_json === 'object' ? prop.contatos_responsaveis_contrato_json : JSON.parse(prop.contatos_responsaveis_contrato_json || '{}'))
+            : {};
+        window._propResponsaveisContrato = {
+            nfe: Array.isArray(rawResp.nfe) ? rawResp.nfe.map(x => String(x || '').trim()).filter(Boolean) : [],
+            cobranca: Array.isArray(rawResp.cobranca) ? rawResp.cobranca.map(x => String(x || '').trim()).filter(Boolean) : [],
+            os: Array.isArray(rawResp.os) ? rawResp.os.map(x => String(x || '').trim()).filter(Boolean) : [],
+            instalacao: String((prop && prop.contato_instalacao_contrato) || rawResp.instalacao || '').trim()
+        };
+    } catch (_) {
+        window._propResponsaveisContrato = {
+            nfe: [],
+            cobranca: [],
+            os: [],
+            instalacao: String((prop && prop.contato_instalacao_contrato) || '').trim()
+        };
+    }
     window._propFreteFobInicial = prop ? (Number(prop.servico_frete_fob) ? 1 : 0) : 0;
     (() => {
         // Cada produto guarda as suas diárias; o seletor começa vazio (produtos antigos herdam as da proposta)
@@ -4856,6 +4882,102 @@ function _renderFormPropostaInt() {
                                 </div>
                                 <input type="hidden" id="prop-datas-retirada-json" value="${_escHtmlProp(JSON.stringify(window._propDatasRetiradaEquipamentos || []))}">
                                 <div id="prop-datas-retirada-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                            </div>
+                            <div id="prop-resp-wrap-nfe" style="position:relative;">
+                                <label class="prop-lbl">Responsável(is) por Receber NFe</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="position:relative; flex:1;">
+                                        <input type="text" id="prop-resp-inp-nfe" autocomplete="off"
+                                            placeholder="Clique ou digite para selecionar contato..."
+                                            onfocus="window.abrirDropdownRespContrato('nfe', true)"
+                                            oninput="window.filtrarDropdownRespContrato('nfe', this.value)"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('nfe'); }"
+                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
+                                        <button type="button" onclick="window.toggleDropdownRespContrato('nfe', event)" tabindex="-1"
+                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
+                                        </button>
+                                        <div id="prop-resp-drop-nfe" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
+                                    </div>
+                                    <button type="button" onclick="window.adicionarResponsavelContrato('nfe')" title="Adicionar contato para Receber NFe"
+                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    </button>
+                                </div>
+                                <div id="prop-resp-chips-nfe" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                            </div>
+                            <div id="prop-resp-wrap-cobranca" style="position:relative;">
+                                <label class="prop-lbl">Responsável(is) por Receber Cobrança e Boleto</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="position:relative; flex:1;">
+                                        <input type="text" id="prop-resp-inp-cobranca" autocomplete="off"
+                                            placeholder="Clique ou digite para selecionar contato..."
+                                            onfocus="window.abrirDropdownRespContrato('cobranca', true)"
+                                            oninput="window.filtrarDropdownRespContrato('cobranca', this.value)"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('cobranca'); }"
+                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
+                                        <button type="button" onclick="window.toggleDropdownRespContrato('cobranca', event)" tabindex="-1"
+                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
+                                        </button>
+                                        <div id="prop-resp-drop-cobranca" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
+                                    </div>
+                                    <button type="button" onclick="window.adicionarResponsavelContrato('cobranca')" title="Adicionar contato para Receber Cobrança e Boleto"
+                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    </button>
+                                </div>
+                                <div id="prop-resp-chips-cobranca" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                            </div>
+                            <div id="prop-resp-wrap-os" style="position:relative;">
+                                <label class="prop-lbl">Responsável(is) por Receber Informações da OS</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="position:relative; flex:1;">
+                                        <input type="text" id="prop-resp-inp-os" autocomplete="off"
+                                            placeholder="Clique ou digite para selecionar contato..."
+                                            onfocus="window.abrirDropdownRespContrato('os', true)"
+                                            oninput="window.filtrarDropdownRespContrato('os', this.value)"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('os'); }"
+                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
+                                        <button type="button" onclick="window.toggleDropdownRespContrato('os', event)" tabindex="-1"
+                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
+                                        </button>
+                                        <div id="prop-resp-drop-os" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
+                                    </div>
+                                    <button type="button" onclick="window.adicionarResponsavelContrato('os')" title="Adicionar contato para Receber Informações da OS"
+                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    </button>
+                                </div>
+                                <div id="prop-resp-chips-os" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+                            </div>
+                            <div id="prop-resp-wrap-instalacao" style="position:relative;">
+                                <label class="prop-lbl">Contato de Instalação</label>
+                                <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="position:relative; flex:1;">
+                                        <input type="text" id="prop-resp-inp-instalacao" autocomplete="off"
+                                            placeholder="Clique ou digite para selecionar contato de instalação..."
+                                            onfocus="window.abrirDropdownRespContrato('instalacao', true)"
+                                            oninput="window.filtrarDropdownRespContrato('instalacao', this.value)"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('instalacao'); }"
+                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
+                                        <button type="button" onclick="window.toggleDropdownRespContrato('instalacao', event)" tabindex="-1"
+                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
+                                        </button>
+                                        <div id="prop-resp-drop-instalacao" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
+                                    </div>
+                                    <button type="button" onclick="window.adicionarResponsavelContrato('instalacao')" title="Selecionar Contato de Instalação"
+                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
+                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
+                                        <i class="ph ph-check-circle" style="font-size:0.95rem;"></i> Definir
+                                    </button>
+                                </div>
+                                <div id="prop-resp-chips-instalacao" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                         </div>
                     </div>
@@ -9069,7 +9191,9 @@ window.salvarPropostaNova = async function() {
         periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
         periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
-        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : []
+        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
+        contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
+        contato_instalacao_contrato: String((window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) || '').trim()
     };
 
     // Cache payload for save confirm call
@@ -9860,7 +9984,9 @@ window.aprovarPropostaEdicao = async function() {
         periodo_cobranca_inicio: obter('prop-cobranca-ini') || obter('prop-periodo-ini') || '',
         periodo_cobranca_fim: obter('prop-cobranca-fim') || obter('prop-periodo-fim') || '',
         datas_entrega_equipamentos: Array.isArray(window._propDatasEntregaEquipamentos) ? window._propDatasEntregaEquipamentos : [],
-        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : []
+        datas_retirada_equipamentos: Array.isArray(window._propDatasRetiradaEquipamentos) ? window._propDatasRetiradaEquipamentos : [],
+        contatos_responsaveis_contrato_json: JSON.stringify(window._propResponsaveisContrato || { nfe: [], cobranca: [], os: [], instalacao: '' }),
+        contato_instalacao_contrato: String((window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) || '').trim()
     };
     if (payload.contrato_interveniente && payload.interveniente_nome && payload.cliente_nome && typeof window.vincularIntervenienteAoClienteCentralizador === 'function') {
         window.vincularIntervenienteAoClienteCentralizador(payload.interveniente_nome, payload.cliente_nome);
@@ -28154,6 +28280,7 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{CONTATO_EMAIL}}', label: 'E-mail do Contato', categoria: 'Contato', exemplo: 'carlos@exemplo.com.br' },
     { tag: '{{CONTATO_TELEFONE}}', label: 'Telefone / Celular do Contato', categoria: 'Contato', exemplo: '(11) 98888-7777' },
     { tag: '{{CONTATO_CARGO}}', label: 'Cargo / Departamento do Contato', categoria: 'Contato', exemplo: 'Engenheiro Residente' },
+    { tag: '{{CONTATO_INSTALACAO}}', label: 'Contato de Instalação', categoria: 'Contato', exemplo: 'Carlos Alberto - (11) 98888-7777' },
 
     // Dados do Interveniente
     { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: 'CONSÓRCIO INTERVENIENTE LTDA' },
@@ -29452,6 +29579,9 @@ window.renderizarChipsDatasRetiradaContrato = function() {
             <button type="button" onclick="window.removerDataRetiradaEquipamentoContrato(${idx})" title="Remover data de retirada" style="background:transparent; border:none; color:#dc2626; cursor:pointer; padding:0 2px; font-size:0.9rem; font-weight:800; line-height:1;">&times;</button>
         </span>
     `).join('');
+    if (typeof window.renderizarResponsaveisContratoChips === 'function') {
+        window.renderizarResponsaveisContratoChips();
+    }
 };
 
 window.adicionarDataRetiradaEquipamentoContrato = function() {
@@ -29476,6 +29606,203 @@ window.removerDataRetiradaEquipamentoContrato = function(idx) {
     window.renderizarChipsDatasRetiradaContrato();
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
 };
+
+window._garantirEstruturaResponsaveisContrato = function() {
+    if (!window._propResponsaveisContrato || typeof window._propResponsaveisContrato !== 'object') {
+        window._propResponsaveisContrato = { nfe: [], cobranca: [], os: [], instalacao: '' };
+    }
+    ['nfe', 'cobranca', 'os'].forEach(k => {
+        if (!Array.isArray(window._propResponsaveisContrato[k])) window._propResponsaveisContrato[k] = [];
+    });
+    if (typeof window._propResponsaveisContrato.instalacao !== 'string') {
+        window._propResponsaveisContrato.instalacao = String(window._propResponsaveisContrato.instalacao || '');
+    }
+    return window._propResponsaveisContrato;
+};
+
+window.renderizarResponsaveisContratoChips = function() {
+    const st = window._garantirEstruturaResponsaveisContrato();
+    ['nfe', 'cobranca', 'os'].forEach(tipo => {
+        const box = document.getElementById(`prop-resp-chips-${tipo}`);
+        if (!box) return;
+        const arr = st[tipo] || [];
+        if (!arr.length) {
+            box.innerHTML = `<span style="font-size:0.74rem; color:#94a3b8; font-style:italic;">Nenhum responsável selecionado.</span>`;
+            return;
+        }
+        box.innerHTML = arr.map((txt, idx) => `
+            <span style="display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #a5b4fc; border-radius:6px; padding:3px 9px; font-size:0.75rem; font-weight:700; color:#312e81; box-shadow:0 1px 2px rgba(79,70,229,0.06);">
+                <span>${_escHtmlProp(txt)}</span>
+                <button type="button" onclick="window.removerResponsavelContrato('${tipo}', ${idx})" title="Remover responsável" style="background:transparent; border:none; color:#dc2626; cursor:pointer; padding:0 2px; font-size:0.9rem; font-weight:800; line-height:1;">&times;</button>
+            </span>
+        `).join('');
+    });
+    const boxInst = document.getElementById('prop-resp-chips-instalacao');
+    const inpInst = document.getElementById('prop-resp-inp-instalacao');
+    const valInst = String(st.instalacao || '').trim();
+    if (inpInst && document.activeElement !== inpInst) {
+        inpInst.value = valInst;
+    }
+    if (boxInst) {
+        if (!valInst) {
+            boxInst.innerHTML = `<span style="font-size:0.74rem; color:#94a3b8; font-style:italic;">Nenhum contato de instalação selecionado.</span>`;
+        } else {
+            boxInst.innerHTML = `
+                <span style="display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid #818cf8; border-radius:6px; padding:3px 9px; font-size:0.75rem; font-weight:700; color:#312e81; box-shadow:0 1px 2px rgba(79,70,229,0.08);">
+                    <span>${_escHtmlProp(valInst)}</span>
+                    <button type="button" onclick="window.removerResponsavelContrato('instalacao', 0)" title="Limpar contato de instalação" style="background:transparent; border:none; color:#dc2626; cursor:pointer; padding:0 2px; font-size:0.9rem; font-weight:800; line-height:1;">&times;</button>
+                </span>
+            `;
+        }
+    }
+};
+
+window._montarRotuloContatoRespContrato = function(c, tipo) {
+    if (!c) return '';
+    const nome = String(c.nome || '').trim();
+    const email = String(c.email || '').trim();
+    const tel = String(c.celular || c.telefone || '').trim();
+    if (tipo === 'instalacao') {
+        return [nome, tel || email].filter(Boolean).join(' - ');
+    }
+    if (tipo === 'nfe' || tipo === 'cobranca') {
+        return [nome, email || tel].filter(Boolean).join(' - ');
+    }
+    return [nome, tel || email].filter(Boolean).join(' - ');
+};
+
+window.abrirDropdownRespContrato = async function(tipo, mostrarTodos) {
+    ['nfe', 'cobranca', 'os', 'instalacao'].forEach(t => {
+        if (t !== tipo) {
+            const other = document.getElementById(`prop-resp-dd-${t}`);
+            if (other) other.style.display = 'none';
+        }
+    });
+    const clienteNome = document.getElementById('prop-cliente')?.value?.trim() || '';
+    if (clienteNome && (!Array.isArray(window._contatosDoClientePropostaAtual) || !window._contatosDoClientePropostaAtual.length)) {
+        if (typeof window._obterDadosContatosClienteProposta === 'function') {
+            await window._obterDadosContatosClienteProposta(clienteNome);
+        }
+    }
+    const inp = document.getElementById(`prop-resp-inp-${tipo}`);
+    const termo = mostrarTodos ? '' : (inp ? inp.value : '');
+    window.filtrarDropdownRespContrato(tipo, termo);
+};
+
+window.toggleDropdownRespContrato = function(tipo, ev) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    if (dd && dd.style.display === 'block') {
+        dd.style.display = 'none';
+        return;
+    }
+    window.abrirDropdownRespContrato(tipo, true);
+    const inp = document.getElementById(`prop-resp-inp-${tipo}`);
+    if (inp) inp.focus();
+};
+
+window.filtrarDropdownRespContrato = function(tipo, termoRaw) {
+    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    if (!dd) return;
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termoRaw);
+    const contatos = Array.isArray(window._contatosDoClientePropostaAtual) ? window._contatosDoClientePropostaAtual : [];
+    const filtrados = contatos.filter(c => {
+        if (!q) return true;
+        const alvo = norm(`${c.nome || ''} ${c.email || ''} ${c.celular || ''} ${c.telefone || ''} ${c.cargo || ''} ${c.departamento || ''}`);
+        return alvo.includes(q);
+    });
+    if (!filtrados.length) {
+        const txtDig = String(termoRaw || '').trim();
+        dd.innerHTML = txtDig
+            ? `<div onmousedown="event.preventDefault(); window.selecionarContatoRespDropdown('${tipo}', '${_escHtmlProp(txtDig).replace(/'/g, "\\'")}')" style="padding:8px 12px; font-size:0.78rem; color:#4338ca; font-weight:700; cursor:pointer;">+ Usar "${_escHtmlProp(txtDig)}"</div>`
+            : `<div style="padding:8px 12px; font-size:0.76rem; color:#94a3b8;">Nenhum contato cadastrado para o cliente. Digite e clique em Adicionar.</div>`;
+        dd.style.display = 'block';
+        return;
+    }
+    dd.innerHTML = filtrados.map(c => {
+        const rotulo = window._montarRotuloContatoRespContrato(c, tipo);
+        const sub = [c.cargo || c.departamento, c.email, c.celular || c.telefone].filter(Boolean).join(' • ');
+        const rotuloSafe = _escHtmlProp(rotulo).replace(/'/g, "\\'");
+        return `
+            <div onmousedown="event.preventDefault(); window.selecionarContatoRespDropdown('${tipo}', '${rotuloSafe}')"
+                 style="padding:7px 11px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.12s;"
+                 onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='transparent'">
+                <div style="font-size:0.78rem; font-weight:700; color:#1e293b;">${_escHtmlProp(c.nome || rotulo)}</div>
+                ${sub ? `<div style="font-size:0.7rem; color:#64748b;">${_escHtmlProp(sub)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+    dd.style.display = 'block';
+};
+
+window.selecionarContatoRespDropdown = function(tipo, textoContato) {
+    const val = String(textoContato || '').trim();
+    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    if (dd) dd.style.display = 'none';
+    if (!val) return;
+    const st = window._garantirEstruturaResponsaveisContrato();
+    const inp = document.getElementById(`prop-resp-inp-${tipo}`);
+    if (tipo === 'instalacao') {
+        st.instalacao = val;
+        if (inp) inp.value = val;
+    } else {
+        if (!st[tipo].includes(val)) {
+            st[tipo].push(val);
+        }
+        if (inp) inp.value = '';
+    }
+    window.renderizarResponsaveisContratoChips();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+};
+
+window.adicionarResponsavelContrato = function(tipo) {
+    const inp = document.getElementById(`prop-resp-inp-${tipo}`);
+    const val = String(inp?.value || '').trim();
+    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    if (dd) dd.style.display = 'none';
+    if (!val) {
+        if (inp) inp.focus();
+        return;
+    }
+    const st = window._garantirEstruturaResponsaveisContrato();
+    if (tipo === 'instalacao') {
+        st.instalacao = val;
+    } else {
+        if (!st[tipo].includes(val)) {
+            st[tipo].push(val);
+        }
+        if (inp) inp.value = '';
+    }
+    window.renderizarResponsaveisContratoChips();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+};
+
+window.removerResponsavelContrato = function(tipo, idx) {
+    const st = window._garantirEstruturaResponsaveisContrato();
+    if (tipo === 'instalacao') {
+        st.instalacao = '';
+        const inp = document.getElementById('prop-resp-inp-instalacao');
+        if (inp) inp.value = '';
+    } else if (Array.isArray(st[tipo])) {
+        st[tipo].splice(idx, 1);
+    }
+    window.renderizarResponsaveisContratoChips();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+};
+
+if (!window._propRespContratoOutsideListenerBound) {
+    window._propRespContratoOutsideListenerBound = true;
+    document.addEventListener('mousedown', (ev) => {
+        ['nfe', 'cobranca', 'os', 'instalacao'].forEach(tipo => {
+            const wrap = document.getElementById(`prop-resp-wrap-${tipo}`);
+            const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+            if (dd && dd.style.display === 'block' && wrap && !wrap.contains(ev.target)) {
+                dd.style.display = 'none';
+            }
+        });
+    });
+}
 
 window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {
     const p = pRaw || {};
@@ -29605,6 +29932,26 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
     const tabelaDiariasSemHorHtml = window.gerarHtmlTabelaDiariasContrato(p, false);
     const tabelaDiariasComHorHtml = window.gerarHtmlTabelaDiariasContrato(p, true);
 
+    let contatoInstalacaoTxt = String(p.contato_instalacao_contrato || '').trim();
+    if (!contatoInstalacaoTxt && p.contatos_responsaveis_contrato_json) {
+        try {
+            const parsedResp = typeof p.contatos_responsaveis_contrato_json === 'string'
+                ? JSON.parse(p.contatos_responsaveis_contrato_json || '{}')
+                : p.contatos_responsaveis_contrato_json;
+            if (parsedResp && parsedResp.instalacao) {
+                contatoInstalacaoTxt = String(parsedResp.instalacao || '').trim();
+            }
+        } catch (_) {}
+    }
+    if (!contatoInstalacaoTxt && !p._isPreviewModelo && window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) {
+        contatoInstalacaoTxt = String(window._propResponsaveisContrato.instalacao || '').trim();
+    }
+    if (!contatoInstalacaoTxt) {
+        const nomeConPadrao = String(p.contato_nome || con.nome || '').trim();
+        const telConPadrao = String(con.celular || con.telefone || '').trim();
+        contatoInstalacaoTxt = [nomeConPadrao, telConPadrao].filter(Boolean).join(' - ') || 'Carlos Alberto - (11) 98888-7777';
+    }
+
     const ctxResult = {
         '{{NUMERO_CONTRATO}}': numContratoLimpo,
         '{{TITULO_CONTRATO}}': tituloCampoContrato,
@@ -29641,6 +29988,7 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{CONTATO_EMAIL}}': String(con.email || p.assinafy_email || cli.email || 'contato@cliente.com.br').trim(),
         '{{CONTATO_TELEFONE}}': String(con.celular || con.telefone || cli.telefone || '(11) 99999-0000').trim(),
         '{{CONTATO_CARGO}}': String(con.cargo || con.departamento || '').trim(),
+        '{{CONTATO_INSTALACAO}}': contatoInstalacaoTxt,
 
         '{{INTERVENIENTE_RAZAO_SOCIAL}}': interRazao,
         '{{INTERVENIENTE_CNPJ}}': String(inter.cpf_cnpj || '00.000.000/0001-00').trim(),
