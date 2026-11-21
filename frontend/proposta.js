@@ -28449,7 +28449,8 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{CONTATO_EMAIL}}', label: 'E-mail do Contato', categoria: 'Contato', exemplo: 'carlos@exemplo.com.br' },
     { tag: '{{CONTATO_TELEFONE}}', label: 'Telefone / Celular do Contato', categoria: 'Contato', exemplo: '(11) 98888-7777' },
     { tag: '{{CONTATO_CARGO}}', label: 'Cargo / Departamento do Contato', categoria: 'Contato', exemplo: 'Engenheiro Residente' },
-    { tag: '{{CONTATO_INSTALACAO}}', label: 'Contato de Instalação', categoria: 'Contato', exemplo: 'Carlos Alberto - (11) 98888-7777' },
+    { tag: '{{CONTATO_INSTALACAO}}', label: 'Nome do Contato de Instalação', categoria: 'Contato', exemplo: 'Carlos Alberto' },
+    { tag: '{{CONTATO_INSTALACAO_TELEFONE}}', label: 'Telefone do Contato de Instalação', categoria: 'Contato', exemplo: '(11) 98888-7777' },
 
     // Dados do Interveniente
     { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: 'CONSÓRCIO INTERVENIENTE LTDA' },
@@ -30599,24 +30600,48 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
     const tabelaDiariasSemHorHtml = window.gerarHtmlTabelaDiariasContrato(p, false);
     const tabelaDiariasComHorHtml = window.gerarHtmlTabelaDiariasContrato(p, true);
 
-    let contatoInstalacaoTxt = String(p.contato_instalacao_contrato || '').trim();
-    if (!contatoInstalacaoTxt && p.contatos_responsaveis_contrato_json) {
+    let contatoInstalacaoRaw = String(p.contato_instalacao_contrato || '').trim();
+    if (!contatoInstalacaoRaw && p.contatos_responsaveis_contrato_json) {
         try {
             const parsedResp = typeof p.contatos_responsaveis_contrato_json === 'string'
                 ? JSON.parse(p.contatos_responsaveis_contrato_json || '{}')
                 : p.contatos_responsaveis_contrato_json;
             if (parsedResp && parsedResp.instalacao) {
-                contatoInstalacaoTxt = String(parsedResp.instalacao || '').trim();
+                contatoInstalacaoRaw = String(parsedResp.instalacao || '').trim();
             }
         } catch (_) {}
     }
-    if (!contatoInstalacaoTxt && !p._isPreviewModelo && window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) {
-        contatoInstalacaoTxt = String(window._propResponsaveisContrato.instalacao || '').trim();
+    if (!contatoInstalacaoRaw && !p._isPreviewModelo && window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) {
+        contatoInstalacaoRaw = String(window._propResponsaveisContrato.instalacao || '').trim();
     }
-    if (!contatoInstalacaoTxt) {
-        const nomeConPadrao = String(p.contato_nome || con.nome || '').trim();
-        const telConPadrao = String(con.celular || con.telefone || '').trim();
-        contatoInstalacaoTxt = [nomeConPadrao, telConPadrao].filter(Boolean).join(' - ') || 'Carlos Alberto - (11) 98888-7777';
+
+    let contatoInstalacaoNomeTxt = '';
+    let contatoInstalacaoTelefoneTxt = '';
+    if (contatoInstalacaoRaw) {
+        const partsInst = contatoInstalacaoRaw.split(' - ').map(s => s.trim()).filter(Boolean);
+        contatoInstalacaoNomeTxt = partsInst[0] || contatoInstalacaoRaw;
+        const restoInst = partsInst.slice(1).join(' - ').trim();
+        if (restoInst && !restoInst.includes('@') && /\d/.test(restoInst)) {
+            contatoInstalacaoTelefoneTxt = restoInst;
+        }
+        if (!contatoInstalacaoTelefoneTxt && contatoInstalacaoNomeTxt) {
+            const normInst = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const alvoNome = normInst(contatoInstalacaoNomeTxt);
+            const listaContatosBusca = [
+                ...(Array.isArray(cli.contatos) ? cli.contatos : []),
+                ...(Array.isArray(window._contatosDoClientePropostaAtual) ? window._contatosDoClientePropostaAtual : [])
+            ];
+            const contatoMatch = listaContatosBusca.find(c => c && normInst(c.nome) === alvoNome);
+            if (contatoMatch) {
+                contatoInstalacaoTelefoneTxt = String(contatoMatch.celular || contatoMatch.telefone || '').trim();
+            }
+        }
+    }
+    if (!contatoInstalacaoNomeTxt) {
+        contatoInstalacaoNomeTxt = String(p.contato_nome || con.nome || 'Carlos Alberto').trim();
+    }
+    if (!contatoInstalacaoTelefoneTxt) {
+        contatoInstalacaoTelefoneTxt = String(con.celular || con.telefone || cli.telefone || '(11) 98888-7777').trim();
     }
 
     const ctxResult = {
@@ -30655,7 +30680,8 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{CONTATO_EMAIL}}': String(con.email || p.assinafy_email || cli.email || 'contato@cliente.com.br').trim(),
         '{{CONTATO_TELEFONE}}': String(con.celular || con.telefone || cli.telefone || '(11) 99999-0000').trim(),
         '{{CONTATO_CARGO}}': String(con.cargo || con.departamento || '').trim(),
-        '{{CONTATO_INSTALACAO}}': contatoInstalacaoTxt,
+        '{{CONTATO_INSTALACAO}}': contatoInstalacaoNomeTxt,
+        '{{CONTATO_INSTALACAO_TELEFONE}}': contatoInstalacaoTelefoneTxt,
 
         '{{INTERVENIENTE_RAZAO_SOCIAL}}': interRazao,
         '{{INTERVENIENTE_CNPJ}}': String(inter.cpf_cnpj || '00.000.000/0001-00').trim(),
