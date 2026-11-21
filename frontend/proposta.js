@@ -1252,9 +1252,6 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
                             </button>
                             <div id="prop-sig-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1080;"></div>
                         </div>
-                        <button type="button" onclick="window.toggleDropdownContatosSignatarioQuadro(event)" title="Selecionar contato do cliente" style="background:#3b82f6; color:white; border:none; padding:0 0.65rem; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; height:36px; flex-shrink:0;">
-                            <i class="ph ph-address-book" style="font-size:1.05rem;"></i>
-                        </button>
                         <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-sig-add-nome')?.value || '', true)" title="Adicionar Novo Contato ao Cliente" style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
                             <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                         </button>
@@ -4884,11 +4881,12 @@ function _renderFormPropostaInt() {
                                 <div id="prop-datas-retirada-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                             <div id="prop-resp-wrap-nfe" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber NFe</label>
+                                <label class="prop-lbl">Responsável(is) por Receber NFe *</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div style="position:relative; flex:1;">
                                         <input type="text" id="prop-resp-inp-nfe" autocomplete="off"
                                             placeholder="Clique ou digite para selecionar contato..."
+                                            onclick="window.abrirDropdownRespContrato('nfe', true)"
                                             onfocus="window.abrirDropdownRespContrato('nfe', true)"
                                             oninput="window.filtrarDropdownRespContrato('nfe', this.value)"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('nfe'); }"
@@ -4899,20 +4897,21 @@ function _renderFormPropostaInt() {
                                         </button>
                                         <div id="prop-resp-drop-nfe" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
                                     </div>
-                                    <button type="button" onclick="window.adicionarResponsavelContrato('nfe')" title="Adicionar contato para Receber NFe"
-                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
-                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
-                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-nfe')?.value || '', false, 'resp_nfe')" title="Cadastrar Novo Contato vinculado ao Cliente"
+                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
+                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                                 <div id="prop-resp-chips-nfe" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                             <div id="prop-resp-wrap-cobranca" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber Cobrança e Boleto</label>
+                                <label class="prop-lbl">Responsável(is) por Receber Cobrança e Boleto *</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div style="position:relative; flex:1;">
                                         <input type="text" id="prop-resp-inp-cobranca" autocomplete="off"
                                             placeholder="Clique ou digite para selecionar contato..."
+                                            onclick="window.abrirDropdownRespContrato('cobranca', true)"
                                             onfocus="window.abrirDropdownRespContrato('cobranca', true)"
                                             oninput="window.filtrarDropdownRespContrato('cobranca', this.value)"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('cobranca'); }"
@@ -4923,20 +4922,21 @@ function _renderFormPropostaInt() {
                                         </button>
                                         <div id="prop-resp-drop-cobranca" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
                                     </div>
-                                    <button type="button" onclick="window.adicionarResponsavelContrato('cobranca')" title="Adicionar contato para Receber Cobrança e Boleto"
-                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
-                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
-                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-cobranca')?.value || '', false, 'resp_cobranca')" title="Cadastrar Novo Contato vinculado ao Cliente"
+                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
+                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                                 <div id="prop-resp-chips-cobranca" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                             <div id="prop-resp-wrap-os" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber Informações da OS</label>
+                                <label class="prop-lbl">Responsável(is) por Receber Informações da OS *</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div style="position:relative; flex:1;">
                                         <input type="text" id="prop-resp-inp-os" autocomplete="off"
                                             placeholder="Clique ou digite para selecionar contato..."
+                                            onclick="window.abrirDropdownRespContrato('os', true)"
                                             onfocus="window.abrirDropdownRespContrato('os', true)"
                                             oninput="window.filtrarDropdownRespContrato('os', this.value)"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('os'); }"
@@ -4947,20 +4947,21 @@ function _renderFormPropostaInt() {
                                         </button>
                                         <div id="prop-resp-drop-os" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
                                     </div>
-                                    <button type="button" onclick="window.adicionarResponsavelContrato('os')" title="Adicionar contato para Receber Informações da OS"
-                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
-                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
-                                        <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Adicionar
+                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-os')?.value || '', false, 'resp_os')" title="Cadastrar Novo Contato vinculado ao Cliente"
+                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
+                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                                 <div id="prop-resp-chips-os" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                             <div id="prop-resp-wrap-instalacao" style="position:relative;">
-                                <label class="prop-lbl">Contato de Instalação</label>
+                                <label class="prop-lbl">Contato de Instalação *</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div style="position:relative; flex:1;">
                                         <input type="text" id="prop-resp-inp-instalacao" autocomplete="off"
                                             placeholder="Clique ou digite para selecionar contato de instalação..."
+                                            onclick="window.abrirDropdownRespContrato('instalacao', true)"
                                             onfocus="window.abrirDropdownRespContrato('instalacao', true)"
                                             oninput="window.filtrarDropdownRespContrato('instalacao', this.value)"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('instalacao'); }"
@@ -4971,10 +4972,10 @@ function _renderFormPropostaInt() {
                                         </button>
                                         <div id="prop-resp-drop-instalacao" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
                                     </div>
-                                    <button type="button" onclick="window.adicionarResponsavelContrato('instalacao')" title="Selecionar Contato de Instalação"
-                                        style="background:#4f46e5; color:#fff; border:none; padding:0 0.75rem; height:36px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;"
-                                        onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">
-                                        <i class="ph ph-check-circle" style="font-size:0.95rem;"></i> Definir
+                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-instalacao')?.value || '', false, 'resp_instalacao')" title="Cadastrar Novo Contato vinculado ao Cliente"
+                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
+                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
                                     </button>
                                 </div>
                                 <div id="prop-resp-chips-instalacao" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
@@ -5176,22 +5177,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             return;
         }
         if (window._modoTelaComercial === 'contrato' && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
-            btn.style.display = mostrar ? 'inline-flex' : 'none';
-            btn.disabled = !infoContratoCompleta;
-            const bgAtivo = btn.id === 'btn-prop-baixar-pdf' ? '#0f172a' : (btn.id === 'btn-prop-enviar-whatsapp' ? '#16a34a' : '#0ea5e9');
-            if (infoContratoCompleta) {
-                btn.style.background = bgAtivo;
-                btn.style.color = '#ffffff';
-                btn.style.cursor = 'pointer';
-                btn.style.opacity = '1';
-                btn.title = '';
-            } else {
-                btn.style.background = '#cbd5e1';
-                btn.style.color = '#64748b';
-                btn.style.cursor = 'not-allowed';
-                btn.style.opacity = '0.85';
-                btn.title = 'Preencha e salve o Título e todos os campos obrigatórios do quadro Informações do Contrato para habilitar este botão';
-            }
+            btn.style.display = (mostrar && infoContratoCompleta) ? 'inline-flex' : 'none';
+            btn.disabled = false;
             return;
         }
         if (window._modoTelaComercial !== 'contrato' && isApOuPreAp && (btn.id === 'btn-prop-baixar-pdf' || btn.id === 'btn-prop-enviar-whatsapp' || btn.id === 'btn-prop-enviar-email')) {
@@ -8071,8 +8058,11 @@ window.setRamoAtividadeCheckboxes = function(chkSelector, hiddenId, ramoStr) {
 };
 
 window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
-    const clienteNome = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
-    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const rawCliIn = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
+    const clienteNome = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(rawCliIn)
+        : rawCliIn.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const [contatosApi, clientesCache] = await Promise.all([
         apiGet('/contatos').catch(() => []),
         window.obterClientesCache().catch(() => [])
@@ -8444,6 +8434,14 @@ window.salvarNovoContatoModalProposta = async function() {
                     inpIntCli.value = typeof window.formatarNomeClienteComIcone === 'function' ? window.formatarNomeClienteComIcone(empRazao) : empRazao;
                 }
                 window._contatosDoIntervenienteContratoAtual = null;
+            } else if (window._novoContatoModalOrigemTarget && String(window._novoContatoModalOrigemTarget).startsWith('resp_')) {
+                const tipoResp = String(window._novoContatoModalOrigemTarget).replace('resp_', '');
+                const rotuloNovo = typeof window._montarRotuloContatoRespContrato === 'function'
+                    ? window._montarRotuloContatoRespContrato({ nome: conNome, email: conEmail, celular: conCelular }, tipoResp)
+                    : [conNome, conEmail || conCelular].filter(Boolean).join(' - ');
+                if (typeof window.selecionarContatoRespDropdown === 'function') {
+                    window.selecionarContatoRespDropdown(tipoResp, rotuloNovo);
+                }
             } else if (window._novoContatoModalOrigemAssinaturaDigital) {
                 const inpSigNome = document.getElementById('prop-sig-add-nome');
                 const inpSigEmail = document.getElementById('prop-sig-add-email');
@@ -29839,15 +29837,22 @@ window._montarRotuloContatoRespContrato = function(c, tipo) {
     return [nome, tel || email].filter(Boolean).join(' - ');
 };
 
+window._obterElDropdownRespContrato = function(tipo) {
+    return document.getElementById(`prop-resp-drop-${tipo}`) || document.getElementById(`prop-resp-dd-${tipo}`);
+};
+
 window.abrirDropdownRespContrato = async function(tipo, mostrarTodos) {
     ['nfe', 'cobranca', 'os', 'instalacao'].forEach(t => {
         if (t !== tipo) {
-            const other = document.getElementById(`prop-resp-dd-${t}`);
+            const other = window._obterElDropdownRespContrato(t);
             if (other) other.style.display = 'none';
         }
     });
-    const clienteNome = document.getElementById('prop-cliente')?.value?.trim() || '';
-    if (clienteNome && (!Array.isArray(window._contatosDoClientePropostaAtual) || !window._contatosDoClientePropostaAtual.length)) {
+    const rawCli = document.getElementById('prop-cliente')?.value?.trim() || '';
+    const clienteNome = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(rawCli)
+        : rawCli.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    if (clienteNome && (window._ultimoClienteContatosCarregado !== clienteNome || !Array.isArray(window._contatosDoClientePropostaAtual) || !window._contatosDoClientePropostaAtual.length)) {
         if (typeof window._obterDadosContatosClienteProposta === 'function') {
             await window._obterDadosContatosClienteProposta(clienteNome);
         }
@@ -29859,7 +29864,7 @@ window.abrirDropdownRespContrato = async function(tipo, mostrarTodos) {
 
 window.toggleDropdownRespContrato = function(tipo, ev) {
     if (ev && ev.stopPropagation) ev.stopPropagation();
-    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    const dd = window._obterElDropdownRespContrato(tipo);
     if (dd && dd.style.display === 'block') {
         dd.style.display = 'none';
         return;
@@ -29870,7 +29875,7 @@ window.toggleDropdownRespContrato = function(tipo, ev) {
 };
 
 window.filtrarDropdownRespContrato = function(tipo, termoRaw) {
-    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    const dd = window._obterElDropdownRespContrato(tipo);
     if (!dd) return;
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const q = norm(termoRaw);
@@ -29883,8 +29888,8 @@ window.filtrarDropdownRespContrato = function(tipo, termoRaw) {
     if (!filtrados.length) {
         const txtDig = String(termoRaw || '').trim();
         dd.innerHTML = txtDig
-            ? `<div onmousedown="event.preventDefault(); window.selecionarContatoRespDropdown('${tipo}', '${_escHtmlProp(txtDig).replace(/'/g, "\\'")}')" style="padding:8px 12px; font-size:0.78rem; color:#4338ca; font-weight:700; cursor:pointer;">+ Usar "${_escHtmlProp(txtDig)}"</div>`
-            : `<div style="padding:8px 12px; font-size:0.76rem; color:#94a3b8;">Nenhum contato cadastrado para o cliente. Digite e clique em Adicionar.</div>`;
+            ? `<div onmousedown="event.preventDefault(); window.selecionarContatoRespDropdown('${tipo}', '${_escHtmlProp(txtDig).replace(/'/g, "\\'")}')" style="padding:8px 12px; font-size:0.78rem; color:#4338ca; font-weight:700; cursor:pointer;">+ Selecionar "${_escHtmlProp(txtDig)}"</div>`
+            : `<div style="padding:8px 12px; font-size:0.76rem; color:#94a3b8;">Nenhum contato cadastrado para o cliente. Clique no botão + amarelo ao lado para cadastrar.</div>`;
         dd.style.display = 'block';
         return;
     }
@@ -29906,7 +29911,7 @@ window.filtrarDropdownRespContrato = function(tipo, termoRaw) {
 
 window.selecionarContatoRespDropdown = function(tipo, textoContato) {
     const val = String(textoContato || '').trim();
-    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    const dd = window._obterElDropdownRespContrato(tipo);
     if (dd) dd.style.display = 'none';
     if (!val) return;
     const st = window._garantirEstruturaResponsaveisContrato();
@@ -29927,7 +29932,7 @@ window.selecionarContatoRespDropdown = function(tipo, textoContato) {
 window.adicionarResponsavelContrato = function(tipo) {
     const inp = document.getElementById(`prop-resp-inp-${tipo}`);
     const val = String(inp?.value || '').trim();
-    const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+    const dd = window._obterElDropdownRespContrato(tipo);
     if (dd) dd.style.display = 'none';
     if (!val) {
         if (inp) inp.focus();
@@ -29964,7 +29969,7 @@ if (!window._propRespContratoOutsideListenerBound) {
     document.addEventListener('mousedown', (ev) => {
         ['nfe', 'cobranca', 'os', 'instalacao'].forEach(tipo => {
             const wrap = document.getElementById(`prop-resp-wrap-${tipo}`);
-            const dd = document.getElementById(`prop-resp-dd-${tipo}`);
+            const dd = window._obterElDropdownRespContrato(tipo);
             if (dd && dd.style.display === 'block' && wrap && !wrap.contains(ev.target)) {
                 dd.style.display = 'none';
             }
