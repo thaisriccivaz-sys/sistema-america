@@ -29186,6 +29186,53 @@ window.abrirModalPesquisaIntervenienteContrato = async function() {
     if (inp) inp.focus();
 };
 
+window.formatarDiariasEventoDdMmOuIntervalo = function(arrRaw) {
+    const isos = [];
+    (arrRaw || []).forEach(entry => {
+        if (!entry) return;
+        const s = (typeof entry === 'object' ? String(entry.data || entry.dia || '') : String(entry)).trim();
+        const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const mBr = !mIso ? s.match(/^(\d{2})\/(\d{2})(?:\/(\d{4}))?/) : null;
+        if (mIso) {
+            const key = `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+            if (!isos.includes(key)) isos.push(key);
+        } else if (mBr) {
+            const yr = mBr[3] || String(new Date().getFullYear());
+            const key = `${yr}-${mBr[2]}-${mBr[1]}`;
+            if (!isos.includes(key)) isos.push(key);
+        }
+    });
+    isos.sort();
+    if (!isos.length) return { count: 0, texto: '' };
+    const toDdMm = (iso) => {
+        const pts = iso.split('-');
+        return `${pts[2]}/${pts[1]}`;
+    };
+    const toDayNum = (iso) => {
+        const pts = iso.split('-').map(Number);
+        return Math.round(Date.UTC(pts[0], pts[1] - 1, pts[2]) / 86400000);
+    };
+    const ranges = [];
+    let startIso = isos[0];
+    let prevIso = isos[0];
+    let prevDay = toDayNum(isos[0]);
+    for (let i = 1; i < isos.length; i++) {
+        const curIso = isos[i];
+        const curDay = toDayNum(curIso);
+        if (curDay === prevDay + 1) {
+            prevIso = curIso;
+            prevDay = curDay;
+        } else {
+            ranges.push(startIso === prevIso ? toDdMm(startIso) : `${toDdMm(startIso)} a ${toDdMm(prevIso)}`);
+            startIso = curIso;
+            prevIso = curIso;
+            prevDay = curDay;
+        }
+    }
+    ranges.push(startIso === prevIso ? toDdMm(startIso) : `${toDdMm(startIso)} a ${toDdMm(prevIso)}`);
+    return { count: isos.length, texto: ranges.join(', ') };
+};
+
 window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', propostaObj = null) {
     let itens = [];
     try {
@@ -29206,28 +29253,6 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
         diasPropArr = typeof rawDP === 'string' ? JSON.parse(rawDP || '[]') : (Array.isArray(rawDP) ? rawDP : []);
     } catch (_) { diasPropArr = []; }
 
-    const extrairDatasDdMm = (arrRaw) => {
-        const isos = [];
-        (arrRaw || []).forEach(entry => {
-            if (!entry) return;
-            const s = (typeof entry === 'object' ? String(entry.data || entry.dia || '') : String(entry)).trim();
-            const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            const mBr = !mIso ? s.match(/^(\d{2})\/(\d{2})(?:\/\d{4})?/) : null;
-            if (mIso) {
-                const key = `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
-                if (!isos.includes(key)) isos.push(key);
-            } else if (mBr) {
-                const key = `0000-${mBr[2]}-${mBr[1]}`;
-                if (!isos.includes(key)) isos.push(key);
-            }
-        });
-        isos.sort();
-        return isos.map(iso => {
-            const pts = iso.split('-');
-            return `${pts[2]}/${pts[1]}`;
-        });
-    };
-
     const itensCalc = itens.map((it, idx) => {
         const nome = String(it.produto || it.descricao || it.nome || ('Item ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
         const textoTecnico = String(
@@ -29243,11 +29268,13 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
         const diasArr = Array.isArray(it.dias_evento) && it.dias_evento.filter(Boolean).length > 0
             ? it.dias_evento.filter(Boolean)
             : (ehContratoEvento && !ehItemServico ? diasPropArr.filter(Boolean) : []);
-        const datasDdMmArr = (!ehItemServico && diasArr.length > 0) ? extrairDatasDdMm(diasArr) : [];
-        const diariasDdMmTxt = datasDdMmArr.join(', ');
+        const infoDiarias = (!ehItemServico && diasArr.length > 0 && typeof window.formatarDiariasEventoDdMmOuIntervalo === 'function')
+            ? window.formatarDiariasEventoDdMmOuIntervalo(diasArr)
+            : { count: 0, texto: '' };
+        const diariasDdMmTxt = infoDiarias.texto;
         const nDiarias = (ehContratoEvento && !ehItemServico)
-            ? (datasDdMmArr.length > 0
-                ? datasDdMmArr.length
+            ? (infoDiarias.count > 0
+                ? infoDiarias.count
                 : (diasArr.length > 0
                     ? diasArr.length
                     : (Number(it.diarias) > 0
@@ -29375,27 +29402,6 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         return '';
     }
     const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const extrairDatasDdMmServ = (arrRaw) => {
-        const isos = [];
-        (arrRaw || []).forEach(entry => {
-            if (!entry) return;
-            const s = (typeof entry === 'object' ? String(entry.data || entry.dia || '') : String(entry)).trim();
-            const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            const mBr = !mIso ? s.match(/^(\d{2})\/(\d{2})(?:\/\d{4})?/) : null;
-            if (mIso) {
-                const key = `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
-                if (!isos.includes(key)) isos.push(key);
-            } else if (mBr) {
-                const key = `0000-${mBr[2]}-${mBr[1]}`;
-                if (!isos.includes(key)) isos.push(key);
-            }
-        });
-        isos.sort();
-        return isos.map(iso => {
-            const pts = iso.split('-');
-            return `${pts[2]}/${pts[1]}`;
-        });
-    };
     const servsCalc = servs.map((sv, idx) => {
         const nome = String(sv.servico || sv.descricao || sv.nome || sv.produto || ('Serviço ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
         const textoTecnico = String(
@@ -29409,9 +29415,11 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         const isFob = Boolean(sv.frete_fob || sv.fob);
         const qtd = Math.max(1, Number(sv.quantidade ?? 1) || 1);
         const diasServArr = Array.isArray(sv.dias_evento) ? sv.dias_evento.filter(Boolean) : [];
-        const datasDdMmServ = diasServArr.length > 0 ? extrairDatasDdMmServ(diasServArr) : [];
-        const nDiariasServ = datasDdMmServ.length > 0 ? datasDdMmServ.length : (Number(sv.diarias) > 0 ? Number(sv.diarias) : 0);
-        const diariasDdMmServTxt = datasDdMmServ.join(', ');
+        const infoDiariasServ = (diasServArr.length > 0 && typeof window.formatarDiariasEventoDdMmOuIntervalo === 'function')
+            ? window.formatarDiariasEventoDdMmOuIntervalo(diasServArr)
+            : { count: 0, texto: '' };
+        const nDiariasServ = infoDiariasServ.count > 0 ? infoDiariasServ.count : (Number(sv.diarias) > 0 ? Number(sv.diarias) : 0);
+        const diariasDdMmServTxt = infoDiariasServ.texto;
         const vlrLiq = isFob ? 0 : Number(sv.valor_final ?? sv.valor_total ?? sv.valor ?? sv.valor_unitario ?? 0);
         const descRsServ = isFob ? 0 : (Number(sv.desconto_rs) > 0 ? Number(sv.desconto_rs) : 0);
         const base = isFob ? 0 : (Number(sv.valor_base) > 0 ? Number(sv.valor_base) : (vlrLiq > 0 ? (vlrLiq / qtd) : 0));
