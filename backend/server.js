@@ -42641,6 +42641,277 @@ app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
   });
 });
 
+// ── ANEXOS DO CONTRATO (Cloudflare R2 — nunca apaga do R2 ao excluir do banco) ──
+db.run(`CREATE TABLE IF NOT EXISTS comercial_contratos_anexos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposta_id INTEGER NOT NULL,
+  titulo TEXT DEFAULT '',
+  nome_arquivo TEXT NOT NULL,
+  mime_type TEXT DEFAULT 'application/octet-stream',
+  tamanho INTEGER DEFAULT 0,
+  r2_key TEXT,
+  file_path TEXT,
+  criado_por TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (errAnx) => {
+  if (errAnx) console.error('[CONTRATOS_ANEXOS] Erro ao criar tabela comercial_contratos_anexos:', errAnx.message);
+});
+
+const uploadAnexosContratoMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// GET /api/propostas/:id/anexos-contrato - Listar anexos do contrato
+app.get('/api/propostas/:id/anexos-contrato', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID inválido' });
+  db.all(
+    'SELECT id, proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em FROM comercial_contratos_anexos WHERE proposta_id = ? ORDER BY id ASC',
+    [propId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(Array.isArray(rows) ? rows : []);
+    }
+  );
+});
+
+// POST /api/propostas/:id/anexos-contrato - Adicionar um ou mais anexos por vez ao contrato (Cloudflare R2)
+app.post('/api/propostas/:id/anexos-contrato', authenticateToken, uploadAnexosContratoMem.array('arquivos', 30), async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    if (!propId) return res.status(400).json({ error: 'ID do contrato inválido.' });
+
+    const r2b = require('./utils/r2');
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) {
+      return res.status(400).json({ error: 'Selecione ao menos um arquivo para anexar.' });
+    }
+
+    let titulosArr = [];
+    if (req.body && req.body.titulos_json) {
+      try {
+        const parsed = JSON.parse(req.body.titulos_json);
+        if (Array.isArray(parsed)) titulosArr = parsed;
+      } catch (_) {}
+    }
+    const tituloUnico = req.body && typeof req.body.titulo === 'string' ? req.body.titulo.trim() : '';
+
+    const agoraBr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
+    const yyyy = agoraBr.getUTCFullYear();
+    const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+    const agoraSql = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const inseridos = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (!f || !f.buffer) continue;
+      let nomeOriginal = f.originalname || `anexo_${i + 1}`;
+      try {
+        if (/[\xC2\xC3][\x80-\xBF]/.test(nomeOriginal)) {
+          nomeOriginal = Buffer.from(nomeOriginal, 'latin1').toString('utf8');
+        }
+      } catch (_) {}
+
+      const tituloAnexo = (titulosArr[i] !== undefined && String(titulosArr[i] || '').trim() !== '')
+        ? String(titulosArr[i]).trim()
+        : (files.length === 1 && tituloUnico ? tituloUnico : (tituloUnico ? `${tituloUnico} (${i + 1})` : ''));
+
+      const extRaw = path.extname(nomeOriginal || '').replace('.', '').toLowerCase() || 'bin';
+      const baseClean = path.basename(nomeOriginal, path.extname(nomeOriginal))
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'anexo';
+      const hash = require('crypto').randomBytes(4).toString('hex');
+      const r2Key = `Comercial/Contratos/${propId}/Anexos/${yyyy}/${mm}/${dd}_${Date.now()}_${hash}_${baseClean}.${extRaw}`;
+      const mimeType = f.mimetype || 'application/octet-stream';
+      const tamanho = Number(f.size || f.buffer.length || 0);
+
+      let savedR2Key = null;
+      let savedLocalPath = null;
+      if (r2b && typeof r2b.isReady === 'function' && r2b.isReady()) {
+        await r2b.uploadToR2(r2Key, f.buffer, mimeType);
+        savedR2Key = r2Key;
+      } else {
+        console.warn('[R2] Storage não configurado — salvando anexo do contrato localmente como fallback.');
+        const localDir = path.join(__dirname, 'uploads', 'contratos_anexos', String(propId));
+        if (!fs.existsSync(localDir)) fs.mkdirSync(localDir, { recursive: true });
+        const localFile = path.join(localDir, `${Date.now()}_${hash}_${baseClean}.${extRaw}`);
+        fs.writeFileSync(localFile, f.buffer);
+        savedLocalPath = localFile;
+      }
+
+      const newId = await new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO comercial_contratos_anexos (proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [propId, tituloAnexo, nomeOriginal, mimeType, tamanho, savedR2Key, savedLocalPath, autor, agoraSql, agoraSql],
+          function(errIns) {
+            if (errIns) return reject(errIns);
+            resolve(this.lastID);
+          }
+        );
+      });
+      inseridos.push({ id: newId, titulo: tituloAnexo, nome_arquivo: nomeOriginal });
+    }
+
+    if (inseridos.length > 0) {
+      const descLog = inseridos.map(a => a.titulo ? `${a.titulo} (${a.nome_arquivo})` : a.nome_arquivo).join(', ');
+      db.run(
+        `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+         VALUES (?, 'Proposta', ?, 'Anexo do Contrato (Incluído)', '—', ?, '{"_origem_log":"contrato"}')`,
+        [autor, propId, descLog]
+      );
+    }
+
+    const todosAnexos = await new Promise((resolve) => {
+      db.all(
+        'SELECT id, proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em FROM comercial_contratos_anexos WHERE proposta_id = ? ORDER BY id ASC',
+        [propId],
+        (e, r) => resolve(Array.isArray(r) ? r : [])
+      );
+    });
+    res.json({ success: true, anexos: todosAnexos });
+  } catch (e) {
+    console.error('[CONTRATOS_ANEXOS] Erro no upload de anexos:', e);
+    res.status(500).json({ error: e.message || 'Erro ao anexar documento(s) ao contrato.' });
+  }
+});
+
+// PUT /api/propostas/:id/anexos-contrato/:anexoId - Atualizar o título do anexo depois de enviado
+app.put('/api/propostas/:id/anexos-contrato/:anexoId', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  const anexoId = Number(req.params.anexoId);
+  const novoTitulo = String(req.body?.titulo ?? '').trim();
+  const agoraSql = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+  db.run(
+    'UPDATE comercial_contratos_anexos SET titulo = ?, atualizado_em = ? WHERE id = ? AND proposta_id = ?',
+    [novoTitulo, agoraSql, anexoId, propId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Anexo não encontrado.' });
+      db.get(
+        'SELECT id, proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em FROM comercial_contratos_anexos WHERE id = ?',
+        [anexoId],
+        (errG, row) => {
+          if (errG) return res.status(500).json({ error: errG.message });
+          res.json({ success: true, anexo: row });
+        }
+      );
+    }
+  );
+});
+
+// GET /api/propostas/:id/anexos-contrato/:anexoId/arquivo - Visualizar ou baixar anexo via stream do Cloudflare R2
+app.get('/api/propostas/:id/anexos-contrato/:anexoId/arquivo', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  const anexoId = Number(req.params.anexoId);
+  db.get(
+    'SELECT * FROM comercial_contratos_anexos WHERE id = ? AND proposta_id = ?',
+    [anexoId, propId],
+    async (err, row) => {
+      if (err || !row) return res.status(404).send('Anexo não encontrado.');
+      const dispType = req.query.download === '1' ? 'attachment' : 'inline';
+      const safeFilename = encodeURIComponent(row.nome_arquivo || 'anexo');
+      try {
+        if (row.r2_key) {
+          const r2b = require('./utils/r2');
+          if (!r2b.isReady()) return res.status(503).send('Armazenamento R2 não configurado.');
+          const { stream, contentType } = await r2b.downloadStreamFromR2(row.r2_key);
+          res.setHeader('Content-Type', contentType || row.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `${dispType}; filename*=UTF-8''${safeFilename}`);
+          stream.pipe(res);
+          return;
+        }
+        if (row.file_path && fs.existsSync(row.file_path)) {
+          res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `${dispType}; filename*=UTF-8''${safeFilename}`);
+          fs.createReadStream(row.file_path).pipe(res);
+          return;
+        }
+        return res.status(404).send('Arquivo não localizado no armazenamento.');
+      } catch (e) {
+        console.error('[CONTRATOS_ANEXOS] Erro ao servir anexo:', e);
+        res.status(500).send('Erro ao abrir o arquivo do anexo.');
+      }
+    }
+  );
+});
+
+// DELETE /api/propostas/:id/anexos-contrato/:anexoId - Excluir registro do anexo no banco (NUNCA apaga do Cloudflare R2)
+app.delete('/api/propostas/:id/anexos-contrato/:anexoId', authenticateToken, async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    const anexoId = Number(req.params.anexoId);
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+
+    db.get('SELECT * FROM comercial_contratos_anexos WHERE id = ? AND proposta_id = ?', [anexoId, propId], (errG, row) => {
+      if (errG) return res.status(500).json({ error: errG.message });
+      if (!row) return res.status(404).json({ error: 'Anexo não encontrado.' });
+
+      // REGRA OBRIGATÓRIA GEMINI.md: NUNCA apagar o arquivo do Cloudflare R2 (mantém row.r2_key intacto no R2)
+      db.run('DELETE FROM comercial_contratos_anexos WHERE id = ? AND proposta_id = ?', [anexoId, propId], function(errDel) {
+        if (errDel) return res.status(500).json({ error: errDel.message });
+        const descLog = row.titulo ? `${row.titulo} (${row.nome_arquivo})` : row.nome_arquivo;
+        db.run(
+          `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+           VALUES (?, 'Proposta', ?, 'Anexo do Contrato (Removido)', ?, 'Removido da lista', '{"_origem_log":"contrato"}')`,
+          [autor, propId, descLog]
+        );
+        res.json({ success: true });
+      });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao excluir anexo.' });
+  }
+});
+
+// GET /api/propostas/:id/os-contrato - Buscar Ordens de Serviço (OS) vinculadas ao contrato
+app.get('/api/propostas/:id/os-contrato', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID inválido' });
+  db.get('SELECT id, codigo, contrato, cliente_nome, endereco_instalacao FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+    if (errP) return res.status(500).json({ error: errP.message });
+    if (!prop) return res.status(404).json({ error: 'Contrato não encontrado' });
+
+    const numCtrRaw = String(prop.contrato || '').trim();
+    const numCtrInt = /^\d+$/.test(numCtrRaw) ? parseInt(numCtrRaw, 10) : null;
+    if (!numCtrRaw) {
+      return res.json({ success: true, contrato: '', os_list: [] });
+    }
+
+    db.all("SELECT * FROM os_logistica WHERE status = 'ativo' AND contrato IS NOT NULL AND TRIM(contrato) != '' ORDER BY data_os DESC, id DESC", [], (errOs, rows) => {
+      if (errOs) return res.status(500).json({ error: errOs.message });
+      const normToken = (s) => String(s || '').trim().toUpperCase();
+      const matched = (rows || []).filter(r => {
+        const cRaw = String(r.contrato || '').trim();
+        if (!cRaw) return false;
+        if (normToken(cRaw) === normToken(numCtrRaw)) return true;
+        // Extrai números caso esteja como "05", "5", "CT 05", "CONTRATO 05"
+        const tokens = cRaw.split(/[\s,;/|-]+/).map(t => t.replace(/^0+/, '') || '0');
+        if (numCtrInt !== null && tokens.includes(String(numCtrInt))) return true;
+        const onlyDigits = cRaw.replace(/\D+/g, '');
+        if (numCtrInt !== null && onlyDigits && parseInt(onlyDigits, 10) === numCtrInt) return true;
+        return false;
+      });
+      res.json({
+        success: true,
+        contrato: numCtrRaw,
+        codigo_proposta: prop.codigo || '',
+        os_list: matched
+      });
+    });
+  });
+});
+
 // POST /api/propostas - Criar nova proposta
 function sincronizarContratoDaProposta(propostaId) {
   if (!propostaId) return;

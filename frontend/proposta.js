@@ -2664,7 +2664,7 @@ window._resetarEstadoMemoriaFormComercial = function(modo) {
     _propostasEditandoId = null;
     if (modo === 'contrato') {
         window._propostasEditandoId_contrato = null;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
     } else {
         window._propostasEditandoId_proposta = null;
     }
@@ -2741,7 +2741,7 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     _propostasEditandoId = snap.editandoId || null;
     if (m === 'contrato') {
         window._propostasEditandoId_contrato = _propostasEditandoId;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
     } else {
         window._propostasEditandoId_proposta = _propostasEditandoId;
     }
@@ -3848,7 +3848,7 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
     window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
     if (modoAtu === 'contrato') {
         window._propostasEditandoId_contrato = id;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
     } else {
         window._propostasEditandoId_proposta = id;
     }
@@ -3954,12 +3954,14 @@ function _renderFormPropostaInt() {
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
     const isModoContratoRender = window._modoTelaComercial === 'contrato';
-    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
     if (window._contratoSecoesAbertas.assinatura_digital === undefined) window._contratoSecoesAbertas.assinatura_digital = true;
+    if (window._contratoSecoesAbertas.anexos === undefined) window._contratoSecoesAbertas.anexos = false;
+    if (window._contratoSecoesAbertas.os_contrato === undefined) window._contratoSecoesAbertas.os_contrato = false;
     window.toggleSecaoContratoAccordion = function(chave, event) {
         if (event) event.stopPropagation();
         if (window._modoTelaComercial !== 'contrato') return;
-        window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false };
+        window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
         const bodyEl = document.getElementById('prop-secao-' + chave + '-body');
         const caretEl = document.getElementById('prop-caret-' + chave);
         if (!bodyEl) return;
@@ -3969,6 +3971,12 @@ function _renderFormPropostaInt() {
         bodyEl.style.display = novoEstado ? 'block' : 'none';
         if (caretEl) {
             caretEl.style.transform = novoEstado ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        if (novoEstado && chave === 'anexos' && typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo();
+        }
+        if (novoEstado && chave === 'os_contrato' && typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo();
         }
     };
     const dataCadastroValorForm = isModoContratoRender
@@ -4973,6 +4981,68 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Anexos (Exclusiva na tela de Contratos — fechada por padrão com seta para baixo) -->
+                    <div id="prop-secao-anexos" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#fefce8; border:1.5px solid #fde047; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <div onclick="window.toggleSecaoContratoAccordion('anexos', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
+                            <h4 style="margin:0; font-size:0.82rem; color:#854d0e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
+                                <i class="ph ph-paperclip" style="font-size:1.05rem; color:#ca8a04;"></i> Anexos
+                                <span id="prop-anexos-contrato-count-badge" style="background:#fef08a; color:#854d0e; border:1px solid #facc15; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">0 anexo(s)</span>
+                            </h4>
+                            <button type="button" onclick="window.toggleSecaoContratoAccordion('anexos', event)" title="Abrir / Fechar Anexos" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #facc15; background:#fef08a; color:#854d0e; cursor:pointer;">
+                                <i id="prop-caret-anexos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.anexos) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                            </button>
+                        </div>
+                        <div id="prop-secao-anexos-body" style="display:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.anexos) ? 'block' : 'none'}; margin-top:0.6rem;">
+                            <div style="background:#ffffff; border:1px solid #fde047; border-radius:8px; padding:0.65rem 0.85rem; margin-bottom:0.6rem;">
+                                <div style="display:grid; grid-template-columns:1fr auto; gap:0.6rem; align-items:end;">
+                                    <div>
+                                        <label class="prop-lbl" style="color:#713f12;">Título do Anexo <span style="font-weight:500; color:#64748b; font-size:0.73rem;">(opcional — você também pode adicionar vários anexos de uma vez e colocar os títulos depois)</span></label>
+                                        <input type="text" id="prop-anexo-contrato-titulo-inp" placeholder="Escreva o título do anexo (ou deixe em branco para preencher depois)..."
+                                            style="width:100%; padding:0.52rem 0.65rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none !important;">
+                                    </div>
+                                    <div>
+                                        <input type="file" id="prop-anexo-contrato-files-inp" multiple style="display:none;" onchange="window.enviarArquivosAnexosContrato(this.files)">
+                                        <button type="button" id="btn-prop-anexo-contrato-upload" onclick="document.getElementById('prop-anexo-contrato-files-inp')?.click()"
+                                            style="background:#ca8a04; color:#ffffff; border:none; height:36px; padding:0 14px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; transition:background 0.15s;"
+                                            onmouseover="this.style.background='#a16207'" onmouseout="this.style.background='#ca8a04'">
+                                            <i class="ph ph-upload-simple" style="font-size:1rem; font-weight:700;"></i> Incluir Documento(s) Anexo(s)
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="prop-anexos-contrato-lista-wrap">
+                                <div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                                    Nenhum documento anexado a este contrato ainda.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção: OS do Contrato (Exclusiva na tela de Contratos — fechada por padrão com seta para baixo) -->
+                    <div id="prop-secao-os-contrato" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <div onclick="window.toggleSecaoContratoAccordion('os_contrato', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
+                            <h4 style="margin:0; font-size:0.82rem; color:#1e40af; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
+                                <i class="ph ph-clipboard-text" style="font-size:1.05rem; color:#2563eb;"></i> OS do Contrato
+                                <span id="prop-os-contrato-count-badge" style="background:#dbeafe; color:#1e3a8a; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">0 OS</span>
+                            </h4>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button type="button" onclick="event.stopPropagation(); window.carregarOsContratoAtivo(null, true);" title="Atualizar lista de OS deste contrato" style="background:#2563eb; color:#ffffff; border:none; padding:4px 9px; border-radius:6px; font-weight:700; font-size:0.72rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                                    <i class="ph ph-arrows-clockwise" style="font-size:0.85rem;"></i> Atualizar
+                                </button>
+                                <button type="button" onclick="window.toggleSecaoContratoAccordion('os_contrato', event)" title="Abrir / Fechar OS do Contrato" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
+                                    <i id="prop-caret-os_contrato" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.os_contrato) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="prop-secao-os_contrato-body" style="display:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.os_contrato) ? 'block' : 'none'}; margin-top:0.6rem;">
+                            <div id="prop-os-contrato-lista-wrap">
+                                <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                                    Carregando Ordens de Serviço vinculadas a este contrato...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Observações -->
                     <div style="margin-bottom:0.5rem;">
                         <label class="prop-lbl">Observações</label>
@@ -4992,6 +5062,14 @@ function _renderFormPropostaInt() {
     }
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
+    }
+    if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
+        if (typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
     }
 
     // Filter services based on loaded proposal's table pricing
@@ -10225,7 +10303,7 @@ window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
     window._modoTelaComercial = 'contrato';
     window._propostasEditandoId_contrato = targetId;
     _propostasEditandoId = targetId;
-    window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true };
+    window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
     await abrirFormProposta(targetId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
         window.salvarSnapshotEstadoFormComercial('contrato', chaveSnapCtr);
@@ -23854,6 +23932,14 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
+        if (typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
+    }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (typeof Swal !== 'undefined') Swal.close();
 };
@@ -24073,6 +24159,14 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
+        if (typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
+    }
 };
 
 window.onChangeTabelaPrecosManual = async function(novaTabela) {
@@ -24138,6 +24232,14 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
     }
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
+    }
+    if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
+        if (typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
     }
 };
 
@@ -29970,6 +30072,404 @@ if (!window._propRespContratoOutsideListenerBound) {
         });
     });
 }
+
+/* ── Quadro ANEXOS do Contrato (upload múltiplo para Cloudflare R2 + edição de título antes/depois) ── */
+window._anexosContratoCache = [];
+
+window._formatarTamanhoBytesAnexoContrato = function(bytes) {
+    const b = Number(bytes || 0);
+    if (!b || b <= 0) return '';
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+window._iconePorArquivoAnexoContrato = function(nomeArquivo, mimeType) {
+    const ext = String(nomeArquivo || '').split('.').pop().toLowerCase();
+    const mime = String(mimeType || '').toLowerCase();
+    if (ext === 'pdf' || mime.includes('pdf')) return { icon: 'ph-file-pdf', color: '#dc2626', bg: '#fef2f2' };
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || mime.startsWith('image/')) return { icon: 'ph-image', color: '#0284c7', bg: '#f0f9ff' };
+    if (['xls', 'xlsx', 'csv'].includes(ext) || mime.includes('spreadsheet') || mime.includes('excel')) return { icon: 'ph-file-xls', color: '#16a34a', bg: '#f0fdf4' };
+    if (['doc', 'docx'].includes(ext) || mime.includes('word')) return { icon: 'ph-file-doc', color: '#2563eb', bg: '#eff6ff' };
+    return { icon: 'ph-file-text', color: '#64748b', bg: '#f8fafc' };
+};
+
+window.carregarAnexosContratoAtivo = async function(propIdOpcional) {
+    const propId = Number(propIdOpcional || _propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) {
+        window._anexosContratoCache = [];
+        window.renderizarListaAnexosContrato([]);
+        return;
+    }
+    try {
+        const rows = await apiGet(`/propostas/${propId}/anexos-contrato`);
+        window._anexosContratoCache = Array.isArray(rows) ? rows : [];
+        window.renderizarListaAnexosContrato(window._anexosContratoCache);
+    } catch (e) {
+        console.warn('[ANEXOS_CONTRATO] Erro ao carregar anexos:', e);
+    }
+};
+
+window.renderizarListaAnexosContrato = function(lista) {
+    const arr = Array.isArray(lista) ? lista : (window._anexosContratoCache || []);
+    const badge = document.getElementById('prop-anexos-contrato-count-badge');
+    if (badge) badge.textContent = `${arr.length} anexo(s)`;
+
+    const wrap = document.getElementById('prop-anexos-contrato-lista-wrap');
+    if (!wrap) return;
+
+    if (!arr.length) {
+        wrap.innerHTML = `
+            <div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhum documento anexado a este contrato ainda.
+            </div>
+        `;
+        return;
+    }
+
+    const fmtDataHoraBr = (dtStr) => {
+        const s = String(dtStr || '').trim();
+        if (!s) return '';
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2}))?/);
+        if (!m) return s;
+        return `${m[3]}/${m[2]}/${m[1]}${m[4] ? ` às ${m[4]}:${m[5]}` : ''}`;
+    };
+
+    wrap.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            ${arr.map((a, idx) => {
+                const ic = window._iconePorArquivoAnexoContrato(a.nome_arquivo, a.mime_type);
+                const tamStr = window._formatarTamanhoBytesAnexoContrato(a.tamanho);
+                const dtStr = fmtDataHoraBr(a.criado_em);
+                const metaParts = [a.nome_arquivo, tamStr, dtStr ? `Incluído em ${dtStr}` : '', a.criado_por ? `por ${a.criado_por}` : ''].filter(Boolean);
+                return `
+                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:10px; flex:1 1 320px; min-width:240px;">
+                            <div style="width:36px; height:36px; border-radius:8px; background:${ic.bg}; color:${ic.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(0,0,0,0.06);">
+                                <i class="ph ${ic.icon}" style="font-size:1.25rem;"></i>
+                            </div>
+                            <div style="flex:1; min-width:180px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span style="font-size:0.72rem; font-weight:800; color:#854d0e; background:#fef9c3; border:1px solid #fde047; padding:1px 6px; border-radius:4px; white-space:nowrap;">#${idx + 1}</span>
+                                    <input type="text" id="prop-anexo-titulo-item-${a.id}" value="${_escHtmlProp(a.titulo || '')}"
+                                        placeholder="Escreva o título deste anexo..."
+                                        onblur="window.salvarTituloAnexoContrato(${a.id}, this.value)"
+                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }"
+                                        style="width:100%; padding:0.38rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:600; color:#0f172a; background:#fff; box-sizing:border-box; text-transform:none !important;">
+                                    <span id="prop-anexo-status-${a.id}" style="font-size:0.72rem; font-weight:700; color:#16a34a; white-space:nowrap; display:none;">Salvo ✓</span>
+                                </div>
+                                <div style="font-size:0.73rem; color:#64748b; margin-top:3px; word-break:break-all;">
+                                    ${_escHtmlProp(metaParts.join(' • '))}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                            <button type="button" onclick="window.abrirArquivoAnexoContrato(${a.id}, false)" title="Visualizar anexo em nova guia"
+                                style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:5px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-eye" style="font-size:0.92rem;"></i> Visualizar
+                            </button>
+                            <button type="button" onclick="window.abrirArquivoAnexoContrato(${a.id}, true)" title="Baixar anexo"
+                                style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:5px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-download-simple" style="font-size:0.92rem;"></i> Baixar
+                            </button>
+                            <button type="button" onclick="window.excluirAnexoContrato(${a.id}, '${_escHtmlProp(a.nome_arquivo || 'anexo').replace(/'/g, "\\'")}')" title="Remover anexo do contrato"
+                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:5px 9px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-trash" style="font-size:0.92rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+};
+
+window.enviarArquivosAnexosContrato = async function(fileList) {
+    const files = Array.from(fileList || []);
+    const fileInp = document.getElementById('prop-anexo-contrato-files-inp');
+    if (!files.length) return;
+
+    const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) {
+        if (typeof Swal !== 'undefined') Swal.fire('Atenção', 'Salve o contrato antes de incluir anexos.', 'warning');
+        if (fileInp) fileInp.value = '';
+        return;
+    }
+
+    const tituloInp = document.getElementById('prop-anexo-contrato-titulo-inp');
+    const tituloInicial = tituloInp ? String(tituloInp.value || '').trim() : '';
+    const btnUpload = document.getElementById('btn-prop-anexo-contrato-upload');
+    const htmlOrig = btnUpload ? btnUpload.innerHTML : '';
+
+    try {
+        if (btnUpload) {
+            btnUpload.disabled = true;
+            btnUpload.innerHTML = `<i class="ph ph-spinner ph-spin"></i> Enviando ${files.length} arquivo(s)...`;
+        }
+        const fd = new FormData();
+        files.forEach(f => fd.append('arquivos', f));
+        if (tituloInicial) fd.append('titulo', tituloInicial);
+
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/propostas/${propId}/anexos-contrato`, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            body: fd
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.error) {
+            throw new Error(data.error || `Falha no envio (HTTP ${resp.status})`);
+        }
+        if (tituloInp) tituloInp.value = '';
+        if (fileInp) fileInp.value = '';
+
+        window._anexosContratoCache = Array.isArray(data.anexos) ? data.anexos : [];
+        window.renderizarListaAnexosContrato(window._anexosContratoCache);
+
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`${files.length} anexo(s) incluído(s) com sucesso! Você pode preencher ou editar os títulos abaixo.`);
+        }
+    } catch (e) {
+        console.error('[ANEXOS_CONTRATO] Erro ao enviar arquivos:', e);
+        if (typeof Swal !== 'undefined') Swal.fire('Erro ao anexar', e.message || 'Não foi possível enviar o(s) arquivo(s).', 'error');
+    } finally {
+        if (btnUpload) {
+            btnUpload.disabled = false;
+            btnUpload.innerHTML = htmlOrig || `<i class="ph ph-upload-simple" style="font-size:1rem; font-weight:700;"></i> Incluir Documento(s) Anexo(s)`;
+        }
+    }
+};
+
+window.salvarTituloAnexoContrato = async function(anexoId, novoTitulo) {
+    const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId || !anexoId) return;
+    const itemCache = (window._anexosContratoCache || []).find(x => Number(x.id) === Number(anexoId));
+    const titLimpo = String(novoTitulo ?? '').trim();
+    if (itemCache && String(itemCache.titulo || '').trim() === titLimpo) return;
+
+    try {
+        const res = await apiPut(`/propostas/${propId}/anexos-contrato/${anexoId}`, { titulo: titLimpo });
+        if (res && res.anexo) {
+            if (itemCache) itemCache.titulo = res.anexo.titulo;
+            const stEl = document.getElementById(`prop-anexo-status-${anexoId}`);
+            if (stEl) {
+                stEl.style.display = 'inline';
+                setTimeout(() => { if (stEl) stEl.style.display = 'none'; }, 1800);
+            }
+        }
+    } catch (e) {
+        console.warn('[ANEXOS_CONTRATO] Erro ao atualizar título do anexo:', e);
+    }
+};
+
+window.abrirArquivoAnexoContrato = function(anexoId, download = false) {
+    const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId || !anexoId) return;
+    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+    const url = `/api/propostas/${propId}/anexos-contrato/${anexoId}/arquivo?${download ? 'download=1&' : ''}token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+};
+
+window.excluirAnexoContrato = async function(anexoId, nomeArquivo) {
+    const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId || !anexoId) return;
+
+    if (typeof Swal !== 'undefined') {
+        const conf = await Swal.fire({
+            title: 'Remover anexo?',
+            text: `Deseja remover "${nomeArquivo || 'este anexo'}" da lista do contrato?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sim, remover',
+            cancelButtonText: 'Cancelar'
+        });
+        if (!conf.isConfirmed) return;
+    } else if (!confirm(`Deseja remover "${nomeArquivo || 'este anexo'}" do contrato?`)) {
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const resp = await fetch(`/api/propostas/${propId}/anexos-contrato/${anexoId}`, {
+            method: 'DELETE',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.error) throw new Error(data.error || 'Erro ao remover anexo.');
+
+        window._anexosContratoCache = (window._anexosContratoCache || []).filter(x => Number(x.id) !== Number(anexoId));
+        window.renderizarListaAnexosContrato(window._anexosContratoCache);
+        if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Anexo removido da lista do contrato.');
+    } catch (e) {
+        if (typeof Swal !== 'undefined') Swal.fire('Erro', e.message || 'Erro ao remover anexo.', 'error');
+    }
+};
+
+/* ── Quadro OS DO CONTRATO (fechado com seta para baixo e detalhes expansíveis ao clicar) ── */
+window._osContratoCache = [];
+window._osContratoDetalhesAbertos = {};
+
+window.carregarOsContratoAtivo = async function(propIdOpcional, mostrarFeedback = false) {
+    const propId = Number(propIdOpcional || _propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) {
+        window._osContratoCache = [];
+        window.renderizarListaOsContrato([]);
+        return;
+    }
+    try {
+        const res = await apiGet(`/propostas/${propId}/os-contrato`);
+        const lista = (res && Array.isArray(res.os_list)) ? res.os_list : [];
+        window._osContratoCache = lista;
+        window.renderizarListaOsContrato(lista);
+        if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Lista de OS atualizada (${lista.length} encontrada(s)).`);
+        }
+    } catch (e) {
+        console.warn('[OS_CONTRATO] Erro ao carregar OS do contrato:', e);
+        window.renderizarListaOsContrato([]);
+    }
+};
+
+window.toggleDetalheItemOsContrato = function(osId, event) {
+    if (event) event.stopPropagation();
+    const key = String(osId);
+    const detEl = document.getElementById(`prop-os-contrato-det-${key}`);
+    const caretEl = document.getElementById(`prop-os-contrato-caret-${key}`);
+    if (!detEl) return;
+    const aberto = detEl.style.display !== 'none';
+    const novo = !aberto;
+    window._osContratoDetalhesAbertos[key] = novo;
+    detEl.style.display = novo ? 'block' : 'none';
+    if (caretEl) {
+        caretEl.style.transform = novo ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+};
+
+window.renderizarListaOsContrato = function(lista) {
+    const arr = Array.isArray(lista) ? lista : (window._osContratoCache || []);
+    const badge = document.getElementById('prop-os-contrato-count-badge');
+    if (badge) badge.textContent = `${arr.length} OS`;
+
+    const wrap = document.getElementById('prop-os-contrato-lista-wrap');
+    if (!wrap) return;
+
+    if (!arr.length) {
+        wrap.innerHTML = `
+            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhuma Ordem de Serviço (OS) vinculada a este contrato até o momento.
+            </div>
+        `;
+        return;
+    }
+
+    const fmtDataBr = (iso) => {
+        const s = String(iso || '').trim();
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : (s || '—');
+    };
+
+    const parseJsonList = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        try {
+            const p = JSON.parse(val);
+            return Array.isArray(p) ? p : [];
+        } catch (_) {
+            return String(val).split(',').map(x => x.trim()).filter(Boolean);
+        }
+    };
+
+    wrap.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            ${arr.map(os => {
+                const key = String(os.id || os.numero_os || Math.random());
+                const estaAberto = Boolean(window._osContratoDetalhesAbertos && window._osContratoDetalhesAbertos[key]);
+                const tServ = String(os.tipo_servico || os.tipo_os || 'OS').trim();
+                const tServUp = tServ.toUpperCase();
+                let badgeBg = '#e0f2fe';
+                let badgeColor = '#0369a1';
+                let badgeBorder = '#7dd3fc';
+                if (tServUp.includes('ENTREGA')) { badgeBg = '#dcfce7'; badgeColor = '#15803d'; badgeBorder = '#86efac'; }
+                else if (tServUp.includes('RETIRADA')) { badgeBg = '#fef9c3'; badgeColor = '#854d0e'; badgeBorder = '#fde047'; }
+                else if (tServUp.includes('MANUTEN') || tServUp.includes('VAC')) { badgeBg = '#f1f5f9'; badgeColor = '#334155'; badgeBorder = '#cbd5e1'; }
+
+                const prodsArr = parseJsonList(os.produtos);
+                const prodsHtml = prodsArr.length
+                    ? prodsArr.map(p => {
+                        if (p && typeof p === 'object') {
+                            return `<span style="background:#1e40af; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.74rem; font-weight:600;">${_escHtmlProp(p.desc || p.produto || '')}${p.qtd ? ` (${_escHtmlProp(p.qtd)})` : ''}</span>`;
+                        }
+                        return `<span style="background:#1e40af; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.74rem; font-weight:600;">${_escHtmlProp(String(p))}</span>`;
+                    }).join(' ')
+                    : '<span style="color:#94a3b8;">—</span>';
+
+                const diasArr = parseJsonList(os.dias_semana);
+                const diasStr = diasArr.length ? diasArr.join(', ') : '—';
+                const habArr = parseJsonList(os.habilidades);
+                const habStr = habArr.length ? habArr.join(', ') : (os.habilidades || '—');
+                const varArr = parseJsonList(os.variaveis);
+                const varStr = varArr.length ? varArr.join(', ') : (os.variaveis || '—');
+                const endCompleto = [os.endereco, os.complemento, os.cep ? `CEP: ${os.cep}` : ''].filter(Boolean).join(' — ') || '—';
+                const horarioTurno = [os.hora_inicio && os.hora_fim ? `${os.hora_inicio} às ${os.hora_fim}` : (os.hora_inicio || os.hora_fim || ''), os.turno || ''].filter(Boolean).join(' • ') || '—';
+
+                return `
+                    <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; overflow:hidden;">
+                        <div onclick="window.toggleDetalheItemOsContrato('${key}', event)"
+                            style="padding:0.55rem 0.8rem; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; user-select:none; background:#f8fafc; transition:background 0.15s;"
+                            onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
+                                <span style="background:#1e3a8a; color:#ffffff; font-weight:800; font-size:0.75rem; padding:2px 9px; border-radius:6px;">
+                                    OS Nº ${_escHtmlProp(os.numero_os || os.id)}
+                                </span>
+                                <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:800; font-size:0.73rem; padding:2px 8px; border-radius:6px;">
+                                    ${_escHtmlProp(tServ)}
+                                </span>
+                                <span style="font-size:0.78rem; font-weight:700; color:#334155;">
+                                    <i class="ph ph-calendar-blank"></i> ${_escHtmlProp(fmtDataBr(os.data_os))}
+                                </span>
+                                <span style="font-size:0.76rem; color:#64748b; max-width:420px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    ${_escHtmlProp(os.endereco || '')}
+                                </span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                                <span style="font-size:0.72rem; font-weight:700; color:#2563eb;">Ver detalhes</span>
+                                <button type="button" onclick="window.toggleDetalheItemOsContrato('${key}', event)" title="Abrir / Fechar detalhes da OS"
+                                    style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
+                                    <i id="prop-os-contrato-caret-${key}" class="ph ph-caret-down" style="font-size:0.88rem; font-weight:700; transition:transform 0.2s; transform:${estaAberto ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="prop-os-contrato-det-${key}" style="display:${estaAberto ? 'block' : 'none'}; padding:0.75rem 0.9rem; border-top:1px solid #e2e8f0; background:#ffffff; font-size:0.8rem; color:#1e293b;">
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:0.55rem 0.9rem; margin-bottom:0.6rem;">
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Número da OS / Contrato</strong>OS ${_escHtmlProp(os.numero_os || '—')} • Contrato ${_escHtmlProp(os.contrato || '—')}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Tipo de Serviço</strong>${_escHtmlProp(tServ)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Data / Horário / Turno</strong>${_escHtmlProp(fmtDataBr(os.data_os))} (${_escHtmlProp(horarioTurno)})</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Dias da Semana</strong>${_escHtmlProp(diasStr)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Responsável / Contato</strong>${_escHtmlProp([os.responsavel, os.telefone, os.email].filter(Boolean).join(' • ') || '—')}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Patrimônio</strong>${_escHtmlProp(os.patrimonio || '—')}</div>
+                                <div style="grid-column:1 / -1;"><strong style="color:#64748b; font-size:0.73rem; display:block;">Endereço da OS</strong>${_escHtmlProp(endCompleto)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Habilidades</strong>${_escHtmlProp(habStr)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Variáveis</strong>${_escHtmlProp(varStr)}</div>
+                            </div>
+                            <div style="margin-bottom:0.5rem;">
+                                <strong style="color:#64748b; font-size:0.73rem; display:block; margin-bottom:4px;">Produtos / Equipamentos da OS</strong>
+                                <div style="display:flex; flex-wrap:wrap; gap:5px;">${prodsHtml}</div>
+                            </div>
+                            ${(os.observacoes || os.observacoes_internas) ? `
+                                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:0.55rem; margin-top:0.5rem; padding-top:0.5rem; border-top:1px dashed #e2e8f0;">
+                                    ${os.observacoes ? `<div><strong style="color:#64748b; font-size:0.73rem; display:block;">Observações da OS</strong><div style="white-space:pre-wrap; color:#334155;">${_escHtmlProp(os.observacoes)}</div></div>` : ''}
+                                    ${os.observacoes_internas ? `<div><strong style="color:#64748b; font-size:0.73rem; display:block;">Observações Internas</strong><div style="white-space:pre-wrap; color:#334155;">${_escHtmlProp(os.observacoes_internas)}</div></div>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+};
 
 window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {
     const p = pRaw || {};
