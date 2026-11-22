@@ -866,7 +866,7 @@
                     : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
                 : '';
             const badgeSubstituidoServHtml = substituidoAditivoCodServ
-                ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substituidoAditivoCodServ)}</span>`
+                ? `<span style="background:#e2e8f0; color:#475569; border:1px solid #cbd5e1; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substituidoAditivoCodServ)}</span>`
                 : '';
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
             const permiteFobItem = window.servicoPermiteFreteFob(nome, s.codigo);
