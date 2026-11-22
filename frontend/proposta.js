@@ -25107,10 +25107,10 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
                     <button type="button" id="btn-modal-op-aditivo-sub" ${ehModoConsultaAssinado ? 'disabled' : `onclick="window._selecionarModoModalOperacaoAditivo('substituir')"`}
                         style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'substituir' ? '#d97706' : '#cbd5e1'}; background:${opAtual === 'substituir' ? '#fef3c7' : '#ffffff'}; cursor:${ehModoConsultaAssinado ? 'default' : 'pointer'}; opacity:${ehModoConsultaAssinado && opAtual !== 'substituir' ? '0.55' : '1'}; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
                         <span style="font-size:0.88rem; font-weight:800; color:#b45309; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-arrows-left-right" style="font-size:1.15rem;"></i> Substituir Produtos / Serviços
+                            <i class="ph ph-arrows-left-right" style="font-size:1.15rem;"></i> ${ehContratoBaseObra ? 'Substituir Produtos' : 'Substituir Produtos / Serviços'}
                         </span>
                         <span style="font-size:0.74rem; color:#475569; font-weight:500;">
-                            Selecione abaixo qual(is) produto(s) e/ou serviço(s) do contrato serão substituídos.
+                            ${ehContratoBaseObra ? 'Selecione abaixo qual(is) produto(s) do contrato serão substituídos.' : 'Selecione abaixo qual(is) produto(s) e/ou serviço(s) do contrato serão substituídos.'}
                         </span>
                     </button>
                     ${ehContratoBaseObra ? `
@@ -25128,16 +25128,18 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
 
                 <div id="box-modal-op-aditivo-lista-sub" style="display:${(opAtual === 'substituir' || opAtual === 'adicionar_manutencao') ? 'block' : 'none'}; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; max-height:340px; overflow-y:auto;">
                     <div style="font-size:0.78rem; font-weight:800; color:#b45309; text-transform:uppercase; margin-bottom:8px;">
-                        ${ehModoConsultaAssinado ? 'Item(ns) do Contrato substituídos neste aditivo:' : 'Selecione qual(is) item(ns) do Contrato serão substituídos:'}
+                        ${ehModoConsultaAssinado ? (ehContratoBaseObra ? 'Produto(s) do Contrato substituídos neste aditivo:' : 'Item(ns) do Contrato substituídos neste aditivo:') : (ehContratoBaseObra ? 'Selecione qual(is) produto(s) do Contrato serão substituídos:' : 'Selecione qual(is) item(ns) do Contrato serão substituídos:')}
                     </div>
                     <div style="font-size:0.76rem; font-weight:800; color:#334155; margin:6px 0 6px;">Produtos do Contrato (Contrato Base + Aditivos):</div>
-                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                    <div style="display:flex; flex-direction:column; gap:6px; ${ehContratoBaseObra ? '' : 'margin-bottom:10px;'}">
                         ${htmlProdsLista}
                     </div>
+                    ${ehContratoBaseObra ? '' : `
                     <div style="font-size:0.76rem; font-weight:800; color:#334155; margin:6px 0 6px;">Serviços do Contrato (Contrato Base + Aditivos):</div>
                     <div style="display:flex; flex-direction:column; gap:6px;">
                         ${htmlServsLista}
                     </div>
+                    `}
                 </div>
             </div>
         `,
@@ -25152,8 +25154,15 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
             const modoEscolhido = window._modoTempModalOperacaoAditivo || 'adicionar';
             if (modoEscolhido === 'substituir' || modoEscolhido === 'adicionar_manutencao') {
                 const prodsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-prod:checked:not(:disabled)')).map(c => c.value).filter(Boolean);
-                const servsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-serv:checked:not(:disabled)')).map(c => c.value).filter(Boolean);
-                if (prodsMarcados.length === 0 && servsMarcados.length === 0 && (prodsAtivosDisponiveis.length > 0 || servsAtivosDisponiveis.length > 0)) {
+                const servsMarcados = ehContratoBaseObra
+                    ? []
+                    : Array.from(document.querySelectorAll('.chk-aditivo-sub-serv:checked:not(:disabled)')).map(c => c.value).filter(Boolean);
+                if (ehContratoBaseObra) {
+                    if (prodsMarcados.length === 0 && prodsAtivosDisponiveis.length > 0) {
+                        Swal.showValidationMessage('Selecione pelo menos um produto ativo do contrato que será substituído.');
+                        return false;
+                    }
+                } else if (prodsMarcados.length === 0 && servsMarcados.length === 0 && (prodsAtivosDisponiveis.length > 0 || servsAtivosDisponiveis.length > 0)) {
                     Swal.showValidationMessage('Selecione pelo menos um produto ou serviço ativo do contrato que será substituído.');
                     return false;
                 }
