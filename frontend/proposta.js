@@ -3197,7 +3197,7 @@ window._resetarEstadoMemoriaFormComercial = function(modo) {
     _propostasEditandoId = null;
     if (modo === 'contrato') {
         window._propostasEditandoId_contrato = null;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
     } else {
         window._propostasEditandoId_proposta = null;
     }
@@ -3280,7 +3280,7 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     _propostasEditandoId = snap.editandoId || null;
     if (m === 'contrato') {
         window._propostasEditandoId_contrato = _propostasEditandoId;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
     } else {
         window._propostasEditandoId_proposta = _propostasEditandoId;
     }
@@ -4406,7 +4406,7 @@ async function abrirFormProposta(id, rascunhoDuplicado = null) {
     window._propostaDuplicadaRascunho = (!id && rascunhoDuplicado) ? rascunhoDuplicado : null;
     if (modoAtu === 'contrato') {
         window._propostasEditandoId_contrato = id;
-        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+        window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
     } else {
         window._propostasEditandoId_proposta = id;
     }
@@ -4532,14 +4532,15 @@ function _renderFormPropostaInt() {
     const v = (campo) => prop ? (prop[campo] || '') : '';
     const vn = (campo, def='0') => prop ? (prop[campo] ?? def) : def;
     const isModoContratoRender = window._modoTelaComercial === 'contrato';
-    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+    window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
     if (window._contratoSecoesAbertas.assinatura_digital === undefined) window._contratoSecoesAbertas.assinatura_digital = true;
     if (window._contratoSecoesAbertas.anexos === undefined) window._contratoSecoesAbertas.anexos = false;
     if (window._contratoSecoesAbertas.os_contrato === undefined) window._contratoSecoesAbertas.os_contrato = false;
+    if (window._contratoSecoesAbertas.comentarios === undefined) window._contratoSecoesAbertas.comentarios = true;
     window.toggleSecaoContratoAccordion = function(chave, event) {
         if (event) event.stopPropagation();
         if (window._modoTelaComercial !== 'contrato') return;
-        window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+        window._contratoSecoesAbertas = window._contratoSecoesAbertas || { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
         const bodyEl = document.getElementById('prop-secao-' + chave + '-body');
         const caretEl = document.getElementById('prop-caret-' + chave);
         if (!bodyEl) return;
@@ -4555,6 +4556,9 @@ function _renderFormPropostaInt() {
         }
         if (novoEstado && chave === 'os_contrato' && typeof window.carregarOsContratoAtivo === 'function') {
             window.carregarOsContratoAtivo();
+        }
+        if (novoEstado && chave === 'comentarios' && typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo();
         }
     };
     const dataCadastroValorForm = isModoContratoRender
@@ -5636,6 +5640,77 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
+                    <!-- Seção: Comentários do Contrato (Exclusiva na tela de Contratos — histórico imutável com comentários aninhados e filtros) -->
+                    <div id="prop-secao-comentarios" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <div onclick="window.toggleSecaoContratoAccordion('comentarios', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none; flex-wrap:wrap;">
+                            <h4 style="margin:0; font-size:0.82rem; color:#4c1d95; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em; flex-wrap:wrap;">
+                                <i class="ph ph-chats-circle" style="font-size:1.08rem; color:#6d28d9;"></i> Comentários
+                                <span id="prop-comentarios-contrato-count-badge" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; text-transform:none;">0 comentário(s)</span>
+                                <span style="background:#ffffff; color:#64748b; border:1px solid #e2e8f0; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:600; text-transform:none; display:inline-flex; align-items:center; gap:4px;">
+                                    <i class="ph ph-lock-key"></i> Histórico permanente (sem edição ou exclusão)
+                                </span>
+                            </h4>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <button type="button" onclick="event.stopPropagation(); window.carregarComentariosContratoAtivo(null, true);" title="Atualizar histórico de comentários deste contrato" style="background:#6d28d9; color:#ffffff; border:none; padding:4px 9px; border-radius:6px; font-weight:700; font-size:0.72rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
+                                    <i class="ph ph-arrows-clockwise" style="font-size:0.85rem;"></i> Atualizar
+                                </button>
+                                <button type="button" onclick="window.toggleSecaoContratoAccordion('comentarios', event)" title="Abrir / Fechar Comentários" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #c4b5fd; background:#ede9fe; color:#5b21b6; cursor:pointer;">
+                                    <i id="prop-caret-comentarios" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.comentarios) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="prop-secao-comentarios-body" style="display:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.comentarios) ? 'block' : 'none'}; margin-top:0.65rem;">
+                            <!-- Novo comentário principal -->
+                            <div style="background:#ffffff; border:1px solid #ddd6fe; border-radius:8px; padding:0.6rem 0.75rem; margin-bottom:0.65rem;">
+                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#4c1d95; margin-bottom:4px; text-transform:none;">
+                                    <i class="ph ph-chat-centered-text"></i> Deixar novo comentário no contrato
+                                </label>
+                                <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+                                    <textarea id="prop-comentario-contrato-novo-texto" rows="2" placeholder="Digite seu comentário sobre este contrato..." style="flex:1; min-width:240px; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.83rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                                    <button type="button" id="prop-btn-enviar-comentario-contrato" onclick="window.enviarComentarioContrato(null)" style="background:#6d28d9; color:#ffffff; border:none; border-radius:7px; padding:0.52rem 0.95rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; height:38px; transition:background 0.15s;" onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
+                                        <i class="ph ph-paper-plane-right" style="font-size:0.95rem;"></i> Comentar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Barra de Filtros em Tempo Real (por Usuário, por Departamento e por Data) -->
+                            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.55rem 0.75rem; margin-bottom:0.65rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:8px; align-items:end;">
+                                <div>
+                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
+                                        <i class="ph ph-user"></i> Filtrar por Usuário / Colaborador
+                                    </label>
+                                    <input type="text" id="prop-comentarios-filtro-usuario" list="prop-comentarios-datalist-usuarios" oninput="window.filtrarComentariosContratoEmTempoReal()" placeholder="Digite ou selecione o colaborador..." autocomplete="off" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
+                                    <datalist id="prop-comentarios-datalist-usuarios"></datalist>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
+                                        <i class="ph ph-buildings"></i> Filtrar por Departamento
+                                    </label>
+                                    <input type="text" id="prop-comentarios-filtro-departamento" list="prop-comentarios-datalist-departamentos" oninput="window.filtrarComentariosContratoEmTempoReal()" placeholder="Digite ou selecione o departamento..." autocomplete="off" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
+                                    <datalist id="prop-comentarios-datalist-departamentos"></datalist>
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
+                                        <i class="ph ph-calendar-blank"></i> Filtrar por Data
+                                    </label>
+                                    <input type="date" id="prop-comentarios-filtro-data" oninput="window.filtrarComentariosContratoEmTempoReal()" onchange="window.filtrarComentariosContratoEmTempoReal()" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
+                                </div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <button type="button" onclick="window.limparFiltrosComentariosContrato()" title="Limpar filtros de comentários" style="height:32px; padding:0 0.75rem; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                                        <i class="ph ph-funnel-x"></i> Limpar Filtros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Histórico de Comentários -->
+                            <div id="prop-comentarios-contrato-lista-wrap" style="max-height:520px; overflow-y:auto; padding-right:2px;">
+                                <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                                    Carregando histórico de comentários deste contrato...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Observações -->
                     <div style="margin-bottom:0.5rem;">
                         <label class="prop-lbl">Observações</label>
@@ -5665,6 +5740,9 @@ function _renderFormPropostaInt() {
         }
         if (typeof window.carregarOsContratoAtivo === 'function') {
             window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     }
 
@@ -6157,7 +6235,7 @@ window._onEdicaoCampoFormProposta = function(event) {
     const t = event && event.target;
     if (!t) return;
     if (t.id === 'prop-codigo') return;
-    if (typeof t.closest === 'function' && (t.closest('#prop-secao-assinatura-digital') || t.closest('#prop-secao-anexos') || t.closest('#prop-secao-os-contrato'))) {
+    if (typeof t.closest === 'function' && (t.closest('#prop-secao-assinatura-digital') || t.closest('#prop-secao-anexos') || t.closest('#prop-secao-os-contrato') || t.closest('#prop-secao-comentarios'))) {
         if (typeof window.atualizarEstadoBotaoEnviarAssinaturaQuadro === 'function') {
             window.atualizarEstadoBotaoEnviarAssinaturaQuadro();
         }
@@ -11125,7 +11203,7 @@ window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
     window._modoTelaComercial = 'contrato';
     window._propostasEditandoId_contrato = targetId;
     _propostasEditandoId = targetId;
-    window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false };
+    window._contratoSecoesAbertas = { periodo: false, produtos: false, servicos: false, assinatura_digital: true, anexos: false, os_contrato: false, comentarios: true };
     await abrirFormProposta(targetId);
     if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
         window.salvarSnapshotEstadoFormComercial('contrato', chaveSnapCtr);
@@ -24966,6 +25044,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         if (typeof window.carregarOsContratoAtivo === 'function') {
             window.carregarOsContratoAtivo(_propostasEditandoId);
         }
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') {
@@ -25836,6 +25917,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         if (typeof window.carregarOsContratoAtivo === 'function') {
             window.carregarOsContratoAtivo(_propostasEditandoId);
         }
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
     }
 };
 
@@ -25912,6 +25996,9 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         }
         if (typeof window.carregarOsContratoAtivo === 'function') {
             window.carregarOsContratoAtivo(_propostasEditandoId);
+        }
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     }
 };
@@ -32560,6 +32647,346 @@ window.renderizarListaOsContrato = function(lista) {
             }).join('')}
         </div>
     `;
+};
+
+/* ── Quadro COMENTÁRIOS DO CONTRATO (Histórico imutável, comentários dentro do comentário e filtros por usuário/data/departamento) ── */
+window._comentariosContratoCache = [];
+window._comentariosContratoReplyAberto = {};
+
+window._normTextoFiltroComentarioContrato = function(str) {
+    return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+};
+
+window._obterIniciaisAutorComentario = function(nome) {
+    const limpo = String(nome || '').trim();
+    if (!limpo) return 'US';
+    const partes = limpo.split(/\s+/).filter(Boolean);
+    if (partes.length === 1) return partes[0].substring(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+};
+
+window._formatarDataHoraComentarioContrato = function(dtStr) {
+    const raw = String(dtStr || '').trim();
+    if (!raw) return '—';
+    const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+        const dataBr = `${m[3]}/${m[2]}/${m[1]}`;
+        const horaBr = (m[4] && m[5]) ? `${m[4]}:${m[5]}` : '';
+        return horaBr ? `${dataBr} às ${horaBr}` : dataBr;
+    }
+    return raw;
+};
+
+window._extrairDataIsoComentarioContrato = function(dtStr) {
+    const raw = String(dtStr || '').trim();
+    const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+};
+
+window.carregarComentariosContratoAtivo = async function(propIdOpcional, mostrarFeedback = false) {
+    const propId = Number(propIdOpcional || _propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) {
+        window._comentariosContratoCache = [];
+        window.renderizarListaComentariosContrato([]);
+        return;
+    }
+    try {
+        const res = await apiGet(`/propostas/${propId}/comentarios-contrato`);
+        const lista = (res && Array.isArray(res.comentarios)) ? res.comentarios : [];
+        window._comentariosContratoCache = lista;
+        window.atualizarDatalistsFiltrosComentariosContrato(lista);
+        window.renderizarListaComentariosContrato(lista);
+        if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`Histórico de comentários atualizado (${lista.length} comentário(s)).`);
+        }
+    } catch (e) {
+        console.warn('[COMENTARIOS_CONTRATO] Erro ao carregar comentários do contrato:', e);
+        window.renderizarListaComentariosContrato([]);
+    }
+};
+
+window.atualizarDatalistsFiltrosComentariosContrato = function(lista) {
+    const arr = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
+    const dlUsers = document.getElementById('prop-comentarios-datalist-usuarios');
+    const dlDeptos = document.getElementById('prop-comentarios-datalist-departamentos');
+    if (dlUsers) {
+        const nomesUnicos = Array.from(new Set(arr.map(c => String(c.autor_nome || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        dlUsers.innerHTML = nomesUnicos.map(n => `<option value="${_escHtmlProp(n)}"></option>`).join('');
+    }
+    if (dlDeptos) {
+        const deptosUnicos = Array.from(new Set(arr.map(c => String(c.autor_departamento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        dlDeptos.innerHTML = deptosUnicos.map(d => `<option value="${_escHtmlProp(d)}"></option>`).join('');
+    }
+};
+
+window.filtrarComentariosContratoEmTempoReal = function() {
+    window.renderizarListaComentariosContrato(window._comentariosContratoCache || []);
+};
+
+window.limparFiltrosComentariosContrato = function() {
+    const elUser = document.getElementById('prop-comentarios-filtro-usuario');
+    const elDepto = document.getElementById('prop-comentarios-filtro-departamento');
+    const elData = document.getElementById('prop-comentarios-filtro-data');
+    if (elUser) elUser.value = '';
+    if (elDepto) elDepto.value = '';
+    if (elData) elData.value = '';
+    window.renderizarListaComentariosContrato(window._comentariosContratoCache || []);
+};
+
+window.toggleResponderComentarioContrato = function(comentarioId, autorNome) {
+    const key = String(comentarioId);
+    const box = document.getElementById(`prop-comentario-reply-box-${key}`);
+    if (!box) return;
+    const aberto = box.style.display !== 'none';
+    const novoEstado = !aberto;
+    window._comentariosContratoReplyAberto[key] = novoEstado;
+    box.style.display = novoEstado ? 'block' : 'none';
+    if (novoEstado) {
+        const txt = document.getElementById(`prop-comentario-reply-texto-${key}`);
+        if (txt) {
+            if (autorNome && !txt.value.trim()) {
+                txt.placeholder = `Responder ao comentário de ${autorNome}...`;
+            }
+            setTimeout(() => txt.focus(), 40);
+        }
+    }
+};
+
+window.enviarComentarioContrato = async function(parentIdOpcional) {
+    const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'warning', title: 'Contrato não salvo', text: 'Salve o contrato antes de registrar comentários.' });
+        }
+        return;
+    }
+    const parentId = (parentIdOpcional && Number(parentIdOpcional) > 0) ? Number(parentIdOpcional) : null;
+    const inputEl = parentId
+        ? document.getElementById(`prop-comentario-reply-texto-${parentId}`)
+        : document.getElementById('prop-comentario-contrato-novo-texto');
+    const texto = inputEl ? String(inputEl.value || '').trim() : '';
+    if (!texto) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'warning', title: 'Comentário vazio', text: 'Digite uma mensagem antes de enviar o comentário.' });
+        }
+        if (inputEl) inputEl.focus();
+        return;
+    }
+
+    const btnEl = parentId
+        ? document.getElementById(`prop-btn-enviar-reply-comentario-${parentId}`)
+        : document.getElementById('prop-btn-enviar-comentario-contrato');
+    const htmlOrig = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+    }
+
+    try {
+        const resp = await fetch(`/api/propostas/${propId}/comentarios-contrato`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+            },
+            body: JSON.stringify({
+                comentario: texto,
+                parent_id: parentId
+            })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.error) {
+            throw new Error(data.error || 'Não foi possível registrar o comentário.');
+        }
+        if (inputEl) inputEl.value = '';
+        if (parentId) {
+            window._comentariosContratoReplyAberto[String(parentId)] = false;
+        }
+        await window.carregarComentariosContratoAtivo(propId, false);
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(parentId ? 'Resposta adicionada ao comentário!' : 'Comentário registrado no histórico do contrato!');
+        }
+    } catch (e) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Erro ao comentar', text: e.message || 'Erro ao salvar comentário.' });
+        }
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = htmlOrig;
+        }
+    }
+};
+
+window.renderizarListaComentariosContrato = function(lista) {
+    const arr = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
+    const badge = document.getElementById('prop-comentarios-contrato-count-badge');
+    if (badge) {
+        badge.textContent = `${arr.length} comentário(s)`;
+    }
+
+    const wrap = document.getElementById('prop-comentarios-contrato-lista-wrap');
+    if (!wrap) return;
+
+    if (!arr.length) {
+        wrap.innerHTML = `
+            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhum comentário registrado neste contrato até o momento. Seja o primeiro a comentar acima.
+            </div>
+        `;
+        return;
+    }
+
+    const fUsuario = window._normTextoFiltroComentarioContrato((document.getElementById('prop-comentarios-filtro-usuario') || {}).value);
+    const fDepto = window._normTextoFiltroComentarioContrato((document.getElementById('prop-comentarios-filtro-departamento') || {}).value);
+    const fData = String(((document.getElementById('prop-comentarios-filtro-data') || {}).value) || '').trim();
+    const temFiltroAtivo = Boolean(fUsuario || fDepto || fData);
+
+    const itemCombinaFiltro = (c) => {
+        if (!temFiltroAtivo) return true;
+        if (fUsuario) {
+            const nomeNorm = window._normTextoFiltroComentarioContrato(c.autor_nome);
+            const userNorm = window._normTextoFiltroComentarioContrato(c.usuario_username);
+            if (!nomeNorm.includes(fUsuario) && !userNorm.includes(fUsuario)) return false;
+        }
+        if (fDepto) {
+            const depNorm = window._normTextoFiltroComentarioContrato(c.autor_departamento);
+            if (!depNorm.includes(fDepto)) return false;
+        }
+        if (fData) {
+            const dataIso = window._extrairDataIsoComentarioContrato(c.criado_em);
+            if (dataIso !== fData) return false;
+        }
+        return true;
+    };
+
+    const byId = new Map();
+    const childrenMap = new Map();
+    arr.forEach(c => {
+        const idNum = Number(c.id);
+        byId.set(idNum, c);
+        childrenMap.set(idNum, []);
+    });
+
+    const roots = [];
+    arr.forEach(c => {
+        const pId = c.parent_id ? Number(c.parent_id) : null;
+        if (pId && childrenMap.has(pId)) {
+            childrenMap.get(pId).push(c);
+        } else {
+            roots.push(c);
+        }
+    });
+
+    const memoVisivel = new Map();
+    const deveExibirNo = (c, ancestralCombina = false) => {
+        const idNum = Number(c.id);
+        const proprioCombina = itemCombinaFiltro(c);
+        const filhos = childrenMap.get(idNum) || [];
+        const algumFilhoVisivel = filhos.some(f => deveExibirNo(f, ancestralCombina || proprioCombina));
+        const visivel = !temFiltroAtivo || proprioCombina || ancestralCombina || algumFilhoVisivel;
+        memoVisivel.set(idNum, { visivel, proprioCombina });
+        return visivel;
+    };
+
+    const rootsVisiveis = roots.filter(r => deveExibirNo(r, false));
+    if (!rootsVisiveis.length) {
+        wrap.innerHTML = `
+            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhum comentário encontrado para os filtros selecionados (usuário, departamento ou data).
+            </div>
+        `;
+        return;
+    }
+
+    const renderizarNoComentario = (c, nivel = 0, ancestralCombina = false) => {
+        const idNum = Number(c.id);
+        const infoVis = memoVisivel.get(idNum) || { visivel: true, proprioCombina: true };
+        if (!infoVis.visivel) return '';
+        const filhos = (childrenMap.get(idNum) || []).filter(f => {
+            const fVis = memoVisivel.get(Number(f.id));
+            return fVis ? fVis.visivel : deveExibirNo(f, ancestralCombina || infoVis.proprioCombina);
+        });
+        const iniciais = window._obterIniciaisAutorComentario(c.autor_nome);
+        const fotoUrl = String(c.autor_foto_url || '').trim() || (c.colaborador_id ? `/api/colaboradores/foto/${Number(c.colaborador_id)}` : '');
+        const dataHoraFmt = window._formatarDataHoraComentarioContrato(c.criado_em);
+        const deptoTxt = String(c.autor_departamento || 'Geral').trim() || 'Geral';
+        const replyAberto = Boolean(window._comentariosContratoReplyAberto && window._comentariosContratoReplyAberto[String(idNum)]);
+        const parentObj = c.parent_id ? byId.get(Number(c.parent_id)) : null;
+        const destaqueFiltro = temFiltroAtivo && infoVis.proprioCombina;
+
+        return `
+            <div id="prop-comentario-card-${idNum}" style="${nivel > 0 ? 'margin-left:1.35rem; margin-top:0.5rem; border-left:2.5px solid #c4b5fd; padding-left:0.7rem;' : 'margin-bottom:0.6rem;'}">
+                <div style="background:${destaqueFiltro ? '#faf5ff' : '#ffffff'}; border:1px solid ${destaqueFiltro ? '#a855f7' : (nivel > 0 ? '#e9d5ff' : '#dbeafe')}; border-radius:9px; padding:0.65rem 0.8rem; box-shadow:0 1px 2px rgba(15,23,42,0.03);">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                            <!-- Foto do Usuário / Colaborador com Fallback de Iniciais -->
+                            <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; flex-shrink:0; position:relative; background:#ede9fe; border:1.5px solid #c4b5fd; display:flex; align-items:center; justify-content:center;">
+                                ${fotoUrl ? `<img src="${_escHtmlProp(fotoUrl)}" alt="${_escHtmlProp(c.autor_nome)}" style="width:100%; height:100%; object-fit:cover; display:block;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">` : ''}
+                                <span style="display:${fotoUrl ? 'none' : 'flex'}; width:100%; height:100%; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; color:#5b21b6; letter-spacing:0.02em;">
+                                    ${_escHtmlProp(iniciais)}
+                                </span>
+                            </div>
+                            <div style="min-width:0;">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-size:0.83rem; font-weight:800; color:#1e293b;">
+                                        ${_escHtmlProp(c.autor_nome || 'Colaborador')}
+                                    </span>
+                                    <span style="background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; font-size:0.69rem; font-weight:700; padding:1px 7px; border-radius:999px;">
+                                        ${_escHtmlProp(deptoTxt)}
+                                    </span>
+                                    ${parentObj ? `
+                                        <span style="font-size:0.71rem; color:#6d28d9; font-weight:600; display:inline-flex; align-items:center; gap:3px;">
+                                            <i class="ph ph-arrow-bend-down-right"></i> em resposta a <strong>${_escHtmlProp(parentObj.autor_nome || 'comentário')}</strong>
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                <div style="font-size:0.72rem; color:#64748b; display:flex; align-items:center; gap:4px; margin-top:1px;">
+                                    <i class="ph ph-clock" style="font-size:0.8rem; color:#7c3aed;"></i>
+                                    <span>${_escHtmlProp(dataHoraFmt)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                            <button type="button" onclick="window.toggleResponderComentarioContrato(${idNum}, '${_escHtmlProp(String(c.autor_nome || '').replace(/'/g, ''))}')" title="Deixar um comentário dentro deste comentário" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; border-radius:6px; padding:3px 9px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f3ff'">
+                                <i class="ph ph-arrow-bend-down-right"></i> Responder
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Texto do Comentário -->
+                    <div style="margin-top:0.45rem; padding-left:45px; font-size:0.83rem; color:#1e293b; line-height:1.45; white-space:pre-wrap; word-break:break-word;">${_escHtmlProp(c.comentario || '')}</div>
+
+                    <!-- Caixa para responder dentro deste comentário -->
+                    <div id="prop-comentario-reply-box-${idNum}" style="display:${replyAberto ? 'block' : 'none'}; margin-top:0.55rem; margin-left:45px; background:#f8fafc; border:1px solid #ddd6fe; border-radius:8px; padding:0.5rem 0.65rem;">
+                        <div style="font-size:0.72rem; font-weight:700; color:#5b21b6; margin-bottom:4px;">
+                            <i class="ph ph-arrow-bend-down-right"></i> Responder ao comentário de ${_escHtmlProp(c.autor_nome || 'Colaborador')}
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap;">
+                            <textarea id="prop-comentario-reply-texto-${idNum}" rows="2" placeholder="Escreva seu comentário dentro deste comentário..." style="flex:1; min-width:200px; padding:0.45rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                            <div style="display:flex; gap:5px;">
+                                <button type="button" id="prop-btn-enviar-reply-comentario-${idNum}" onclick="window.enviarComentarioContrato(${idNum})" style="background:#6d28d9; color:#ffffff; border:none; border-radius:6px; padding:0.42rem 0.8rem; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; height:34px;">
+                                    <i class="ph ph-paper-plane-right"></i> Enviar Resposta
+                                </button>
+                                <button type="button" onclick="window.toggleResponderComentarioContrato(${idNum})" style="background:#ffffff; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; padding:0.42rem 0.65rem; font-size:0.75rem; font-weight:600; cursor:pointer; height:34px;">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${filhos.length ? `
+                    <div style="display:flex; flex-direction:column;">
+                        ${filhos.map(filho => renderizarNoComentario(filho, nivel + 1, ancestralCombina || infoVis.proprioCombina)).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    };
+
+    wrap.innerHTML = rootsVisiveis.map(r => renderizarNoComentario(r, 0, false)).join('');
 };
 
 window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {

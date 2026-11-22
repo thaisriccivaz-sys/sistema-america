@@ -43162,6 +43162,180 @@ app.get('/api/propostas/:id/os-contrato', authenticateToken, (req, res) => {
   });
 });
 
+// ── COMENTÁRIOS DO CONTRATO (Histórico imutável com respostas aninhadas — sem edição e sem exclusão) ──
+db.run(`CREATE TABLE IF NOT EXISTS comercial_contratos_comentarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposta_id INTEGER NOT NULL,
+  parent_id INTEGER DEFAULT NULL,
+  usuario_id INTEGER,
+  usuario_username TEXT DEFAULT '',
+  colaborador_id INTEGER,
+  autor_nome TEXT NOT NULL,
+  autor_departamento TEXT DEFAULT '',
+  autor_foto_url TEXT DEFAULT '',
+  comentario TEXT NOT NULL,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (errComCtr) => {
+  if (errComCtr) console.error('[CONTRATOS_COMENTARIOS] Erro ao criar tabela comercial_contratos_comentarios:', errComCtr.message);
+});
+
+function resolverDadosAutorComentarioContrato(reqUser, callback) {
+  const uid = reqUser && reqUser.id ? Number(reqUser.id) : null;
+  const uname = reqUser && reqUser.username ? String(reqUser.username).trim() : '';
+  db.get(
+    uid
+      ? 'SELECT id, username, nome, email, departamento, role FROM usuarios WHERE id = ?'
+      : 'SELECT id, username, nome, email, departamento, role FROM usuarios WHERE LOWER(TRIM(username)) = LOWER(TRIM(?))',
+    [uid || uname],
+    (errU, uRow) => {
+      const userObj = uRow || {
+        id: uid,
+        username: uname,
+        nome: (reqUser && (reqUser.nome || reqUser.username)) || 'Usuário',
+        email: '',
+        departamento: (reqUser && reqUser.departamento) || ''
+      };
+      db.all('/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+        const listaColabs = (!errC && Array.isArray(colabs)) ? colabs : [];
+        const matched = (global.matchUsuarioComColaborador && userObj)
+          ? global.matchUsuarioComColaborador(userObj, listaColabs)
+          : null;
+        const colaboradorId = matched && matched.id ? Number(matched.id) : null;
+        const autorNome = (matched && matched.nome_completo && String(matched.nome_completo).trim())
+          ? String(matched.nome_completo).trim()
+          : String(userObj.nome || userObj.username || uname || 'Colaborador').trim();
+        const autorDepto = (matched && matched.departamento && String(matched.departamento).trim())
+          ? String(matched.departamento).trim()
+          : String(userObj.departamento || (reqUser && reqUser.departamento) || userObj.role || 'Geral').trim();
+        const temFoto = Boolean(matched && ((matched.foto_base64 && String(matched.foto_base64).trim().length > 20) || (matched.foto_path && String(matched.foto_path).trim())));
+        const autorFotoUrl = (colaboradorId && temFoto) ? (`/api/colaboradores/foto/${colaboradorId}`) : '';
+        callback({
+          usuario_id: userObj.id || uid || null,
+          usuario_username: userObj.username || uname || '',
+          colaborador_id: colaboradorId,
+          autor_nome: autorNome,
+          autor_departamento: autorDepto,
+          autor_foto_url: autorFotoUrl
+        });
+      });
+    }
+  );
+}
+
+// GET /api/propostas/:id/comentarios-contrato - Listar histórico completo de comentários do contrato
+app.get('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID inválido' });
+  db.all(
+    'SELECT id, proposta_id, parent_id, usuario_id, usuario_username, colaborador_id, autor_nome, autor_departamento, autor_foto_url, comentario, criado_em FROM comercial_contratos_comentarios WHERE proposta_id = ? ORDER BY id ASC',
+    [propId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const lista = Array.isArray(rows) ? rows : [];
+      if (!lista.length) return res.json({ success: true, comentarios: [] });
+      db.all('SELECT id, username, nome, email, departamento, role FROM usuarios', [], (errU, usuarios) => {
+        db.all('/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+          const mapUsers = new Map();
+          (Array.isArray(usuarios) ? usuarios : []).forEach(u => mapUsers.set(Number(u.id), u));
+          const listaColabs = Array.isArray(colabs) ? colabs : [];
+          const mapColabs = new Map();
+          listaColabs.forEach(c => mapColabs.set(Number(c.id), c));
+
+          const enriquecidos = lista.map(item => {
+            let colab = item.colaborador_id ? mapColabs.get(Number(item.colaborador_id)) : null;
+            const uRow = item.usuario_id ? mapUsers.get(Number(item.usuario_id)) : null;
+            if (!colab && uRow && global.matchUsuarioComColaborador) {
+              colab = global.matchUsuarioComColaborador(uRow, listaColabs);
+            }
+            const nomeFinal = (colab && colab.nome_completo && String(colab.nome_completo).trim())
+              ? String(colab.nome_completo).trim()
+              : String(item.autor_nome || (uRow && (uRow.nome || uRow.username)) || 'Colaborador').trim();
+            const deptoFinal = (colab && colab.departamento && String(colab.departamento).trim())
+              ? String(colab.departamento).trim()
+              : String(item.autor_departamento || (uRow && (uRow.departamento || uRow.role)) || 'Geral').trim();
+            const temFotoColab = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
+            const fotoFinal = (colab && colab.id && temFotoColab)
+              ? `/api/colaboradores/foto/${colab.id}`
+              : (item.autor_foto_url || '');
+            return {
+              ...item,
+              colaborador_id: (colab && colab.id) ? Number(colab.id) : (item.colaborador_id || null),
+              autor_nome: nomeFinal,
+              autor_departamento: deptoFinal,
+              autor_foto_url: fotoFinal
+            };
+          });
+          res.json({ success: true, comentarios: enriquecidos });
+        });
+      });
+    }
+  );
+});
+
+// POST /api/propostas/:id/comentarios-contrato - Adicionar novo comentário ou resposta dentro de comentário (sem edição/exclusão)
+app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID do contrato inválido' });
+  const textoComentario = String((req.body && req.body.comentario) || '').trim();
+  if (!textoComentario) return res.status(400).json({ error: 'Digite um comentário antes de enviar.' });
+  const parentIdRaw = req.body && req.body.parent_id ? Number(req.body.parent_id) : null;
+  const parentIdVal = (parentIdRaw && Number.isFinite(parentIdRaw) && parentIdRaw > 0) ? parentIdRaw : null;
+
+  const prosseguirInsercao = () => {
+    resolverDadosAutorComentarioContrato(req.user, (autor) => {
+      const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+      db.run(
+        `INSERT INTO comercial_contratos_comentarios (
+          proposta_id, parent_id, usuario_id, usuario_username, colaborador_id,
+          autor_nome, autor_departamento, autor_foto_url, comentario, criado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          propId,
+          parentIdVal,
+          autor.usuario_id,
+          autor.usuario_username,
+          autor.colaborador_id,
+          autor.autor_nome,
+          autor.autor_departamento,
+          autor.autor_foto_url,
+          textoComentario,
+          agora
+        ],
+        function (errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          const novoId = this.lastID;
+          res.status(201).json({
+            success: true,
+            comentario: {
+              id: novoId,
+              proposta_id: propId,
+              parent_id: parentIdVal,
+              usuario_id: autor.usuario_id,
+              usuario_username: autor.usuario_username,
+              colaborador_id: autor.colaborador_id,
+              autor_nome: autor.autor_nome,
+              autor_departamento: autor.autor_departamento,
+              autor_foto_url: autor.autor_foto_url,
+              comentario: textoComentario,
+              criado_em: agora
+            }
+          });
+        }
+      );
+    });
+  };
+
+  if (parentIdVal) {
+    db.get('SELECT id, proposta_id FROM comercial_contratos_comentarios WHERE id = ? AND proposta_id = ?', [parentIdVal, propId], (errP, parentRow) => {
+      if (errP) return res.status(500).json({ error: errP.message });
+      if (!parentRow) return res.status(400).json({ error: 'Comentário pai não encontrado neste contrato.' });
+      prosseguirInsercao();
+    });
+  } else {
+    prosseguirInsercao();
+  }
+});
+
 // POST /api/propostas - Criar nova proposta
 function sincronizarContratoDaProposta(propostaId) {
   if (!propostaId) return;
