@@ -1345,6 +1345,16 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
 };
 
 window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Enviar para Assinatura (Assinafy)', nomePadrao = '', emailPadrao = '', signatariosIniciais = null } = {}) {
+    const rawCliModal = (document.getElementById('prop-cliente')?.value || '').trim();
+    const clienteNomeLimpo = (typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(rawCliModal)
+        : rawCliModal.replace(/^[💎🥇🥈🥉]\s*/, '')).trim();
+    if (clienteNomeLimpo && typeof window._obterDadosContatosClienteProposta === 'function') {
+        try {
+            await window._obterDadosContatosClienteProposta(clienteNomeLimpo);
+        } catch (_) {}
+    }
+
     const tipos = typeof window.obterTiposSignatarioPermitidos === 'function'
         ? window.obterTiposSignatarioPermitidos()
         : (window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador']);
@@ -1362,13 +1372,15 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
             email: emailPadrao || ''
         }];
 
-    return await Swal.fire({
+    let acaoCadastrarContatoIdx = null;
+
+    const modalRes = await Swal.fire({
         title: tituloModal,
-        width: '780px',
+        width: '860px',
         html: `
             <div style="text-align:left; font-family:'Inter',sans-serif; font-size:0.84rem;">
                 <p style="color:#475569; margin:0 0 12px 0;">Configure abaixo os signatários que receberão o link por e-mail para assinar o documento via Assinafy. Você pode adicionar mais de uma pessoa para assinar o mesmo PDF:</p>
-                <div id="swal-assinafy-multi-rows" style="display:flex; flex-direction:column; gap:10px; max-height:52vh; overflow-y:auto; padding-right:2px;"></div>
+                <div id="swal-assinafy-multi-rows" style="display:flex; flex-direction:column; gap:10px; max-height:56vh; overflow-y:visible; padding-right:2px;"></div>
                 <div style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
                     <button type="button" id="btn-swal-add-signatario" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:7px 14px; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
                         <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Adicionar Signatário
@@ -1384,6 +1396,7 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
         didOpen: () => {
             const container = document.getElementById('swal-assinafy-multi-rows');
             const btnAdd = document.getElementById('btn-swal-add-signatario');
+            const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
             const lerEstadoAtual = () => {
                 if (!container) return;
@@ -1401,6 +1414,76 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                 }
             };
 
+            const fecharTodosDropdowns = (excetoIdx = -1) => {
+                if (!container) return;
+                container.querySelectorAll('.swal-sig-contato-dropdown').forEach(dd => {
+                    if (Number(dd.getAttribute('data-idx')) !== Number(excetoIdx)) {
+                        dd.style.display = 'none';
+                    }
+                });
+            };
+
+            const popularDropdownLinha = (idx, termoFiltro = '', mostrarTodos = false) => {
+                if (!container) return;
+                const dd = container.querySelector(`.swal-sig-contato-dropdown[data-idx="${idx}"]`);
+                if (!dd) return;
+                fecharTodosDropdowns(idx);
+                const baseContatos = Array.isArray(window._contatosDoClientePropostaAtual) ? window._contatosDoClientePropostaAtual : [];
+                const nomesSelecionados = Array.from(container.querySelectorAll('.swal-sig-nome'))
+                    .map(inp => normStr(inp.value))
+                    .filter(Boolean);
+                const q = mostrarTodos ? '' : normStr(termoFiltro);
+                const filtrados = baseContatos.filter(c => {
+                    const nm = normStr(c.nome);
+                    if (nm && nomesSelecionados.includes(nm)) return false;
+                    if (!q) return true;
+                    return nm.includes(q) || normStr(c.email).includes(q) || normStr(c.celular).includes(q) || normStr(c.cargo).includes(q);
+                });
+
+                if (filtrados.length === 0) {
+                    const msg = clienteNomeLimpo
+                        ? (baseContatos.length > 0 ? 'Todos os contatos cadastrados já foram selecionados ou nenhum corresponde ao filtro. Clique no botão + amarelo para cadastrar um novo contato.' : 'Nenhum contato vinculado a este cliente. Clique no botão + amarelo para cadastrar.')
+                        : 'Selecione um cliente primeiro para listar os contatos.';
+                    dd.innerHTML = `<div style="padding:0.6rem 0.75rem; font-size:0.76rem; color:#64748b; text-align:center;">${msg}</div>`;
+                    dd.style.display = 'block';
+                    return;
+                }
+
+                dd.innerHTML = filtrados.slice(0, 60).map(c => {
+                    const sub = [c.cargo, c.celular || c.telefone, c.email || 'Sem e-mail cadastrado'].filter(Boolean).join(' • ');
+                    return `
+                        <div class="swal-sig-contato-opt" data-nome="${_escHtmlProp(c.nome || '')}" data-email="${_escHtmlProp(c.email || '')}"
+                            style="padding:0.45rem 0.7rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
+                            onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+                            <div style="font-size:0.8rem; font-weight:700; color:#1e293b;">${_escHtmlProp(c.nome || '')}</div>
+                            <div style="font-size:0.71rem; color:${c.email ? '#0369a1' : '#94a3b8'}; font-weight:600;">${_escHtmlProp(sub)}</div>
+                        </div>
+                    `;
+                }).join('');
+                dd.style.display = 'block';
+
+                dd.querySelectorAll('.swal-sig-contato-opt').forEach(opt => {
+                    opt.addEventListener('mousedown', (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        const nmSel = opt.getAttribute('data-nome') || '';
+                        const emSel = (opt.getAttribute('data-email') || '').trim().toLowerCase();
+                        const rowEl = container.querySelector(`.swal-sig-row[data-idx="${idx}"]`);
+                        if (rowEl) {
+                            const inpNm = rowEl.querySelector('.swal-sig-nome');
+                            const inpEm = rowEl.querySelector('.swal-sig-email');
+                            const selTp = rowEl.querySelector('.swal-sig-tipo');
+                            if (inpNm) inpNm.value = nmSel;
+                            if (inpEm && (!selTp || selTp.value !== 'América Rental')) {
+                                inpEm.value = emSel;
+                            }
+                        }
+                        dd.style.display = 'none';
+                        lerEstadoAtual();
+                    });
+                });
+            };
+
             const renderLinhas = () => {
                 if (!container) return;
                 container.innerHTML = linhas.map((l, idx) => {
@@ -1409,7 +1492,7 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                     const nomeVal = l.nome || (ehAm ? 'América Rental' : '');
                     const optsHtml = tipos.map(t => `<option value="${_escHtmlProp(t)}" ${l.tipo === t ? 'selected' : ''}>${_escHtmlProp(t)}</option>`).join('');
                     return `
-                        <div class="swal-sig-row" data-idx="${idx}" style="display:grid; grid-template-columns: 1.1fr 1.25fr 1.55fr auto; gap:8px; align-items:end; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+                        <div class="swal-sig-row" data-idx="${idx}" style="display:grid; grid-template-columns: 1.05fr 1.55fr 1.45fr auto; gap:8px; align-items:end; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
                             <div>
                                 <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">Tipo de Signatário *</label>
                                 <select class="swal-sig-tipo" data-idx="${idx}" style="width:100%; height:36px; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.8rem; font-weight:600; box-sizing:border-box; text-transform:none !important;">
@@ -1417,8 +1500,24 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                                 </select>
                             </div>
                             <div>
-                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">Nome *</label>
-                                <input type="text" class="swal-sig-nome" value="${_escHtmlProp(nomeVal)}" placeholder="Nome do signatário..." style="width:100%; height:36px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.8rem; box-sizing:border-box; text-transform:none !important;">
+                                <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">Nome / Contato do Cliente *</label>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <div class="swal-sig-combo-wrap" data-idx="${idx}" style="position:relative; flex:1;">
+                                        <input type="text" class="swal-sig-nome" data-idx="${idx}" value="${_escHtmlProp(nomeVal)}" autocomplete="off"
+                                            placeholder="Clique ou digite para selecionar contato..."
+                                            style="width:100%; height:36px; padding:6px 28px 6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#0f172a; font-size:0.8rem; box-sizing:border-box; text-transform:none !important;">
+                                        <button type="button" class="swal-sig-caret" data-idx="${idx}" tabindex="-1" title="Selecionar contato do cliente"
+                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.88rem;"></i>
+                                        </button>
+                                        <div class="swal-sig-contato-dropdown" data-idx="${idx}" style="display:none; position:absolute; top:calc(100% + 3px); left:0; right:0; max-height:190px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 24px rgba(15,23,42,0.16); z-index:3000;"></div>
+                                    </div>
+                                    <button type="button" class="swal-sig-btn-novo-contato" data-idx="${idx}" title="Cadastrar Novo Contato vinculado ao Cliente"
+                                        style="background:#eab308; color:#ffffff; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
+                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
+                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label style="display:block; font-size:0.73rem; font-weight:700; color:#334155; margin-bottom:4px;">E-mail para Assinatura *</label>
@@ -1432,6 +1531,39 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                         </div>
                     `;
                 }).join('');
+
+                container.querySelectorAll('.swal-sig-nome').forEach(inp => {
+                    const i = Number(inp.getAttribute('data-idx'));
+                    inp.addEventListener('focus', () => popularDropdownLinha(i, inp.value, true));
+                    inp.addEventListener('click', () => popularDropdownLinha(i, inp.value, true));
+                    inp.addEventListener('input', () => popularDropdownLinha(i, inp.value, false));
+                });
+
+                container.querySelectorAll('.swal-sig-caret').forEach(btnC => {
+                    btnC.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        const i = Number(btnC.getAttribute('data-idx'));
+                        const dd = container.querySelector(`.swal-sig-contato-dropdown[data-idx="${i}"]`);
+                        if (dd && dd.style.display === 'block') {
+                            dd.style.display = 'none';
+                        } else {
+                            const inp = container.querySelector(`.swal-sig-nome[data-idx="${i}"]`);
+                            popularDropdownLinha(i, inp ? inp.value : '', true);
+                            if (inp) inp.focus();
+                        }
+                    });
+                });
+
+                container.querySelectorAll('.swal-sig-btn-novo-contato').forEach(btnNovo => {
+                    btnNovo.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        lerEstadoAtual();
+                        acaoCadastrarContatoIdx = Number(btnNovo.getAttribute('data-idx'));
+                        Swal.close();
+                    });
+                });
 
                 container.querySelectorAll('.swal-sig-tipo').forEach(sel => {
                     sel.addEventListener('change', (e) => {
@@ -1464,6 +1596,16 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                     });
                 });
             };
+
+            document.addEventListener('mousedown', function _fecharDdSwalSig(ev) {
+                if (!document.getElementById('swal-assinafy-multi-rows')) {
+                    document.removeEventListener('mousedown', _fecharDdSwalSig);
+                    return;
+                }
+                if (!ev.target.closest('.swal-sig-combo-wrap')) {
+                    fecharTodosDropdowns(-1);
+                }
+            });
 
             if (btnAdd) {
                 btnAdd.addEventListener('click', () => {
@@ -1515,14 +1657,49 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
             return resultado;
         }
     });
+
+    if (acaoCadastrarContatoIdx !== null) {
+        const idxAlvo = acaoCadastrarContatoIdx;
+        window._ultimoContatoCriadoAssinafyModal = null;
+        if (typeof window.cadastrarNovoContatoProposta === 'function') {
+            await window.cadastrarNovoContatoProposta(linhas[idxAlvo]?.nome || '', false, 'swal_assinafy_modal');
+        }
+        if (window._ultimoContatoCriadoAssinafyModal && linhas[idxAlvo]) {
+            linhas[idxAlvo].nome = window._ultimoContatoCriadoAssinafyModal.nome || linhas[idxAlvo].nome;
+            if (linhas[idxAlvo].tipo !== 'América Rental' && window._ultimoContatoCriadoAssinafyModal.email) {
+                linhas[idxAlvo].email = String(window._ultimoContatoCriadoAssinafyModal.email).trim().toLowerCase();
+            }
+            window._ultimoContatoCriadoAssinafyModal = null;
+        }
+        return await window.solicitarSignatariosAssinafyModal({
+            tituloModal,
+            nomePadrao,
+            emailPadrao,
+            signatariosIniciais: linhas
+        });
+    }
+
+    return modalRes;
 };
 
 window.propostaFoiAssinadaViaAssinafy = function(p) {
     if (!p) return false;
     if (typeof window.contratoFoiEstornado === 'function' && window.contratoFoiEstornado(p)) return false;
     const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
+    let todosSigsAssinados = false;
+    if (p.assinafy_signatarios_json) {
+        try {
+            const sigs = typeof p.assinafy_signatarios_json === 'string'
+                ? JSON.parse(p.assinafy_signatarios_json)
+                : p.assinafy_signatarios_json;
+            if (Array.isArray(sigs) && sigs.length > 0 && sigs.every(s => String(s.status || '').trim().toLowerCase() === 'assinado' || Boolean(s.assinado_em))) {
+                todosSigsAssinados = true;
+            }
+        } catch (_) {}
+    }
     return Boolean(
         String(p.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
+        todosSigsAssinados ||
         (p.assinafy_signed_r2_key && String(p.assinafy_signed_r2_key).trim()) ||
         (p.assinafy_signed_at && String(p.assinafy_signed_at).trim()) ||
         faseUp === 'PROPOSTA ASSINADA' ||
@@ -5142,12 +5319,13 @@ function _renderFormPropostaInt() {
             });
         }
     }
-    if (id && (faseUpRender === 'ENVIADO PARA ASSINATURA' || (prop && prop.assinafy_id && !foiAssinadaAssinafyRender)) && window._ultimoSyncAssinafyPropId !== id) {
+    if (id && (faseUpRender === 'ENVIADO PARA ASSINATURA' || (prop && prop.assinafy_id && !foiAssinadaAssinafyRender)) && (window._ultimoSyncAssinafyPropId !== id || (Date.now() - (window._ultimoSyncAssinafyTs || 0) > 3000))) {
         window._ultimoSyncAssinafyPropId = id;
+        window._ultimoSyncAssinafyTs = Date.now();
         apiPost(`/propostas/${id}/sync-assinafy`, {}).then(async (rSync) => {
             const pSync = rSync?.proposta;
             const novaFaseSync = String(pSync?.fase_negociacao || '').trim().toUpperCase();
-            const assinadoSync = String(pSync?.assinafy_status || '').trim().toLowerCase() === 'assinado' || Boolean(pSync?.assinafy_signed_r2_key);
+            const assinadoSync = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(pSync));
             if (novaFaseSync === 'PROPOSTA ASSINADA' || novaFaseSync === 'APROVADO - ADITIVO ASSINADO' || (assinadoSync && novaFaseSync !== faseUpRender) || (assinadoSync && !foiAssinadaAssinafyRender)) {
                 window._ultimoSyncAssinafyPropId = null;
                 await carregarPropostas();
@@ -5344,16 +5522,49 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnAbrirCtr = document.getElementById('btn-prop-abrir-contrato');
     if (btnAbrirCtr) {
-        const numCtrAtu = String((prop && prop.contrato) || '').trim();
         const tipoNormAtu = String(document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        if (window._modoTelaComercial !== 'contrato' && _propostasEditandoId && numCtrAtu && tipoNormAtu !== 'ADITIVO') {
-            const lblCtr = document.getElementById('lbl-btn-prop-abrir-contrato');
-            if (lblCtr) lblCtr.textContent = 'Contrato Nº ' + numCtrAtu;
-            btnAbrirCtr.title = 'Abrir o Contrato Nº ' + numCtrAtu + ' gerado por esta proposta';
-            btnAbrirCtr.setAttribute('onclick', `window.abrirContratoDaProposta(${Number(_propostasEditandoId)})`);
-            btnAbrirCtr.style.display = 'inline-flex';
+        if (window._modoTelaComercial !== 'contrato' && _propostasEditandoId && tipoNormAtu === 'ADITIVO') {
+            const aditivoAssinado = Boolean(
+                foiAssinadaAssinafy ||
+                faseForm === 'PROPOSTA ASSINADA' ||
+                faseForm === 'APROVADO - ADITIVO ASSINADO' ||
+                faseForm === 'APROVADA'
+            );
+            const rawVinc = String((prop && prop.contrato_vinculado) || document.getElementById('prop-contrato-aditivo')?.value || '').trim();
+            const numCtrBase = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(rawVinc) : rawVinc).trim();
+            if (aditivoAssinado && numCtrBase) {
+                const numBaseInt = /^\d+$/.test(numCtrBase) ? parseInt(numCtrBase, 10) : null;
+                const propBase = (_propostasData || []).find(p => {
+                    const tP = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                    if (tP === 'ADITIVO') return false;
+                    if (prop && prop.contrato_vinculado_id && Number(p.id) === Number(prop.contrato_vinculado_id) && p.contrato) return true;
+                    const cP = String(p.contrato || '').trim();
+                    if (!cP) return false;
+                    if (cP.toUpperCase() === numCtrBase.toUpperCase()) return true;
+                    if (numBaseInt !== null && /^\d+$/.test(cP) && parseInt(cP, 10) === numBaseInt) return true;
+                    return false;
+                }) || null;
+                const numExibir = (propBase && propBase.contrato) ? String(propBase.contrato).trim() : numCtrBase;
+                const idAbrir = propBase ? Number(propBase.id) : Number((prop && prop.contrato_vinculado_id) || _propostasEditandoId);
+                const lblCtr = document.getElementById('lbl-btn-prop-abrir-contrato');
+                if (lblCtr) lblCtr.textContent = 'Contrato Nº ' + numExibir;
+                btnAbrirCtr.title = 'Abrir o Contrato Base Nº ' + numExibir + ' vinculado a este aditivo';
+                btnAbrirCtr.setAttribute('onclick', `window.abrirContratoDaProposta(${idAbrir})`);
+                btnAbrirCtr.style.display = 'inline-flex';
+            } else {
+                btnAbrirCtr.style.display = 'none';
+            }
         } else {
-            btnAbrirCtr.style.display = 'none';
+            const numCtrAtu = String((prop && prop.contrato) || '').trim();
+            if (window._modoTelaComercial !== 'contrato' && _propostasEditandoId && numCtrAtu && tipoNormAtu !== 'ADITIVO') {
+                const lblCtr = document.getElementById('lbl-btn-prop-abrir-contrato');
+                if (lblCtr) lblCtr.textContent = 'Contrato Nº ' + numCtrAtu;
+                btnAbrirCtr.title = 'Abrir o Contrato Nº ' + numCtrAtu + ' gerado por esta proposta';
+                btnAbrirCtr.setAttribute('onclick', `window.abrirContratoDaProposta(${Number(_propostasEditandoId)})`);
+                btnAbrirCtr.style.display = 'inline-flex';
+            } else {
+                btnAbrirCtr.style.display = 'none';
+            }
         }
     }
 
@@ -5364,7 +5575,8 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         faseForm === 'PROPOSTA ASSINADA' ||
         faseForm === 'APROVADO - ADITIVO ASSINADO' ||
         faseForm === 'CONTRATO ASSINADO' ||
-        faseForm === 'CONTRATO DIGITAL ASSINADO'
+        faseForm === 'CONTRATO DIGITAL ASSINADO' ||
+        (usaAssinafyTipo && faseForm === 'APROVADA')
     );
 
     const btnEnviarAssinafy = document.getElementById('btn-prop-enviar-assinafy');
@@ -8587,6 +8799,8 @@ window.salvarNovoContatoModalProposta = async function() {
                 if (typeof window.selecionarContatoRespDropdown === 'function') {
                     window.selecionarContatoRespDropdown(tipoResp, rotuloNovo);
                 }
+            } else if (window._novoContatoModalOrigemTarget === 'swal_assinafy_modal') {
+                window._ultimoContatoCriadoAssinafyModal = { nome: conNome, email: conEmail };
             } else if (window._novoContatoModalOrigemAssinaturaDigital) {
                 const inpSigNome = document.getElementById('prop-sig-add-nome');
                 const inpSigEmail = document.getElementById('prop-sig-add-email');
@@ -8654,7 +8868,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null, origemA
     const ufs = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
     const nomePre = typeof nomeInicial === 'string' ? nomeInicial : '';
 
-    Swal.fire({
+    return await Swal.fire({
         title: '',
         width: '1080px',
         showConfirmButton: false,
@@ -10402,8 +10616,25 @@ window.aprovarPropostaEdicao = async function() {
 };
 
 window.abrirContratoDaProposta = async function(id, forcarNovaAba = false) {
-    const targetId = Number(id || _propostasEditandoId);
+    let targetId = Number(id || _propostasEditandoId);
     if (!targetId) return;
+    const propCand = (_propostasData || []).find(p => Number(p.id) === targetId);
+    if (propCand && String(propCand.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO') {
+        const rawVinc = String(propCand.contrato_vinculado || '').trim();
+        const numCtrBase = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(rawVinc) : rawVinc).trim();
+        const numBaseInt = /^\d+$/.test(numCtrBase) ? parseInt(numCtrBase, 10) : null;
+        const propBase = (_propostasData || []).find(p => {
+            const tP = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tP === 'ADITIVO') return false;
+            if (propCand.contrato_vinculado_id && Number(p.id) === Number(propCand.contrato_vinculado_id) && p.contrato) return true;
+            const cP = String(p.contrato || '').trim();
+            if (!cP || !numCtrBase) return false;
+            if (cP.toUpperCase() === numCtrBase.toUpperCase()) return true;
+            if (numBaseInt !== null && /^\d+$/.test(cP) && parseInt(cP, 10) === numBaseInt) return true;
+            return false;
+        });
+        if (propBase) targetId = Number(propBase.id);
+    }
     const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
     const abaAtiva = Array.isArray(tabsArr) ? tabsArr.find(t => t && t.active) : null;
     const jaEstaNaAbaContrato = Boolean(!forcarNovaAba && abaAtiva && abaAtiva.target === 'comercial-contratos' && window._modoTelaComercial === 'contrato');
@@ -11785,7 +12016,8 @@ window.abrirLogsAlteracao = async function(id) {
                 atuNorm.startsWith('APROVADA') ||
                 atuNorm.includes('ACEITE ASSINADO')
             );
-            const ehLogContrato = String(log.origem_registro || '').toLowerCase() === 'contrato';
+            const ehLogAditivo = Boolean(log.eh_aditivo_vinculado || String(log.origem_registro || '').toLowerCase() === 'aditivo');
+            const ehLogContrato = !ehLogAditivo && String(log.origem_registro || '').toLowerCase() === 'contrato';
             const ehAcaoEnvioOuPdfContrato = ehLogContrato && (
                 cNorm.includes('ENVIO DE E-MAIL') ||
                 cNorm.includes('ENVIO POR WHATSAPP') ||
@@ -11794,21 +12026,24 @@ window.abrirLogsAlteracao = async function(id) {
                 cNorm === 'SITUACAO DO CONTRATO'
             );
             const mostrarOlho = Boolean(log.tem_documento || ehAcaoEnvioOuPdfContrato || ehFaseTransicaoDoc || cNorm === 'CRIACAO');
-            const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || Boolean(log.tem_assinatura);
-            const bgLinhaHist = ehLogContrato ? '#ffffff' : '#e2e8f0';
-            const labelTelaHist = ehLogContrato ? 'Contrato' : 'Proposta';
+            const ehAssinado = atuNorm.startsWith('PRE APROVADA') || atuNorm.includes('ACEITE ASSINADO') || atuNorm === 'PROPOSTA ASSINADA' || atuNorm === 'CONTRATO ASSINADO' || atuNorm === 'APROVADO - ADITIVO ASSINADO' || Boolean(log.tem_assinatura);
+            const bgLinhaHist = ehLogAditivo ? '#fef9c3' : (ehLogContrato ? '#ffffff' : '#e2e8f0');
+            const labelTelaHist = ehLogAditivo
+                ? _escHtmlProp(log.label_tela || `Aditivo Nº ${log.aditivo_codigo || log.aditivo_proposta_id || ''}`)
+                : (ehLogContrato ? 'Contrato' : 'Proposta');
             const tituloBotaoOlho = ehAssinado
-                ? 'Visualizar documento assinado desta versão'
-                : (ehLogContrato ? 'Visualizar documento PDF do contrato nesta versão' : 'Visualizar documento PDF da proposta nesta versão');
+                ? (ehLogAditivo ? 'Visualizar Aditivo assinado desta versão' : 'Visualizar documento assinado desta versão')
+                : (ehLogAditivo ? 'Visualizar documento PDF do Aditivo nesta versão' : (ehLogContrato ? 'Visualizar documento PDF do contrato nesta versão' : 'Visualizar documento PDF da proposta nesta versão'));
+            const idAlvoDocHist = ehLogAditivo ? Number(log.aditivo_proposta_id || propId) : Number(propId);
             const btnOlhoHtml = mostrarOlho
-                ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${Number(propId)}, ${Number(log.id)}, ${ehLogContrato ? 'true' : 'false'})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
+                ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${idAlvoDocHist}, ${Number(log.id)}, ${ehLogContrato ? 'true' : 'false'})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
                 : '<span style="color:#94a3b8;">—</span>';
 
             return `
-                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.82rem;" title="${ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta'}">
+                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.82rem;" title="${ehLogAditivo ? 'Histórico do Aditivo Vinculado' : (ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta')}">
                     <td style="padding:0.55rem 0.7rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
                     <td style="padding:0.55rem 0.7rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
-                    <td style="padding:0.55rem 0.7rem; font-weight:700; color:${ehLogContrato ? '#0f172a' : '#334155'}; white-space:nowrap;">${labelTelaHist}</td>
+                    <td style="padding:0.55rem 0.7rem; font-weight:700; color:${ehLogAditivo ? '#854d0e' : (ehLogContrato ? '#0f172a' : '#334155')}; white-space:nowrap;">${labelTelaHist}</td>
                     <td style="padding:0.55rem 0.7rem; color:#334155; line-height:1.4;">${descEdicao}</td>
                     <td style="padding:0.55rem 0.7rem; text-align:center; white-space:nowrap;">${btnOlhoHtml}</td>
                 </tr>
@@ -11821,6 +12056,7 @@ window.abrirLogsAlteracao = async function(id) {
                 <span style="display:inline-flex; align-items:center; gap:14px; font-size:0.78rem; font-weight:600; color:#334155;">
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#e2e8f0; border:1px solid #94a3b8; display:inline-block;"></span> Histórico da Proposta</span>
                     <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#ffffff; border:1px solid #94a3b8; display:inline-block;"></span> Histórico do Contrato</span>
+                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#fef9c3; border:1px solid #eab308; display:inline-block;"></span> Histórico de Aditivo</span>
                 </span>
             </div>`,
             html: `

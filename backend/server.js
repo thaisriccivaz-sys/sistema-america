@@ -42510,143 +42510,183 @@ app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res
   }
 });
 
-// GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta
+// GET /api/propostas/:id/logs - Buscar histórico de alterações de uma proposta (inclui movimentações e documentos de Aditivos vinculados ao contrato)
 app.get('/api/propostas/:id/logs', authenticateToken, (req, res) => {
-  const propId = req.params.id;
-  db.get('SELECT id, codigo, contrato, criado_em FROM propostas WHERE id = ?', [propId], (errP, propRow) => {
-    db.all("SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? ORDER BY id ASC", [propId], (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const lista = Array.isArray(rows) ? rows : [];
-      if (lista.length === 0) return res.json([]);
+  const propId = Number(req.params.id);
+  db.get('SELECT id, codigo, contrato, tipo, contrato_vinculado, contrato_vinculado_id, criado_em FROM propostas WHERE id = ?', [propId], (errP, propRow) => {
+    const tipoPropAtual = String((propRow && propRow.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const numCtrBase = String((propRow && propRow.contrato) || '').trim();
+    const numCtrBaseInt = /^\d+$/.test(numCtrBase) ? parseInt(numCtrBase, 10) : null;
 
-      const parseUtcMs = (dtStr) => {
-        const s = String(dtStr || '').trim();
-        if (!s) return NaN;
-        const iso = (s.includes('T') ? s : s.replace(' ', 'T')) + (s.endsWith('Z') ? '' : 'Z');
-        return Date.parse(iso);
-      };
-      const fmtUtcSql = (ms) => new Date(ms).toISOString().replace('T', ' ').substring(0, 19);
-
-      // Identifica linha de Criação (que foi gravada em UTC pelo CURRENT_TIMESTAMP)
-      const rowCriacao = lista.find(r => r.campo === 'Criação') || lista[0];
-      const msCriacao = rowCriacao ? parseUtcMs(rowCriacao.data_hora) : NaN;
-
-      // Corrige registros legados gravados com fuso -3h em vez de UTC (que ficavam ~3h antes da Criação)
-      let ultimoUtcValidoMs = !isNaN(msCriacao) ? msCriacao : NaN;
-      lista.forEach(r => {
-        const ms = parseUtcMs(r.data_hora);
-        if (!isNaN(ms) && !isNaN(ultimoUtcValidoMs)) {
-          // Se um registro com ID maior tem horário mais de 1h menor que o registro anterior em UTC, foi gravado em BRT (-3h)
-          if (r.id > rowCriacao.id && (ultimoUtcValidoMs - ms) > 3600 * 1000) {
-            const corrigido = ms + (3 * 3600 * 1000);
-            r.data_hora = fmtUtcSql(corrigido);
-            ultimoUtcValidoMs = Math.max(ultimoUtcValidoMs, corrigido);
-          } else {
-            ultimoUtcValidoMs = Math.max(ultimoUtcValidoMs, ms);
-          }
-        }
+    const buscarAditivosVinculados = (cb) => {
+      if (!propRow || !numCtrBase || tipoPropAtual === 'ADITIVO') return cb([]);
+      db.all("SELECT * FROM propostas WHERE UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO') ORDER BY id ASC", [], (errAd, rowsAd) => {
+        if (errAd || !Array.isArray(rowsAd)) return cb([]);
+        const filtrados = rowsAd.filter(ad => {
+          if (ad.contrato_vinculado_id && Number(ad.contrato_vinculado_id) === Number(propRow.id)) return true;
+          const cvRaw = String(ad.contrato_vinculado || '').trim();
+          if (!cvRaw) return false;
+          if (cvRaw.toUpperCase() === numCtrBase.toUpperCase()) return true;
+          const mNum = cvRaw.match(/\d+/);
+          const cvInt = mNum ? parseInt(mNum[0], 10) : null;
+          if (numCtrBaseInt !== null && cvInt !== null && cvInt === numCtrBaseInt) return true;
+          return false;
+        });
+        cb(filtrados);
       });
+    };
 
-      const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-      let emFaseContrato = false;
-      const enriquecidos = lista.map(r => {
-        const item = Object.assign({}, r);
-        if (item.campo === 'fase_negociacao') item.campo = 'Fase de Negociação';
-        const cNorm = normTxt(item.campo);
-        const atuNorm = normTxt(item.conteudo_atual);
-        if (cNorm === 'FASE DE NEGOCIACAO' && atuNorm === 'APROVADA' && propRow && propRow.contrato) {
-          item.conteudo_atual = `Aprovada (Gerou o Contrato Nº ${propRow.contrato})`;
-        }
-        const ehTransicaoDoc = (cNorm === 'FASE DE NEGOCIACAO') && (
-          atuNorm.startsWith('PROPOSTA ENVIADA') ||
-          atuNorm.startsWith('PRE APROVADA') ||
-          atuNorm.startsWith('APROVADA') ||
-          atuNorm.startsWith('ENVIADO PARA ASSINATURA') ||
-          atuNorm.startsWith('APROVADO - ADITIVO ASSINADO') ||
-          atuNorm.includes('ACEITE ASSINADO') ||
-          atuNorm.includes('ACEITE CONFIRMADO')
-        );
-        let snapHasSig = false;
-        let snapOrigemLog = '';
-        if (item.snapshot_json) {
-          try {
-            const sp = JSON.parse(item.snapshot_json);
-            snapHasSig = Boolean(sp && (sp.assinatura_r2_key || sp.assinafy_signed_r2_key));
-            if (sp && sp._origem_log) snapOrigemLog = String(sp._origem_log).toLowerCase();
-          } catch (_) {}
-        }
+    buscarAditivosVinculados((aditivosVinculados) => {
+      const aditivosMap = new Map();
+      (aditivosVinculados || []).forEach(ad => aditivosMap.set(Number(ad.id), ad));
+      const idsBusca = [propId, ...Array.from(aditivosMap.keys())];
+      const placeholders = idsBusca.map(() => '?').join(',');
 
-        const ehAcaoExplicitaContrato =
-          snapOrigemLog === 'contrato' ||
-          cNorm === 'SITUACAO DO CONTRATO' ||
-          cNorm.includes('(CONTRATO)') ||
-          cNorm.includes('DO CONTRATO');
+      db.all(`SELECT * FROM auditoria WHERE programa = 'Proposta' AND registro_id IN (${placeholders}) ORDER BY id ASC`, idsBusca, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const lista = Array.isArray(rows) ? rows : [];
+        if (lista.length === 0) return res.json([]);
 
-        const ehAcaoExclusivaProposta =
-          snapOrigemLog === 'proposta' ||
-          [
-            'CRIACAO',
-            'FASE DE NEGOCIACAO',
+        const parseUtcMs = (dtStr) => {
+          const s = String(dtStr || '').trim();
+          if (!s) return NaN;
+          const iso = (s.includes('T') ? s : s.replace(' ', 'T')) + (s.endsWith('Z') ? '' : 'Z');
+          return Date.parse(iso);
+        };
+        const fmtUtcSql = (ms) => new Date(ms).toISOString().replace('T', ' ').substring(0, 19);
+
+        // Corrige registros legados gravados com fuso -3h em vez de UTC por registro_id
+        idsBusca.forEach(idRef => {
+          const subLista = lista.filter(r => Number(r.registro_id) === Number(idRef));
+          if (!subLista.length) return;
+          const rowCriacao = subLista.find(r => r.campo === 'Criação') || subLista[0];
+          const msCriacao = rowCriacao ? parseUtcMs(rowCriacao.data_hora) : NaN;
+          let ultimoUtcValidoMs = !isNaN(msCriacao) ? msCriacao : NaN;
+          subLista.forEach(r => {
+            const ms = parseUtcMs(r.data_hora);
+            if (!isNaN(ms) && !isNaN(ultimoUtcValidoMs)) {
+              if (r.id > rowCriacao.id && (ultimoUtcValidoMs - ms) > 3600 * 1000) {
+                const corrigido = ms + (3 * 3600 * 1000);
+                r.data_hora = fmtUtcSql(corrigido);
+                ultimoUtcValidoMs = Math.max(ultimoUtcValidoMs, corrigido);
+              } else {
+                ultimoUtcValidoMs = Math.max(ultimoUtcValidoMs, ms);
+              }
+            }
+          });
+        });
+
+        const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        let emFaseContrato = false;
+        const enriquecidos = lista.map(r => {
+          const item = Object.assign({}, r);
+          const adObj = aditivosMap.get(Number(item.registro_id)) || null;
+          if (item.campo === 'fase_negociacao') item.campo = 'Fase de Negociação';
+          const cNorm = normTxt(item.campo);
+          const atuNorm = normTxt(item.conteudo_atual);
+          if (!adObj && cNorm === 'FASE DE NEGOCIACAO' && atuNorm === 'APROVADA' && propRow && propRow.contrato) {
+            item.conteudo_atual = `Aprovada (Gerou o Contrato Nº ${propRow.contrato})`;
+          }
+          const ehTransicaoDoc = (cNorm === 'FASE DE NEGOCIACAO') && (
+            atuNorm.startsWith('PROPOSTA ENVIADA') ||
+            atuNorm.startsWith('PRE APROVADA') ||
+            atuNorm.startsWith('APROVADA') ||
+            atuNorm.startsWith('ENVIADO PARA ASSINATURA') ||
+            atuNorm.startsWith('PROPOSTA ASSINADA') ||
+            atuNorm.startsWith('APROVADO - ADITIVO ASSINADO') ||
+            atuNorm.includes('ACEITE ASSINADO') ||
+            atuNorm.includes('ACEITE CONFIRMADO')
+          );
+          let snapHasSig = false;
+          let snapOrigemLog = '';
+          if (item.snapshot_json) {
+            try {
+              const sp = JSON.parse(item.snapshot_json);
+              snapHasSig = Boolean(sp && (sp.assinatura_r2_key || sp.assinafy_signed_r2_key));
+              if (sp && sp._origem_log) snapOrigemLog = String(sp._origem_log).toLowerCase();
+            } catch (_) {}
+          }
+
+          if (adObj) {
+            item.eh_aditivo_vinculado = true;
+            item.aditivo_proposta_id = Number(adObj.id);
+            item.aditivo_codigo = String(adObj.codigo || adObj.id);
+            item.origem_registro = 'aditivo';
+            item.label_tela = `Aditivo Nº ${adObj.codigo || adObj.id}`;
+          } else {
+            const ehAcaoExplicitaContrato =
+              snapOrigemLog === 'contrato' ||
+              cNorm === 'SITUACAO DO CONTRATO' ||
+              cNorm.includes('(CONTRATO)') ||
+              cNorm.includes('DO CONTRATO');
+
+            const ehAcaoExclusivaProposta =
+              snapOrigemLog === 'proposta' ||
+              [
+                'CRIACAO',
+                'FASE DE NEGOCIACAO',
+                'COPIAR LINK',
+                'DESATIVAR LINK',
+                'LINK DA PROPOSTA (DESATIVADO)',
+                'NOVO LINK DA PROPOSTA',
+                'ASSINATURA / ACEITE',
+                'PROPOSTA COMPARATIVA'
+              ].includes(cNorm);
+
+            if (ehAcaoExplicitaContrato) {
+              item.origem_registro = 'contrato';
+            } else if (ehAcaoExclusivaProposta) {
+              item.origem_registro = 'proposta';
+            } else {
+              item.origem_registro = emFaseContrato ? 'contrato' : 'proposta';
+            }
+
+            if (cNorm === 'FASE DE NEGOCIACAO') {
+              emFaseContrato = atuNorm.startsWith('APROVADA');
+            } else if (cNorm === 'SITUACAO DO CONTRATO') {
+              emFaseContrato = atuNorm !== 'ESTORNADO';
+            } else if (ehAcaoExplicitaContrato) {
+              emFaseContrato = true;
+            }
+          }
+
+          const ehEventoApenasLinkOuAcao = [
             'COPIAR LINK',
             'DESATIVAR LINK',
             'LINK DA PROPOSTA (DESATIVADO)',
             'NOVO LINK DA PROPOSTA',
-            'ASSINATURA / ACEITE',
-            'PROPOSTA COMPARATIVA'
+            'DOWNLOAD DE PDF',
+            'ENVIO DE E-MAIL',
+            'ENVIO DE WHATSAPP',
+            'ENVIO POR WHATSAPP',
+            'ASSINATURA / ACEITE'
           ].includes(cNorm);
+          const ehAcaoDocumentoContrato = (item.origem_registro === 'contrato' || item.origem_registro === 'aditivo') && (
+            cNorm.includes('ENVIO DE E-MAIL') ||
+            cNorm.includes('ENVIO POR WHATSAPP') ||
+            cNorm.includes('DOWNLOAD DE PDF') ||
+            cNorm.includes('ASSINAFY') ||
+            cNorm === 'SITUACAO DO CONTRATO'
+          );
+          const ehLogAssinado = Boolean(
+            snapHasSig ||
+            atuNorm.startsWith('PRE APROVADA') ||
+            atuNorm.includes('ACEITE ASSINADO') ||
+            atuNorm === 'CONTRATO ASSINADO' ||
+            atuNorm === 'PROPOSTA ASSINADA' ||
+            atuNorm === 'APROVADO - ADITIVO ASSINADO'
+          );
+          item.tem_documento = ehLogAssinado || ehAcaoDocumentoContrato || (!ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc));
+          item.tem_assinatura = ehLogAssinado;
+          delete item.snapshot_json;
+          return item;
+        });
 
-        if (ehAcaoExplicitaContrato) {
-          item.origem_registro = 'contrato';
-        } else if (ehAcaoExclusivaProposta) {
-          item.origem_registro = 'proposta';
-        } else {
-          item.origem_registro = emFaseContrato ? 'contrato' : 'proposta';
-        }
-
-        if (cNorm === 'FASE DE NEGOCIACAO') {
-          emFaseContrato = atuNorm.startsWith('APROVADA');
-        } else if (cNorm === 'SITUACAO DO CONTRATO') {
-          emFaseContrato = atuNorm !== 'ESTORNADO';
-        } else if (ehAcaoExplicitaContrato) {
-          emFaseContrato = true;
-        }
-
-        const ehEventoApenasLinkOuAcao = [
-          'COPIAR LINK',
-          'DESATIVAR LINK',
-          'LINK DA PROPOSTA (DESATIVADO)',
-          'NOVO LINK DA PROPOSTA',
-          'DOWNLOAD DE PDF',
-          'ENVIO DE E-MAIL',
-          'ENVIO DE WHATSAPP',
-          'ENVIO POR WHATSAPP',
-          'ASSINATURA / ACEITE'
-        ].includes(cNorm);
-        const ehAcaoDocumentoContrato = item.origem_registro === 'contrato' && (
-          cNorm.includes('ENVIO DE E-MAIL') ||
-          cNorm.includes('ENVIO POR WHATSAPP') ||
-          cNorm.includes('DOWNLOAD DE PDF') ||
-          cNorm.includes('ASSINAFY') ||
-          cNorm === 'SITUACAO DO CONTRATO'
-        );
-        const ehLogAssinado = Boolean(
-          snapHasSig ||
-          atuNorm.startsWith('PRE APROVADA') ||
-          atuNorm.includes('ACEITE ASSINADO') ||
-          atuNorm === 'CONTRATO ASSINADO' ||
-          atuNorm === 'PROPOSTA ASSINADA' ||
-          atuNorm === 'APROVADO - ADITIVO ASSINADO'
-        );
-        item.tem_documento = ehLogAssinado || ehAcaoDocumentoContrato || (!ehEventoApenasLinkOuAcao && Boolean(item.snapshot_json || cNorm === 'CRIACAO' || ehTransicaoDoc));
-        item.tem_assinatura = ehLogAssinado;
-        delete item.snapshot_json;
-        return item;
+        // Ordena do mais recente para o mais antigo (id DESC), mantendo a Criação da proposta base como primeiro evento histórico (última linha)
+        const semCriacaoBase = enriquecidos.filter(r => !(r.campo === 'Criação' && !r.eh_aditivo_vinculado)).sort((a, b) => b.id - a.id);
+        const apenasCriacaoBase = enriquecidos.filter(r => r.campo === 'Criação' && !r.eh_aditivo_vinculado).sort((a, b) => b.id - a.id);
+        res.json([...semCriacaoBase, ...apenasCriacaoBase]);
       });
-
-      // Ordena do mais recente para o mais antigo (id DESC), garantindo que "Criação" fique sempre como primeiro evento histórico (última linha)
-      const semCriacao = enriquecidos.filter(r => r.campo !== 'Criação').sort((a, b) => b.id - a.id);
-      const apenasCriacao = enriquecidos.filter(r => r.campo === 'Criação').sort((a, b) => b.id - a.id);
-      res.json([...semCriacao, ...apenasCriacao]);
     });
   });
 });
@@ -44263,8 +44303,9 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
 
           const assinadosCount = signatariosLocais.filter(s => s.status === 'Assinado' || Boolean(s.assinado_em)).length;
           const totalSigs = signatariosLocais.length;
+          const todosAssinaramLocais = totalSigs > 0 && assinadosCount === totalSigs;
 
-          if (!isSigned && houveMudancaParcialSigs) {
+          if (!isSigned && !todosAssinaramLocais && houveMudancaParcialSigs) {
             const novoStatusParcial = (assinadosCount > 0 && assinadosCount < totalSigs) ? 'Assinatura Parcial' : (prop.assinafy_status || 'Pendente');
             await new Promise((resolve) => {
               db.run(
@@ -44312,7 +44353,8 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
           }
         }
 
-        if (!isSigned) continue;
+        const todosAssinaramFinal = signatariosLocais.length > 0 && signatariosLocais.every(s => s.status === 'Assinado' || Boolean(s.assinado_em));
+        if (!isSigned && !todosAssinaramFinal) continue;
 
         const tipoPropPoll = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehAditivoPoll = tipoPropPoll === 'ADITIVO';
