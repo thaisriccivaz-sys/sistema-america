@@ -773,12 +773,17 @@ window.propostaTemCamposObrigatoriosSalvosParaAssinatura = function(propOverride
     const prods = Array.isArray(window._propProdutosAdicionados)
         ? window._propProdutosAdicionados.filter(p => p && !p._substituido_por_aditivo)
         : [];
-    if (prods.length === 0) return false;
+    const servs = Array.isArray(window._propServicosAdicionados)
+        ? window._propServicosAdicionados.filter(s => s && !s._substituido_por_aditivo)
+        : [];
+    const ehAditivoAdicionar = tipo === 'ADITIVO' && String(window._propAditivoOperacao || 'adicionar').trim().toLowerCase() === 'adicionar';
+    if (ehAditivoAdicionar) {
+        if (prods.length === 0 && servs.length === 0) return false;
+    } else if (prods.length === 0) {
+        return false;
+    }
 
     if (typeof window.tipoPropostaServicoObrigatorio === 'function' && window.tipoPropostaServicoObrigatorio(tipo)) {
-        const servs = Array.isArray(window._propServicosAdicionados)
-            ? window._propServicosAdicionados.filter(s => s && !s._substituido_por_aditivo)
-            : [];
         const temFob = Boolean(document.getElementById('prop-serv-fob')?.checked) || Number(prop.servico_frete_fob) === 1;
         if (servs.length === 0 && !temFob) return false;
     }
@@ -4896,7 +4901,7 @@ function _renderFormPropostaInt() {
                     </div>
 
                     <!-- Seção: Período e Condições -->
-                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                    <div id="prop-secao-periodo" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                                 <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições <span style="color:#dc2626;">*</span>
@@ -5017,7 +5022,7 @@ function _renderFormPropostaInt() {
                     <div id="prop-secao-produtos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span style="color:#dc2626;">*</span>
+                                <i class="ph ph-package" style="color:#7048e8;"></i> <span id="prop-produtos-titulo">Produtos <span style="color:#dc2626;">*</span></span>
                             </h4>
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" onclick="event.stopPropagation();">
                                 <button type="button" id="btn-prop-comparar-valores" onclick="if(typeof window.abrirModalCompararValoresProposta === 'function') window.abrirModalCompararValoresProposta(event);" disabled
@@ -5046,7 +5051,7 @@ function _renderFormPropostaInt() {
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Produto <span style="color:#dc2626;">*</span></label>
+                                <label class="prop-lbl" id="prop-prod-codigo-lbl">Produto <span style="color:#dc2626;">*</span></label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
                                     <input type="text" id="prop-prod-codigo" placeholder="Digite o código ou nome do produto..."
                                         oninput="window.onInputProdutoPropostaTexto()"
@@ -24061,27 +24066,67 @@ window.atualizarBloqueioPorTipoProposta = function() {
     }
 };
 
+window.tipoPropostaProdutoObrigatorio = function(tipoRaw) {
+    const t = String(tipoRaw !== undefined ? tipoRaw : (document.getElementById('prop-tipo')?.value || '')).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (window._modoTelaComercial !== 'contrato' && t === 'ADITIVO') {
+        const opAditivo = String(window._propAditivoOperacao || 'adicionar').trim().toLowerCase();
+        if (opAditivo === 'adicionar') return false;
+    }
+    return true;
+};
+
+window._atualizarTituloProdutosProposta = function(tipoRaw) {
+    const titEl = document.getElementById('prop-produtos-titulo');
+    const lblEl = document.getElementById('prop-prod-codigo-lbl');
+    const obrig = window.tipoPropostaProdutoObrigatorio(tipoRaw);
+    if (titEl) {
+        titEl.innerHTML = obrig ? 'Produtos <span style="color:#dc2626;">*</span>' : 'Produtos';
+    }
+    if (lblEl) {
+        lblEl.innerHTML = obrig ? 'Produto <span style="color:#dc2626;">*</span>' : 'Produto';
+    }
+};
+
 window.atualizarBloqueioProdutoPorContratoBase = function() {
     const tipoEl = document.getElementById('prop-tipo');
     const secaoProd = document.getElementById('prop-secao-produtos');
+    const secaoPer = document.getElementById('prop-secao-periodo');
+    const secaoServ = document.getElementById('prop-wrapper-servicos');
     if (!tipoEl || !secaoProd) return;
     const tipoVal = String(tipoEl.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (typeof window._atualizarTituloProdutosProposta === 'function') {
+        window._atualizarTituloProdutosProposta(tipoVal);
+    }
+    if (typeof window._atualizarTituloServicosProposta === 'function') {
+        window._atualizarTituloServicosProposta(tipoVal);
+    }
     const tipoLiberado = Boolean(tipoVal);
     if (!tipoLiberado) return;
     const exigeContratoBase = Boolean(window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipoVal));
     const inpContrato = document.getElementById('prop-contrato-aditivo');
     const contratoPreenchido = Boolean(String(inpContrato?.value || '').trim());
     const prodLiberado = !exigeContratoBase || contratoPreenchido;
-    secaoProd.style.opacity = prodLiberado ? '1' : '0.55';
-    secaoProd.style.cursor = prodLiberado ? '' : 'not-allowed';
-    secaoProd.title = prodLiberado ? '' : 'Preencha primeiro o Nº do Contrato (*) para liberar o preenchimento do produto';
-    const camposProd = secaoProd.querySelectorAll('input, select, textarea, button');
-    camposProd.forEach(el => {
-        el.disabled = !prodLiberado;
-        el.style.pointerEvents = prodLiberado ? '' : 'none';
+    const msgBloq = 'Preencha primeiro o Nº do Contrato (*) para liberar o preenchimento de Período e Condições, Produtos e Serviços';
+    [secaoPer, secaoProd, secaoServ].filter(Boolean).forEach(secao => {
+        secao.style.opacity = prodLiberado ? '1' : '0.55';
+        secao.style.cursor = prodLiberado ? '' : 'not-allowed';
+        secao.title = prodLiberado ? '' : msgBloq;
+        const campos = secao.querySelectorAll('input, select, textarea, button');
+        campos.forEach(el => {
+            el.disabled = !prodLiberado;
+            el.style.pointerEvents = prodLiberado ? '' : 'none';
+        });
     });
-    if (prodLiberado && typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
-        window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+    if (prodLiberado) {
+        if (typeof window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado === 'function') {
+            window.atualizarEstadoCampoDiasEventoPorProdutoSelecionado();
+        }
+        if (typeof window.atualizarBloqueioEdicaoValoresProdutoProposta === 'function') {
+            window.atualizarBloqueioEdicaoValoresProdutoProposta();
+        }
+        if (typeof window.atualizarBloqueioEdicaoValoresServicoProposta === 'function') {
+            window.atualizarBloqueioEdicaoValoresServicoProposta();
+        }
     }
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
@@ -24122,8 +24167,8 @@ window.onClickProdutoBloqueadoPorContratoBase = function(event) {
             position: 'top-end',
             icon: 'warning',
             title: cliPreenchido
-                ? 'Preencha primeiro o Nº do Contrato base (*) para liberar o preenchimento do produto.'
-                : 'Preencha primeiro o Cliente (*) e o Nº do Contrato base (*) para liberar o preenchimento do produto.',
+                ? 'Preencha primeiro o Nº do Contrato base (*) para liberar o preenchimento de Período e Condições, Produtos e Serviços.'
+                : 'Preencha primeiro o Cliente (*) e o Nº do Contrato base (*) para liberar o preenchimento de Período e Condições, Produtos e Serviços.',
             showConfirmButton: false,
             timer: 2800
         });
@@ -26533,6 +26578,23 @@ window.validarListaProdutosEquipamentosDiasContrato = function(tipoOverride = nu
     const itensAtivos = itens.filter(p => p && !p._substituido_por_aditivo);
     if (itensAtivos.length === 0) {
         const ehModoCtr = window._modoTelaComercial === 'contrato';
+        const tipoBruto = String(tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || '')).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const opAditivo = String(window._propAditivoOperacao || 'adicionar').trim().toLowerCase();
+        if (!ehModoCtr && tipoBruto === 'ADITIVO' && opAditivo === 'adicionar') {
+            const servs = Array.isArray(window._propServicosAdicionados) ? window._propServicosAdicionados : [];
+            const servsAtivos = servs.filter(s => s && !s._substituido_por_aditivo);
+            if (servsAtivos.length > 0) {
+                return true;
+            }
+            const msgAdit = 'No aditivo de Adicionar Produtos / Serviços, é obrigatório adicionar pelo menos um Produto ou um Serviço antes de salvar.';
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('Produto ou Serviço Obrigatório', msgAdit, 'warning');
+            } else {
+                alert(msgAdit);
+            }
+            document.getElementById('prop-prod-codigo')?.focus();
+            return false;
+        }
         if (typeof Swal !== 'undefined') {
             Swal.fire('Produto Obrigatório', `É obrigatório adicionar pelo menos um Produto ${ehModoCtr ? 'no contrato' : 'na proposta'} antes de salvar.`, 'warning');
         } else {
@@ -27072,6 +27134,8 @@ window.renderizarProdutosPropostaGrid = function() {
         thValTotal.style.textAlign = 'center';
     }
     const list = window._propProdutosAdicionados || [];
+    if (typeof window._atualizarTituloProdutosProposta === 'function') window._atualizarTituloProdutosProposta();
+    if (typeof window._atualizarTituloServicosProposta === 'function') window._atualizarTituloServicosProposta();
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
         tbody.innerHTML = `
@@ -27097,16 +27161,16 @@ window.renderizarProdutosPropostaGrid = function() {
         const styleRiscadoGrid = isRiscadoLinha ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
         const badgeAprovCompGridHtml = (!p?._from_aditivo_dinamico && temFiltroCompGrid)
             ? (!naoAprovadoGrid
-                ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">✓ Aprovado pelo cliente</span>`
-                : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Não aprovado</span>`)
+                ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">✓ Aprovado pelo cliente</span>`
+                : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700; white-space:nowrap; display:inline-block; text-decoration:none;">Não aprovado</span>`)
             : '';
         const badgeOrigemContratoHtml = ehModoCtrGrid
             ? (p && p._from_aditivo_dinamico
-                ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${_escHtmlProp(p._badge_origem || 'Aditivo')}</span>`
-                : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
+                ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">${_escHtmlProp(p._badge_origem || 'Aditivo')}</span>`
+                : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
             : '';
         const badgeSubstituidoAditivoHtml = substituidoAditivoCod
-            ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${_escHtmlProp(substituidoAditivoCod)}</span>`
+            ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${_escHtmlProp(substituidoAditivoCod)}</span>`
             : '';
         const nomeProd = String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
         const obsProd = p.observacao !== undefined ? p.observacao : '';
@@ -27170,10 +27234,15 @@ window.renderizarProdutosPropostaGrid = function() {
         const manutValItem = parseInt(p.manut_semana, 10) > 0
             ? parseInt(p.manut_semana, 10)
             : (usaManutGrid && typeof window.extrairManutSemanaDeProduto === 'function' ? window.extrairManutSemanaDeProduto(nomeProd || p.codigo) : 0);
+        const badgeManutHtml = (usaManutGrid && manutValItem > 0)
+            ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">${manutValItem}x manut./sem.</span>`
+            : '';
+        const allBadgesProdHtml = `${badgeManutHtml}${badgeOrigemContratoHtml}${badgeSubstituidoAditivoHtml}${badgeAprovCompGridHtml}`;
         return `
             <tr style="border-bottom:1px solid #e2e8f0; ${(temFiltroCompGrid && !naoAprovadoGrid && !substituidoAditivoCod) ? 'background:#f0fdf4;' : (p?._from_aditivo_dinamico ? 'background:#fefce8;' : '')}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${manutValItem}x manut./sem.</span>` : ''}${badgeOrigemContratoHtml}${badgeSubstituidoAditivoHtml}${badgeAprovCompGridHtml}</div>
+                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span></div>
+                    ${allBadgesProdHtml ? `<div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:4px;">${allBadgesProdHtml}</div>` : ''}
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 8px;">
@@ -30655,7 +30724,7 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     } catch (_) { itens = []; }
     if (propostaObj && !propostaObj._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
         const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(propostaObj, itens, []);
-        itens = mesclados.produtos;
+        itens = (mesclados.produtos || []).filter(it => it && !it._substituido_por_aditivo);
     }
     const tipoUp = String(tipoContrato || (propostaObj && propostaObj.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const ehContratoEvento = tipoUp === 'EVENTO' || tipoUp === 'EQUIPAMENTOS' || tipoUp === 'EQUIPAMENTO';
@@ -30710,12 +30779,8 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
         const descDia = Math.max(0, grossDia - netDia, descRsItem);
         const descontoTotal = ehContratoEvento ? (descDia * nDiarias) : descDia;
         const valorTotalFinal = ehContratoEvento ? (netDia * nDiarias) : netDia;
-        const badgeOrig = it._badge_origem ? String(it._badge_origem) : '';
-        const subPorAditivo = it._substituido_por_aditivo ? String(it._substituido_por_aditivo) : '';
-        const ehAditivoItem = Boolean(it._from_aditivo_dinamico);
-        const badgeDocHtml = (badgeOrig ? ` <span style="background:${ehAditivoItem ? '#fef9c3' : '#e0f2fe'}; color:${ehAditivoItem ? '#854d0e' : '#0369a1'}; border:1px solid ${ehAditivoItem ? '#eab308' : '#7dd3fc'}; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">${_escHtmlProp(badgeOrig)}</span>` : '')
-            + (subPorAditivo ? ` <span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">Substituído pelo Aditivo Nº ${_escHtmlProp(subPorAditivo)}</span>` : '');
-        const styleRiscadoDoc = subPorAditivo ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
+        const badgeDocHtml = '';
+        const styleRiscadoDoc = '';
         return {
             nome,
             badgeDocHtml,
@@ -30810,7 +30875,7 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
     } catch (_) { servs = []; }
     if (propostaObj && !isPreview && !propostaObj._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
         const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(propostaObj, [], servs);
-        servs = mesclados.servicos;
+        servs = (mesclados.servicos || []).filter(sv => sv && !sv._substituido_por_aditivo);
     }
     const ehObra = String(tipoContrato || '').toUpperCase().includes('OBRA');
     if (!servs.length && itensProdutosRaw) {
@@ -30856,12 +30921,8 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         const base = isFob ? 0 : (Number(sv.valor_base) > 0 ? Number(sv.valor_base) : (vlrLiq > 0 ? (vlrLiq / qtd) : 0));
         const gross = isFob ? 0 : (base * qtd);
         const desconto = isFob ? 0 : Math.max(0, gross - vlrLiq, descRsServ);
-        const badgeOrigSv = sv._badge_origem ? String(sv._badge_origem) : '';
-        const subPorAditivoSv = sv._substituido_por_aditivo ? String(sv._substituido_por_aditivo) : '';
-        const ehAditivoSv = Boolean(sv._from_aditivo_dinamico);
-        const badgeDocSvHtml = (badgeOrigSv ? ` <span style="background:${ehAditivoSv ? '#fef9c3' : '#e0f2fe'}; color:${ehAditivoSv ? '#854d0e' : '#0369a1'}; border:1px solid ${ehAditivoSv ? '#eab308' : '#7dd3fc'}; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">${_escHtmlProp(badgeOrigSv)}</span>` : '')
-            + (subPorAditivoSv ? ` <span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">Substituído pelo Aditivo Nº ${_escHtmlProp(subPorAditivoSv)}</span>` : '');
-        const styleRiscadoSvDoc = subPorAditivoSv ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
+        const badgeDocSvHtml = '';
+        const styleRiscadoSvDoc = '';
         return {
             nome,
             badgeDocSvHtml,

@@ -26,7 +26,7 @@
         return tipoProprioProposta(tipo);
     };
 
-    /* Serviço OBRIGATÓRIO em OBRA mensal/quinzenal/semanal e em ADITIVO de Substituição cujo contrato base seja Obra */
+    /* Serviço OBRIGATÓRIO em OBRA mensal/quinzenal/semanal, em ADITIVO de Substituição de Obra e em ADITIVO de Adicionar quando houver produto adicionado */
     window.tipoPropostaServicoObrigatorio = function (tipo) {
         const proprio = tipoProprioProposta(tipo);
         const atualDom = tipoProprioProposta();
@@ -36,8 +36,17 @@
         const tEfetivo = String(tipoLimpo(tipo) || '').trim().toUpperCase();
         const ehObraEfetivo = window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo) || tEfetivo === 'OBRA' || tEfetivo.startsWith('OBRA ');
         if (proprio === 'ADITIVO' || atualDom === 'ADITIVO') {
-            const opAditivo = String(window._propAditivoOperacao || '').trim().toLowerCase();
-            return Boolean(ehObraEfetivo && opAditivo === 'substituir');
+            const opAditivo = String(window._propAditivoOperacao || 'adicionar').trim().toLowerCase();
+            if (opAditivo === 'substituir') {
+                return Boolean(ehObraEfetivo);
+            }
+            if (opAditivo === 'adicionar') {
+                const prodsAtivos = Array.isArray(window._propProdutosAdicionados)
+                    ? window._propProdutosAdicionados.filter(p => p && !p._substituido_por_aditivo)
+                    : [];
+                return Boolean(ehObraEfetivo && prodsAtivos.length > 0);
+            }
+            return false;
         }
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo);
     };
@@ -129,7 +138,7 @@
         const isModoCtr = window._modoTelaComercial === 'contrato';
         const servAberto = !isModoCtr || Boolean(window._contratoSecoesAbertas && window._contratoSecoesAbertas.servicos);
         return `
-        <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+        <div id="prop-wrapper-servicos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <div onclick="if(window._modoTelaComercial==='contrato' && typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${isModoCtr ? 'pointer' : 'default'}; user-select:none;">
                 <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                     <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços <span style="color:#dc2626;">*</span>' : 'Serviços'}</span>
@@ -239,6 +248,9 @@
             window.atualizarVisibilidadeManutencoesProposta(tipo);
         }
         window.renderizarServicosPropostaGrid();
+        if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
+            window.atualizarBloqueioProdutoPorContratoBase();
+        }
     };
 
     window.alternarFreteFobServicoProposta = function () {
@@ -850,17 +862,21 @@
             const styleRiscadoServ = substituidoAditivoCodServ ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
             const badgeOrigemServHtml = ehModoCtrServ
                 ? (s && s._from_aditivo_dinamico
-                    ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${esc(s._badge_origem || 'Aditivo')}</span>`
-                    : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
+                    ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">${esc(s._badge_origem || 'Aditivo')}</span>`
+                    : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
                 : '';
             const badgeSubstituidoServHtml = substituidoAditivoCodServ
-                ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substituidoAditivoCodServ)}</span>`
+                ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substituidoAditivoCodServ)}</span>`
                 : '';
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
             const permiteFobItem = window.servicoPermiteFreteFob(nome, s.codigo);
             if (!permiteFobItem && s.frete_fob) s.frete_fob = false;
             const isFob = permiteFobItem && !!s.frete_fob;
             const vUnit = isFob ? 0 : (parseFloat(s.valor ?? s.valor_unitario ?? s.valor_total ?? 0) || 0);
+            const badgeFobOuCortesiaHtml = isFob
+                ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">FOB</span>'
+                : (vUnit <= 0 ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">CORTESIA</span>' : '');
+            const todasBadgesServHtml = [badgeFobOuCortesiaHtml, badgeOrigemServHtml, badgeSubstituidoServHtml].filter(Boolean).join('');
             let descHtml = '<span style="color:#94a3b8;">—</span>';
             if (isFob) {
                 descHtml = '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:2px 8px; border-radius:999px; font-weight:800; font-size:0.75rem;">FOB</span>';
@@ -902,7 +918,8 @@
             return `
             <tr style="border-bottom:1px solid #e2e8f0; ${s?._from_aditivo_dinamico ? 'background:#fefce8;' : ''}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div><span style="${styleRiscadoServ}">${typeof window.formatarNomeProdutoComVacHtml === 'function' ? window.formatarNomeProdutoComVacHtml(nome) : esc(nome)}</span> ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : (vUnit <= 0 ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">CORTESIA</span>' : '')}${badgeOrigemServHtml}${badgeSubstituidoServHtml}</div>
+                    <div><span style="${styleRiscadoServ}">${typeof window.formatarNomeProdutoComVacHtml === 'function' ? window.formatarNomeProdutoComVacHtml(nome) : esc(nome)}</span></div>
+                    ${todasBadgesServHtml ? `<div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:4px;">${todasBadgesServHtml}</div>` : ''}
                     ${permiteFobItem ? `<label style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; color:#64748b; font-weight:600; margin-top:3px; cursor:pointer;">
                         <input type="checkbox" ${isFob ? 'checked' : ''} onchange="window.atualizarItemServicoProposta(${idx}, 'frete_fob', this.checked)" style="width:auto; margin:0;"> Frete FOB
                     </label>` : ''}
