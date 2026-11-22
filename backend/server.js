@@ -42043,7 +42043,6 @@ function gerarCodigoContrato(cb) {
 function classificarStatusSituacaoContrato(sitRaw) {
   const s = String(sitRaw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
   const ativos = [
-    'ENVIADO PARA ASSINATURA',
     'SOLICITACAO DE RETIRADA EM ANDAMENTO',
     'CONTRATO ASSINADO',
     'CONTRATO DIGITAL ASSINADO',
@@ -43197,8 +43196,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome,
         periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, datas_retirada_equipamentos, contatos_responsaveis_contrato_json, contato_instalacao_contrato,
-        aditivo_operacao, aditivo_itens_substituidos_json, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        aditivo_operacao, aditivo_itens_substituidos_json, assinafy_signatarios_json, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -43232,6 +43231,7 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.contato_instalacao_contrato || null,
         d.aditivo_operacao || null,
         d.aditivo_itens_substituidos_json ? (typeof d.aditivo_itens_substituidos_json === 'string' ? d.aditivo_itens_substituidos_json : JSON.stringify(d.aditivo_itens_substituidos_json)) : null,
+        d.assinafy_signatarios_json ? (typeof d.assinafy_signatarios_json === 'string' ? d.assinafy_signatarios_json : JSON.stringify(d.assinafy_signatarios_json)) : null,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });

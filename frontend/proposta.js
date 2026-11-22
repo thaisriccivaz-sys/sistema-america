@@ -168,7 +168,7 @@ window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
 
 const CONTRATO_SITUACOES_CONFIG = [
     { nome: 'EM ELABORAÇÃO',                          cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-pencil' },
-    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Ativo',   icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
+    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
     { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
     { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
@@ -724,6 +724,18 @@ window.obterListaSignatariosProposta = function(prop) {
 
 window._propSignatariosContratoDraft = [];
 
+window.atualizarVisibilidadeQuadroAssinaturaDigital = function(tipoOverride = null) {
+    const sec = document.getElementById('prop-secao-assinatura-digital');
+    if (!sec) return;
+    const isModoCtr = window._modoTelaComercial === 'contrato';
+    const tipoRef = tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || '');
+    const mostrar = isModoCtr || Boolean(typeof window.propostaTipoUsaAssinafy === 'function' && window.propostaTipoUsaAssinafy(tipoRef));
+    sec.style.display = mostrar ? 'block' : 'none';
+    if (mostrar && typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') {
+        window.atualizarQuadroAssinaturaDigitalDom();
+    }
+};
+
 window.atualizarQuadroAssinaturaDigitalDom = function() {
     const prop = _propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null;
     const elConteudo = document.getElementById('prop-quadro-assinatura-digital-conteudo');
@@ -944,7 +956,8 @@ window.alterarTipoSignatarioLinhaQuadroContrato = function(idx, novoTipo) {
 };
 
 window.enviarContratoParaAssinaturaPeloQuadro = async function() {
-    if (!_propostasEditandoId) {
+    const ehModoContrato = window._modoTelaComercial === 'contrato';
+    if (ehModoContrato && !_propostasEditandoId) {
         Swal.fire('Aviso', 'Abra um contrato válido primeiro.', 'warning');
         return;
     }
@@ -969,17 +982,25 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         : (parseFloat(document.getElementById(id)?.value || 0) || 0);
 
     const tituloContrato = obter('prop-titulo-contrato').trim();
-    if (!tituloContrato) {
+    if (ehModoContrato && !tituloContrato) {
         Swal.fire('Aviso', 'Preencha o campo Título * do contrato antes de enviar para assinatura.', 'warning');
         document.getElementById('prop-titulo-contrato')?.focus();
         return;
     }
     const tipo = obter('prop-tipo');
     const dataCad = obter('prop-data-cadastro');
-    if (!tipo) { Swal.fire('Aviso', 'Selecione o Tipo do contrato.', 'warning'); return; }
+    if (!tipo) { Swal.fire('Aviso', `Selecione o Tipo ${ehModoContrato ? 'do contrato' : 'da proposta'}.`, 'warning'); return; }
     if (!dataCad) { Swal.fire('Aviso', 'Informe a Data de Cadastro.', 'warning'); return; }
     if (!obter('prop-cliente').trim()) { Swal.fire('Aviso', 'O campo Cliente é obrigatório.', 'warning'); return; }
     if (!obter('prop-contato').trim()) { Swal.fire('Aviso', 'O campo Contato é obrigatório.', 'warning'); return; }
+    if (!ehModoContrato && window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo) && !obter('prop-contrato-aditivo').trim()) {
+        const ehAvVal = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').startsWith('AVARIA');
+        Swal.fire('Aviso', 'O campo Nº do Contrato (contrato base) é obrigatório para propostas do tipo ' + (ehAvVal ? 'Avaria' : 'Aditivo') + '.', 'warning');
+        document.getElementById('prop-contrato-aditivo')?.focus();
+        return;
+    }
+    if (typeof window.validarServicosPropostaObra === 'function' && !window.validarServicosPropostaObra(tipo)) return;
+    if (typeof window.validarListaProdutosEquipamentosDiasContrato === 'function' && !window.validarListaProdutosEquipamentosDiasContrato(tipo)) return;
 
     const listaSignatariosEscolhidos = window._propSignatariosContratoDraft.map(s => {
         const tp = String(s.tipo || 'Responsável Legal').trim();
@@ -997,22 +1018,26 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         return;
     }
 
-    const propExistente = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
+    const propExistente = _propostasEditandoId ? ((_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null) : null;
     const isComparativa = Boolean(document.getElementById('prop-comparativa')?.checked);
     const produtosAprovadosSel = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
     const ehReenvio = Boolean(propExistente && propExistente.assinafy_id);
 
     const payload = {
-        modo_contrato: true,
-        titulo_contrato: tituloContrato,
+        modo_contrato: ehModoContrato,
+        titulo_contrato: tituloContrato || (propExistente && propExistente.titulo_contrato) || '',
         local: obter('prop-local') || 'AMERICA RENTAL',
         tipo,
         atendente: obter('prop-atendente'),
         data_cadastro: dataCad,
         validade_proposta: obter('prop-validade-proposta'),
         previsao_fechamento: obter('prop-previsao'),
-        fase_negociacao: propExistente?.fase_negociacao || 'Aprovada',
-        situacao_contrato: obter('prop-fase') || propExistente?.situacao_contrato || 'EM ELABORAÇÃO',
+        fase_negociacao: ehModoContrato
+            ? (propExistente?.fase_negociacao || 'Aprovada')
+            : (propExistente?.fase_negociacao || 'Em Elaboração'),
+        situacao_contrato: ehModoContrato
+            ? (obter('prop-fase') || propExistente?.situacao_contrato || 'EM ELABORAÇÃO')
+            : undefined,
         modelo_impressao: obter('prop-modelo'),
         cliente_nome: obter('prop-cliente'),
         contato_nome: obter('prop-contato'),
@@ -1041,12 +1066,44 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         valor_frete_ida: obterN('prop-frete-ida'),
         valor_frete_volta: obterN('prop-frete-volta'),
         observacoes: obter('prop-obs'),
-        valor_total: obterN('prop-valor-total'),
+        valor_total: (() => {
+            const itensAtuais = window._propProdutosAdicionados || [];
+            if (itensAtuais.length > 0) {
+                const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
+                return itensAtuais.reduce((acc, p, idxP) => {
+                    if (p && p._substituido_por_aditivo) return acc;
+                    if (!p?._from_aditivo_dinamico && isComparativa && produtosAprovadosSel.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, produtosAprovadosSel)) {
+                        return acc;
+                    }
+                    const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
+                        ? parseFloat(p.valor_total)
+                        : ((parseFloat(p.quantidade) || 0) * (parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0));
+                    const multDias = (ehEvSalvar && typeof window.obterQtdDiariasProdutoEvento === 'function')
+                        ? window.obterQtdDiariasProdutoEvento(p)
+                        : 1;
+                    return acc + (porDia * multDias);
+                }, 0);
+            }
+            return obterN('prop-valor-total');
+        })(),
         status: obter('prop-status') || 'Ativa',
         motivo_reprovacao: '',
         criado_por: window.obterNomeUsuarioLogado(),
-        itens: window._propProdutosAdicionados || [],
-        itens_servicos: window._propServicosAdicionados || [],
+        itens: (window._propProdutosAdicionados || []).filter(p => !p || !p._from_aditivo_dinamico).map(p => {
+            const c = Object.assign({}, p);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        itens_servicos: (window._propServicosAdicionados || []).filter(s => !s || !s._from_aditivo_dinamico).map(s => {
+            const c = Object.assign({}, s);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        aditivo_operacao: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (window._propAditivoOperacao || 'adicionar') : null,
+        aditivo_itens_substituidos_json: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] }) : null,
+        assinafy_signatarios_json: JSON.stringify(window._propSignatariosContratoDraft || []),
         proposta_comparativa: isComparativa ? 1 : 0,
         produtos_aprovados: produtosAprovadosSel,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
@@ -1064,14 +1121,25 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         contato_instalacao_contrato: String((window._propResponsaveisContrato && window._propResponsaveisContrato.instalacao) || '').trim()
     };
 
-    Swal.fire({ title: 'Gerando PDF do Contrato e enviando para assinatura...', html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const labelDocEnvio = ehModoContrato ? 'PDF do Contrato' : 'PDF da Proposta';
+    Swal.fire({ title: `Gerando ${labelDocEnvio} e enviando para assinatura...`, html: 'Por favor, aguarde.', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-        await apiPut(`/propostas/${_propostasEditandoId}`, payload);
-        const finalId = Number(_propostasEditandoId);
+        const respSave = _propostasEditandoId
+            ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
+            : await apiPost('/propostas', payload);
+        const finalId = Number(_propostasEditandoId || respSave?.id);
+        if (!finalId) {
+            Swal.close();
+            Swal.fire('Erro', 'Não foi possível salvar antes de enviar para assinatura.', 'error');
+            return;
+        }
+        _propostasEditandoId = finalId;
+        if (ehModoContrato) window._propostasEditandoId_contrato = finalId;
+        else window._propostasEditandoId_proposta = finalId;
 
         let htmlImpressaoSimples = '';
         try {
-            if (typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
+            if (ehModoContrato && typeof window.gerarHtmlContratoParaPropostaObj === 'function') {
                 const propObjAssinafy = Object.assign({}, propExistente || {}, payload, {
                     id: finalId,
                     contrato: (propExistente && propExistente.contrato) || obter('prop-codigo') || '',
@@ -1079,14 +1147,27 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
                 });
                 const htmlContratoMod = await window.gerarHtmlContratoParaPropostaObj(propObjAssinafy, false);
                 if (htmlContratoMod) htmlImpressaoSimples = htmlContratoMod;
+            } else {
+                const respDoc = await apiGet('/propostas/' + finalId + '/dados-documento-assinado');
+                if (respDoc && respDoc.dados) {
+                    const dDoc = respDoc.dados;
+                    const htmlQuadro = typeof window.renderBoxQuadroEventoHtml === 'function'
+                        ? window.renderBoxQuadroEventoHtml(dDoc, 'desktop', { modelo_tipo: dDoc.modelo_tipo || 'EVENTO' })
+                        : '';
+                    const urlAditivo = (dDoc.eh_aditivo && dDoc.aditivo && dDoc.aditivo.url) ? (dDoc.aditivo.url.startsWith('http') ? dDoc.aditivo.url : window.location.origin + dDoc.aditivo.url) : '';
+                    const htmlAditivo = urlAditivo ? '<img src="' + _escHtmlProp(urlAditivo) + '" alt="Imagem de Aditivo" style="width:100%; height:auto; display:block;">' : '';
+                    const urlAceite = (dDoc.aceite && dDoc.aceite.url) ? (dDoc.aceite.url.startsWith('http') ? dDoc.aceite.url : window.location.origin + dDoc.aceite.url) : '';
+                    const htmlAceite = urlAceite ? '<img src="' + _escHtmlProp(urlAceite) + '" alt="Imagem de Aceite" style="width:100%; height:auto; display:block;">' : '';
+                    htmlImpressaoSimples = '<div style="max-width:920px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' + htmlQuadro + htmlAditivo + htmlAceite + '</div>';
+                }
             }
         } catch (errHtml) {
-            console.warn('[ASSINATURA DIGITAL CONTRATO] Erro ao gerar HTML do contrato:', errHtml);
+            console.warn('[ASSINATURA DIGITAL] Erro ao gerar HTML para envio:', errHtml);
         }
 
         const respAssinafy = await apiPost(`/propostas/${finalId}/aprovar-aditivo-assinafy`, {
             reenviar: ehReenvio,
-            modo_contrato: true,
+            modo_contrato: ehModoContrato,
             html_impressao_simples: htmlImpressaoSimples,
             produtos_aprovados: produtosAprovadosSel,
             signatarios: listaSignatariosEscolhidos,
@@ -1103,16 +1184,16 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
             Swal.fire({
                 icon: 'success',
                 title: 'Enviado para Assinatura!',
-                html: `O PDF do contrato foi enviado para <strong>${listaSignatariosEscolhidos.length} signatário(s)</strong>:<br><div style="margin-top:8px; font-size:0.84rem; color:#334155;">${listaSignatariosEscolhidos.map(s => `• <strong>${_escHtmlProp(s.nome)}</strong> (${_escHtmlProp(s.tipo)}) — ${_escHtmlProp(s.email)}`).join('<br>')}</div>`,
+                html: `O ${ehModoContrato ? 'PDF do contrato' : 'PDF da proposta'} foi enviado para <strong>${listaSignatariosEscolhidos.length} signatário(s)</strong>:<br><div style="margin-top:8px; font-size:0.84rem; color:#334155;">${listaSignatariosEscolhidos.map(s => `• <strong>${_escHtmlProp(s.nome)}</strong> (${_escHtmlProp(s.tipo)}) — ${_escHtmlProp(s.email)}`).join('<br>')}</div>`,
                 confirmButtonColor: '#0f766e'
             });
         } else {
-            Swal.fire('Erro', 'Falha ao enviar contrato para assinatura: ' + (respAssinafy?.error || 'Erro desconhecido'), 'error');
+            Swal.fire('Erro', `Falha ao enviar ${ehModoContrato ? 'contrato' : 'proposta'} para assinatura: ` + (respAssinafy?.error || 'Erro desconhecido'), 'error');
         }
     } catch (e) {
         Swal.close();
-        console.error('[ASSINATURA DIGITAL CONTRATO] Erro:', e);
-        Swal.fire('Erro', 'Erro ao enviar contrato para assinatura: ' + e.message, 'error');
+        console.error('[ASSINATURA DIGITAL] Erro:', e);
+        Swal.fire('Erro', `Erro ao enviar ${ehModoContrato ? 'contrato' : 'proposta'} para assinatura: ` + e.message, 'error');
     }
 };
 
@@ -1208,12 +1289,15 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
     const tipos = typeof window.obterTiposSignatarioPermitidos === 'function'
         ? window.obterTiposSignatarioPermitidos(prop)
         : (window.ASSINAFY_TIPOS_SIGNATARIO || ['Responsável Legal', 'América Rental', 'Testemunha', 'Interveniente', 'Procurador']);
+    const ehModoContratoQuadro = window._modoTelaComercial === 'contrato';
+    const labelDocQuadro = ehModoContratoQuadro ? 'o Contrato' : 'a Proposta';
     const foiAssinadoGeral = Boolean(
         prop && (
             String(prop.assinafy_status || '').trim().toLowerCase() === 'assinado' ||
             (prop.assinafy_signed_r2_key && String(prop.assinafy_signed_r2_key).trim()) ||
             (prop.assinafy_signed_at && String(prop.assinafy_signed_at).trim()) ||
-            String(prop.situacao_contrato || '').trim().toUpperCase() === 'CONTRATO ASSINADO'
+            (ehModoContratoQuadro && String(prop.situacao_contrato || '').trim().toUpperCase() === 'CONTRATO ASSINADO') ||
+            (!ehModoContratoQuadro && ['PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(prop.fase_negociacao || '').trim().toUpperCase()))
         )
     );
     const fmtDtHr = (s) => {
@@ -1229,7 +1313,7 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
     const builderHtml = !foiAssinadoGeral ? `
         <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; margin-bottom:10px;">
             <div style="font-size:0.76rem; font-weight:700; color:#0f766e; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                <i class="ph ph-user-plus" style="font-size:0.95rem;"></i> Selecionar Contatos do Cliente e Tipo de Signatário para receber o Contrato:
+                <i class="ph ph-user-plus" style="font-size:0.95rem;"></i> Selecionar Contatos do Cliente e Tipo de Signatário para receber ${labelDocQuadro}:
             </div>
             <div style="display:grid; grid-template-columns: 1.15fr 1.6fr 1.55fr auto; gap:8px; align-items:end;">
                 <div>
@@ -1331,7 +1415,7 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
     const rodapeBotaoEnviarHtml = !foiAssinadoGeral ? `
         <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
             <span style="font-size:0.75rem; color:#475569;">
-                Adicione todos os signatários desejados na lista acima e clique em <strong>Enviar para Assinatura</strong> para disparar o contrato.
+                Adicione todos os signatários desejados na lista acima e clique em <strong>Enviar para Assinatura</strong> para disparar ${labelDocQuadro.toLowerCase()}.
             </span>
             <button type="button" id="btn-quadro-enviar-assinatura-contrato" onclick="window.enviarContratoParaAssinaturaPeloQuadro()"
                 style="background:#0f766e; color:#ffffff; border:none; padding:0.55rem 1.25rem; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(15,118,110,0.22); transition:background 0.15s;"
@@ -2854,6 +2938,9 @@ window._resetarEstadoMemoriaFormComercial = function(modo) {
     window._propDatasEntregaEquipamentos = [];
     window._propDatasRetiradaEquipamentos = [];
     window._propResponsaveisContrato = { nfe: [], cobranca: [], os: [], instalacao: '' };
+    window._propAditivoOperacao = 'adicionar';
+    window._propAditivoItensSubstituidos = { produtos: [], servicos: [] };
+    window._propSignatariosContratoDraft = [];
     window._propFormEditadoNaoSalvo = false;
     _propRegiaoIdentificada = '';
     window._ultimoClienteNomePropostaAtivo = '';
@@ -2902,7 +2989,10 @@ window.salvarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
         formEditadoNaoSalvo: Boolean(window._propFormEditadoNaoSalvo),
         regiaoIdentificada: _propRegiaoIdentificada || '',
         ultimoClienteAtivo: window._ultimoClienteNomePropostaAtivo || '',
-        contratoVinculadoTipoAtivo: window._contratoVinculadoTipoAtivo || ''
+        contratoVinculadoTipoAtivo: window._contratoVinculadoTipoAtivo || '',
+        aditivoOperacao: window._propAditivoOperacao || 'adicionar',
+        aditivoItensSubstituidos: JSON.parse(JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] })),
+        signatariosContratoDraft: JSON.parse(JSON.stringify(window._propSignatariosContratoDraft || []))
     };
     if (typeof window.atualizarTituloAbaPropostaAtiva === 'function') {
         window.atualizarTituloAbaPropostaAtiva(null, chave);
@@ -2946,6 +3036,11 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     window._propFormEditadoNaoSalvo = Boolean(snap.formEditadoNaoSalvo);
     _propRegiaoIdentificada = snap.regiaoIdentificada || '';
     window._ultimoClienteNomePropostaAtivo = snap.ultimoClienteAtivo || '';
+    window._propAditivoOperacao = snap.aditivoOperacao || 'adicionar';
+    window._propAditivoItensSubstituidos = JSON.parse(JSON.stringify(snap.aditivoItensSubstituidos || { produtos: [], servicos: [] }));
+    if (Array.isArray(snap.signatariosContratoDraft)) {
+        window._propSignatariosContratoDraft = JSON.parse(JSON.stringify(snap.signatariosContratoDraft));
+    }
 
     const campos = snap.campos || {};
     Object.keys(campos).forEach(id => {
@@ -2991,9 +3086,19 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
     if (typeof window.atualizarLayoutCamposVendaProposta === 'function') window.atualizarLayoutCamposVendaProposta(tipoLimpoRest, true);
     window._propProdutosAdicionados = produtosSnapBackup;
     window._propServicosAdicionados = servicosSnapBackup;
+    if (_propostasEditandoId && Array.isArray(_propostasData) && m === 'contrato' && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const propAtualCtr = _propostasData.find(p => Number(p.id) === Number(_propostasEditandoId));
+        if (propAtualCtr) {
+            const mescladoSnap = window.aplicarMesclagemAditivosNoContratoAtivo(propAtualCtr, window._propProdutosAdicionados, window._propServicosAdicionados);
+            window._propProdutosAdicionados = mescladoSnap.produtos;
+            window._propServicosAdicionados = mescladoSnap.servicos;
+        }
+    }
     if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
     if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
     if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
+    if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') window.atualizarBotaoOperacaoAditivoToolbar();
+    if (typeof window.atualizarVisibilidadeQuadroAssinaturaDigital === 'function') window.atualizarVisibilidadeQuadroAssinaturaDigital();
     if (_propostasEditandoId && Array.isArray(_propostasData)) {
         const propAtualDb = _propostasData.find(p => Number(p.id) === Number(_propostasEditandoId));
         if (propAtualDb && m === 'contrato') {
@@ -4082,8 +4187,9 @@ function _renderFormPropostaInt() {
     window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
-    window._propAditivoOperacao = (prop && String(prop.aditivo_operacao || '').trim().toLowerCase() === 'substituir')
-        ? 'substituir'
+    const opPropInit = prop ? String(prop.aditivo_operacao || '').trim().toLowerCase() : '';
+    window._propAditivoOperacao = (opPropInit === 'substituir' || opPropInit === 'adicionar_manutencao')
+        ? opPropInit
         : 'adicionar';
     try {
         const rawSubAd = prop && prop.aditivo_itens_substituidos_json
@@ -4248,8 +4354,8 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
                     <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || '').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
-                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.aprovarPropostaEdicao()" title="Enviar documento para assinatura via Assinafy para o e-mail do contato selecionado" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')) && !['EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase()))) ? 'inline-flex' : 'none'}; background:#0f766e; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'" onfocus="this.blur()"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
-                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.reenviarPropostaAssinafy(${id || 'null'})" title="Reenviar documento para assinatura via Assinafy" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato' && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && String(v('fase_negociacao') || '').trim().toUpperCase() === 'ENVIADO PARA ASSINATURA') ? 'inline-flex' : 'none'}; background:#0284c7; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#0369a1'" onmouseout="if(!this.disabled) this.style.background='#0284c7'" onfocus="this.blur()">
+                    <button type="button" id="btn-prop-enviar-assinafy" onclick="window.enviarContratoParaAssinaturaPeloQuadro()" title="Enviar documento para assinatura via Assinafy" style="display:none !important;"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
+                    <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.enviarContratoParaAssinaturaPeloQuadro()" title="Reenviar documento para assinatura via Assinafy" style="display:none !important;">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
                     </button>
                     <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${window._modoTelaComercial === 'contrato' ? 'Visualizar Contrato Assinado (Assinafy)' : ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada')}" style="display:${(!isNovo && (window._modoTelaComercial === 'contrato' ? Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) : window.propostaEstaAssinadaOuAprovada(prop))) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
@@ -4280,9 +4386,9 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
-                        <button type="button" id="btn-prop-aditivo-operacao" onclick="window.abrirModalOperacaoAditivoContratoBase()" title="Clique para alterar entre Adicionar ou Substituir produtos/serviços do contrato base" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') === 'ADITIVO' && (!isNovo || Boolean(v('contrato_vinculado')))) ? 'inline-flex' : 'none'}; background:${window._propAditivoOperacao === 'substituir' ? '#d97706' : '#0284c7'}; color:#ffffff; border:1px solid ${window._propAditivoOperacao === 'substituir' ? '#b45309' : '#0369a1'}; padding:0.45rem 0.95rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onfocus="this.blur()">
-                            <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : 'ph-plus-circle'}" style="font-size:1rem;"></i>
-                            <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : 'Adicionar'}</span>
+                        <button type="button" id="btn-prop-aditivo-operacao" onclick="window.abrirModalOperacaoAditivoContratoBase()" title="Clique para alterar a operação do aditivo no contrato base" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') === 'ADITIVO' && (!isNovo || Boolean(v('contrato_vinculado')))) ? 'inline-flex' : 'none'}; background:${window._propAditivoOperacao === 'substituir' ? '#d97706' : (window._propAditivoOperacao === 'adicionar_manutencao' ? '#7c3aed' : '#0284c7')}; color:#ffffff; border:1px solid ${window._propAditivoOperacao === 'substituir' ? '#b45309' : (window._propAditivoOperacao === 'adicionar_manutencao' ? '#6d28d9' : '#0369a1')}; padding:0.45rem 0.95rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onfocus="this.blur()">
+                            <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}" style="font-size:1rem;"></i>
+                            <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
                         <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && Boolean(v('contrato') && String(v('contrato')).trim()) && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                             <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-contrato">Contrato Nº ${_escHtmlProp(v('contrato') || '01')}</span>
@@ -5161,8 +5267,8 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Seção: Assinatura Digital (Exclusiva na tela de Contratos — sempre aberta, sem seta de abrir/fechar) -->
-                    <div id="prop-secao-assinatura-digital" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                    <!-- Seção: Assinatura Digital (Tela de Contratos e Propostas que enviam para Assinatura Digital) -->
+                    <div id="prop-secao-assinatura-digital" style="display:${(isModoContratoRender || (typeof window.propostaTipoUsaAssinafy === 'function' && window.propostaTipoUsaAssinafy(v('tipo')))) ? 'block' : 'none'}; background:#f0fdfa; border:1.5px solid #99f6e4; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; user-select:none;">
                             <h4 style="margin:0; font-size:0.82rem; color:#0f766e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
                                 <i class="ph ph-signature" style="font-size:1.05rem;"></i> Assinatura Digital
@@ -5604,29 +5710,12 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnEnviarAssinafy = document.getElementById('btn-prop-enviar-assinafy');
     if (btnEnviarAssinafy) {
-        if (!_propostasEditandoId || jaAssinadaReal || window._modoTelaComercial === 'contrato') {
-            btnEnviarAssinafy.style.display = 'none';
-        } else {
-            const podeEnvProp = usaAssinafyTipo && !['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'ENVIADO PARA ASSINATURA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'REPROVADA', 'CANCELADA'].includes(faseForm);
-            btnEnviarAssinafy.style.display = podeEnvProp ? 'inline-flex' : 'none';
-            if (podeEnvProp) {
-                btnEnviarAssinafy.disabled = false;
-                btnEnviarAssinafy.style.background = '#0f766e';
-                btnEnviarAssinafy.style.color = '#ffffff';
-                btnEnviarAssinafy.style.cursor = 'pointer';
-                btnEnviarAssinafy.style.pointerEvents = 'auto';
-            }
-        }
+        btnEnviarAssinafy.style.display = 'none';
     }
 
     const btnReenviarAssinafy = document.getElementById('btn-prop-reenviar-assinafy');
     if (btnReenviarAssinafy) {
-        if (!_propostasEditandoId || jaAssinadaReal || window._modoTelaComercial === 'contrato') {
-            btnReenviarAssinafy.style.display = 'none';
-        } else {
-            const mostrarReenviar = faseForm === 'ENVIADO PARA ASSINATURA';
-            btnReenviarAssinafy.style.display = mostrarReenviar ? 'inline-flex' : 'none';
-        }
+        btnReenviarAssinafy.style.display = 'none';
     }
 
     const btnDocAssinado = document.getElementById('btn-prop-doc-assinado');
@@ -9671,6 +9760,7 @@ window.salvarPropostaNova = async function() {
         }),
         aditivo_operacao: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (window._propAditivoOperacao || 'adicionar') : null,
         aditivo_itens_substituidos_json: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] }) : null,
+        assinafy_signatarios_json: (Array.isArray(window._propSignatariosContratoDraft) && window._propSignatariosContratoDraft.length > 0) ? JSON.stringify(window._propSignatariosContratoDraft) : undefined,
         proposta_comparativa: document.getElementById('prop-comparativa')?.checked ? 1 : 0,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
@@ -22380,7 +22470,11 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const dataFmt = dataIsoModal ? dataIsoModal.split('-').reverse().join('/') : '';
                 const codPropLimpo = String(p.codigo || '').trim();
                 const ehAditivoModalRow = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
-                const numCtBaseAditivo = ehAditivoModalRow
+                const aditivoEstaAssinadoModal = ehAditivoModalRow && Boolean(
+                    (typeof window.propostaFoiAssinadaViaAssinafy === 'function' && window.propostaFoiAssinadaViaAssinafy(p)) ||
+                    ['PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'APROVADA'].includes(String(p.fase_negociacao || '').trim().toUpperCase())
+                );
+                const numCtBaseAditivo = (ehAditivoModalRow && aditivoEstaAssinadoModal)
                     ? (typeof window.extrairNumeroContratoBaseLimpo === 'function'
                         ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || '')
                         : String(p.contrato_vinculado || '').trim())
@@ -24474,13 +24568,15 @@ window.atualizarBotaoOperacaoAditivoToolbar = function() {
     const ctVal = String(document.getElementById('prop-contrato-aditivo')?.value || '').trim();
     const mostrar = !isModoCtr && tipoVal === 'ADITIVO' && Boolean(_propostasEditandoId || ctVal);
     btn.style.display = mostrar ? 'inline-flex' : 'none';
-    const op = window._propAditivoOperacao === 'substituir' ? 'substituir' : 'adicionar';
-    btn.style.background = op === 'substituir' ? '#d97706' : '#0284c7';
-    btn.style.borderColor = op === 'substituir' ? '#b45309' : '#0369a1';
+    const op = window._propAditivoOperacao === 'substituir'
+        ? 'substituir'
+        : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'adicionar_manutencao' : 'adicionar');
+    btn.style.background = op === 'substituir' ? '#d97706' : (op === 'adicionar_manutencao' ? '#7c3aed' : '#0284c7');
+    btn.style.borderColor = op === 'substituir' ? '#b45309' : (op === 'adicionar_manutencao' ? '#6d28d9' : '#0369a1');
     const ico = document.getElementById('ico-btn-prop-aditivo-operacao');
-    if (ico) ico.className = `ph ${op === 'substituir' ? 'ph-arrows-left-right' : 'ph-plus-circle'}`;
+    if (ico) ico.className = `ph ${op === 'substituir' ? 'ph-arrows-left-right' : (op === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}`;
     const lbl = document.getElementById('lbl-btn-prop-aditivo-operacao');
-    if (lbl) lbl.textContent = op === 'substituir' ? 'Substituir' : 'Adicionar';
+    if (lbl) lbl.textContent = op === 'substituir' ? 'Substituir' : (op === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar');
 };
 
 window._gerarChaveItemContratoBaseParaAditivo = function(item, idx, tipoItem = 'produto') {
@@ -24565,7 +24661,22 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
         }
     }
 
-    const opAtual = window._propAditivoOperacao === 'substituir' ? 'substituir' : 'adicionar';
+    const tipoBaseCheck = String(
+        (pBase && (pBase.tipo || pBase.tabela_precos)) ||
+        inpCt?.getAttribute('data-contrato-tipo') ||
+        window._contratoVinculadoTipoAtivo ||
+        ''
+    ).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ehContratoBaseObra = tipoBaseCheck === 'OBRA'
+        || tipoBaseCheck === 'OBRA MENSAL'
+        || tipoBaseCheck === 'OBRA QUINZENAL'
+        || tipoBaseCheck === 'OBRA SEMANAL'
+        || tipoBaseCheck.startsWith('OBRA ');
+
+    const opRawAtu = String(window._propAditivoOperacao || '').trim().toLowerCase();
+    const opAtual = (opRawAtu === 'substituir' || (ehContratoBaseObra && opRawAtu === 'adicionar_manutencao'))
+        ? opRawAtu
+        : 'adicionar';
     const subAtuais = window._propAditivoItensSubstituidos || { produtos: [], servicos: [] };
     const chksProdsSalvos = Array.isArray(subAtuais.produtos) ? subAtuais.produtos : [];
     const chksServsSalvos = Array.isArray(subAtuais.servicos) ? subAtuais.servicos : [];
@@ -24576,7 +24687,8 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
         ? `<div style="padding:10px; color:#64748b; font-size:0.8rem; font-style:italic;">Nenhum produto vinculado ao contrato base.</div>`
         : prodsBase.map((p, idx) => {
             const chave = window._gerarChaveItemContratoBaseParaAditivo(p, idx, 'produto');
-            const marcado = window._itemContratoBaseCorrespondeSubstituido(p, idx, chksProdsSalvos, 'produto');
+            const marcado = window._itemContratoBaseCorrespondeSubstituido(p, idx, chksProdsSalvos, 'produto')
+                || (chksProdsSalvos.length === 0 && prodsBase.length === 1);
             const nome = String(p.produto || p.descricao || p.nome || `Produto ${idx + 1}`).replace(/^\d+\s*-\s*/, '').trim();
             const qtd = Number(p.quantidade || 1) || 1;
             const vTot = Number(p.valor_total ?? (qtd * Number(p.valor ?? p.valor_unitario ?? 0)) ?? 0);
@@ -24611,10 +24723,11 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
         }).join('');
 
     window._selecionarModoModalOperacaoAditivo = function(modo) {
-        const m = modo === 'substituir' ? 'substituir' : 'adicionar';
+        const m = (modo === 'substituir' || (ehContratoBaseObra && modo === 'adicionar_manutencao')) ? modo : 'adicionar';
         window._modoTempModalOperacaoAditivo = m;
         const btnAdd = document.getElementById('btn-modal-op-aditivo-add');
         const btnSub = document.getElementById('btn-modal-op-aditivo-sub');
+        const btnManut = document.getElementById('btn-modal-op-aditivo-manut');
         const boxSub = document.getElementById('box-modal-op-aditivo-lista-sub');
         if (btnAdd) {
             btnAdd.style.borderColor = m === 'adicionar' ? '#0284c7' : '#cbd5e1';
@@ -24626,8 +24739,13 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
             btnSub.style.background = m === 'substituir' ? '#fef3c7' : '#ffffff';
             btnSub.style.boxShadow = m === 'substituir' ? '0 0 0 2px rgba(217,119,6,0.25)' : 'none';
         }
+        if (btnManut) {
+            btnManut.style.borderColor = m === 'adicionar_manutencao' ? '#7c3aed' : '#cbd5e1';
+            btnManut.style.background = m === 'adicionar_manutencao' ? '#ede9fe' : '#ffffff';
+            btnManut.style.boxShadow = m === 'adicionar_manutencao' ? '0 0 0 2px rgba(124,58,237,0.25)' : 'none';
+        }
         if (boxSub) {
-            boxSub.style.display = m === 'substituir' ? 'block' : 'none';
+            boxSub.style.display = (m === 'substituir' || m === 'adicionar_manutencao') ? 'block' : 'none';
         }
     };
 
@@ -24635,34 +24753,45 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
 
     const respModal = await Swal.fire({
         title: `Aditivo do Contrato Nº ${_escHtmlProp(numCtExib)}`,
-        width: '680px',
+        width: ehContratoBaseObra ? '820px' : '680px',
         html: `
             <div style="text-align:left; font-family:'Inter', sans-serif;">
                 <p style="font-size:0.86rem; color:#334155; margin:0 0 12px 0;">
-                    Você gostaria de <strong>Adicionar</strong> novos produtos/serviços ao contrato base ou <strong>Substituir</strong> produtos/serviços existentes?
+                    Você gostaria de <strong>Adicionar</strong> novos produtos/serviços ao contrato base${ehContratoBaseObra ? ', <strong>Substituir</strong> produtos/serviços ou <strong>Adicionar Manutenção</strong>?' : ' ou <strong>Substituir</strong> produtos/serviços existentes?'}
                 </p>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+                <div style="display:grid; grid-template-columns:${ehContratoBaseObra ? '1fr 1fr 1fr' : '1fr 1fr'}; gap:10px; margin-bottom:14px;">
                     <button type="button" id="btn-modal-op-aditivo-add" onclick="window._selecionarModoModalOperacaoAditivo('adicionar')"
                         style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'adicionar' ? '#0284c7' : '#cbd5e1'}; background:${opAtual === 'adicionar' ? '#e0f2fe' : '#ffffff'}; cursor:pointer; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
-                        <span style="font-size:0.92rem; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:0.88rem; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-plus-circle" style="font-size:1.15rem;"></i> Adicionar Produtos / Serviços
                         </span>
-                        <span style="font-size:0.75rem; color:#475569; font-weight:500;">
+                        <span style="font-size:0.74rem; color:#475569; font-weight:500;">
                             Mantém todos os itens atuais do contrato e adiciona os novos itens deste aditivo.
                         </span>
                     </button>
                     <button type="button" id="btn-modal-op-aditivo-sub" onclick="window._selecionarModoModalOperacaoAditivo('substituir')"
                         style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'substituir' ? '#d97706' : '#cbd5e1'}; background:${opAtual === 'substituir' ? '#fef3c7' : '#ffffff'}; cursor:pointer; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
-                        <span style="font-size:0.92rem; font-weight:800; color:#b45309; display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:0.88rem; font-weight:800; color:#b45309; display:flex; align-items:center; gap:6px;">
                             <i class="ph ph-arrows-left-right" style="font-size:1.15rem;"></i> Substituir Produtos / Serviços
                         </span>
-                        <span style="font-size:0.75rem; color:#475569; font-weight:500;">
+                        <span style="font-size:0.74rem; color:#475569; font-weight:500;">
                             Selecione abaixo qual(is) produto(s) e/ou serviço(s) do contrato base serão substituídos.
                         </span>
                     </button>
+                    ${ehContratoBaseObra ? `
+                    <button type="button" id="btn-modal-op-aditivo-manut" onclick="window._selecionarModoModalOperacaoAditivo('adicionar_manutencao')"
+                        style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'adicionar_manutencao' ? '#7c3aed' : '#cbd5e1'}; background:${opAtual === 'adicionar_manutencao' ? '#ede9fe' : '#ffffff'}; cursor:pointer; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
+                        <span style="font-size:0.88rem; font-weight:800; color:#6d28d9; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-wrench" style="font-size:1.15rem;"></i> Adicionar Manutenção
+                        </span>
+                        <span style="font-size:0.74rem; color:#475569; font-weight:500;">
+                            Selecione abaixo qual(is) produto(s) do contrato base terão a manutenção alterada/substituída.
+                        </span>
+                    </button>
+                    ` : ''}
                 </div>
 
-                <div id="box-modal-op-aditivo-lista-sub" style="display:${opAtual === 'substituir' ? 'block' : 'none'}; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; max-height:340px; overflow-y:auto;">
+                <div id="box-modal-op-aditivo-lista-sub" style="display:${(opAtual === 'substituir' || opAtual === 'adicionar_manutencao') ? 'block' : 'none'}; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; max-height:340px; overflow-y:auto;">
                     <div style="font-size:0.78rem; font-weight:800; color:#b45309; text-transform:uppercase; margin-bottom:8px;">
                         Selecione qual(is) item(ns) do Contrato Base serão substituídos:
                     </div>
@@ -24684,7 +24813,7 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
         cancelButtonText: 'Fechar',
         preConfirm: () => {
             const modoEscolhido = window._modoTempModalOperacaoAditivo || 'adicionar';
-            if (modoEscolhido === 'substituir') {
+            if (modoEscolhido === 'substituir' || modoEscolhido === 'adicionar_manutencao') {
                 const prodsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-prod:checked')).map(c => c.value).filter(Boolean);
                 const servsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-serv:checked')).map(c => c.value).filter(Boolean);
                 if (prodsMarcados.length === 0 && servsMarcados.length === 0 && (prodsBase.length > 0 || servsBase.length > 0)) {
@@ -24692,7 +24821,7 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
                     return false;
                 }
                 return {
-                    operacao: 'substituir',
+                    operacao: modoEscolhido,
                     produtos: prodsMarcados,
                     servicos: servsMarcados
                 };
@@ -24780,9 +24909,10 @@ window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtos
 
     aditivos.forEach(ad => {
         const codAd = String(ad.codigo || ad.id || '').padStart(2, '0');
-        const opAd = String(ad.aditivo_operacao || '').trim().toLowerCase() === 'substituir' ? 'substituir' : 'adicionar';
+        const opRaw = String(ad.aditivo_operacao || '').trim().toLowerCase();
+        const ehSubstituicao = opRaw === 'substituir' || opRaw === 'adicionar_manutencao';
         let subObj = { produtos: [], servicos: [] };
-        if (opAd === 'substituir' && ad.aditivo_itens_substituidos_json) {
+        if (ehSubstituicao && ad.aditivo_itens_substituidos_json) {
             try {
                 const parsed = typeof ad.aditivo_itens_substituidos_json === 'object'
                     ? ad.aditivo_itens_substituidos_json
@@ -24792,19 +24922,6 @@ window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtos
                     servicos: Array.isArray(parsed.servicos) ? parsed.servicos : []
                 };
             } catch (_) {}
-        }
-
-        if (opAd === 'substituir') {
-            prodsOrig.forEach((pBase, idxB) => {
-                if (window._itemContratoBaseCorrespondeSubstituido(pBase, idxB, subObj.produtos, 'produto')) {
-                    pBase._substituido_por_aditivo = codAd;
-                }
-            });
-            servsOrig.forEach((sBase, idxS) => {
-                if (window._itemContratoBaseCorrespondeSubstituido(sBase, idxS, subObj.servicos, 'servico')) {
-                    sBase._substituido_por_aditivo = codAd;
-                }
-            });
         }
 
         let itensAd = [];
@@ -24819,6 +24936,24 @@ window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtos
             if (aprovAd.length > 0 && typeof window.itemComparativaEstaAprovado === 'function') {
                 itensAd = itensAd.filter((it, idx) => window.itemComparativaEstaAprovado(it, idx, aprovAd));
             }
+        }
+
+        if (ehSubstituicao) {
+            let marcouAlgumProd = false;
+            prodsOrig.forEach((pBase, idxB) => {
+                if (window._itemContratoBaseCorrespondeSubstituido(pBase, idxB, subObj.produtos, 'produto')) {
+                    pBase._substituido_por_aditivo = codAd;
+                    marcouAlgumProd = true;
+                }
+            });
+            if (!marcouAlgumProd && prodsOrig.length === 1 && itensAd.length > 0) {
+                prodsOrig[0]._substituido_por_aditivo = codAd;
+            }
+            servsOrig.forEach((sBase, idxS) => {
+                if (window._itemContratoBaseCorrespondeSubstituido(sBase, idxS, subObj.servicos, 'servico')) {
+                    sBase._substituido_por_aditivo = codAd;
+                }
+            });
         }
         itensAd.forEach(it => {
             if (!it) return;
@@ -25009,6 +25144,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     }
     if (typeof window.atualizarLayoutCamposVendaProposta === 'function') {
         window.atualizarLayoutCamposVendaProposta(tipoLimpo, false);
+    }
+    if (typeof window.atualizarVisibilidadeQuadroAssinaturaDigital === 'function') {
+        window.atualizarVisibilidadeQuadroAssinaturaDigital(tipoLimpo);
     }
     await window._garantirTabelasPrecoCarregadas(false);
     const inputProd = document.getElementById('prop-prod-codigo');
@@ -26154,11 +26292,22 @@ window.validarProprioAvulsoEquipamentosDiasContrato = function(prodRef, tipoOver
 };
 
 window.validarListaProdutosEquipamentosDiasContrato = function(tipoOverride = null) {
+    const itens = Array.isArray(window._propProdutosAdicionados) ? window._propProdutosAdicionados : [];
+    const itensAtivos = itens.filter(p => p && !p._substituido_por_aditivo);
+    if (itensAtivos.length === 0) {
+        const ehModoCtr = window._modoTelaComercial === 'contrato';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Produto Obrigatório', `É obrigatório adicionar pelo menos um Produto ${ehModoCtr ? 'no contrato' : 'na proposta'} antes de salvar.`, 'warning');
+        } else {
+            alert(`É obrigatório adicionar pelo menos um Produto ${ehModoCtr ? 'no contrato' : 'na proposta'} antes de salvar.`);
+        }
+        document.getElementById('prop-prod-codigo')?.focus();
+        return false;
+    }
     const t = typeof window.obterTipoEfetivoProposta === 'function'
         ? window.obterTipoEfetivoProposta(tipoOverride !== null ? tipoOverride : (document.getElementById('prop-tipo')?.value || ''))
         : String(tipoOverride || document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (t !== 'EQUIPAMENTOS') return true;
-    const itens = Array.isArray(window._propProdutosAdicionados) ? window._propProdutosAdicionados : [];
     for (let i = 0; i < itens.length; i++) {
         if (!window.validarProprioAvulsoEquipamentosDiasContrato(itens[i], tipoOverride)) {
             return false;

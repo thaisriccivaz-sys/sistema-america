@@ -1224,7 +1224,7 @@
         const ehObraPuroQuadro = modTipoQuadroUpper === 'OBRA' || modTipoQuadroUpper.startsWith('OBRA ');
         const listaServicosQuadro = (Array.isArray(d.servicos) && d.servicos.length > 0)
             ? d.servicos
-            : (ehObraPuroQuadro ? [{ quantidade: 1, nome: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 0, por_dia: 0, desconto: 0, total: 0 }] : []);
+            : (Boolean(d.eh_demo && ehObraPuroQuadro) ? [{ quantidade: 1, nome: 'MOBILIZAÇÃO / DESMOBILIZAÇÃO', descricao_proposta: '', observacao: '', quant_diarias: '—', unit: 0, por_dia: 0, desconto: 0, total: 0 }] : []);
 
         const temDescontoProdutosQuadro = itensNormalizadosQuadro.some(it => !it.fob && Number(it.desconto) > 0);
         const temDescontoServicosQuadro = listaServicosQuadro.some(it => !it.fob && Number(it.desconto) > 0);
