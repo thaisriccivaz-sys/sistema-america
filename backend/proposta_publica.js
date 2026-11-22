@@ -633,6 +633,16 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
         const servRaw = lerJson(p.itens_servicos);
         let somaPorDia = 0, somaTotalGeral = 0, somaTotalServicos = 0;
 
+        const gerarDatasIntervalo = (iniIso, fimIso) => {
+            const i = isoData(iniIso), f = isoData(fimIso);
+            if (!i || !f || i > f) return [];
+            const out = [];
+            const cur = new Date(i + 'T12:00:00Z'), end = new Date(f + 'T12:00:00Z');
+            let guard = 0;
+            while (cur <= end && guard < 730) { out.push(cur.toISOString().slice(0, 10)); cur.setUTCDate(cur.getUTCDate() + 1); guard++; }
+            return out;
+        };
+
         const formatarDiasCurtoItem = (it) => {
             let diasArr = Array.isArray(it && it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
             if (diasArr.length === 0 && p && p.dias_evento) {
@@ -649,6 +659,14 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             });
             datasIso.sort();
             if (datasIso.length === 0) return '';
+            let ehManutDiaria = Boolean((it && it.manutencao_diaria) || (p && p.manutencao_diaria));
+            if (p && p.periodo_inicio && p.periodo_fim && datasIso.length > 0) {
+                const todasPeriodo = gerarDatasIntervalo(p.periodo_inicio, p.periodo_fim);
+                if (todasPeriodo.length > 1) {
+                    ehManutDiaria = todasPeriodo.length === datasIso.length && todasPeriodo.every((d, i) => datasIso[i] === d);
+                }
+            }
+            if (ehManutDiaria) return 'Manutenção diária';
             return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
         };
 
@@ -733,15 +751,6 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             if (m2) return String(parseInt(m2[1], 10)).padStart(2, '0');
             if (idRaw && /^\d+$/.test(String(idRaw))) return String(parseInt(idRaw, 10)).padStart(2, '0');
             return c1 || '01';
-        };
-        const gerarDatasIntervalo = (iniIso, fimIso) => {
-            const i = isoData(iniIso), f = isoData(fimIso);
-            if (!i || !f || i > f) return [];
-            const out = [];
-            const cur = new Date(i + 'T12:00:00Z'), end = new Date(f + 'T12:00:00Z');
-            let guard = 0;
-            while (cur <= end && guard < 730) { out.push(cur.toISOString().slice(0, 10)); cur.setUTCDate(cur.getUTCDate() + 1); guard++; }
-            return out;
         };
         const datasSet = new Set();
         let flagManutDiaria = false;

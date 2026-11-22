@@ -316,10 +316,23 @@
             </span>`;
         }).join('')}</div>` : (() => {
             if (!dias.length) return '';
-            const datasOrd = dias.map(d => parse(d).data).filter(Boolean);
-            const resumo = datasOrd.length > 3
-                ? `${fmtData(datasOrd[0])} até ${fmtData(datasOrd[datasOrd.length - 1])}`
-                : datasOrd.map(fmtData).join(', ');
+            const datasOrd = [...new Set(dias.map(d => parse(d).data).filter(Boolean))].sort();
+            let ehManutDiaria = Boolean(p && p.manutencao_diaria);
+            if (typeof window.obterIntervaloPeriodoProposta === 'function' && typeof window._gerarDatasIntervaloIso === 'function') {
+                const per = window.obterIntervaloPeriodoProposta();
+                if (per.valido) {
+                    const todas = window._gerarDatasIntervaloIso(per.ini, per.fim);
+                    if (todas.length > 1) {
+                        ehManutDiaria = todas.length === datasOrd.length && todas.every((d, i) => datasOrd[i] === d);
+                        if (p) p.manutencao_diaria = ehManutDiaria;
+                    }
+                }
+            }
+            const resumo = ehManutDiaria
+                ? 'Manutenção diária'
+                : (datasOrd.length > 3
+                    ? `${fmtData(datasOrd[0])} até ${fmtData(datasOrd[datasOrd.length - 1])}`
+                    : datasOrd.map(fmtData).join(', '));
             return `<span onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="Clique para aumentar os detalhes das diárias deste produto">
                 <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${dias.length} diária${dias.length > 1 ? 's' : ''} (${esc(resumo)})
             </span>`;

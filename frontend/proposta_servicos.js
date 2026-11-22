@@ -12,7 +12,7 @@
     const inputCss = 'width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;';
 
     window.TIPOS_PROPOSTA_COM_SERVICOS = ['OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL'];
-    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EQUIPAMENTOS', 'EQUIPAMENTO', 'ADITIVO'];
+    window.TIPOS_PROPOSTA_SERVICO_OPCIONAL = ['EVENTO', 'EQUIPAMENTOS', 'EQUIPAMENTO', 'ADITIVO'];
 
     const tipoProprioProposta = (tipo) => {
         const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '') ? tipo : (document.getElementById('prop-tipo')?.value || '');
@@ -30,10 +30,13 @@
     window.tipoPropostaServicoObrigatorio = function (tipo) {
         const proprio = tipoProprioProposta(tipo);
         const atualDom = tipoProprioProposta();
-        if (proprio === 'EQUIPAMENTOS' || proprio === 'EQUIPAMENTO' || atualDom === 'EQUIPAMENTOS' || atualDom === 'EQUIPAMENTO') {
+        if (proprio === 'EVENTO' || proprio === 'EQUIPAMENTOS' || proprio === 'EQUIPAMENTO' || atualDom === 'EVENTO' || atualDom === 'EQUIPAMENTOS' || atualDom === 'EQUIPAMENTO') {
             return false;
         }
         const tEfetivo = String(tipoLimpo(tipo) || '').trim().toUpperCase();
+        if (tEfetivo === 'EVENTO' || tEfetivo === 'EQUIPAMENTOS' || tEfetivo === 'EQUIPAMENTO') {
+            return false;
+        }
         const ehObraEfetivo = window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo) || tEfetivo === 'OBRA' || tEfetivo.startsWith('OBRA ');
         if (proprio === 'ADITIVO' || atualDom === 'ADITIVO') {
             const opAditivo = String(window._propAditivoOperacao || 'adicionar').trim().toLowerCase();
@@ -51,7 +54,7 @@
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo);
     };
 
-    /* O quadro de Serviços aparece em todos os modelos na tela de Contratos, e na proposta em OBRA, EQUIPAMENTOS e ADITIVO */
+    /* O quadro de Serviços aparece em todos os modelos na tela de Contratos, e na proposta em OBRA, EVENTO, EQUIPAMENTOS e ADITIVO */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
         if (window._modoTelaComercial === 'contrato') return true;

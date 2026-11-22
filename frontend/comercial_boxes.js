@@ -748,6 +748,14 @@
         });
         datasIso.sort();
         if (datasIso.length === 0) return '';
+        let ehManutDiaria = Boolean((it && it.manutencao_diaria) || (proposta && proposta.manutencao_diaria));
+        if (proposta && proposta.periodo_inicio && proposta.periodo_fim && datasIso.length > 0) {
+            const todasPeriodo = gerarDatasIntervaloIsoBox(proposta.periodo_inicio, proposta.periodo_fim);
+            if (todasPeriodo.length > 1) {
+                ehManutDiaria = todasPeriodo.length === datasIso.length && todasPeriodo.every((d, i) => datasIso[i] === d);
+            }
+        }
+        if (ehManutDiaria) return 'Manutenção diária';
         return datasIso.map(iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`).join(', ');
     }
 

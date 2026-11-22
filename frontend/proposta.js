@@ -23677,7 +23677,11 @@ window.renderizarDiasEventoProposta = function() {
         const per = window.obterIntervaloPeriodoProposta();
         if (per.valido && typeof window._gerarDatasIntervaloIso === 'function') {
             const todas = window._gerarDatasIntervaloIso(per.ini, per.fim);
-            chkManutEl.checked = todas.length > 0 && todas.length === lista.length && todas.every((d, i) => lista[i] === d);
+            if (todas.length > 1) {
+                chkManutEl.checked = todas.length === lista.length && todas.every((d, i) => lista[i] === d);
+            } else if (lista.length === 0) {
+                chkManutEl.checked = false;
+            }
         } else if (lista.length === 0) {
             chkManutEl.checked = false;
         }
@@ -26077,16 +26081,12 @@ window.filtrarEquipamentosBasePorTipoProposta = function(produtos, tipoPropostaR
         const nomeNorm = normStr(p.nome);
 
         if (tipoNorm === 'evento' || tipoNorm === 'equipamentos' || tipoNorm === 'equipamento') {
-            // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA (exceto CONTAINER), apenas os outros (parceiros e avulsos); serviços aparecem em Produto
+            // Tipo EVENTO / EQUIPAMENTOS: não mostrar os produtos do grupo de fornecimento PACOTE OBRA (exceto CONTAINER), apenas os outros (parceiros e avulsos)
             if ((fonteNorm === 'pacote obra' || fonteNorm.includes('pacote obra')) && grupoNorm !== 'container') {
                 return false;
             }
-            // Quando for uma proposta do tipo EQUIPAMENTOS, não mostrar os produtos do grupo AVARIA nem SERVIÇOS (serviços ficam no quadro "Serviços da Proposta")
-            if ((tipoNorm === 'equipamentos' || tipoNorm === 'equipamento') && (grupoNorm === 'avaria' || grupoNorm === 'avarias' || grupoNorm.includes('avaria') || grupoNorm === 'servicos' || grupoNorm === 'servico')) {
-                return false;
-            }
-            // Não mostrar produtos de mobilização/desmobilização ZC, ZA, ZV, VZ nem produtos do tipo SERVIÇOS que tenham ZC, ZA, ZV ou VZ no nome em propostas/aditivos de evento
-            if (tipoNorm === 'evento' && (window.ehProdutoMobilizacaoOuDesmobilizacaoZona(p) || window.ehProdutoServicoComZonaEvento(p))) {
+            // Não mostrar os produtos do grupo AVARIA nem SERVIÇOS no quadro de Produtos (serviços ficam apenas no quadro "Serviços")
+            if (grupoNorm === 'avaria' || grupoNorm === 'avarias' || grupoNorm.includes('avaria') || grupoNorm === 'servicos' || grupoNorm === 'servico') {
                 return false;
             }
         } else if (tipoNorm === 'venda') {
@@ -26220,7 +26220,7 @@ window.abrirModalBuscaProdutos = async function(termoInicial = '', produtosPreCa
             gruposSet.add('AVARIA');
         }
     } else if (tipoNorm !== 'venda') {
-        (['obra mensal', 'obra quinzenal', 'obra semanal', 'equipamentos', 'equipamento'].includes(tipoNorm) ? ['CONTAINER', 'TRAILER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'TRAILER', 'VAC']).forEach(gPad => {
+        (['obra mensal', 'obra quinzenal', 'obra semanal', 'equipamentos', 'equipamento', 'evento'].includes(tipoNorm) ? ['CONTAINER', 'TRAILER', 'VAC'] : ['CONTAINER', 'SERVIÇOS', 'TRAILER', 'VAC']).forEach(gPad => {
             if (!Array.from(gruposSet).some(x => normStr(x) === normStr(gPad))) {
                 gruposSet.add(gPad);
             }
@@ -26790,6 +26790,13 @@ window.adicionarProdutoProposta = async function() {
     }
 
     const ehProdServico = (typeof window.produtoEhTipoServico === 'function') && window.produtoEhTipoServico({ codigo, nome: produtoNome, produto: produtoNome });
+    const tipoEfetivoAddProd = typeof window.obterTipoEfetivoProposta === 'function'
+        ? String(window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '') || '').trim().toUpperCase()
+        : '';
+    if (ehProdServico && !tipoEfetivoAddProd.startsWith('LIMPA FOSSA') && typeof window.tipoPropostaUsaServicos === 'function' && window.tipoPropostaUsaServicos()) {
+        alert('Os itens do grupo Serviços devem ser adicionados apenas no quadro "Serviços" abaixo.');
+        return;
+    }
 
     let diasSelecionados = [];
     if (window.tipoPropostaUsaDiasEvento() && !ehProdServico) {
@@ -30859,6 +30866,33 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
             ? window.formatarDiariasEventoDdMmOuIntervalo(diasArr)
             : { count: 0, texto: '' };
         const diariasDdMmTxt = infoDiarias.texto;
+        const manutencaoDiaria = (() => {
+            if (!ehContratoEvento || ehItemServico) return false;
+            const datasIsoIt = [];
+            diasArr.forEach(entry => {
+                const s = (typeof entry === 'object' ? String(entry.data || entry.dia || entry.iso || '') : String(entry || '')).trim();
+                const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                const mBr = !mIso ? s.match(/^(\d{2})\/(\d{2})(?:\/(\d{4}))?/) : null;
+                if (mIso) {
+                    const k = `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+                    if (!datasIsoIt.includes(k)) datasIsoIt.push(k);
+                } else if (mBr) {
+                    const yr = mBr[3] || String(new Date().getFullYear());
+                    const k = `${yr}-${mBr[2]}-${mBr[1]}`;
+                    if (!datasIsoIt.includes(k)) datasIsoIt.push(k);
+                }
+            });
+            datasIsoIt.sort();
+            const pIni = String((propostaObj && propostaObj.periodo_inicio) || document.getElementById('prop-periodo-ini')?.value || '').trim().slice(0, 10);
+            const pFim = String((propostaObj && propostaObj.periodo_fim) || document.getElementById('prop-periodo-fim')?.value || '').trim().slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(pIni) && /^\d{4}-\d{2}-\d{2}$/.test(pFim) && typeof window._gerarDatasIntervaloIso === 'function') {
+                const todas = window._gerarDatasIntervaloIso(pIni, pFim);
+                if (todas.length > 1 && datasIsoIt.length > 0) {
+                    return todas.length === datasIsoIt.length && todas.every((d, i) => datasIsoIt[i] === d);
+                }
+            }
+            return Boolean(it.manutencao_diaria || (propostaObj && propostaObj.manutencao_diaria));
+        })();
         const nDiarias = (ehContratoEvento && !ehItemServico)
             ? (infoDiarias.count > 0
                 ? infoDiarias.count
@@ -30890,6 +30924,7 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
             qtd,
             nDiarias: ehItemServico ? 1 : nDiarias,
             diariasDdMmTxt,
+            manutencaoDiaria,
             unitBase: base,
             unitLiq,
             grossDia,
@@ -30913,6 +30948,7 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
                 <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; vertical-align:top; ${x.styleRiscadoDoc}">
                     <div style="font-weight:700; color:#0f172a;">${x.nDiarias}</div>
                     ${x.diariasDdMmTxt ? `<div style="font-weight:400; font-size:7pt; color:#475569; margin-top:2px; line-height:1.25;">${_escHtmlProp(x.diariasDdMmTxt)}</div>` : ''}
+                    ${x.manutencaoDiaria ? `<div style="font-weight:600; font-size:7pt; color:#475569; margin-top:2px; line-height:1.25;">Manutenção diária</div>` : ''}
                 </td>
                 <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.unitBase)}</td>
                 <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.grossDia)}</td>
