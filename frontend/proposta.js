@@ -4986,10 +4986,11 @@ function _renderFormPropostaInt() {
                                             placeholder="Digite para filtrar ou pesquise o cliente interveniente..."
                                             onfocus="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
                                             oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true); if(typeof window.onChangeIntervenienteContratoInput === 'function') window.onChangeIntervenienteContratoInput(this.value);"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato(document.getElementById('btn-pesq-interveniente-prop')); }"
                                             style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none !important;">
                                         <div id="prop-interveniente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
                                     </div>
-                                    <button type="button" onclick="if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato();" title="Pesquisar Cliente Interveniente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
+                                    <button type="button" id="btn-pesq-interveniente-prop" onclick="if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato(this);" title="Pesquisar Cliente Interveniente" style="background:#2563eb; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
                                         <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
                                     </button>
                                     <button type="button" onclick="if(typeof window.cadastrarNovoClienteIntervenienteContrato === 'function') window.cadastrarNovoClienteIntervenienteContrato();" title="Cadastrar Novo Cliente Interveniente (com Cliente Centralizador preenchido automaticamente)" style="background:#eab308; color:white; border:none; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
@@ -31119,6 +31120,36 @@ window.toggleDropdownContatosIntervenienteContrato = function(e) {
     }
 };
 
+window.filtrarListaClientesInterveniente = function(lista, termoRaw) {
+    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termoRaw);
+    const qDigits = String(termoRaw || '').replace(/\D/g, '');
+    const qDigitsNoZero = qDigits.replace(/^0+/, '');
+    if (!q && !qDigits) return Array.isArray(lista) ? lista : [];
+    return (Array.isArray(lista) ? lista : []).filter(c => {
+        const cod = String(c.codigo || '').toLowerCase().trim();
+        const razao = norm(c.nome_razao_social);
+        const fant = norm(c.nome_fantasia);
+        const doc = String(c.cpf_cnpj || '').toLowerCase();
+        const cDoc = doc.replace(/\D/g, '');
+        const cDocNoZero = cDoc.replace(/^0+/, '');
+        const matchTexto = Boolean(q) && (
+            cod === q ||
+            cod.includes(q) ||
+            (razao && razao.includes(q)) ||
+            (fant && fant.includes(q)) ||
+            doc.includes(q)
+        );
+        const matchDigitos = Boolean(qDigits) && Boolean(cDoc) && (
+            cDoc === qDigits ||
+            (qDigitsNoZero.length >= 8 && cDocNoZero === qDigitsNoZero) ||
+            (qDigits.length >= 3 && cDoc.includes(qDigits)) ||
+            (qDigitsNoZero.length >= 3 && cDocNoZero.includes(qDigitsNoZero))
+        );
+        return matchTexto || matchDigitos;
+    });
+};
+
 window.filtrarDropdownIntervenienteContrato = async function(termo = '', abrir = true) {
     const drop = document.getElementById('prop-interveniente-dropdown');
     if (!drop) return;
@@ -31127,13 +31158,7 @@ window.filtrarDropdownIntervenienteContrato = async function(termo = '', abrir =
     if (!lista.length && typeof window.obterClientesCache === 'function') {
         lista = await window.obterClientesCache().catch(() => []);
     }
-    const norm = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const q = norm(termo);
-    const filtrados = (!q ? lista : lista.filter(c =>
-        norm(c.nome_razao_social).includes(q) ||
-        norm(c.nome_fantasia).includes(q) ||
-        String(c.cpf_cnpj || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-    )).slice(0, 60);
+    const filtrados = window.filtrarListaClientesInterveniente(lista, termo).slice(0, 60);
 
     if (!filtrados.length) {
         drop.innerHTML = '<div style="padding:8px 10px; font-size:0.78rem; color:#94a3b8;">Nenhum cliente encontrado.</div>';
@@ -31167,10 +31192,134 @@ if (!window._listenerCloseIntervenienteDropdown && typeof document !== 'undefine
     });
 }
 
-window.abrirModalPesquisaIntervenienteContrato = async function() {
+window.abrirModalPesquisaIntervenienteContrato = async function(btnEl = null) {
     const inp = document.getElementById('prop-interveniente');
-    await window.filtrarDropdownIntervenienteContrato(inp ? inp.value : '', true);
-    if (inp) inp.focus();
+    const queryRaw = (inp?.value || '').trim();
+    const query = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(queryRaw)
+        : queryRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    const drop = document.getElementById('prop-interveniente-dropdown');
+    if (drop) drop.style.display = 'none';
+
+    const btn = btnEl || document.getElementById('btn-pesq-interveniente-prop');
+    const origBtnHtml = btn ? btn.innerHTML : '<i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>';
+    if (btn) {
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:0.95rem;"></i>';
+        btn.disabled = true;
+    }
+
+    try {
+        await new Promise(r => setTimeout(r, 25));
+        let clientes = Array.isArray(_clientesCache) && _clientesCache.length > 0 ? _clientesCache : [];
+        if (!clientes.length && typeof window.obterClientesCache === 'function') {
+            clientes = await window.obterClientesCache().catch(() => []);
+        }
+        if (!clientes || clientes.length === 0) {
+            clientes = await apiGet('/clientes').catch(() => []) || [];
+            _clientesCache = clientes;
+        }
+        window._tempClientesParaPesquisaInterveniente = clientes;
+
+        window.filtrarClientesIntervenienteGrid = function(termoOverride) {
+            const tbody = document.getElementById('grid-clientes-interveniente-body');
+            const infoEl = document.getElementById('pesq-cli-interv-info');
+            if (!tbody) return;
+            const rawVal = termoOverride !== undefined
+                ? termoOverride
+                : (document.getElementById('pesq-cli-interv-input')?.value || '');
+            const filtered = window.filtrarListaClientesInterveniente(window._tempClientesParaPesquisaInterveniente || [], rawVal);
+            const exibidos = filtered.slice(0, 150);
+            if (infoEl) {
+                infoEl.textContent = `Exibindo ${exibidos.length} de ${filtered.length} cliente(s)`;
+            }
+
+            if (exibidos.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="padding:2rem; text-align:center; color:#64748b;">
+                            <div style="font-weight:600; margin-bottom:0.5rem;">Nenhum cliente encontrado para "${_escHtmlProp(rawVal)}".</div>
+                            <button type="button" onclick="Swal.close(); window.cadastrarNovoClienteIntervenienteContrato();" style="background:#16a34a; color:#fff; border:none; padding:0.45rem 0.9rem; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.8rem;">
+                                <i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente Interveniente
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = exibidos.map(c => {
+                const razao = c.nome_razao_social || c.nome_fantasia || '';
+                const razaoComIcone = typeof window.formatarNomeClienteComIcone === 'function'
+                    ? window.formatarNomeClienteComIcone(c, c.grupo_clientes, window._tempClientesParaPesquisaInterveniente)
+                    : razao;
+                const razaoEsc = String(razaoComIcone).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `
+                <tr onclick="window.selecionarClienteIntervenienteDropdown(${Number(c.id) || 'null'}, '${razaoEsc}'); Swal.close();" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:0.5rem; text-align:left; font-weight:bold; color:#7048e8;">${_escHtmlProp(c.codigo || '')}</td>
+                    <td style="padding:0.5rem; text-align:left; font-weight:600; color:#1e293b;">${_escHtmlProp(razaoComIcone)}</td>
+                    <td style="padding:0.5rem; text-align:left; color:#475569;">${_escHtmlProp(c.cpf_cnpj || '—')}</td>
+                </tr>
+                `;
+            }).join('');
+        };
+
+        const safeQuery = query.replace(/"/g, '&quot;');
+        Swal.fire({
+            title: 'Pesquisar Cliente Interveniente',
+            width: '780px',
+            html: `
+                <div style="margin-bottom:0.65rem; text-align:left; font-family:'Inter', sans-serif;">
+                    <input type="text" id="pesq-cli-interv-input" value="${safeQuery}"
+                        oninput="window.filtrarClientesIntervenienteGrid(this.value)"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault(); const firstRow = document.querySelector('#grid-clientes-interveniente-body tr[onclick]'); if(firstRow) firstRow.click();}"
+                        placeholder="Digite código, razão social, nome fantasia ou CPF/CNPJ..."
+                        style="width:100%; padding:0.55rem 0.75rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; outline:none; text-transform:none !important;">
+                    <div id="pesq-cli-interv-info" style="font-size:0.75rem; color:#64748b; margin-top:4px;"></div>
+                </div>
+                <div style="max-height:380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff; font-family:'Inter', sans-serif;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; position:sticky; top:0; z-index:1;">
+                                <th style="padding:0.5rem; text-align:left; width:85px;">Código</th>
+                                <th style="padding:0.5rem; text-align:left;">Nome / Razão Social</th>
+                                <th style="padding:0.5rem; text-align:left; width:170px;">CPF / CNPJ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="grid-clientes-interveniente-body"></tbody>
+                    </table>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: '<i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente',
+            confirmButtonColor: '#16a34a',
+            showCancelButton: true,
+            cancelButtonText: 'Fechar',
+            cancelButtonColor: '#64748b',
+            didOpen: () => {
+                window.filtrarClientesIntervenienteGrid(query);
+                setTimeout(() => {
+                    const inputModal = document.getElementById('pesq-cli-interv-input');
+                    if (inputModal) {
+                        inputModal.focus();
+                        const len = inputModal.value.length;
+                        try { inputModal.setSelectionRange(len, len); } catch (_) {}
+                    }
+                }, 50);
+            }
+        }).then((res) => {
+            if (res.isConfirmed) {
+                window.cadastrarNovoClienteIntervenienteContrato();
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Erro', 'Não foi possível carregar os clientes: ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = origBtnHtml;
+            btn.disabled = false;
+        }
+    }
 };
 
 window.formatarDiariasEventoDdMmOuIntervalo = function(arrRaw) {
