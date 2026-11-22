@@ -1362,20 +1362,42 @@ window.sincronizarAssinaturaDigitalQuadroContrato = async function(silencioso = 
             window._propSignatariosContratoDraft = window.obterListaSignatariosProposta(propAtual);
             window.atualizarQuadroAssinaturaDigitalDom();
             const selFase = document.getElementById('prop-fase');
-            const cfgSit = typeof window.obterConfigSituacaoContrato === 'function'
-                ? window.obterConfigSituacaoContrato(propAtual.situacao_contrato)
-                : null;
-            const sitCtr = (cfgSit && cfgSit.nome) || String(propAtual.situacao_contrato || 'EM ELABORAÇÃO').trim();
-            if (selFase && window._modoTelaComercial === 'contrato' && sitCtr) {
-                if (!Array.from(selFase.options).some(o => o.value === sitCtr)) {
-                    const optTmp = document.createElement('option');
-                    optTmp.value = sitCtr;
-                    optTmp.textContent = sitCtr;
-                    selFase.appendChild(optTmp);
+            if (window._modoTelaComercial === 'contrato') {
+                const cfgSit = typeof window.obterConfigSituacaoContrato === 'function'
+                    ? window.obterConfigSituacaoContrato(propAtual.situacao_contrato)
+                    : null;
+                const sitCtr = (cfgSit && cfgSit.nome) || String(propAtual.situacao_contrato || 'EM ELABORAÇÃO').trim();
+                if (selFase && sitCtr) {
+                    if (!Array.from(selFase.options).some(o => o.value === sitCtr)) {
+                        const optTmp = document.createElement('option');
+                        optTmp.value = sitCtr;
+                        optTmp.textContent = sitCtr;
+                        selFase.appendChild(optTmp);
+                    }
+                    selFase.value = sitCtr;
+                    if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                        window.atualizarBadgeSituacaoContratoForm(sitCtr);
+                    }
                 }
-                selFase.value = sitCtr;
-                if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
-                    window.atualizarBadgeSituacaoContratoForm(sitCtr);
+            } else {
+                const cfgFase = typeof window.obterConfigFaseNegociacao === 'function'
+                    ? window.obterConfigFaseNegociacao(propAtual.fase_negociacao)
+                    : null;
+                const faseProp = (cfgFase && cfgFase.nome) || String(propAtual.fase_negociacao || 'Em Elaboração').trim();
+                if (selFase && faseProp) {
+                    if (!Array.from(selFase.options).some(o => o.value === faseProp)) {
+                        const optTmp = document.createElement('option');
+                        optTmp.value = faseProp;
+                        optTmp.textContent = faseProp;
+                        selFase.appendChild(optTmp);
+                    }
+                    selFase.value = faseProp;
+                    if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
+                        window.atualizarBadgeSituacaoContratoForm(faseProp);
+                    }
+                }
+                if (String(propAtual.fase_negociacao || '').trim().toUpperCase() === 'PROPOSTA ASSINADA' || (typeof window.propostaFoiAssinadaViaAssinafy === 'function' && window.propostaFoiAssinadaViaAssinafy(propAtual))) {
+                    await abrirFormProposta(_propostasEditandoId);
                 }
             }
             if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
@@ -3255,7 +3277,11 @@ window.restaurarSnapshotEstadoFormComercial = function(modo, tabIdOverride) {
             window._propProdutosAdicionados = mescladoSnap.produtos;
             window._propServicosAdicionados = mescladoSnap.servicos;
         }
+        if (typeof window.sincronizarEMesclarAditivosContratoAberto === 'function') {
+            window.sincronizarEMesclarAditivosContratoAberto(_propostasEditandoId);
+        }
     }
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') window.sincronizarChipsEnderecosInstalacaoProposta();
     if (typeof window.renderizarDiasEventoProposta === 'function') window.renderizarDiasEventoProposta(false);
     if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
     if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
@@ -4990,29 +5016,30 @@ function _renderFormPropostaInt() {
                                     <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                             </div>
-                            <div id="prop-wrapper-endereco-instalacao" style="display:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'none' : 'flex'}; gap:0.4rem; align-items:center; flex:2 1 360px;">
+                            <div id="prop-wrapper-endereco-instalacao" style="display:${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? 'none' : 'flex'}; gap:0.4rem; align-items:center; flex:2 1 360px; flex-wrap:wrap;">
                                 <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
-                                <div id="prop-endereco-combo-wrap" style="position:relative; flex:1;">
+                                <div id="prop-endereco-combo-wrap" style="position:relative; flex:1; min-width:220px;">
                                     <input type="text" id="prop-endereco" name="prop_endereco_custom_nofill" value="${_escHtmlProp(window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '' : v('endereco_instalacao'))}"
                                         autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" readonly
                                         onfocus="const el=this; setTimeout(()=>el.removeAttribute('readonly'),20); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
                                         onclick="this.removeAttribute('readonly'); if(typeof window.abrirDropdownEnderecosProposta === 'function') window.abrirDropdownEnderecosProposta(true);"
-                                        oninput="if(typeof window.filtrarDropdownEnderecosProposta === 'function') window.filtrarDropdownEnderecosProposta(this.value); window.classificarRegiaoEDiasDebounced();"
-                                        onchange="window.classificarRegiaoEDias()"
+                                        oninput="if(typeof window.filtrarDropdownEnderecosProposta === 'function') window.filtrarDropdownEnderecosProposta(this.value); if(typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') window.sincronizarChipsEnderecosInstalacaoProposta(); window.classificarRegiaoEDiasDebounced();"
+                                        onchange="if(typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') window.sincronizarChipsEnderecosInstalacaoProposta(); window.classificarRegiaoEDias()"
                                         onkeydown="this.removeAttribute('readonly'); if(typeof window.onKeyDownEnderecoProposta === 'function'){ window.onKeyDownEnderecoProposta(event); }"
-                                        style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;height:28px;" placeholder="Selecione ou digite o endereço de instalação vinculado ao cliente">
+                                        style="width:100%;padding:0.45rem 1.8rem 0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;cursor:text;height:28px;" placeholder="Selecione ou digite o(s) endereço(s) de instalação...">
                                     <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownEnderecosProposta === 'function') window.toggleDropdownEnderecosProposta(event);" title="Selecionar endereço cadastrado para este cliente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
                                         <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
                                     </button>
                                     <div id="prop-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1050; font-family:'Inter',sans-serif;"></div>
                                 </div>
-                                <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#2563eb; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar Endereço de Instalação">
+                                <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#2563eb; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar / Adicionar Endereço de Instalação">
                                     <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                                 <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
                                     <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                                 <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
+                                <div id="prop-enderecos-instalacao-chips" style="display:none; width:100%; flex-wrap:wrap; gap:6px; margin-top:4px; align-items:center;"></div>
                             </div>
                         </div>
                         </div>
@@ -5021,8 +5048,9 @@ function _renderFormPropostaInt() {
                     <!-- Seção: Produtos -->
                     <div id="prop-secao-produtos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
-                            <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                            <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                 <i class="ph ph-package" style="color:#7048e8;"></i> <span id="prop-produtos-titulo">Produtos <span style="color:#dc2626;">*</span></span>
+                                <span id="prop-produtos-count-badge" style="display:none; background:#fef9c3; color:#854d0e; border:1px solid #fde047; font-size:0.7rem; font-weight:800; padding:1px 8px; border-radius:999px;"></span>
                             </h4>
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" onclick="event.stopPropagation();">
                                 <button type="button" id="btn-prop-comparar-valores" onclick="if(typeof window.abrirModalCompararValoresProposta === 'function') window.abrirModalCompararValoresProposta(event);" disabled
@@ -5522,6 +5550,9 @@ function _renderFormPropostaInt() {
             </div>
     `;
     
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
+    }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
     }
@@ -5610,6 +5641,9 @@ function _renderFormPropostaInt() {
             });
         }
     }
+    if (window._modoTelaComercial === 'contrato' && id && typeof window.sincronizarEMesclarAditivosContratoAberto === 'function') {
+        window.sincronizarEMesclarAditivosContratoAberto(id);
+    }
     if (id && (faseUpRender === 'ENVIADO PARA ASSINATURA' || (prop && prop.assinafy_id && !foiAssinadaAssinafyRender)) && (window._ultimoSyncAssinafyPropId !== id || (Date.now() - (window._ultimoSyncAssinafyTs || 0) > 3000))) {
         window._ultimoSyncAssinafyPropId = id;
         window._ultimoSyncAssinafyTs = Date.now();
@@ -5651,12 +5685,13 @@ window.aplicarBloqueioCamposPropostaNoContrato = function() {
         }
     };
 
-    // 1. Período e Condições
+    // 1. Período e Condições (mantendo Instalação editável para permitir adicionar mais de um endereço de instalação no Contrato)
     const bodyPeriodo = document.getElementById('prop-secao-periodo-body');
     if (bodyPeriodo) {
         garantirBannerSomenteLeitura(bodyPeriodo, 'prop-banner-lock-periodo');
         bodyPeriodo.querySelectorAll('input, select, textarea, button').forEach(el => {
             if (isCtr) {
+                if (el.closest && el.closest('#prop-wrapper-endereco-instalacao')) return;
                 el.disabled = true;
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.readOnly = true;
                 if (el.tagName === 'BUTTON') el.style.pointerEvents = 'none';
@@ -19471,7 +19506,11 @@ window.classificarRegiaoEDias = async function() {
     if (typeof window.atualizarEstadoBotaoCompararValoresProposta === 'function') {
         window.atualizarEstadoBotaoCompararValoresProposta();
     }
-    const endereco = document.getElementById('prop-endereco')?.value || '';
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
+    }
+    const enderecoRaw = document.getElementById('prop-endereco')?.value || '';
+    const endereco = String(enderecoRaw || '').split('|')[0].trim();
     const qtdManut = parseInt(document.getElementById('prop-qtd-manutencoes')?.value) || 1;
     const badge = document.getElementById('prop-regiao-ia-badge');
 
@@ -24643,6 +24682,7 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     let nomeEventoOrig = String(nomeEvento || '').trim();
     let perIniOrig = String(periodoInicio || '').trim();
     let perFimOrig = String(periodoFim || '').trim();
+    let endInstalacaoOrig = '';
     let pOrig = null;
     if (Array.isArray(window._propostasData)) {
         const numLimpoUpper = numContratoLimpo.toUpperCase();
@@ -24655,8 +24695,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         if (!nomeEventoOrig && pOrig && pOrig.nome_evento) nomeEventoOrig = String(pOrig.nome_evento).trim();
         if (!perIniOrig && pOrig && pOrig.periodo_inicio) perIniOrig = String(pOrig.periodo_inicio).trim();
         if (!perFimOrig && pOrig && pOrig.periodo_fim) perFimOrig = String(pOrig.periodo_fim).trim();
+        if (pOrig && pOrig.endereco_instalacao) endInstalacaoOrig = String(pOrig.endereco_instalacao).trim();
     }
-    if (idContrato && (!condPagOrig || !nomeEventoOrig || !tipoContrato || !perIniOrig || !perFimOrig)) {
+    if (idContrato && (!condPagOrig || !nomeEventoOrig || !tipoContrato || !perIniOrig || !perFimOrig || !endInstalacaoOrig)) {
         try {
             const pDet = await apiGet(`/propostas/${encodeURIComponent(idContrato)}`);
             if (pDet && pDet.id) {
@@ -24666,6 +24707,7 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
                 if (!nomeEventoOrig && pDet.nome_evento) nomeEventoOrig = String(pDet.nome_evento).trim();
                 if (!perIniOrig && pDet.periodo_inicio) perIniOrig = String(pDet.periodo_inicio).trim();
                 if (!perFimOrig && pDet.periodo_fim) perFimOrig = String(pDet.periodo_fim).trim();
+                if (!endInstalacaoOrig && pDet.endereco_instalacao) endInstalacaoOrig = String(pDet.endereco_instalacao).trim();
             }
         } catch (_e) {}
     }
@@ -24769,6 +24811,18 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             await window.verificarBloqueioFaturamentoProposta(cliEl.value.trim());
         }
     }
+    if ((ehBaseEventoOuEquipamentos || ehAvariaFormAtivo) && endInstalacaoOrig) {
+        const inpEndInst = document.getElementById('prop-endereco');
+        if (inpEndInst) {
+            inpEndInst.value = endInstalacaoOrig;
+        }
+        if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+            window.sincronizarChipsEnderecosInstalacaoProposta();
+        }
+        if (typeof window.classificarRegiaoEDias === 'function') {
+            window.classificarRegiaoEDias();
+        }
+    }
     const condPagEl = document.getElementById('prop-cond-pag');
     if (condPagEl && condPagOrig) {
         let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === condPagOrig.toUpperCase());
@@ -24789,8 +24843,15 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             inpNomeEvAfter.value = nomeEventoOrig;
         }
     }
+    if (ehBaseEventoOuEquipamentos) {
+        window._propAditivoOperacao = 'adicionar';
+        window._propAditivoItensSubstituidos = { produtos: [], servicos: [] };
+    }
     if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
         window.atualizarBloqueioProdutoPorContratoBase();
+    }
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
     }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
@@ -24814,7 +24875,7 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         window.atualizarBotaoOperacaoAditivoToolbar();
     }
     if (typeof Swal !== 'undefined') Swal.close();
-    if (!ehAvariaFormAtivo && tipoPropFormAtivo === 'ADITIVO' && typeof window.abrirModalOperacaoAditivoContratoBase === 'function') {
+    if (!ehAvariaFormAtivo && !ehBaseEventoOuEquipamentos && tipoPropFormAtivo === 'ADITIVO' && typeof window.abrirModalOperacaoAditivoContratoBase === 'function') {
         setTimeout(() => {
             window.abrirModalOperacaoAditivoContratoBase(pOrig);
         }, 80);
@@ -24826,8 +24887,20 @@ window.atualizarBotaoOperacaoAditivoToolbar = function() {
     if (!btn) return;
     const isModoCtr = window._modoTelaComercial === 'contrato';
     const tipoVal = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-    const ctVal = String(document.getElementById('prop-contrato-aditivo')?.value || '').trim();
-    const mostrar = !isModoCtr && tipoVal === 'ADITIVO' && Boolean(_propostasEditandoId || ctVal);
+    const inpCt = document.getElementById('prop-contrato-aditivo');
+    const ctVal = String(inpCt?.value || '').trim();
+    const tipoBaseToolbar = String(
+        inpCt?.getAttribute('data-contrato-tipo') ||
+        window._contratoVinculadoTipoAtivo ||
+        (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipoVal) : '') ||
+        ''
+    ).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ehBaseEventoOuEquipToolbar = tipoBaseToolbar === 'EVENTO' || tipoBaseToolbar === 'EQUIPAMENTOS' || tipoBaseToolbar === 'EQUIPAMENTO';
+    if (ehBaseEventoOuEquipToolbar) {
+        window._propAditivoOperacao = 'adicionar';
+        window._propAditivoItensSubstituidos = { produtos: [], servicos: [] };
+    }
+    const mostrar = !isModoCtr && !ehBaseEventoOuEquipToolbar && tipoVal === 'ADITIVO' && Boolean(_propostasEditandoId || ctVal);
     btn.style.display = mostrar ? 'inline-flex' : 'none';
     const op = window._propAditivoOperacao === 'substituir'
         ? 'substituir'
@@ -24963,6 +25036,14 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
         window._contratoVinculadoTipoAtivo ||
         ''
     ).trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoBaseCheck === 'EVENTO' || tipoBaseCheck === 'EQUIPAMENTOS' || tipoBaseCheck === 'EQUIPAMENTO') {
+        window._propAditivoOperacao = 'adicionar';
+        window._propAditivoItensSubstituidos = { produtos: [], servicos: [] };
+        if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') {
+            window.atualizarBotaoOperacaoAditivoToolbar();
+        }
+        return;
+    }
     const ehContratoBaseObra = tipoBaseCheck === 'OBRA'
         || tipoBaseCheck === 'OBRA MENSAL'
         || tipoBaseCheck === 'OBRA QUINZENAL'
@@ -25227,10 +25308,67 @@ window.obterAditivosAssinadosDoContrato = function(propContrato) {
             || sitUp.includes('CONTRATO ASSINADO')
             || assSt === 'certificated'
             || assSt === 'signed'
+            || assSt === 'assinado'
             || Boolean(p.assinafy_signed_r2_key)
-            || Boolean(p.assinafy_signed_at);
+            || Boolean(p.assinafy_signed_at)
+            || Boolean(p.aceite_publico_em);
         return foiAssinado;
     }).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+};
+
+window.sincronizarEMesclarAditivosContratoAberto = async function(contratoId) {
+    const idNum = Number(contratoId || _propostasEditandoId || 0);
+    if (!idNum || window._modoTelaComercial !== 'contrato') return;
+    try {
+        await carregarPropostas();
+        let propContrato = (_propostasData || []).find(p => Number(p.id) === idNum);
+        if (!propContrato) return;
+        const numCtNorm = String(propContrato.contrato || propContrato.numero_contrato || '').trim().replace(/^0+/, '').toUpperCase();
+        const aditivosDoCt = (_propostasData || []).filter(p => {
+            if (!p || Number(p.id) === idNum) return false;
+            const t = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (t !== 'ADITIVO') return false;
+            const vincId = Number(p.contrato_vinculado_id || 0);
+            const vincNum = (typeof window.extrairNumeroContratoBaseLimpo === 'function'
+                ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || '')
+                : String(p.contrato_vinculado || '').trim()
+            ).replace(/^0+/, '').toUpperCase();
+            return (idNum > 0 && vincId === idNum) || (numCtNorm && vincNum && vincNum === numCtNorm);
+        });
+        let sincronizouAlgum = false;
+        for (const ad of aditivosDoCt) {
+            const faseUp = String(ad.fase_negociacao || '').trim().toUpperCase();
+            const jaAssinado = faseUp === 'PROPOSTA ASSINADA'
+                || faseUp === 'APROVADA'
+                || Boolean(ad.assinafy_signed_r2_key)
+                || Boolean(ad.assinafy_signed_at);
+            if (!jaAssinado && ad.assinafy_doc_id) {
+                try {
+                    const resSync = await apiPost('/propostas/' + ad.id + '/sync-assinafy', {});
+                    if (resSync && resSync.success) sincronizouAlgum = true;
+                } catch (_) {}
+            }
+        }
+        if (sincronizouAlgum) {
+            await carregarPropostas();
+            propContrato = (_propostasData || []).find(p => Number(p.id) === idNum) || propContrato;
+        }
+        if (Number(_propostasEditandoId) !== idNum || window._modoTelaComercial !== 'contrato') return;
+        const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(
+            propContrato,
+            window._propProdutosAdicionados || [],
+            window._propServicosAdicionados || []
+        );
+        window._propProdutosAdicionados = mesclados.produtos;
+        window._propServicosAdicionados = mesclados.servicos;
+        if (typeof window.renderizarProdutosPropostaGrid === 'function') window.renderizarProdutosPropostaGrid();
+        if (typeof window.renderizarServicosPropostaGrid === 'function') window.renderizarServicosPropostaGrid();
+        if (typeof window.carregarAnexosContratoAtivo === 'function') {
+            window.carregarAnexosContratoAtivo(idNum);
+        }
+    } catch (e) {
+        console.warn('[Contrato] Erro ao sincronizar aditivos do contrato aberto:', e);
+    }
 };
 
 window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtosBaseRaw, servicosBaseRaw, opcoes = {}) {
@@ -25582,6 +25720,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
             window.renderizarProdutosPropostaGrid();
         }
     }
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
+    }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
     }
@@ -25655,6 +25796,9 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         if (mudou) {
             window.renderizarProdutosPropostaGrid();
         }
+    }
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
     }
     if (typeof window.renderizarProdutosPropostaGrid === 'function') {
         window.renderizarProdutosPropostaGrid();
@@ -25757,13 +25901,57 @@ window.carregarEnderecosVinculadosClienteProposta = async function(clienteNomeRa
     }
 };
 
+window.obterListaEnderecosInstalacao = function(valOpcional = undefined) {
+    const raw = valOpcional !== undefined
+        ? String(valOpcional || '')
+        : String(document.getElementById('prop-endereco')?.value || '');
+    return raw.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
+};
+
+window.sincronizarChipsEnderecosInstalacaoProposta = function() {
+    const chipsEl = document.getElementById('prop-enderecos-instalacao-chips');
+    const inp = document.getElementById('prop-endereco');
+    if (!chipsEl || !inp) return;
+    const lista = window.obterListaEnderecosInstalacao(inp.value);
+    if (lista.length <= 1) {
+        chipsEl.innerHTML = '';
+        chipsEl.style.display = 'none';
+        return;
+    }
+    chipsEl.style.display = 'flex';
+    chipsEl.innerHTML = lista.map((end, idx) => `
+        <span style="display:inline-flex; align-items:center; gap:5px; background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:700; max-width:100%;">
+            <span style="background:#10b981; color:#fff; border-radius:999px; padding:0 5px; font-size:0.65rem; font-weight:800;">${idx + 1}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:440px;" title="${_escHtmlProp(end)}">${_escHtmlProp(end)}</span>
+            <button type="button" onclick="window.removerEnderecoInstalacaoChipProposta(${idx})" title="Remover este endereço de instalação"
+                style="border:none; background:transparent; color:#dc2626; cursor:pointer; font-weight:900; font-size:0.84rem; padding:0 2px; line-height:1; display:inline-flex; align-items:center;">&times;</button>
+        </span>
+    `).join('');
+};
+
+window.removerEnderecoInstalacaoChipProposta = function(idx) {
+    const inp = document.getElementById('prop-endereco');
+    if (!inp) return;
+    const lista = window.obterListaEnderecosInstalacao(inp.value);
+    if (idx < 0 || idx >= lista.length) return;
+    lista.splice(idx, 1);
+    inp.value = lista.join(' | ');
+    window.sincronizarChipsEnderecosInstalacaoProposta();
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+    if (typeof window.classificarRegiaoEDias === 'function') window.classificarRegiaoEDias();
+    if (typeof window.calcularValorTotalProposta === 'function') window.calcularValorTotalProposta();
+};
+
 window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarTodosDoCliente = false) {
     const dropEl = document.getElementById('prop-endereco-dropdown');
     if (!dropEl) return;
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
     const base = clienteNome ? (window._enderecosDoClientePropostaAtual || []) : [];
-    const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
+    const listaAtuais = window.obterListaEnderecosInstalacao();
+    const ultimoSegmento = String(termoFiltro || '').split('|').pop().trim();
+    const ultimoJaSelecionado = listaAtuais.some(x => normStr(x) === normStr(ultimoSegmento));
+    const qNorm = (mostrarTodosDoCliente || ultimoJaSelecionado) ? '' : normStr(ultimoSegmento);
     const filtrados = !qNorm
         ? base
         : base.filter(e =>
@@ -25784,9 +25972,16 @@ window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarT
         return;
     }
 
-    dropEl.innerHTML = filtrados.slice(0, 80).map(e => {
+    const headerMultiHtml = listaAtuais.length > 0
+        ? `<div style="padding:5px 10px; background:#f0fdf4; border-bottom:1px solid #bbf7d0; font-size:0.72rem; font-weight:700; color:#166534; display:flex; align-items:center; justify-content:space-between;">
+                <span><i class="ph ph-map-pin-plus"></i> Clique em outro endereço para adicionar mais um local (${listaAtuais.length} selecionado${listaAtuais.length > 1 ? 's' : ''})</span>
+           </div>`
+        : '';
+
+    dropEl.innerHTML = headerMultiHtml + filtrados.slice(0, 80).map(e => {
         const safeTexto = String(e.texto_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeCoords = String(e.coordenadas || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const jaAdicionado = listaAtuais.some(x => normStr(x) === normStr(e.texto_completo));
         const titulo = e.nome_local ? `${e.nome_local}` : (e.endereco || 'Endereço');
         const sub = [
             e.endereco ? `${e.endereco}${e.numero ? ', ' + e.numero : ''}` : '',
@@ -25796,9 +25991,14 @@ window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarT
         ].filter(Boolean).join(' • ');
         return `
             <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownEnderecoProposta('${safeTexto}', '${safeCoords}')"
-                style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s;"
-                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
-                <div style="font-size:0.82rem; font-weight:700; color:#1e293b;">${_escHtmlProp(titulo)}</div>
+                style="padding:0.45rem 0.75rem; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.12s; background:${jaAdicionado ? '#f0fdf4' : '#fff'};"
+                onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${jaAdicionado ? '#f0fdf4' : '#fff'}'">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <span style="font-size:0.82rem; font-weight:700; color:#1e293b;">${_escHtmlProp(titulo)}</span>
+                    ${jaAdicionado
+                        ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 7px; border-radius:999px; font-size:0.66rem; font-weight:800;">✓ Adicionado</span>`
+                        : (listaAtuais.length > 0 ? `<span style="color:#0284c7; font-size:0.7rem; font-weight:800;">+ Adicionar</span>` : '')}
+                </div>
                 <div style="font-size:0.73rem; color:#64748b;">${_escHtmlProp(sub || e.texto_completo)}</div>
             </div>
         `;
@@ -25838,6 +26038,9 @@ window.toggleDropdownEnderecosProposta = async function(event) {
 };
 
 window.filtrarDropdownEnderecosProposta = async function(termo) {
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
+    }
     if (Date.now() < (window._ignorarAberturaDropdownEnderecoAte || 0)) return;
     const reqSeq = (window._dropdownEnderecoSeq = (window._dropdownEnderecoSeq || 0) + 1);
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
@@ -25854,9 +26057,28 @@ window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coorden
     const dropEl = document.getElementById('prop-endereco-dropdown');
     if (dropEl) dropEl.style.display = 'none';
     const inp = document.getElementById('prop-endereco');
-    if (inp) {
-        inp.value = textoCompleto;
+    const novoTxt = String(textoCompleto || '').trim();
+    if (inp && novoTxt) {
+        const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const baseCliente = Array.isArray(window._enderecosDoClientePropostaAtual) ? window._enderecosDoClientePropostaAtual : [];
+        let lista = window.obterListaEnderecosInstalacao(inp.value);
+        // Se o último item da lista era apenas texto parcial sendo digitado (não é endereço completo já salvo), substitui pelo selecionado
+        if (lista.length > 0) {
+            const ultimo = lista[lista.length - 1];
+            const ultimoEhConhecido = baseCliente.some(e => normStr(e.texto_completo) === normStr(ultimo));
+            if (!ultimoEhConhecido && normStr(novoTxt).includes(normStr(ultimo))) {
+                lista.pop();
+            }
+        }
+        const jaExiste = lista.some(x => normStr(x) === normStr(novoTxt));
+        if (!jaExiste) {
+            lista.push(novoTxt);
+        }
+        inp.value = lista.join(' | ');
         inp.blur();
+    }
+    if (typeof window.sincronizarChipsEnderecosInstalacaoProposta === 'function') {
+        window.sincronizarChipsEnderecosInstalacaoProposta();
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
     if (coordenadas && coordenadas.trim() && window._enderecoCoordenadasCache) {
@@ -25865,7 +26087,7 @@ window.selecionarOpcaoDropdownEnderecoProposta = function(textoCompleto, coorden
             const lat = parseFloat(parts[0].trim());
             const lon = parseFloat(parts[1].trim());
             if (!isNaN(lat) && !isNaN(lon)) {
-                window._enderecoCoordenadasCache[textoCompleto.trim()] = { lat, lon };
+                window._enderecoCoordenadasCache[novoTxt] = { lat, lon };
             }
         }
     }
@@ -25904,7 +26126,13 @@ if (!window._propEnderecoOutsideClickBound) {
 
 window.pesquisarEnderecoProposta = async function(btnEl = null) {
     const clienteNome = (document.getElementById('prop-cliente')?.value || '').trim();
-    const query = (document.getElementById('prop-endereco')?.value || '').trim();
+    const rawEnderecoVal = (document.getElementById('prop-endereco')?.value || '').trim();
+    const listaAtuais = window.obterListaEnderecosInstalacao(rawEnderecoVal);
+    const ultimoSeg = String(rawEnderecoVal.split('|').pop() || '').trim();
+    const baseConhecida = Array.isArray(window._enderecosDoClientePropostaAtual) ? window._enderecosDoClientePropostaAtual : [];
+    const normCheck = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const ultimoJaSalvo = baseConhecida.some(e => normCheck(e.texto_completo) === normCheck(ultimoSeg));
+    const query = (ultimoJaSalvo || listaAtuais.length >= 1) ? '' : ultimoSeg;
     const btn = btnEl || document.getElementById('btn-pesq-endereco-prop');
     const origHtml = btn ? btn.innerHTML : '';
     if (btn) {
@@ -27240,10 +27468,15 @@ window.renderizarProdutosPropostaGrid = function() {
         thValTotal.style.textAlign = 'center';
     }
     const list = window._propProdutosAdicionados || [];
+    const badgeCountProds = document.getElementById('prop-produtos-count-badge');
     if (typeof window._atualizarTituloProdutosProposta === 'function') window._atualizarTituloProdutosProposta();
     if (typeof window._atualizarTituloServicosProposta === 'function') window._atualizarTituloServicosProposta();
     if (typeof window.atualizarOpcoesCopiarDiasProposta === 'function') window.atualizarOpcoesCopiarDiasProposta();
     if (list.length === 0) {
+        if (badgeCountProds) {
+            badgeCountProds.textContent = '';
+            badgeCountProds.style.display = 'none';
+        }
         tbody.innerHTML = `
             <tr>
                 <td colspan="${(usaManutGrid ? 8 : 7) + (ehEventoGrid ? 1 : 0)}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem; font-style:italic;">Nenhum produto adicionado à proposta.</td>
@@ -27258,6 +27491,32 @@ window.renderizarProdutosPropostaGrid = function() {
     const prodsAprovGrid = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
     const temBoolAprovGrid = list.some(x => x && typeof x.aprovado_comparativa === 'boolean');
     const temFiltroCompGrid = Boolean(isComparativaGrid && (prodsAprovGrid.length > 0 || temBoolAprovGrid) && typeof window.itemComparativaEstaAprovado === 'function');
+
+    let somaQtdBase = 0;
+    let somaQtdAditivos = 0;
+    list.forEach((p, idxP) => {
+        if (!p || p._substituido_por_aditivo) return;
+        const naoAprov = Boolean(!p._from_aditivo_dinamico && temFiltroCompGrid && !(prodsAprovGrid.length > 0 ? window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid) : p.aprovado_comparativa !== false));
+        if (naoAprov) return;
+        const q = parseInt(p.quantidade, 10) || 1;
+        if (p._from_aditivo_dinamico) {
+            somaQtdAditivos += q;
+        } else {
+            somaQtdBase += q;
+        }
+    });
+    const somaQtdAtivos = somaQtdBase + somaQtdAditivos;
+    if (badgeCountProds) {
+        if (somaQtdAtivos > 0) {
+            badgeCountProds.style.display = 'inline-block';
+            badgeCountProds.textContent = (window._modoTelaComercial === 'contrato' && somaQtdAditivos > 0)
+                ? `${somaQtdAtivos} PRODUTO(S) (${somaQtdBase} BASE + ${somaQtdAditivos} ADITIVO)`
+                : `${somaQtdAtivos} PRODUTO(S)`;
+        } else {
+            badgeCountProds.textContent = '';
+            badgeCountProds.style.display = 'none';
+        }
+    }
 
     tbody.innerHTML = list.map((p, idx) => {
         const ehModoCtrGrid = window._modoTelaComercial === 'contrato';
@@ -27402,7 +27661,11 @@ window.renderizarProdutosPropostaGrid = function() {
         `;
     }).join('') + `
         <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
-            <td colspan="${(usaManutGrid ? 6 : 5) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
+            <td colspan="2" style="padding:8px 10px; text-align:left; font-weight:800; color:#475569; font-size:0.78rem; text-transform:uppercase;">
+                Quantidade Total: <span style="color:#0f172a;">${somaQtdAtivos}</span>${(window._modoTelaComercial === 'contrato' && somaQtdAditivos > 0) ? ` <span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px; text-transform:none;">+${somaQtdAditivos} adicionado(s) por aditivo</span>` : ''}
+            </td>
+            <td style="padding:8px 6px; text-align:center; font-weight:800; color:#0f172a; font-size:0.84rem;">${somaQtdAtivos}</td>
+            <td colspan="${(usaManutGrid ? 3 : 2) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
             <td id="prop-td-soma-total-produtos" style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p, idxP) => {
                 if (p && p._substituido_por_aditivo) return acc;
                 if (!p?._from_aditivo_dinamico && temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid)) return acc;
@@ -29967,7 +30230,8 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{TABELA_DIARIAS}}', label: 'Tabela de Diárias (Sem Horário)', categoria: 'Período e Local', exemplo: '[Tabela de Diárias]' },
     { tag: '{{TABELA_DIARIAS_HORARIO}}', label: 'Tabela de Diárias (Com Horários)', categoria: 'Período e Local', exemplo: '[Tabela de Diárias com Horários]' },
     { tag: '{{NOME_EVENTO}}', label: 'Nome do Evento', categoria: 'Período e Local', exemplo: 'Festival América 2026' },
-    { tag: '{{ENDERECO_INSTALACAO}}', label: 'Endereço de Entrega / Instalação', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP - CEP: 07110-000' },
+    { tag: '{{ENDERECO_INSTALACAO}}', label: 'Endereço(s) de Entrega / Instalação (separados por |)', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP | Av. Brasil, 100 - Centro - Guarulhos/SP' },
+    { tag: '{{ENDERECOS_INSTALACAO}}', label: 'Endereços de Instalação (separados por |)', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP | Av. Brasil, 100 - Centro - Guarulhos/SP' },
     { tag: '{{REGIAO_INSTALACAO}}', label: 'Região de Instalação (Zona)', categoria: 'Período e Local', exemplo: 'Zona Central' },
     { tag: '{{DISTANCIA_KM}}', label: 'Distância (KM)', categoria: 'Período e Local', exemplo: '12,5 km' },
 
@@ -31141,6 +31405,10 @@ window.gerarHtmlTabelaDiariasContrato = function(propostaObj, comHorario = false
     try {
         itens = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []);
     } catch (_) { itens = []; }
+    if (p && !p._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(p, itens, []);
+        itens = (mesclados.produtos || []).filter(it => it && !it._substituido_por_aditivo);
+    }
 
     let diasPropArr = [];
     try {
@@ -32296,7 +32564,16 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{DIARIAS_EVENTO_COM_HORARIO}}': tabelaDiariasComHorHtml,
         '{{DIAS_EVENTO}}': diariasComHorarioTxt,
         '{{NOME_EVENTO}}': String(p.nome_evento || '—').trim(),
-        '{{ENDERECO_INSTALACAO}}': String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim(),
+        '{{ENDERECO_INSTALACAO}}': (() => {
+            const rawEnd = String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim();
+            const arrEnd = rawEnd.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
+            return arrEnd.length > 0 ? arrEnd.join(' | ') : rawEnd;
+        })(),
+        '{{ENDERECOS_INSTALACAO}}': (() => {
+            const rawEnd = String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim();
+            const arrEnd = rawEnd.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
+            return arrEnd.length > 0 ? arrEnd.join(' | ') : rawEnd;
+        })(),
         '{{REGIAO_INSTALACAO}}': String(p.regiao || 'Zona Central').trim(),
         '{{DISTANCIA_KM}}': p.distancia_km ? `${Number(p.distancia_km).toFixed(1)} km` : '0,0 km',
 
