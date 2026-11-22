@@ -258,6 +258,88 @@ window.renderBadgeSituacaoContratoHtml = function(sitRaw, mostrarStatusTipo = tr
     </span>`;
 };
 
+window.avaliarBloqueioSituacaoContratoOpcao = function(cfgAlvo, sitAtualRaw) {
+    if (!cfgAlvo) return { disabled: false, title: '' };
+    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const sitAtuCfg = window.obterConfigSituacaoContrato(sitAtualRaw !== undefined ? sitAtualRaw : (document.getElementById('prop-fase')?.value || ''));
+    const sitAtu = normStr(sitAtuCfg && sitAtuCfg.nome);
+    const alvo = normStr(cfgAlvo.nome);
+
+    if (cfgAlvo.somenteAutomatico) {
+        return {
+            disabled: true,
+            title: 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy'
+        };
+    }
+
+    // "ENTREGUE - LIBERADO PARA FATURAMENTO" apenas clicável após o contrato estar em "CONTRATO ASSINADO"
+    if (alvo === 'ENTREGUE - LIBERADO PARA FATURAMENTO') {
+        const permitido = sitAtu === 'CONTRATO ASSINADO' || sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO';
+        if (!permitido) {
+            return {
+                disabled: true,
+                title: 'Disponível apenas após o contrato estar com a situação CONTRATO ASSINADO'
+            };
+        }
+    }
+
+    // "SOLICITAÇÃO DE RETIRADA EM ANDAMENTO" apenas clicável após a situação estar como "ENTREGUE - LIBERADO PARA FATURAMENTO"
+    if (alvo === 'SOLICITACAO DE RETIRADA EM ANDAMENTO') {
+        const permitido = sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO' || sitAtu === 'SOLICITACAO DE RETIRADA EM ANDAMENTO';
+        if (!permitido) {
+            return {
+                disabled: true,
+                title: 'Disponível apenas após o contrato estar com a situação ENTREGUE - LIBERADO PARA FATURAMENTO'
+            };
+        }
+    }
+
+    // "ENCERRADO | CONCLUÍDO" apenas clicável após a situação ficar como "ENTREGUE - LIBERADO PARA FATURAMENTO" (ou em retirada após entregue)
+    if (alvo === 'ENCERRADO | CONCLUIDO') {
+        const permitido = sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO'
+            || sitAtu === 'SOLICITACAO DE RETIRADA EM ANDAMENTO'
+            || sitAtu === 'ENCERRADO | CONCLUIDO';
+        if (!permitido) {
+            return {
+                disabled: true,
+                title: 'Disponível apenas após o contrato estar com a situação ENTREGUE - LIBERADO PARA FATURAMENTO'
+            };
+        }
+    }
+
+    return { disabled: false, title: '' };
+};
+
+window.reconstruirOpcoesMenuSituacaoContrato = function(sitAtualRaw) {
+    if (window._modoTelaComercial !== 'contrato') return;
+    const sitVal = sitAtualRaw !== undefined ? sitAtualRaw : (document.getElementById('prop-fase')?.value || '');
+    const sitSelNome = window.obterConfigSituacaoContrato(sitVal).nome;
+    const sel = document.getElementById('prop-fase');
+    if (sel) {
+        sel.innerHTML = CONTRATO_SITUACOES_CONFIG.map(cfg => {
+            const isSel = sitSelNome.toUpperCase() === cfg.nome.toUpperCase();
+            const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
+            return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${bloq.disabled ? `disabled title="${_escHtmlProp(bloq.title)}"` : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
+        }).join('');
+        sel.value = sitSelNome;
+    }
+    const menu = document.getElementById('prop-fase-custom-menu');
+    if (menu) {
+        menu.innerHTML = CONTRATO_SITUACOES_CONFIG.map(cfg => {
+            const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
+            const isDisCtr = Boolean(bloq.disabled);
+            const titleDisCtr = bloq.title ? `title="${_escHtmlProp(bloq.title)}"` : '';
+            return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', ${isDisCtr ? 'true' : 'false'}, event)"
+                ${titleDisCtr}
+                style="padding:6px 8px; border-radius:6px; cursor:${isDisCtr ? 'not-allowed' : 'pointer'}; opacity:${isDisCtr ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
+                onmouseover="if(!${isDisCtr}) this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                ${window.renderBadgeSituacaoContratoHtml(cfg.nome, true)}
+            </div>`;
+        }).join('');
+    }
+};
+
 window.atualizarBadgeSituacaoContratoForm = function(val) {
     const v = val !== undefined ? val : (document.getElementById('prop-fase')?.value || '');
     const el = document.getElementById('prop-situacao-contrato-badge');
@@ -272,6 +354,9 @@ window.atualizarBadgeSituacaoContratoForm = function(val) {
             ? window.renderBadgeSituacaoContratoHtml(v, true)
             : window.renderBadgeFaseNegociacaoHtml(v);
     }
+    if (window._modoTelaComercial === 'contrato' && typeof window.reconstruirOpcoesMenuSituacaoContrato === 'function') {
+        window.reconstruirOpcoesMenuSituacaoContrato(v);
+    }
 };
 
 window.toggleDropdownFaseProposta = function(event) {
@@ -282,6 +367,9 @@ window.toggleDropdownFaseProposta = function(event) {
     const sel = document.getElementById('prop-fase');
     const btn = document.getElementById('prop-fase-custom-btn');
     if ((sel && sel.disabled) || (btn && btn.disabled)) return;
+    if (window._modoTelaComercial === 'contrato' && typeof window.reconstruirOpcoesMenuSituacaoContrato === 'function') {
+        window.reconstruirOpcoesMenuSituacaoContrato();
+    }
     const menu = document.getElementById('prop-fase-custom-menu');
     if (!menu) return;
     menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -4691,8 +4779,10 @@ function _renderFormPropostaInt() {
                                     ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
                                         const sitSel = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
                                         const isSel = sitSel.toUpperCase() === cfg.nome.toUpperCase();
-                                        const isDisCtr = Boolean(cfg.somenteAutomatico);
-                                        return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${isDisCtr ? 'disabled title="Definido automaticamente ao enviar ou baixar o contrato"' : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
+                                        const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
+                                            ? window.avaliarBloqueioSituacaoContratoOpcao(cfg, v('situacao_contrato'))
+                                            : { disabled: Boolean(cfg.somenteAutomatico), title: 'Definido automaticamente ao enviar ou baixar o contrato' };
+                                        return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${bloq.disabled ? `disabled title="${_escHtmlProp(bloq.title)}"` : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
                                     }).join('')
                                     : (PROP_FASES.map(f => {
                                         const faseAtiva = String(v('fase_negociacao') || 'Em Elaboração');
@@ -4736,8 +4826,11 @@ function _renderFormPropostaInt() {
                                     ${window._modoTelaComercial === 'contrato'
                                         ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
                                             const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                                            const isDisCtr = Boolean(cfg.somenteAutomatico);
-                                            const titleDisCtr = isDisCtr ? 'title="Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy"' : '';
+                                            const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
+                                                ? window.avaliarBloqueioSituacaoContratoOpcao(cfg, v('situacao_contrato'))
+                                                : { disabled: Boolean(cfg.somenteAutomatico), title: 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy' };
+                                            const isDisCtr = Boolean(bloq.disabled);
+                                            const titleDisCtr = bloq.title ? `title="${_escHtmlProp(bloq.title)}"` : '';
                                             return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', ${isDisCtr ? 'true' : 'false'}, event)"
                                                 ${titleDisCtr}
                                                 style="padding:6px 8px; border-radius:6px; cursor:${isDisCtr ? 'not-allowed' : 'pointer'}; opacity:${isDisCtr ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
