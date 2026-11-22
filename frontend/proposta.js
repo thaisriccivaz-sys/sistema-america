@@ -320,6 +320,13 @@ if (!window._listenerCloseFaseCustomMenu && typeof document !== 'undefined') {
 }
 
 let _propostasData = [];
+if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, '_propostasData')) {
+    Object.defineProperty(window, '_propostasData', {
+        get: () => _propostasData,
+        set: (v) => { _propostasData = Array.isArray(v) ? v : []; },
+        configurable: true
+    });
+}
 let _dashboardStatsData = [];
 let _manutencoesData = [];
 let _veiculosData = [];
@@ -736,15 +743,104 @@ window.atualizarVisibilidadeQuadroAssinaturaDigital = function(tipoOverride = nu
     }
 };
 
+window.propostaTemCamposObrigatoriosSalvosParaAssinatura = function(propOverride = null) {
+    if (!_propostasEditandoId || Boolean(window._propFormEditadoNaoSalvo)) return false;
+    const prop = propOverride || (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
+    if (!prop) return false;
+    const obterVal = (idDom, campoProp) => {
+        const el = document.getElementById(idDom);
+        if (el && el.value !== undefined) return String(el.value || '').trim();
+        return String(prop[campoProp] || '').trim();
+    };
+    const tipo = obterVal('prop-tipo', 'tipo');
+    const dataCad = obterVal('prop-data-cadastro', 'data_cadastro');
+    const cliente = obterVal('prop-cliente', 'cliente_nome');
+    const contato = obterVal('prop-contato', 'contato_nome');
+    const perIni = obterVal('prop-periodo-ini', 'periodo_inicio');
+    const condPag = obterVal('prop-cond-pag', 'condicao_pagamento');
+    if (!tipo || !dataCad || !cliente || !contato || !perIni || !condPag) return false;
+
+    const ehVenda = Boolean(typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda(tipo));
+    if (!ehVenda) {
+        const perFim = obterVal('prop-periodo-fim', 'periodo_fim');
+        const endInst = obterVal('prop-endereco', 'endereco_instalacao');
+        if (!perFim || !endInst) return false;
+    }
+    if (typeof window.tipoPropostaUsaContratoBase === 'function' && window.tipoPropostaUsaContratoBase(tipo)) {
+        const ctBase = obterVal('prop-contrato-aditivo', 'contrato_vinculado');
+        if (!ctBase) return false;
+    }
+    const prods = Array.isArray(window._propProdutosAdicionados)
+        ? window._propProdutosAdicionados.filter(p => p && !p._substituido_por_aditivo)
+        : [];
+    if (prods.length === 0) return false;
+
+    if (typeof window.tipoPropostaServicoObrigatorio === 'function' && window.tipoPropostaServicoObrigatorio(tipo)) {
+        const servs = Array.isArray(window._propServicosAdicionados)
+            ? window._propServicosAdicionados.filter(s => s && !s._substituido_por_aditivo)
+            : [];
+        const temFob = Boolean(document.getElementById('prop-serv-fob')?.checked) || Number(prop.servico_frete_fob) === 1;
+        if (servs.length === 0 && !temFob) return false;
+    }
+    return true;
+};
+
+window.listaSignatariosTemResponsavelLegal = function(listaOpcional = null) {
+    const lista = Array.isArray(listaOpcional)
+        ? listaOpcional
+        : (Array.isArray(window._propSignatariosContratoDraft) ? window._propSignatariosContratoDraft : []);
+    return lista.some(s => {
+        if (!s) return false;
+        const tp = String(s.tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+        const nm = String(s.nome || '').trim();
+        const em = String(s.email || '').trim();
+        return (tp === 'RESPONSAVEL LEGAL' || tp === 'REPRESENTANTE LEGAL') && Boolean(nm) && em.includes('@');
+    });
+};
+
+window.propostaOuContratoProntoParaEnviarAssinaturaQuadro = function(propOverride = null) {
+    const ehModoContrato = window._modoTelaComercial === 'contrato';
+    const propRef = propOverride || (_propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null);
+    const temRespLegal = window.listaSignatariosTemResponsavelLegal();
+    if (ehModoContrato) {
+        const infoContratoOk = typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function'
+            ? window.contratoTemCamposObrigatoriosEnvioPreenchidos(propRef)
+            : true;
+        if (!infoContratoOk) {
+            return {
+                ok: false,
+                motivo: 'Preencha todos os campos obrigatórios de Título * e Informações do Contrato * para habilitar o envio para assinatura.'
+            };
+        }
+        if (!temRespLegal) {
+            return {
+                ok: false,
+                motivo: 'Adicione pelo menos um signatário do tipo Responsável Legal na lista acima para habilitar o envio para assinatura.'
+            };
+        }
+        return { ok: true, motivo: '' };
+    }
+    const propSalvaOk = window.propostaTemCamposObrigatoriosSalvosParaAssinatura(propRef);
+    if (!propSalvaOk) {
+        return {
+            ok: false,
+            motivo: 'Preencha e salve todas as informações obrigatórias da proposta antes de enviar para assinatura.'
+        };
+    }
+    if (!temRespLegal) {
+        return {
+            ok: false,
+            motivo: 'Adicione pelo menos um signatário do tipo Responsável Legal na lista acima para habilitar o envio para assinatura.'
+        };
+    }
+    return { ok: true, motivo: '' };
+};
+
 window.atualizarEstadoBotaoEnviarAssinaturaQuadro = function(propOverride = null) {
     const btn = document.getElementById('btn-quadro-enviar-assinatura-contrato');
     if (!btn) return;
-    const ehModoContrato = window._modoTelaComercial === 'contrato';
-    const propRef = propOverride || (_propostasEditandoId ? (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) : null);
-    const infoOk = !ehModoContrato
-        || (typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function'
-            ? window.contratoTemCamposObrigatoriosEnvioPreenchidos(propRef)
-            : true);
+    const st = window.propostaOuContratoProntoParaEnviarAssinaturaQuadro(propOverride);
+    const infoOk = Boolean(st && st.ok);
     btn.disabled = !infoOk;
     if (infoOk) {
         btn.style.background = '#0f766e';
@@ -759,7 +855,7 @@ window.atualizarEstadoBotaoEnviarAssinaturaQuadro = function(propOverride = null
         btn.style.cursor = 'not-allowed';
         btn.style.pointerEvents = 'none';
         btn.style.boxShadow = 'none';
-        btn.title = 'Preencha todos os campos obrigatórios de Título * e Informações do Contrato * para habilitar o envio para assinatura.';
+        btn.title = (st && st.motivo) || 'Preencha todas as informações obrigatórias e adicione pelo menos um Responsável Legal para enviar para assinatura.';
     }
 };
 
@@ -1049,6 +1145,14 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
     const invalido = listaSignatariosEscolhidos.find(s => !s.nome || !s.email || !s.email.includes('@'));
     if (invalido) {
         Swal.fire('Aviso', 'Todos os signatários da lista devem possuir Nome e E-mail válidos.', 'warning');
+        return;
+    }
+    if (!window.listaSignatariosTemResponsavelLegal(listaSignatariosEscolhidos)) {
+        Swal.fire('Responsável Legal Obrigatório', `É obrigatório incluir pelo menos um signatário do tipo "Responsável Legal" para enviar ${ehModoContrato ? 'o contrato' : 'a proposta'} para assinatura.`, 'warning');
+        return;
+    }
+    if (!ehModoContrato && (!Boolean(_propostasEditandoId) || Boolean(window._propFormEditadoNaoSalvo))) {
+        Swal.fire('Salve a Proposta Primeiro', 'Salve todas as informações obrigatórias da proposta antes de clicar em Enviar para Assinatura.', 'warning');
         return;
     }
 
@@ -1453,19 +1557,20 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
             </div>
         `;
 
-    const infoContratoCompletaQuadro = !ehModoContratoQuadro
-        || (typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function'
-            ? window.contratoTemCamposObrigatoriosEnvioPreenchidos(prop)
-            : true);
+    const stProntoQuadro = typeof window.propostaOuContratoProntoParaEnviarAssinaturaQuadro === 'function'
+        ? window.propostaOuContratoProntoParaEnviarAssinaturaQuadro(prop)
+        : { ok: true, motivo: '' };
+    const infoContratoCompletaQuadro = Boolean(stProntoQuadro && stProntoQuadro.ok);
+    const titleBloqQuadro = _escHtmlProp((stProntoQuadro && stProntoQuadro.motivo) || '');
 
     const rodapeBotaoEnviarHtml = !foiAssinadoGeral ? `
         <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
             <span style="font-size:0.75rem; color:#475569;">
-                Adicione todos os signatários desejados na lista acima e clique em <strong>Enviar para Assinatura</strong> para disparar ${labelDocQuadro.toLowerCase()}.
+                Adicione todos os signatários desejados na lista acima (incluindo pelo menos 1 <strong>Responsável Legal</strong>) e clique em <strong>Enviar para Assinatura</strong> para disparar ${labelDocQuadro.toLowerCase()}.
             </span>
             <button type="button" id="btn-quadro-enviar-assinatura-contrato" onclick="window.enviarContratoParaAssinaturaPeloQuadro()"
                 ${infoContratoCompletaQuadro ? '' : 'disabled'}
-                title="${infoContratoCompletaQuadro ? '' : 'Preencha todos os campos obrigatórios de Título * e Informações do Contrato * para habilitar o envio para assinatura.'}"
+                title="${infoContratoCompletaQuadro ? '' : titleBloqQuadro}"
                 style="background:${infoContratoCompletaQuadro ? '#0f766e' : '#cbd5e1'}; color:${infoContratoCompletaQuadro ? '#ffffff' : '#64748b'}; border:none; padding:0.55rem 1.25rem; border-radius:7px; font-weight:800; font-size:0.84rem; cursor:${infoContratoCompletaQuadro ? 'pointer' : 'not-allowed'}; pointer-events:${infoContratoCompletaQuadro ? 'auto' : 'none'}; display:inline-flex; align-items:center; gap:6px; box-shadow:${infoContratoCompletaQuadro ? '0 2px 6px rgba(15,118,110,0.22)' : 'none'}; transition:background 0.15s;"
                 onmouseover="if(!this.disabled) this.style.background='#115e59'" onmouseout="if(!this.disabled) this.style.background='#0f766e'">
                 <i class="ph ph-paper-plane-tilt" style="font-size:1.05rem;"></i> Enviar para Assinatura
@@ -1785,6 +1890,10 @@ window.solicitarSignatariosAssinafyModal = async function({ tituloModal = 'Envia
                     return false;
                 }
                 resultado.push({ tipo: tp, nome: nm, email: em });
+            }
+            if (typeof window.listaSignatariosTemResponsavelLegal === 'function' && !window.listaSignatariosTemResponsavelLegal(resultado)) {
+                Swal.showValidationMessage('É obrigatório incluir pelo menos um signatário do tipo "Responsável Legal".');
+                return false;
             }
             return resultado;
         }
@@ -4658,7 +4767,7 @@ function _renderFormPropostaInt() {
                     <!-- Seção: Cliente e Contato -->
                     <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                            <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente
+                            <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente <span style="color:#dc2626;">*</span>
                         </h4>
                         <div id="prop-dados-cliente-grid" style="display:grid; grid-template-columns:${(window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(v('tipo'))) ? '1.2fr 1.2fr 0.9fr' : '1fr 1fr'}; gap:0.5rem 0.75rem;">
                             <div>
@@ -4790,7 +4899,7 @@ function _renderFormPropostaInt() {
                     <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições
+                                <i class="ph ph-calendar-blank" style="color:#7048e8;"></i> Período e Condições <span style="color:#dc2626;">*</span>
                             </h4>
                             <button type="button" onclick="window.toggleSecaoContratoAccordion('periodo', event)" title="Abrir / Fechar Período e Condições" style="display:${window._modoTelaComercial === 'contrato' ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #86efac; background:#dcfce7; color:#166534; cursor:pointer;">
                                 <i id="prop-caret-periodo" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._modoTelaComercial === 'contrato' && window._contratoSecoesAbertas && window._contratoSecoesAbertas.periodo) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
@@ -5861,7 +5970,12 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
 window.marcarPropostaComoEditada = function(opcoes = {}) {
     window._propFormEditadoNaoSalvo = true;
-    if (!_propostasEditandoId) return;
+    if (!_propostasEditandoId) {
+        if (typeof window.atualizarEstadoBotaoEnviarAssinaturaQuadro === 'function') {
+            window.atualizarEstadoBotaoEnviarAssinaturaQuadro();
+        }
+        return;
+    }
     const prop = (_propostasData || []).find(p => Number(p.id) === Number(_propostasEditandoId)) || null;
     const foiAssinadaAssinafy = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
     const isModoCtrEdicao = window._modoTelaComercial === 'contrato';
@@ -5906,6 +6020,12 @@ window._onEdicaoCampoFormProposta = function(event) {
     const t = event && event.target;
     if (!t) return;
     if (t.id === 'prop-codigo') return;
+    if (typeof t.closest === 'function' && (t.closest('#prop-secao-assinatura-digital') || t.closest('#prop-secao-anexos') || t.closest('#prop-secao-os-contrato'))) {
+        if (typeof window.atualizarEstadoBotaoEnviarAssinaturaQuadro === 'function') {
+            window.atualizarEstadoBotaoEnviarAssinaturaQuadro();
+        }
+        return;
+    }
     if (t.id === 'prop-fase') {
         window.marcarPropostaComoEditada({ preservarFase: true });
         return;
@@ -24933,8 +25053,14 @@ window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = nu
             servicos: respModal.value.servicos || []
         };
         window.atualizarBotaoOperacaoAditivoToolbar();
+        if (typeof window.atualizarVisibilidadeServicosProposta === 'function') {
+            window.atualizarVisibilidadeServicosProposta();
+        }
         if (typeof window.marcarPropostaComoEditada === 'function') {
             window.marcarPropostaComoEditada();
+        }
+        if (typeof window.atualizarEstadoBotaoEnviarAssinaturaQuadro === 'function') {
+            window.atualizarEstadoBotaoEnviarAssinaturaQuadro();
         }
     }
 };
@@ -25038,8 +25164,27 @@ window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtos
                     marcouAlgumProd = true;
                 }
             });
-            if (!marcouAlgumProd && prodsOrig.length === 1 && itensAd.length > 0) {
-                prodsOrig[0]._substituido_por_aditivo = codAd;
+            if (!marcouAlgumProd && prodsOrig.length > 0 && itensAd.length > 0) {
+                const normNomeProd = (s) => String(s || '').replace(/^\d+\s*-\s*/, '').trim().toUpperCase();
+                prodsOrig.forEach(pBase => {
+                    if (pBase && !pBase._substituido_por_aditivo) {
+                        const codB = String(pBase.codigo || '').trim().toUpperCase();
+                        const nomB = normNomeProd(pBase.produto || pBase.descricao || pBase.nome);
+                        const bateAd = itensAd.some(itA => {
+                            const codA = String(itA?.codigo || '').trim().toUpperCase();
+                            const nomA = normNomeProd(itA?.produto || itA?.descricao || itA?.nome);
+                            return (codB && codA && codB === codA) || (nomB && nomA && nomB === nomA);
+                        });
+                        if (bateAd) {
+                            pBase._substituido_por_aditivo = codAd;
+                            marcouAlgumProd = true;
+                        }
+                    }
+                });
+                if (!marcouAlgumProd) {
+                    const pAlvo = prodsOrig.find(p => p && !p._substituido_por_aditivo) || prodsOrig[0];
+                    if (pAlvo) pAlvo._substituido_por_aditivo = codAd;
+                }
             }
             servsOrig.forEach((sBase, idxS) => {
                 if (window._itemContratoBaseCorrespondeSubstituido(sBase, idxS, subObj.servicos, 'servico')) {
@@ -27028,7 +27173,7 @@ window.renderizarProdutosPropostaGrid = function() {
         return `
             <tr style="border-bottom:1px solid #e2e8f0; ${(temFiltroCompGrid && !naoAprovadoGrid && !substituidoAditivoCod) ? 'background:#f0fdf4;' : (p?._from_aditivo_dinamico ? 'background:#fefce8;' : '')}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}${badgeOrigemContratoHtml}${badgeSubstituidoAditivoHtml}${badgeAprovCompGridHtml}</div>
+                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${manutValItem}x manut./sem.</span>` : ''}${badgeOrigemContratoHtml}${badgeSubstituidoAditivoHtml}${badgeAprovCompGridHtml}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 8px;">

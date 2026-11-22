@@ -26,14 +26,20 @@
         return tipoProprioProposta(tipo);
     };
 
-    /* Serviço OBRIGATÓRIO somente em OBRA mensal/quinzenal/semanal (não é obrigatório em EQUIPAMENTOS nem em ADITIVO) */
+    /* Serviço OBRIGATÓRIO em OBRA mensal/quinzenal/semanal e em ADITIVO de Substituição cujo contrato base seja Obra */
     window.tipoPropostaServicoObrigatorio = function (tipo) {
         const proprio = tipoProprioProposta(tipo);
         const atualDom = tipoProprioProposta();
-        if (proprio === 'ADITIVO' || atualDom === 'ADITIVO' || proprio === 'EQUIPAMENTOS' || proprio === 'EQUIPAMENTO' || atualDom === 'EQUIPAMENTOS' || atualDom === 'EQUIPAMENTO') {
+        if (proprio === 'EQUIPAMENTOS' || proprio === 'EQUIPAMENTO' || atualDom === 'EQUIPAMENTOS' || atualDom === 'EQUIPAMENTO') {
             return false;
         }
-        return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tipoLimpo(tipo));
+        const tEfetivo = String(tipoLimpo(tipo) || '').trim().toUpperCase();
+        const ehObraEfetivo = window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo) || tEfetivo === 'OBRA' || tEfetivo.startsWith('OBRA ');
+        if (proprio === 'ADITIVO' || atualDom === 'ADITIVO') {
+            const opAditivo = String(window._propAditivoOperacao || '').trim().toLowerCase();
+            return Boolean(ehObraEfetivo && opAditivo === 'substituir');
+        }
+        return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo);
     };
 
     /* O quadro de Serviços aparece em todos os modelos na tela de Contratos, e na proposta em OBRA, EQUIPAMENTOS e ADITIVO */
@@ -89,8 +95,10 @@
     window._atualizarTituloServicosProposta = function (tipo) {
         const obrig = window.tipoPropostaServicoObrigatorio(tipo);
         const tit = document.getElementById('prop-servicos-titulo');
+        const lblServ = document.getElementById('prop-serv-codigo-lbl');
         const hint = document.getElementById('prop-servicos-hint');
-        if (tit) tit.textContent = obrig ? 'Serviços*' : 'Serviços';
+        if (tit) tit.innerHTML = obrig ? 'Serviços <span style="color:#dc2626;">*</span>' : 'Serviços';
+        if (lblServ) lblServ.innerHTML = obrig ? 'Serviço <span style="color:#dc2626;">*</span>' : 'Serviço';
         if (hint) hint.textContent = '';
         window.alternarFreteFobServicoProposta();
     };
@@ -124,7 +132,7 @@
         <div id="prop-wrapper-servicos" style="display:${visivel ? 'block' : 'none'}; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
             <div onclick="if(window._modoTelaComercial==='contrato' && typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:${isModoCtr ? 'pointer' : 'default'}; user-select:none;">
                 <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                    <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços*' : 'Serviços'}</span>
+                    <i class="ph ph-wrench" style="color:#7048e8;"></i> <span id="prop-servicos-titulo">${obrigatorio ? 'Serviços <span style="color:#dc2626;">*</span>' : 'Serviços'}</span>
                     <span id="prop-servicos-hint" style="display:none;"></span>
                 </h4>
                 <button type="button" id="btn-toggle-secao-servicos" onclick="if(typeof window.toggleSecaoContratoAccordion==='function') window.toggleSecaoContratoAccordion('servicos', event)" title="Abrir / Fechar Serviços" style="display:${isModoCtr ? 'inline-flex' : 'none'}; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
@@ -135,7 +143,7 @@
             <div id="prop-secao-servicos-body" style="display:${servAberto ? 'block' : 'none'}; margin-top:0.45rem;">
             <div style="display:grid; grid-template-columns:2fr 2.8fr auto; gap:0.5rem 0.75rem; align-items:flex-end; margin-bottom:0.55rem;">
                 <div>
-                    <label class="prop-lbl">Serviço</label>
+                    <label class="prop-lbl" id="prop-serv-codigo-lbl">${obrigatorio ? 'Serviço <span style="color:#dc2626;">*</span>' : 'Serviço'}</label>
                     <div style="display:flex; gap:0.25rem; align-items:center;">
                         <input type="text" id="prop-serv-codigo" placeholder="Digite o código ou nome do serviço..."
                             oninput="window.onInputServicoPropostaTexto()"
