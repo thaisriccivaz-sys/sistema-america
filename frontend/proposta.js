@@ -5035,7 +5035,10 @@ function _renderFormPropostaInt() {
                                 <button type="button" id="btn-pesq-endereco-prop" onclick="window.pesquisarEnderecoProposta(this)" style="background:#2563eb; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar / Adicionar Endereço de Instalação">
                                     <i class="ph ph-magnifying-glass" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
-                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar / Gerenciar Endereços do Cliente">
+                                <button type="button" id="btn-add-mais-endereco-prop" onclick="window.iniciarAdicaoOutroEnderecoInstalacaoProposta(event)" style="background:#16a34a; color:#fff; border:none; padding:0 8px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; font-size:0.74rem; font-weight:700; transition:0.15s; outline:none; flex-shrink:0; white-space:nowrap;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" title="Adicionar mais um endereço de instalação na proposta/contrato">
+                                    <i class="ph ph-map-pin-plus" style="font-size:0.9rem; font-weight:700;"></i> + Endereço
+                                </button>
+                                <button type="button" onclick="window.abrirModalEnderecosEntrega()" style="background:#eab308; color:#fff; border:none; padding:0; width:28px; height:28px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:0.15s; outline:none; flex-shrink:0;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" title="Cadastrar Novo Endereço no Cliente">
                                     <i class="ph ph-plus" style="font-size:0.95rem; font-weight:700;"></i>
                                 </button>
                                 <span id="prop-regiao-ia-badge" style="display:none; font-weight:800; font-size:0.7rem; padding:2px 6px; border-radius:10px; font-family:'Inter',sans-serif; white-space:nowrap;"></span>
@@ -25913,7 +25916,7 @@ window.sincronizarChipsEnderecosInstalacaoProposta = function() {
     const inp = document.getElementById('prop-endereco');
     if (!chipsEl || !inp) return;
     const lista = window.obterListaEnderecosInstalacao(inp.value);
-    if (lista.length <= 1) {
+    if (lista.length === 0) {
         chipsEl.innerHTML = '';
         chipsEl.style.display = 'none';
         return;
@@ -25926,7 +25929,36 @@ window.sincronizarChipsEnderecosInstalacaoProposta = function() {
             <button type="button" onclick="window.removerEnderecoInstalacaoChipProposta(${idx})" title="Remover este endereço de instalação"
                 style="border:none; background:transparent; color:#dc2626; cursor:pointer; font-weight:900; font-size:0.84rem; padding:0 2px; line-height:1; display:inline-flex; align-items:center;">&times;</button>
         </span>
-    `).join('');
+    `).join('') + `
+        <button type="button" onclick="window.iniciarAdicaoOutroEnderecoInstalacaoProposta(event)"
+            title="Clique para adicionar mais um endereço de instalação"
+            style="display:inline-flex; align-items:center; gap:4px; background:#eff6ff; border:1px dashed #3b82f6; color:#1d4ed8; padding:2px 9px; border-radius:999px; font-size:0.71rem; font-weight:800; cursor:pointer; transition:all 0.15s;"
+            onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+            <i class="ph ph-plus-circle" style="font-size:0.85rem;"></i> Adicionar outro endereço
+        </button>
+    `;
+};
+
+window.iniciarAdicaoOutroEnderecoInstalacaoProposta = async function(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const inp = document.getElementById('prop-endereco');
+    if (inp) {
+        inp.removeAttribute('readonly');
+        const lista = window.obterListaEnderecosInstalacao(inp.value);
+        if (lista.length > 0 && !/\|\s*$/.test(inp.value)) {
+            inp.value = lista.join(' | ') + ' | ';
+        }
+        inp.focus();
+        try {
+            const len = inp.value.length;
+            inp.setSelectionRange(len, len);
+        } catch (_) {}
+    }
+    window._ignorarAberturaDropdownEnderecoAte = 0;
+    await window.abrirDropdownEnderecosProposta(true);
 };
 
 window.removerEnderecoInstalacaoChipProposta = function(idx) {
@@ -25978,6 +26010,14 @@ window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarT
            </div>`
         : '';
 
+    const footerNovoEndHtml = clienteNome
+        ? `<div onmousedown="event.preventDefault(); document.getElementById('prop-endereco-dropdown').style.display='none'; window.abrirModalEnderecosEntrega();"
+                style="padding:7px 10px; background:#eff6ff; border-top:1px solid #bfdbfe; cursor:pointer; font-size:0.75rem; font-weight:800; color:#1d4ed8; display:flex; align-items:center; justify-content:center; gap:6px; transition:background 0.12s;"
+                onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                <i class="ph ph-plus-circle" style="font-size:0.92rem;"></i> Cadastrar / Gerenciar Endereços deste Cliente
+           </div>`
+        : '';
+
     dropEl.innerHTML = headerMultiHtml + filtrados.slice(0, 80).map(e => {
         const safeTexto = String(e.texto_completo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeCoords = String(e.coordenadas || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -26002,7 +26042,7 @@ window.renderizarDropdownEnderecosProposta = function(termoFiltro = '', mostrarT
                 <div style="font-size:0.73rem; color:#64748b;">${_escHtmlProp(sub || e.texto_completo)}</div>
             </div>
         `;
-    }).join('');
+    }).join('') + footerNovoEndHtml;
     dropEl.style.display = 'block';
 };
 
