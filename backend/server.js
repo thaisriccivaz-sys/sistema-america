@@ -42067,12 +42067,27 @@ function classificarStatusSituacaoContrato(sitRaw) {
 }
 
 // GET /api/contratos/ativos - Listar apenas contratos com situação ATIVA (para vínculo de Aditivo)
-app.get('/api/contratos/ativos', authenticateToken, (req, res) => {
+app.get('/api/contratos/ativos', authenticateToken, async (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
+  try {
+    const pendentesAssinafy = await new Promise((resolve) => {
+      db.all(
+        `SELECT id FROM propostas
+         WHERE assinafy_id IS NOT NULL AND TRIM(COALESCE(assinafy_id, '')) != ''
+           AND UPPER(TRIM(COALESCE(situacao_contrato, ''))) = 'ENVIADO PARA ASSINATURA'
+           AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO', 'VENDA', 'PROPOSTA VENDA')`,
+        [],
+        (errP, rowsP) => resolve(!errP && Array.isArray(rowsP) ? rowsP : [])
+      );
+    });
+    if (pendentesAssinafy.length > 0 && typeof pollPropostasAditivoAssinafy === 'function') {
+      await pollPropostasAditivoAssinafy().catch(() => {});
+    }
+  } catch (_) {}
   db.all(
     `SELECT id, codigo, contrato, cliente_nome, contato_nome, tipo, tabela_precos, condicao_pagamento, nome_evento, periodo_inicio, periodo_fim, endereco_instalacao, valor_total, status, fase_negociacao, situacao_contrato
      FROM propostas
-     WHERE UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA'
+     WHERE (UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'APROVADA' OR (contrato IS NOT NULL AND TRIM(COALESCE(contrato, '')) != ''))
        AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO', 'VENDA', 'PROPOSTA VENDA')
        AND UPPER(TRIM(COALESCE(tabela_precos, ''))) NOT IN ('VENDA', 'PROPOSTA VENDA')
      ORDER BY id DESC`,
