@@ -4860,7 +4860,7 @@ function _renderFormPropostaInt() {
                     <div id="prop-secao-produtos" onclick="if(typeof window.onClickProdutoBloqueadoPorContratoBase === 'function') window.onClickProdutoBloqueadoPorContratoBase(event);" style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <div onclick="if(window._modoTelaComercial==='contrato') window.toggleSecaoContratoAccordion('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:0; cursor:${window._modoTelaComercial === 'contrato' ? 'pointer' : 'default'}; user-select:none;">
                             <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos
+                                <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span style="color:#dc2626;">*</span>
                             </h4>
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;" onclick="event.stopPropagation();">
                                 <button type="button" id="btn-prop-comparar-valores" onclick="if(typeof window.abrirModalCompararValoresProposta === 'function') window.abrirModalCompararValoresProposta(event);" disabled
@@ -4889,7 +4889,7 @@ function _renderFormPropostaInt() {
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; text-align:center; font-weight:700; background:#fff;">
                             </div>
                             <div>
-                                <label class="prop-lbl">Produto</label>
+                                <label class="prop-lbl">Produto <span style="color:#dc2626;">*</span></label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
                                     <input type="text" id="prop-prod-codigo" placeholder="Digite o código ou nome do produto..."
                                         oninput="window.onInputProdutoPropostaTexto()"
@@ -22474,7 +22474,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     (typeof window.propostaFoiAssinadaViaAssinafy === 'function' && window.propostaFoiAssinadaViaAssinafy(p)) ||
                     ['PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'APROVADA'].includes(String(p.fase_negociacao || '').trim().toUpperCase())
                 );
-                const numCtBaseAditivo = (ehAditivoModalRow && aditivoEstaAssinadoModal)
+                const numCtBaseAditivo = ehAditivoModalRow
                     ? (typeof window.extrairNumeroContratoBaseLimpo === 'function'
                         ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || '')
                         : String(p.contrato_vinculado || '').trim())
@@ -22487,7 +22487,9 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirPropostaDiretoId(${p.id});" title="Clique para abrir a Proposta Nº ${_escHtmlProp(codPropLimpo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'">${_escHtmlProp(codPropLimpo)}</button>`
                     : '—';
                 const btnContratoAmareloHtml = numContratoProp
-                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</button>`
+                    ? ((ehAditivoModalRow && !aditivoEstaAssinadoModal)
+                        ? `<span title="Contrato Base Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))} (o aditivo ainda não foi assinado)" style="background:#e2e8f0; color:#64748b; border:1px solid #cbd5e1; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:default; display:inline-flex; align-items:center; justify-content:center; gap:4px; user-select:none;">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</span>`
+                        : `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</button>`)
                     : '—';
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
@@ -22601,7 +22603,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
 
                     const filtered = propostasComCnpj.filter(p => {
                         const codRef = String((isModoContratoModal ? p.contrato : p.codigo) || '').toLowerCase();
-                        const contrRef = String(p.contrato || '').toLowerCase();
+                        const contrRef = String(p.contrato || p.contrato_vinculado || '').toLowerCase();
                         const matchCodigo = !codVal || codRef.includes(codVal) || (!isModoContratoModal && contrRef.includes(codVal));
                         const matchRazao = !razVal || (p.cliente_nome && normStr(p.cliente_nome).includes(razVal));
                         
