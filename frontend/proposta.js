@@ -4082,6 +4082,25 @@ function _renderFormPropostaInt() {
     window._propServicosAdicionados = (typeof window._parseServicosProposta === 'function')
         ? window._parseServicosProposta(prop ? prop.itens_servicos : null)
         : [];
+    window._propAditivoOperacao = (prop && String(prop.aditivo_operacao || '').trim().toLowerCase() === 'substituir')
+        ? 'substituir'
+        : 'adicionar';
+    try {
+        const rawSubAd = prop && prop.aditivo_itens_substituidos_json
+            ? (typeof prop.aditivo_itens_substituidos_json === 'object' ? prop.aditivo_itens_substituidos_json : JSON.parse(prop.aditivo_itens_substituidos_json || '{}'))
+            : {};
+        window._propAditivoItensSubstituidos = {
+            produtos: Array.isArray(rawSubAd.produtos) ? rawSubAd.produtos.map(x => String(x || '').trim()).filter(Boolean) : [],
+            servicos: Array.isArray(rawSubAd.servicos) ? rawSubAd.servicos.map(x => String(x || '').trim()).filter(Boolean) : []
+        };
+    } catch (_) {
+        window._propAditivoItensSubstituidos = { produtos: [], servicos: [] };
+    }
+    if (window._modoTelaComercial === 'contrato' && prop && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const mescladoCtr = window.aplicarMesclagemAditivosNoContratoAtivo(prop, window._propProdutosAdicionados, window._propServicosAdicionados);
+        window._propProdutosAdicionados = mescladoCtr.produtos;
+        window._propServicosAdicionados = mescladoCtr.servicos;
+    }
     try {
         const rawDatasEnt = prop && prop.datas_entrega_equipamentos
             ? (Array.isArray(prop.datas_entrega_equipamentos) ? prop.datas_entrega_equipamentos : JSON.parse(prop.datas_entrega_equipamentos || '[]'))
@@ -4261,6 +4280,10 @@ function _renderFormPropostaInt() {
                         <i class="ph ph-arrow-counter-clockwise" style="font-size:1rem;"></i> Estornar
                     </button>
                     <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
+                        <button type="button" id="btn-prop-aditivo-operacao" onclick="window.abrirModalOperacaoAditivoContratoBase()" title="Clique para alterar entre Adicionar ou Substituir produtos/serviços do contrato base" style="display:${(window._modoTelaComercial !== 'contrato' && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') === 'ADITIVO' && (!isNovo || Boolean(v('contrato_vinculado')))) ? 'inline-flex' : 'none'}; background:${window._propAditivoOperacao === 'substituir' ? '#d97706' : '#0284c7'}; color:#ffffff; border:1px solid ${window._propAditivoOperacao === 'substituir' ? '#b45309' : '#0369a1'}; padding:0.45rem 0.95rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onfocus="this.blur()">
+                            <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : 'ph-plus-circle'}" style="font-size:1rem;"></i>
+                            <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : 'Adicionar'}</span>
+                        </button>
                         <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && Boolean(v('contrato') && String(v('contrato')).trim()) && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                             <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-contrato">Contrato Nº ${_escHtmlProp(v('contrato') || '01')}</span>
                         </button>
@@ -9258,6 +9281,7 @@ function calcularDescontoReais() {
     }
     const ehEvCalcDesc = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p) => {
+        if (p && p._substituido_por_aditivo) return acc;
         const q = parseFloat(p.quantidade) || 0;
         const v = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
         const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
@@ -9300,7 +9324,8 @@ window.calcularValorTotalProposta = function() {
     const isComparativaCalcTot = Boolean(document.getElementById('prop-comparativa')?.checked);
     const prodsAprovCalcTot = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
     const somaProdutos = (window._propProdutosAdicionados || []).reduce((acc, p, idxP) => {
-        if (isComparativaCalcTot && prodsAprovCalcTot.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovCalcTot)) {
+        if (p && p._substituido_por_aditivo) return acc;
+        if (!p?._from_aditivo_dinamico && isComparativaCalcTot && prodsAprovCalcTot.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovCalcTot)) {
             return acc;
         }
         const q = parseFloat(p.quantidade) || 0;
@@ -9614,7 +9639,8 @@ window.salvarPropostaNova = async function() {
                 const isCompSalvar = Boolean(document.getElementById('prop-comparativa')?.checked);
                 const prodsAprovSalvar = Array.isArray(window._propProdutosAprovadosAtual) ? window._propProdutosAprovadosAtual.filter(Boolean) : [];
                 return itensAtuais.reduce((acc, p, idxP) => {
-                    if (isCompSalvar && prodsAprovSalvar.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovSalvar)) {
+                    if (p && p._substituido_por_aditivo) return acc;
+                    if (!p?._from_aditivo_dinamico && isCompSalvar && prodsAprovSalvar.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovSalvar)) {
                         return acc;
                     }
                     const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
@@ -9631,8 +9657,20 @@ window.salvarPropostaNova = async function() {
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
-        itens: window._propProdutosAdicionados || [],
-        itens_servicos: window._propServicosAdicionados || [],
+        itens: (window._propProdutosAdicionados || []).filter(p => !p || !p._from_aditivo_dinamico).map(p => {
+            const c = Object.assign({}, p);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        itens_servicos: (window._propServicosAdicionados || []).filter(s => !s || !s._from_aditivo_dinamico).map(s => {
+            const c = Object.assign({}, s);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        aditivo_operacao: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (window._propAditivoOperacao || 'adicionar') : null,
+        aditivo_itens_substituidos_json: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] }) : null,
         proposta_comparativa: document.getElementById('prop-comparativa')?.checked ? 1 : 0,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null,
@@ -10114,8 +10152,20 @@ window.estornarPropostaEdicao = async function() {
         status: obter('prop-status'),
         motivo_reprovacao: obter('prop-motivo-reprovacao'),
         criado_por: window.obterNomeUsuarioLogado(),
-        itens: window._propProdutosAdicionados || [],
-        itens_servicos: window._propServicosAdicionados || [],
+        itens: (window._propProdutosAdicionados || []).filter(p => !p || !p._from_aditivo_dinamico).map(p => {
+            const c = Object.assign({}, p);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        itens_servicos: (window._propServicosAdicionados || []).filter(s => !s || !s._from_aditivo_dinamico).map(s => {
+            const c = Object.assign({}, s);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        aditivo_operacao: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (window._propAditivoOperacao || 'adicionar') : null,
+        aditivo_itens_substituidos_json: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] }) : null,
         proposta_comparativa: document.getElementById('prop-comparativa')?.checked ? 1 : 0,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
         regiao: _propRegiaoIdentificada || null
@@ -10420,7 +10470,8 @@ window.aprovarPropostaEdicao = async function() {
             if (itensAtuais.length > 0) {
                 const ehEvSalvar = typeof window.tipoPropostaEhEvento === 'function' ? window.tipoPropostaEhEvento() : false;
                 return itensAtuais.reduce((acc, p, idxP) => {
-                    if (isComparativa && Array.isArray(produtosAprovadosSel) && produtosAprovadosSel.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, produtosAprovadosSel)) {
+                    if (p && p._substituido_por_aditivo) return acc;
+                    if (!p?._from_aditivo_dinamico && isComparativa && Array.isArray(produtosAprovadosSel) && produtosAprovadosSel.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(p, idxP, produtosAprovadosSel)) {
                         return acc;
                     }
                     const porDia = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total)))
@@ -10437,8 +10488,20 @@ window.aprovarPropostaEdicao = async function() {
         status: obter('prop-status') || 'Ativa',
         motivo_reprovacao: '',
         criado_por: window.obterNomeUsuarioLogado(),
-        itens: window._propProdutosAdicionados || [],
-        itens_servicos: window._propServicosAdicionados || [],
+        itens: (window._propProdutosAdicionados || []).filter(p => !p || !p._from_aditivo_dinamico).map(p => {
+            const c = Object.assign({}, p);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        itens_servicos: (window._propServicosAdicionados || []).filter(s => !s || !s._from_aditivo_dinamico).map(s => {
+            const c = Object.assign({}, s);
+            delete c._badge_origem;
+            delete c._substituido_por_aditivo;
+            return c;
+        }),
+        aditivo_operacao: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? (window._propAditivoOperacao || 'adicionar') : null,
+        aditivo_itens_substituidos_json: String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO' ? JSON.stringify(window._propAditivoItensSubstituidos || { produtos: [], servicos: [] }) : null,
         proposta_comparativa: isComparativa ? 1 : 0,
         produtos_aprovados: produtosAprovadosSel,
         servico_precificacao_id: document.getElementById('prop-servico-precificado')?.value ? parseInt(document.getElementById('prop-servico-precificado').value) : null,
@@ -12039,8 +12102,9 @@ window.abrirLogsAlteracao = async function(id) {
                 ? `<button type="button" onclick="window.verDocumentoHistoricoProposta(${idAlvoDocHist}, ${Number(log.id)}, ${ehLogContrato ? 'true' : 'false'})" title="${_escHtmlProp(tituloBotaoOlho)}" style="background:${ehAssinado ? '#0d9488' : '#7048e8'}; color:#fff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,0.12); transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.06)'" onmouseout="this.style.transform='scale(1)'"><i class="ph ph-eye" style="font-size:1.05rem;"></i></button>`
                 : '<span style="color:#94a3b8;">—</span>';
 
+            const catHist = ehLogAditivo ? 'aditivo' : (ehLogContrato ? 'contrato' : 'proposta');
             return `
-                <tr style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.82rem;" title="${ehLogAditivo ? 'Histórico do Aditivo Vinculado' : (ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta')}">
+                <tr data-origem-hist="${catHist}" style="background:${bgLinhaHist}; border-bottom:1px solid #cbd5e1; font-size:0.82rem;" title="${ehLogAditivo ? 'Histórico do Aditivo Vinculado' : (ehLogContrato ? 'Histórico do Contrato' : 'Histórico da Proposta')}">
                     <td style="padding:0.55rem 0.7rem; font-weight:600; color:#1e293b; white-space:nowrap;">${_escHtmlProp(log.usuario || '—')}</td>
                     <td style="padding:0.55rem 0.7rem; color:#475569; white-space:nowrap;">${_escHtmlProp(dataHora)}</td>
                     <td style="padding:0.55rem 0.7rem; font-weight:700; color:${ehLogAditivo ? '#854d0e' : (ehLogContrato ? '#0f172a' : '#334155')}; white-space:nowrap;">${labelTelaHist}</td>
@@ -12050,13 +12114,50 @@ window.abrirLogsAlteracao = async function(id) {
             `;
         }).join('');
 
+        window._filtroAtivoHistoricoOrigem = '';
+        window.filtrarTabelaHistoricoPorOrigem = function(cat) {
+            const atual = window._filtroAtivoHistoricoOrigem || '';
+            const novo = (atual === cat) ? '' : cat;
+            window._filtroAtivoHistoricoOrigem = novo;
+            const trs = document.querySelectorAll('#tbody-historico-alteracoes-modal tr[data-origem-hist]');
+            let visiveis = 0;
+            trs.forEach(tr => {
+                const orig = tr.getAttribute('data-origem-hist');
+                const mostrar = !novo || orig === novo;
+                tr.style.display = mostrar ? '' : 'none';
+                if (mostrar) visiveis++;
+            });
+            const trVazio = document.getElementById('tr-historico-filtro-vazio');
+            if (trVazio) trVazio.style.display = visiveis === 0 ? '' : 'none';
+            ['proposta', 'contrato', 'aditivo'].forEach(k => {
+                const btn = document.getElementById('btn-filtro-hist-legenda-' + k);
+                if (!btn) return;
+                if (!novo) {
+                    btn.style.opacity = '1';
+                    btn.style.boxShadow = 'none';
+                    btn.style.borderColor = '#cbd5e1';
+                    btn.style.background = '#f8fafc';
+                } else if (novo === k) {
+                    btn.style.opacity = '1';
+                    btn.style.boxShadow = '0 0 0 2px #7048e8';
+                    btn.style.borderColor = '#7048e8';
+                    btn.style.background = '#ede9fe';
+                } else {
+                    btn.style.opacity = '0.45';
+                    btn.style.boxShadow = 'none';
+                    btn.style.borderColor = '#e2e8f0';
+                    btn.style.background = '#f8fafc';
+                }
+            });
+        };
+
         Swal.fire({
             title: `<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:1.15rem; font-weight:700; color:#1e293b; text-align:left; border-bottom:2px solid #e2e8f0; padding-bottom:8px; width:100%;">
                 <span><i class="ph ph-clock-counter-clockwise" style="color:#7048e8;"></i> Histórico de Alterações</span>
-                <span style="display:inline-flex; align-items:center; gap:14px; font-size:0.78rem; font-weight:600; color:#334155;">
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#e2e8f0; border:1px solid #94a3b8; display:inline-block;"></span> Histórico da Proposta</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#ffffff; border:1px solid #94a3b8; display:inline-block;"></span> Histórico do Contrato</span>
-                    <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:13px; height:13px; border-radius:3px; background:#fef9c3; border:1px solid #eab308; display:inline-block;"></span> Histórico de Aditivo</span>
+                <span style="display:inline-flex; align-items:center; gap:8px; font-size:0.76rem; font-weight:700; color:#334155; flex-wrap:wrap;">
+                    <button type="button" id="btn-filtro-hist-legenda-proposta" onclick="window.filtrarTabelaHistoricoPorOrigem('proposta')" title="Clique para filtrar apenas Histórico da Proposta (clique novamente para mostrar todos)" style="display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s;"><span style="width:13px; height:13px; border-radius:3px; background:#e2e8f0; border:1px solid #94a3b8; display:inline-block;"></span> Histórico da Proposta</button>
+                    <button type="button" id="btn-filtro-hist-legenda-contrato" onclick="window.filtrarTabelaHistoricoPorOrigem('contrato')" title="Clique para filtrar apenas Histórico do Contrato (clique novamente para mostrar todos)" style="display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s;"><span style="width:13px; height:13px; border-radius:3px; background:#ffffff; border:1px solid #94a3b8; display:inline-block;"></span> Histórico do Contrato</button>
+                    <button type="button" id="btn-filtro-hist-legenda-aditivo" onclick="window.filtrarTabelaHistoricoPorOrigem('aditivo')" title="Clique para filtrar apenas Histórico de Aditivo (clique novamente para mostrar todos)" style="display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#334155; font-size:0.75rem; font-weight:700; cursor:pointer; transition:all 0.15s;"><span style="width:13px; height:13px; border-radius:3px; background:#fef9c3; border:1px solid #eab308; display:inline-block;"></span> Histórico de Aditivo</button>
                 </span>
             </div>`,
             html: `
@@ -12071,8 +12172,9 @@ window.abrirLogsAlteracao = async function(id) {
                                 <th style="padding:0.65rem 0.7rem; text-align:center; width:80px;">Doc.</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="tbody-historico-alteracoes-modal">
                             ${rowsHtml}
+                            <tr id="tr-historico-filtro-vazio" style="display:none;"><td colspan="5" style="padding:1.5rem; text-align:center; color:#64748b; font-size:0.85rem;">Nenhum registro encontrado para este filtro. Clique novamente na legenda acima para exibir todos.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -22277,13 +22379,21 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     : String(p.data_cadastro || '').trim();
                 const dataFmt = dataIsoModal ? dataIsoModal.split('-').reverse().join('/') : '';
                 const codPropLimpo = String(p.codigo || '').trim();
-                const numContratoProp = String(p.contrato || '').trim();
+                const ehAditivoModalRow = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
+                const numCtBaseAditivo = ehAditivoModalRow
+                    ? (typeof window.extrairNumeroContratoBaseLimpo === 'function'
+                        ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || '')
+                        : String(p.contrato_vinculado || '').trim())
+                    : '';
+                const numContratoProp = ehAditivoModalRow
+                    ? String(numCtBaseAditivo || '').trim()
+                    : String(p.contrato || '').trim();
                 const tituloContratoExib = String(p.titulo_contrato || '').trim() || '—';
                 const btnPropAzulHtml = codPropLimpo
                     ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirPropostaDiretoId(${p.id});" title="Clique para abrir a Proposta Nº ${_escHtmlProp(codPropLimpo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'">${_escHtmlProp(codPropLimpo)}</button>`
                     : '—';
                 const btnContratoAmareloHtml = numContratoProp
-                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp)}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp)}</button>`
+                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</button>`
                     : '—';
                 const tipoExib = p.tipo || '—';
                 const faseExib = isModoContratoModal
@@ -23679,6 +23789,9 @@ window.atualizarBloqueioPorTipoProposta = function() {
     if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
         window.atualizarBloqueioProdutoPorContratoBase();
     }
+    if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') {
+        window.atualizarBotaoOperacaoAditivoToolbar();
+    }
 };
 
 window.atualizarBloqueioProdutoPorContratoBase = function() {
@@ -24021,6 +24134,9 @@ window.atualizarVisibilidadeContratoAditivo = function(tipo) {
     if (typeof window.atualizarBloqueioProdutoPorContratoBase === 'function') {
         window.atualizarBloqueioProdutoPorContratoBase();
     }
+    if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') {
+        window.atualizarBotaoOperacaoAditivoToolbar();
+    }
 };
 
 window.onFocusContratoAditivoInput = function(event) {
@@ -24339,7 +24455,402 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         }
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+    if (typeof window.atualizarBotaoOperacaoAditivoToolbar === 'function') {
+        window.atualizarBotaoOperacaoAditivoToolbar();
+    }
     if (typeof Swal !== 'undefined') Swal.close();
+    if (!ehAvariaFormAtivo && tipoPropFormAtivo === 'ADITIVO' && typeof window.abrirModalOperacaoAditivoContratoBase === 'function') {
+        setTimeout(() => {
+            window.abrirModalOperacaoAditivoContratoBase(pOrig);
+        }, 80);
+    }
+};
+
+window.atualizarBotaoOperacaoAditivoToolbar = function() {
+    const btn = document.getElementById('btn-prop-aditivo-operacao');
+    if (!btn) return;
+    const isModoCtr = window._modoTelaComercial === 'contrato';
+    const tipoVal = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    const ctVal = String(document.getElementById('prop-contrato-aditivo')?.value || '').trim();
+    const mostrar = !isModoCtr && tipoVal === 'ADITIVO' && Boolean(_propostasEditandoId || ctVal);
+    btn.style.display = mostrar ? 'inline-flex' : 'none';
+    const op = window._propAditivoOperacao === 'substituir' ? 'substituir' : 'adicionar';
+    btn.style.background = op === 'substituir' ? '#d97706' : '#0284c7';
+    btn.style.borderColor = op === 'substituir' ? '#b45309' : '#0369a1';
+    const ico = document.getElementById('ico-btn-prop-aditivo-operacao');
+    if (ico) ico.className = `ph ${op === 'substituir' ? 'ph-arrows-left-right' : 'ph-plus-circle'}`;
+    const lbl = document.getElementById('lbl-btn-prop-aditivo-operacao');
+    if (lbl) lbl.textContent = op === 'substituir' ? 'Substituir' : 'Adicionar';
+};
+
+window._gerarChaveItemContratoBaseParaAditivo = function(item, idx, tipoItem = 'produto') {
+    if (!item) return `${tipoItem}_${idx}`;
+    const cod = String(item.codigo || '').trim().toUpperCase();
+    const nome = String(item.produto || item.servico || item.descricao || item.nome || '').replace(/^\d+\s*-\s*/, '').trim().toUpperCase();
+    const qtd = Number(item.quantidade || 1) || 1;
+    return `${tipoItem}::${idx}::${cod}::${nome}::${qtd}`;
+};
+
+window._itemContratoBaseCorrespondeSubstituido = function(item, idx, listaChavesSalvas, tipoItem = 'produto') {
+    if (!Array.isArray(listaChavesSalvas) || !listaChavesSalvas.length || !item) return false;
+    const chaveExata = window._gerarChaveItemContratoBaseParaAditivo(item, idx, tipoItem);
+    if (listaChavesSalvas.includes(chaveExata)) return true;
+    const cod = String(item.codigo || '').trim().toUpperCase();
+    const nome = String(item.produto || item.servico || item.descricao || item.nome || '').replace(/^\d+\s*-\s*/, '').trim().toUpperCase();
+    return listaChavesSalvas.some(k => {
+        const parts = String(k || '').split('::');
+        if (parts.length >= 4) {
+            const pTipo = parts[0];
+            const pIdx = Number(parts[1]);
+            const pCod = parts[2];
+            const pNome = parts[3];
+            if (pTipo === tipoItem && pIdx === idx && pNome === nome) return true;
+            if (pTipo === tipoItem && pCod && cod && pCod === cod && pNome === nome) return true;
+        }
+        return false;
+    });
+};
+
+window._obterPropostaContratoBaseAtualDoAditivo = async function(pOrigOpcional = null) {
+    if (pOrigOpcional && (pOrigOpcional.itens || pOrigOpcional.itens_servicos)) return pOrigOpcional;
+    const inp = document.getElementById('prop-contrato-aditivo');
+    const idCt = inp?.getAttribute('data-contrato-id') || '';
+    const numCt = typeof window.extrairNumeroContratoBaseLimpo === 'function'
+        ? window.extrairNumeroContratoBaseLimpo(inp?.value || '')
+        : String(inp?.value || '').trim();
+    const normN = (s) => String(s || '').trim().replace(/^0+/, '').toUpperCase();
+    let pBase = null;
+    if (Array.isArray(window._propostasData)) {
+        pBase = (idCt && window._propostasData.find(p => String(p.id) === String(idCt)))
+            || (numCt && window._propostasData.find(p => String(p.tipo || '').trim().toUpperCase() !== 'ADITIVO' && normN(p.contrato || p.codigo) === normN(numCt)))
+            || null;
+    }
+    if (!pBase && idCt) {
+        try {
+            pBase = await apiGet(`/propostas/${encodeURIComponent(idCt)}`);
+        } catch (_) {}
+    }
+    return pBase;
+};
+
+window.abrirModalOperacaoAditivoContratoBase = async function(pOrigOpcional = null) {
+    const inpCt = document.getElementById('prop-contrato-aditivo');
+    const numCtRaw = String(inpCt?.value || '').trim();
+    if (!numCtRaw && !pOrigOpcional) {
+        Swal.fire('Aviso', 'Selecione primeiro o Nº do Contrato (contrato base) para configurar se o aditivo irá Adicionar ou Substituir produtos/serviços.', 'warning');
+        return;
+    }
+    const pBase = await window._obterPropostaContratoBaseAtualDoAditivo(pOrigOpcional);
+    let prodsBase = [];
+    let servsBase = [];
+    try {
+        prodsBase = pBase && pBase.itens
+            ? (typeof pBase.itens === 'string' ? JSON.parse(pBase.itens || '[]') : (Array.isArray(pBase.itens) ? pBase.itens : []))
+            : [];
+    } catch (_) { prodsBase = []; }
+    try {
+        servsBase = pBase && pBase.itens_servicos
+            ? (typeof pBase.itens_servicos === 'string' ? JSON.parse(pBase.itens_servicos || '[]') : (Array.isArray(pBase.itens_servicos) ? pBase.itens_servicos : []))
+            : [];
+    } catch (_) { servsBase = []; }
+
+    // Filtrar apenas produtos aprovados se o contrato base veio de proposta comparativa
+    if (pBase && Number(pBase.proposta_comparativa) === 1) {
+        let aprovBase = [];
+        try {
+            aprovBase = Array.isArray(pBase.produtos_aprovados) ? pBase.produtos_aprovados : JSON.parse(pBase.produtos_aprovados || '[]');
+        } catch (_) { aprovBase = []; }
+        if (aprovBase.length > 0 && typeof window.itemComparativaEstaAprovado === 'function') {
+            prodsBase = prodsBase.filter((it, idx) => window.itemComparativaEstaAprovado(it, idx, aprovBase));
+        }
+    }
+
+    const opAtual = window._propAditivoOperacao === 'substituir' ? 'substituir' : 'adicionar';
+    const subAtuais = window._propAditivoItensSubstituidos || { produtos: [], servicos: [] };
+    const chksProdsSalvos = Array.isArray(subAtuais.produtos) ? subAtuais.produtos : [];
+    const chksServsSalvos = Array.isArray(subAtuais.servicos) ? subAtuais.servicos : [];
+    const fmtM = (v) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const numCtExib = pBase ? String(pBase.contrato || pBase.codigo || numCtRaw).padStart(2, '0') : numCtRaw;
+
+    const htmlProdsLista = prodsBase.length === 0
+        ? `<div style="padding:10px; color:#64748b; font-size:0.8rem; font-style:italic;">Nenhum produto vinculado ao contrato base.</div>`
+        : prodsBase.map((p, idx) => {
+            const chave = window._gerarChaveItemContratoBaseParaAditivo(p, idx, 'produto');
+            const marcado = window._itemContratoBaseCorrespondeSubstituido(p, idx, chksProdsSalvos, 'produto');
+            const nome = String(p.produto || p.descricao || p.nome || `Produto ${idx + 1}`).replace(/^\d+\s*-\s*/, '').trim();
+            const qtd = Number(p.quantidade || 1) || 1;
+            const vTot = Number(p.valor_total ?? (qtd * Number(p.valor ?? p.valor_unitario ?? 0)) ?? 0);
+            return `
+                <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 11px; border:1px solid #cbd5e1; border-radius:7px; background:#ffffff; cursor:pointer; font-size:0.82rem; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'">
+                    <span style="display:flex; align-items:center; gap:8px; font-weight:700; color:#0f172a;">
+                        <input type="checkbox" class="chk-aditivo-sub-prod" value="${_escHtmlProp(chave)}" ${marcado ? 'checked' : ''} style="width:16px; height:16px; accent-color:#d97706; cursor:pointer;">
+                        <span>${_escHtmlProp(nome)} <span style="color:#64748b; font-weight:600;">(Qtd: ${qtd})</span></span>
+                    </span>
+                    <span style="font-weight:800; color:#15803d; white-space:nowrap;">R$ ${fmtM(vTot)}</span>
+                </label>
+            `;
+        }).join('');
+
+    const htmlServsLista = servsBase.length === 0
+        ? `<div style="padding:10px; color:#64748b; font-size:0.8rem; font-style:italic;">Nenhum serviço vinculado ao contrato base.</div>`
+        : servsBase.map((s, idx) => {
+            const chave = window._gerarChaveItemContratoBaseParaAditivo(s, idx, 'servico');
+            const marcado = window._itemContratoBaseCorrespondeSubstituido(s, idx, chksServsSalvos, 'servico');
+            const nome = String(s.servico || s.descricao || s.nome || `Serviço ${idx + 1}`).replace(/^\d+\s*-\s*/, '').trim();
+            const isFob = Boolean(s.frete_fob || s.fob);
+            const vTot = isFob ? 0 : Number(s.valor_total ?? s.valor ?? s.valor_unitario ?? 0);
+            return `
+                <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 11px; border:1px solid #cbd5e1; border-radius:7px; background:#ffffff; cursor:pointer; font-size:0.82rem; transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#ffffff'">
+                    <span style="display:flex; align-items:center; gap:8px; font-weight:700; color:#0f172a;">
+                        <input type="checkbox" class="chk-aditivo-sub-serv" value="${_escHtmlProp(chave)}" ${marcado ? 'checked' : ''} style="width:16px; height:16px; accent-color:#d97706; cursor:pointer;">
+                        <span>${_escHtmlProp(nome)}</span>
+                    </span>
+                    <span style="font-weight:800; color:${isFob ? '#b45309' : '#15803d'}; white-space:nowrap;">${isFob ? 'FOB' : `R$ ${fmtM(vTot)}`}</span>
+                </label>
+            `;
+        }).join('');
+
+    window._selecionarModoModalOperacaoAditivo = function(modo) {
+        const m = modo === 'substituir' ? 'substituir' : 'adicionar';
+        window._modoTempModalOperacaoAditivo = m;
+        const btnAdd = document.getElementById('btn-modal-op-aditivo-add');
+        const btnSub = document.getElementById('btn-modal-op-aditivo-sub');
+        const boxSub = document.getElementById('box-modal-op-aditivo-lista-sub');
+        if (btnAdd) {
+            btnAdd.style.borderColor = m === 'adicionar' ? '#0284c7' : '#cbd5e1';
+            btnAdd.style.background = m === 'adicionar' ? '#e0f2fe' : '#ffffff';
+            btnAdd.style.boxShadow = m === 'adicionar' ? '0 0 0 2px rgba(2,132,199,0.25)' : 'none';
+        }
+        if (btnSub) {
+            btnSub.style.borderColor = m === 'substituir' ? '#d97706' : '#cbd5e1';
+            btnSub.style.background = m === 'substituir' ? '#fef3c7' : '#ffffff';
+            btnSub.style.boxShadow = m === 'substituir' ? '0 0 0 2px rgba(217,119,6,0.25)' : 'none';
+        }
+        if (boxSub) {
+            boxSub.style.display = m === 'substituir' ? 'block' : 'none';
+        }
+    };
+
+    window._modoTempModalOperacaoAditivo = opAtual;
+
+    const respModal = await Swal.fire({
+        title: `Aditivo do Contrato Nº ${_escHtmlProp(numCtExib)}`,
+        width: '680px',
+        html: `
+            <div style="text-align:left; font-family:'Inter', sans-serif;">
+                <p style="font-size:0.86rem; color:#334155; margin:0 0 12px 0;">
+                    Você gostaria de <strong>Adicionar</strong> novos produtos/serviços ao contrato base ou <strong>Substituir</strong> produtos/serviços existentes?
+                </p>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+                    <button type="button" id="btn-modal-op-aditivo-add" onclick="window._selecionarModoModalOperacaoAditivo('adicionar')"
+                        style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'adicionar' ? '#0284c7' : '#cbd5e1'}; background:${opAtual === 'adicionar' ? '#e0f2fe' : '#ffffff'}; cursor:pointer; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
+                        <span style="font-size:0.92rem; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-plus-circle" style="font-size:1.15rem;"></i> Adicionar Produtos / Serviços
+                        </span>
+                        <span style="font-size:0.75rem; color:#475569; font-weight:500;">
+                            Mantém todos os itens atuais do contrato e adiciona os novos itens deste aditivo.
+                        </span>
+                    </button>
+                    <button type="button" id="btn-modal-op-aditivo-sub" onclick="window._selecionarModoModalOperacaoAditivo('substituir')"
+                        style="padding:12px 14px; border-radius:10px; border:2px solid ${opAtual === 'substituir' ? '#d97706' : '#cbd5e1'}; background:${opAtual === 'substituir' ? '#fef3c7' : '#ffffff'}; cursor:pointer; text-align:left; display:flex; flex-direction:column; gap:4px; transition:all 0.15s;">
+                        <span style="font-size:0.92rem; font-weight:800; color:#b45309; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-arrows-left-right" style="font-size:1.15rem;"></i> Substituir Produtos / Serviços
+                        </span>
+                        <span style="font-size:0.75rem; color:#475569; font-weight:500;">
+                            Selecione abaixo qual(is) produto(s) e/ou serviço(s) do contrato base serão substituídos.
+                        </span>
+                    </button>
+                </div>
+
+                <div id="box-modal-op-aditivo-lista-sub" style="display:${opAtual === 'substituir' ? 'block' : 'none'}; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:12px; max-height:340px; overflow-y:auto;">
+                    <div style="font-size:0.78rem; font-weight:800; color:#b45309; text-transform:uppercase; margin-bottom:8px;">
+                        Selecione qual(is) item(ns) do Contrato Base serão substituídos:
+                    </div>
+                    <div style="font-size:0.76rem; font-weight:800; color:#334155; margin:6px 0 6px;">Produtos do Contrato Base:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:10px;">
+                        ${htmlProdsLista}
+                    </div>
+                    <div style="font-size:0.76rem; font-weight:800; color:#334155; margin:6px 0 6px;">Serviços do Contrato Base:</div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        ${htmlServsLista}
+                    </div>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="ph ph-check"></i> Confirmar Escolha',
+        cancelButtonText: 'Fechar',
+        preConfirm: () => {
+            const modoEscolhido = window._modoTempModalOperacaoAditivo || 'adicionar';
+            if (modoEscolhido === 'substituir') {
+                const prodsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-prod:checked')).map(c => c.value).filter(Boolean);
+                const servsMarcados = Array.from(document.querySelectorAll('.chk-aditivo-sub-serv:checked')).map(c => c.value).filter(Boolean);
+                if (prodsMarcados.length === 0 && servsMarcados.length === 0 && (prodsBase.length > 0 || servsBase.length > 0)) {
+                    Swal.showValidationMessage('Selecione pelo menos um produto ou serviço do contrato base que será substituído.');
+                    return false;
+                }
+                return {
+                    operacao: 'substituir',
+                    produtos: prodsMarcados,
+                    servicos: servsMarcados
+                };
+            }
+            return {
+                operacao: 'adicionar',
+                produtos: [],
+                servicos: []
+            };
+        }
+    });
+
+    if (respModal && respModal.isConfirmed && respModal.value) {
+        window._propAditivoOperacao = respModal.value.operacao;
+        window._propAditivoItensSubstituidos = {
+            produtos: respModal.value.produtos || [],
+            servicos: respModal.value.servicos || []
+        };
+        window.atualizarBotaoOperacaoAditivoToolbar();
+        if (typeof window.marcarPropostaComoEditada === 'function') {
+            window.marcarPropostaComoEditada();
+        }
+    }
+};
+
+window.obterAditivosAssinadosDoContrato = function(propContrato) {
+    if (!propContrato || !Array.isArray(window._propostasData)) return [];
+    const idCt = Number(propContrato.id || 0);
+    const numCtNorm = String(propContrato.contrato || propContrato.numero_contrato || '').trim().replace(/^0+/, '').toUpperCase();
+    return window._propostasData.filter(p => {
+        if (!p || Number(p.id) === idCt) return false;
+        const t = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (t !== 'ADITIVO') return false;
+        const vincId = Number(p.contrato_vinculado_id || 0);
+        const vincNum = (typeof window.extrairNumeroContratoBaseLimpo === 'function'
+            ? window.extrairNumeroContratoBaseLimpo(p.contrato_vinculado || '')
+            : String(p.contrato_vinculado || '').trim()
+        ).replace(/^0+/, '').toUpperCase();
+        const bateContrato = (idCt > 0 && vincId === idCt) || (numCtNorm && vincNum && vincNum === numCtNorm);
+        if (!bateContrato) return false;
+        const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
+        const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
+        const assSt = String(p.assinafy_status || '').trim().toLowerCase();
+        const foiAssinado = faseUp === 'PROPOSTA ASSINADA'
+            || faseUp === 'APROVADA'
+            || faseUp === 'APROVADO - ADITIVO ASSINADO'
+            || sitUp.includes('CONTRATO ASSINADO')
+            || assSt === 'certificated'
+            || assSt === 'signed'
+            || Boolean(p.assinafy_signed_r2_key)
+            || Boolean(p.assinafy_signed_at);
+        return foiAssinado;
+    }).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+};
+
+window.aplicarMesclagemAditivosNoContratoAtivo = function(propContrato, produtosBaseRaw, servicosBaseRaw) {
+    const prodsOrig = (Array.isArray(produtosBaseRaw) ? produtosBaseRaw : []).filter(p => !p || !p._from_aditivo_dinamico).map(p => {
+        const clone = Object.assign({}, p);
+        clone._badge_origem = 'Contrato Base';
+        delete clone._substituido_por_aditivo;
+        return clone;
+    });
+    const servsOrig = (Array.isArray(servicosBaseRaw) ? servicosBaseRaw : []).filter(s => !s || !s._from_aditivo_dinamico).map(s => {
+        const clone = Object.assign({}, s);
+        clone._badge_origem = 'Contrato Base';
+        delete clone._substituido_por_aditivo;
+        return clone;
+    });
+
+    if (!propContrato || propContrato._isPreviewModelo) {
+        return { produtos: prodsOrig, servicos: servsOrig };
+    }
+    const tipoProp = String(propContrato.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+    if (tipoProp === 'ADITIVO') {
+        return { produtos: prodsOrig, servicos: servsOrig };
+    }
+
+    const aditivos = window.obterAditivosAssinadosDoContrato(propContrato);
+    if (!aditivos.length) {
+        return { produtos: prodsOrig, servicos: servsOrig };
+    }
+
+    const prodsAditivos = [];
+    const servsAditivos = [];
+
+    aditivos.forEach(ad => {
+        const codAd = String(ad.codigo || ad.id || '').padStart(2, '0');
+        const opAd = String(ad.aditivo_operacao || '').trim().toLowerCase() === 'substituir' ? 'substituir' : 'adicionar';
+        let subObj = { produtos: [], servicos: [] };
+        if (opAd === 'substituir' && ad.aditivo_itens_substituidos_json) {
+            try {
+                const parsed = typeof ad.aditivo_itens_substituidos_json === 'object'
+                    ? ad.aditivo_itens_substituidos_json
+                    : JSON.parse(ad.aditivo_itens_substituidos_json || '{}');
+                subObj = {
+                    produtos: Array.isArray(parsed.produtos) ? parsed.produtos : [],
+                    servicos: Array.isArray(parsed.servicos) ? parsed.servicos : []
+                };
+            } catch (_) {}
+        }
+
+        if (opAd === 'substituir') {
+            prodsOrig.forEach((pBase, idxB) => {
+                if (window._itemContratoBaseCorrespondeSubstituido(pBase, idxB, subObj.produtos, 'produto')) {
+                    pBase._substituido_por_aditivo = codAd;
+                }
+            });
+            servsOrig.forEach((sBase, idxS) => {
+                if (window._itemContratoBaseCorrespondeSubstituido(sBase, idxS, subObj.servicos, 'servico')) {
+                    sBase._substituido_por_aditivo = codAd;
+                }
+            });
+        }
+
+        let itensAd = [];
+        try {
+            itensAd = ad.itens ? (typeof ad.itens === 'string' ? JSON.parse(ad.itens || '[]') : (Array.isArray(ad.itens) ? ad.itens : [])) : [];
+        } catch (_) { itensAd = []; }
+        if (Number(ad.proposta_comparativa) === 1) {
+            let aprovAd = [];
+            try {
+                aprovAd = Array.isArray(ad.produtos_aprovados) ? ad.produtos_aprovados : JSON.parse(ad.produtos_aprovados || '[]');
+            } catch (_) { aprovAd = []; }
+            if (aprovAd.length > 0 && typeof window.itemComparativaEstaAprovado === 'function') {
+                itensAd = itensAd.filter((it, idx) => window.itemComparativaEstaAprovado(it, idx, aprovAd));
+            }
+        }
+        itensAd.forEach(it => {
+            if (!it) return;
+            prodsAditivos.push(Object.assign({}, it, {
+                _from_aditivo_dinamico: true,
+                _aditivo_id: ad.id,
+                _aditivo_codigo: codAd,
+                _badge_origem: `Aditivo Nº ${codAd}`
+            }));
+        });
+
+        let servsAd = [];
+        try {
+            servsAd = (typeof window._parseServicosProposta === 'function')
+                ? window._parseServicosProposta(ad.itens_servicos)
+                : (ad.itens_servicos ? (typeof ad.itens_servicos === 'string' ? JSON.parse(ad.itens_servicos || '[]') : ad.itens_servicos) : []);
+        } catch (_) { servsAd = []; }
+        (Array.isArray(servsAd) ? servsAd : []).forEach(sv => {
+            if (!sv) return;
+            servsAditivos.push(Object.assign({}, sv, {
+                _from_aditivo_dinamico: true,
+                _aditivo_id: ad.id,
+                _aditivo_codigo: codAd,
+                _badge_origem: `Aditivo Nº ${codAd}`
+            }));
+        });
+    });
+
+    return {
+        produtos: [...prodsOrig, ...prodsAditivos],
+        servicos: [...servsOrig, ...servsAditivos]
+    };
 };
 
 window.abrirModalBuscaContratoAditivo = function(termoInicial, contratosAtivos) {
@@ -26066,6 +26577,7 @@ window._atualizarCelulasTotaisLinhaProduto = function(idx) {
         const temBoolApG = window._propProdutosAdicionados.some(x => x && typeof x.aprovado_comparativa === 'boolean');
         const temFiltroCG = Boolean(isCompG && (prodsApG.length > 0 || temBoolApG) && typeof window.itemComparativaEstaAprovado === 'function');
         const somaProds = window._propProdutosAdicionados.reduce((acc, p, idxP) => {
+            if (p && p._substituido_por_aditivo) return acc;
             if (temFiltroCG && !(prodsApG.length > 0 ? window.itemComparativaEstaAprovado(p, idxP, prodsApG) : p.aprovado_comparativa !== false)) return acc;
             const q = parseInt(p.quantidade, 10) || 1;
             const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
@@ -26192,12 +26704,23 @@ window.renderizarProdutosPropostaGrid = function() {
     const temFiltroCompGrid = Boolean(isComparativaGrid && (prodsAprovGrid.length > 0 || temBoolAprovGrid) && typeof window.itemComparativaEstaAprovado === 'function');
 
     tbody.innerHTML = list.map((p, idx) => {
-        const naoAprovadoGrid = Boolean(temFiltroCompGrid && !(prodsAprovGrid.length > 0 ? window.itemComparativaEstaAprovado(p, idx, prodsAprovGrid) : p.aprovado_comparativa !== false));
-        const styleRiscadoGrid = naoAprovadoGrid ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
-        const badgeAprovCompGridHtml = temFiltroCompGrid
+        const ehModoCtrGrid = window._modoTelaComercial === 'contrato';
+        const substituidoAditivoCod = p && p._substituido_por_aditivo ? String(p._substituido_por_aditivo) : '';
+        const naoAprovadoGrid = Boolean(!p?._from_aditivo_dinamico && temFiltroCompGrid && !(prodsAprovGrid.length > 0 ? window.itemComparativaEstaAprovado(p, idx, prodsAprovGrid) : p.aprovado_comparativa !== false));
+        const isRiscadoLinha = Boolean(naoAprovadoGrid || substituidoAditivoCod);
+        const styleRiscadoGrid = isRiscadoLinha ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
+        const badgeAprovCompGridHtml = (!p?._from_aditivo_dinamico && temFiltroCompGrid)
             ? (!naoAprovadoGrid
                 ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">✓ Aprovado pelo cliente</span>`
                 : `<span style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Não aprovado</span>`)
+            : '';
+        const badgeOrigemContratoHtml = ehModoCtrGrid
+            ? (p && p._from_aditivo_dinamico
+                ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${_escHtmlProp(p._badge_origem || 'Aditivo')}</span>`
+                : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
+            : '';
+        const badgeSubstituidoAditivoHtml = substituidoAditivoCod
+            ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${_escHtmlProp(substituidoAditivoCod)}</span>`
             : '';
         const nomeProd = String(p.produto || p.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
         const obsProd = p.observacao !== undefined ? p.observacao : '';
@@ -26262,9 +26785,9 @@ window.renderizarProdutosPropostaGrid = function() {
             ? parseInt(p.manut_semana, 10)
             : (usaManutGrid && typeof window.extrairManutSemanaDeProduto === 'function' ? window.extrairManutSemanaDeProduto(nomeProd || p.codigo) : 0);
         return `
-            <tr style="border-bottom:1px solid #e2e8f0; ${(temFiltroCompGrid && !naoAprovadoGrid) ? 'background:#f0fdf4;' : ''}">
+            <tr style="border-bottom:1px solid #e2e8f0; ${(temFiltroCompGrid && !naoAprovadoGrid && !substituidoAditivoCod) ? 'background:#f0fdf4;' : (p?._from_aditivo_dinamico ? 'background:#fefce8;' : '')}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}${badgeAprovCompGridHtml}</div>
+                    <div><span style="${styleRiscadoGrid}">${window.formatarNomeProdutoComVacHtml(nomeProd)}</span> ${(usaManutGrid && manutValItem > 0) ? `<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; margin-left:6px; white-space:nowrap;">${manutValItem}x manut./sem.</span>` : ''}${badgeOrigemContratoHtml}${badgeSubstituidoAditivoHtml}${badgeAprovCompGridHtml}</div>
                     ${diasChipsHtml}
                 </td>
                 <td style="padding:8px 8px;">
@@ -26320,7 +26843,8 @@ window.renderizarProdutosPropostaGrid = function() {
         <tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
             <td colspan="${(usaManutGrid ? 6 : 5) + (ehEventoGrid ? 1 : 0)}" style="padding:8px 12px; text-align:right; font-weight:800; color:#334155; font-size:0.82rem; text-transform:uppercase;">Valor Total dos Produtos:</td>
             <td id="prop-td-soma-total-produtos" style="padding:8px 10px; font-weight:800; color:#4c1d95; text-align:right; white-space:nowrap; font-size:0.88rem;">R$ ${list.reduce((acc, p, idxP) => {
-                if (temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid)) return acc;
+                if (p && p._substituido_por_aditivo) return acc;
+                if (!p?._from_aditivo_dinamico && temFiltroCompGrid && !window.itemComparativaEstaAprovado(p, idxP, prodsAprovGrid)) return acc;
                 const q = parseInt(p.quantidade, 10) || 1;
                 const vu = parseFloat(p.valor ?? p.valor_unitario ?? 0) || 0;
                 const st = (p.valor_total !== undefined && !isNaN(parseFloat(p.valor_total))) ? parseFloat(p.valor_total) : (q * vu);
@@ -29743,6 +30267,10 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     try {
         itens = typeof itensRaw === 'string' ? JSON.parse(itensRaw || '[]') : (Array.isArray(itensRaw) ? itensRaw : []);
     } catch (_) { itens = []; }
+    if (propostaObj && !propostaObj._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(propostaObj, itens, []);
+        itens = mesclados.produtos;
+    }
     const tipoUp = String(tipoContrato || (propostaObj && propostaObj.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const ehContratoEvento = tipoUp === 'EVENTO' || tipoUp === 'EQUIPAMENTOS' || tipoUp === 'EQUIPAMENTO';
     if (!itens.length) {
@@ -29796,8 +30324,16 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
         const descDia = Math.max(0, grossDia - netDia, descRsItem);
         const descontoTotal = ehContratoEvento ? (descDia * nDiarias) : descDia;
         const valorTotalFinal = ehContratoEvento ? (netDia * nDiarias) : netDia;
+        const badgeOrig = it._badge_origem ? String(it._badge_origem) : '';
+        const subPorAditivo = it._substituido_por_aditivo ? String(it._substituido_por_aditivo) : '';
+        const ehAditivoItem = Boolean(it._from_aditivo_dinamico);
+        const badgeDocHtml = (badgeOrig ? ` <span style="background:${ehAditivoItem ? '#fef9c3' : '#e0f2fe'}; color:${ehAditivoItem ? '#854d0e' : '#0369a1'}; border:1px solid ${ehAditivoItem ? '#eab308' : '#7dd3fc'}; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">${_escHtmlProp(badgeOrig)}</span>` : '')
+            + (subPorAditivo ? ` <span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">Substituído pelo Aditivo Nº ${_escHtmlProp(subPorAditivo)}</span>` : '');
+        const styleRiscadoDoc = subPorAditivo ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
         return {
             nome,
+            badgeDocHtml,
+            styleRiscadoDoc,
             textoTecnico,
             obs: obsReal || '—',
             obsReal,
@@ -29818,20 +30354,20 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     if (ehContratoEvento) {
         const rowsEvHtml = itensCalc.map(x => `
             <tr>
-                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${x.qtd}</td>
+                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top; ${x.styleRiscadoDoc}">${x.qtd}</td>
                 <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
-                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(x.nome)}</div>
-                    ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
-                    ${x.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3;">Obs.: ${_escHtmlProp(x.obsReal)}</div>` : ''}
+                    <div style="font-weight:700; color:#0f172a;"><span style="${x.styleRiscadoDoc}">${_escHtmlProp(x.nome)}</span>${x.badgeDocHtml || ''}</div>
+                    ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3; ${x.styleRiscadoDoc}">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
+                    ${x.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3; ${x.styleRiscadoDoc}">Obs.: ${_escHtmlProp(x.obsReal)}</div>` : ''}
                 </td>
-                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; vertical-align:top;">
+                <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; vertical-align:top; ${x.styleRiscadoDoc}">
                     <div style="font-weight:700; color:#0f172a;">${x.nDiarias}</div>
                     ${x.diariasDdMmTxt ? `<div style="font-weight:400; font-size:7pt; color:#475569; margin-top:2px; line-height:1.25;">${_escHtmlProp(x.diariasDdMmTxt)}</div>` : ''}
                 </td>
-                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.unitBase)}</td>
-                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.grossDia)}</td>
-                ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
-                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.valorTotalFinal)}</td>
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.unitBase)}</td>
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.grossDia)}</td>
+                ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
+                <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.valorTotalFinal)}</td>
             </tr>
         `).join('');
         return `
@@ -29855,14 +30391,14 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     const rowsHtml = itensCalc.map(x => `
         <tr>
             <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
-                <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(x.nome)}</div>
-                ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
-                ${x.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3;">Obs.: ${_escHtmlProp(x.obsReal)}</div>` : ''}
+                <div style="font-weight:700; color:#0f172a;"><span style="${x.styleRiscadoDoc}">${_escHtmlProp(x.nome)}</span>${x.badgeDocHtml || ''}</div>
+                ${x.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3; ${x.styleRiscadoDoc}">${_escHtmlProp(x.textoTecnico)}</div>` : ''}
+                ${x.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3; ${x.styleRiscadoDoc}">Obs.: ${_escHtmlProp(x.obsReal)}</div>` : ''}
             </td>
-            <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top;">${x.qtd}</td>
-            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">R$ ${fmtM(temDescontoProd ? x.unitBase : x.unitLiq)}</td>
-            ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
-            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">R$ ${fmtM(x.valorTotalFinal)}</td>
+            <td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; vertical-align:top; ${x.styleRiscadoDoc}">${x.qtd}</td>
+            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(temDescontoProd ? x.unitBase : x.unitLiq)}</td>
+            ${temDescontoProd ? `<td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">${x.descontoTotal > 0 ? ('R$ ' + fmtM(x.descontoTotal)) : '—'}</td>` : ''}
+            <td style="padding:4px 5px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top; ${x.styleRiscadoDoc}">R$ ${fmtM(x.valorTotalFinal)}</td>
         </tr>
     `).join('');
     return `
@@ -29881,11 +30417,15 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     `;
 };
 
-window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = '', isPreview = false, itensProdutosRaw = null) {
+window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = '', isPreview = false, itensProdutosRaw = null, propostaObj = null) {
     let servs = [];
     try {
         servs = typeof servicosRaw === 'string' ? JSON.parse(servicosRaw || '[]') : (Array.isArray(servicosRaw) ? servicosRaw : []);
     } catch (_) { servs = []; }
+    if (propostaObj && !isPreview && !propostaObj._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(propostaObj, [], servs);
+        servs = mesclados.servicos;
+    }
     const ehObra = String(tipoContrato || '').toUpperCase().includes('OBRA');
     if (!servs.length && itensProdutosRaw) {
         try {
@@ -29930,8 +30470,16 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         const base = isFob ? 0 : (Number(sv.valor_base) > 0 ? Number(sv.valor_base) : (vlrLiq > 0 ? (vlrLiq / qtd) : 0));
         const gross = isFob ? 0 : (base * qtd);
         const desconto = isFob ? 0 : Math.max(0, gross - vlrLiq, descRsServ);
+        const badgeOrigSv = sv._badge_origem ? String(sv._badge_origem) : '';
+        const subPorAditivoSv = sv._substituido_por_aditivo ? String(sv._substituido_por_aditivo) : '';
+        const ehAditivoSv = Boolean(sv._from_aditivo_dinamico);
+        const badgeDocSvHtml = (badgeOrigSv ? ` <span style="background:${ehAditivoSv ? '#fef9c3' : '#e0f2fe'}; color:${ehAditivoSv ? '#854d0e' : '#0369a1'}; border:1px solid ${ehAditivoSv ? '#eab308' : '#7dd3fc'}; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">${_escHtmlProp(badgeOrigSv)}</span>` : '')
+            + (subPorAditivoSv ? ` <span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 6px; border-radius:999px; font-size:6.8pt; font-weight:700; white-space:nowrap; text-decoration:none; display:inline-block;">Substituído pelo Aditivo Nº ${_escHtmlProp(subPorAditivoSv)}</span>` : '');
+        const styleRiscadoSvDoc = subPorAditivoSv ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
         return {
             nome,
+            badgeDocSvHtml,
+            styleRiscadoSvDoc,
             textoTecnico,
             obsReal,
             isFob,
@@ -29948,16 +30496,16 @@ window.gerarHtmlTabelaServicosContrato = function(servicosRaw, tipoContrato = ''
         return `
             <tr>
                 <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a; vertical-align:top;">
-                    <div style="font-weight:700; color:#0f172a;">${_escHtmlProp(sv.nome)}</div>
-                    ${sv.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3;">${_escHtmlProp(sv.textoTecnico)}</div>` : ''}
-                    ${sv.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3;">Obs.: ${_escHtmlProp(sv.obsReal)}</div>` : ''}
+                    <div style="font-weight:700; color:#0f172a;"><span style="${sv.styleRiscadoSvDoc}">${_escHtmlProp(sv.nome)}</span>${sv.badgeDocSvHtml || ''}</div>
+                    ${sv.textoTecnico ? `<div style="font-weight:400; font-size:7.5pt; color:#475569; margin-top:2px; line-height:1.3; ${sv.styleRiscadoSvDoc}">${_escHtmlProp(sv.textoTecnico)}</div>` : ''}
+                    ${sv.obsReal ? `<div style="font-weight:400; font-size:7.5pt; color:#334155; margin-top:2px; line-height:1.3; ${sv.styleRiscadoSvDoc}">Obs.: ${_escHtmlProp(sv.obsReal)}</div>` : ''}
                 </td>
-                ${temDiariasServ ? `<td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; vertical-align:top;">
+                ${temDiariasServ ? `<td style="padding:4px 4px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; vertical-align:top; ${sv.styleRiscadoSvDoc}">
                     <div style="font-weight:700; color:#0f172a;">${sv.nDiariasServ || 1}</div>
                     ${sv.diariasDdMmServTxt ? `<div style="font-weight:400; font-size:7pt; color:#475569; margin-top:2px; line-height:1.25;">${_escHtmlProp(sv.diariasDdMmServTxt)}</div>` : ''}
                 </td>` : ''}
-                ${temDescontoServ ? `<td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top;">${sv.desconto > 0 ? ('R$ ' + fmtM(sv.desconto)) : '—'}</td>` : ''}
-                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top;">${vlrTxt}</td>
+                ${temDescontoServ ? `<td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; white-space:nowrap; vertical-align:top; ${sv.styleRiscadoSvDoc}">${sv.desconto > 0 ? ('R$ ' + fmtM(sv.desconto)) : '—'}</td>` : ''}
+                <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:right; font-weight:700; white-space:nowrap; vertical-align:top; ${sv.styleRiscadoSvDoc}">${vlrTxt}</td>
             </tr>
         `;
     }).join('');
@@ -30544,22 +31092,31 @@ window.renderizarListaAnexosContrato = function(lista) {
                 const ic = window._iconePorArquivoAnexoContrato(a.nome_arquivo, a.mime_type);
                 const tamStr = window._formatarTamanhoBytesAnexoContrato(a.tamanho);
                 const dtStr = fmtDataHoraBr(a.criado_em);
-                const metaParts = [a.nome_arquivo, tamStr, dtStr ? `Incluído em ${dtStr}` : '', a.criado_por ? `por ${a.criado_por}` : ''].filter(Boolean);
+                const ehAuto = Boolean(a.automatico || String(a.id || '').startsWith('auto_'));
+                const idJsSafe = _escHtmlProp(String(a.id || '')).replace(/'/g, "\\'");
+                const metaParts = [a.nome_arquivo, tamStr, dtStr ? `${ehAuto ? 'Assinado em' : 'Incluído em'} ${dtStr}` : '', a.criado_por ? `por ${a.criado_por}` : ''].filter(Boolean);
+                const badgeTipoAuto = ehAuto
+                    ? (a.tipo_automatico === 'aditivo_assinado'
+                        ? `<span style="font-size:0.7rem; font-weight:800; color:#854d0e; background:#fef9c3; border:1px solid #eab308; padding:2px 8px; border-radius:999px; white-space:nowrap;">Aditivo Assinado • Automático</span>`
+                        : `<span style="font-size:0.7rem; font-weight:800; color:#0f766e; background:#ccfbf1; border:1px solid #5eead4; padding:2px 8px; border-radius:999px; white-space:nowrap;">Contrato Assinado • Automático</span>`)
+                    : '';
                 return `
-                    <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div style="background:${ehAuto ? '#f8fafc' : '#ffffff'}; border:1px solid ${ehAuto ? '#99f6e4' : '#e2e8f0'}; border-radius:8px; padding:0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:center; gap:10px; flex:1 1 320px; min-width:240px;">
                             <div style="width:36px; height:36px; border-radius:8px; background:${ic.bg}; color:${ic.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(0,0,0,0.06);">
                                 <i class="ph ${ic.icon}" style="font-size:1.25rem;"></i>
                             </div>
                             <div style="flex:1; min-width:180px;">
-                                <div style="display:flex; align-items:center; gap:6px;">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                     <span style="font-size:0.72rem; font-weight:800; color:#854d0e; background:#fef9c3; border:1px solid #fde047; padding:1px 6px; border-radius:4px; white-space:nowrap;">#${idx + 1}</span>
-                                    <input type="text" id="prop-anexo-titulo-item-${a.id}" value="${_escHtmlProp(a.titulo || '')}"
-                                        placeholder="Escreva o título deste anexo..."
-                                        onblur="window.salvarTituloAnexoContrato(${a.id}, this.value)"
-                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }"
-                                        style="width:100%; padding:0.38rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:600; color:#0f172a; background:#fff; box-sizing:border-box; text-transform:none !important;">
-                                    <span id="prop-anexo-status-${a.id}" style="font-size:0.72rem; font-weight:700; color:#16a34a; white-space:nowrap; display:none;">Salvo ✓</span>
+                                    ${ehAuto
+                                        ? `<span style="font-size:0.84rem; font-weight:800; color:#0f172a;">${_escHtmlProp(a.titulo || a.nome_arquivo || 'Documento Assinado')}</span>${badgeTipoAuto}`
+                                        : `<input type="text" id="prop-anexo-titulo-item-${a.id}" value="${_escHtmlProp(a.titulo || '')}"
+                                            placeholder="Escreva o título deste anexo..."
+                                            onblur="window.salvarTituloAnexoContrato('${idJsSafe}', this.value)"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); this.blur(); }"
+                                            style="flex:1; min-width:160px; padding:0.38rem 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:600; color:#0f172a; background:#fff; box-sizing:border-box; text-transform:none !important;">
+                                        <span id="prop-anexo-status-${a.id}" style="font-size:0.72rem; font-weight:700; color:#16a34a; white-space:nowrap; display:none;">Salvo ✓</span>`}
                                 </div>
                                 <div style="font-size:0.73rem; color:#64748b; margin-top:3px; word-break:break-all;">
                                     ${_escHtmlProp(metaParts.join(' • '))}
@@ -30567,18 +31124,18 @@ window.renderizarListaAnexosContrato = function(lista) {
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                            <button type="button" onclick="window.abrirArquivoAnexoContrato(${a.id}, false)" title="Visualizar anexo em nova guia"
+                            <button type="button" onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', false)" title="Visualizar anexo em nova guia"
                                 style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:5px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                                 <i class="ph ph-eye" style="font-size:0.92rem;"></i> Visualizar
                             </button>
-                            <button type="button" onclick="window.abrirArquivoAnexoContrato(${a.id}, true)" title="Baixar anexo"
+                            <button type="button" onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', true)" title="Baixar anexo"
                                 style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:5px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                                 <i class="ph ph-download-simple" style="font-size:0.92rem;"></i> Baixar
                             </button>
-                            <button type="button" onclick="window.excluirAnexoContrato(${a.id}, '${_escHtmlProp(a.nome_arquivo || 'anexo').replace(/'/g, "\\'")}')" title="Remover anexo do contrato"
+                            ${!ehAuto ? `<button type="button" onclick="window.excluirAnexoContrato('${idJsSafe}', '${_escHtmlProp(a.nome_arquivo || 'anexo').replace(/'/g, "\\'")}')" title="Remover anexo do contrato"
                                 style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:5px 9px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                                 <i class="ph ph-trash" style="font-size:0.92rem;"></i>
-                            </button>
+                            </button>` : ''}
                         </div>
                     </div>
                 `;
@@ -30626,8 +31183,7 @@ window.enviarArquivosAnexosContrato = async function(fileList) {
         if (tituloInp) tituloInp.value = '';
         if (fileInp) fileInp.value = '';
 
-        window._anexosContratoCache = Array.isArray(data.anexos) ? data.anexos : [];
-        window.renderizarListaAnexosContrato(window._anexosContratoCache);
+        await window.carregarAnexosContratoAtivo(propId);
 
         if (typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`${files.length} anexo(s) incluído(s) com sucesso! Você pode preencher ou editar os títulos abaixo.`);
@@ -30895,7 +31451,35 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
     const dataAtualBr = `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`;
     const dataAtualExtenso = `${String(hoje.getDate()).padStart(2, '0')} DE ${mesesExt[hoje.getMonth()]} DE ${hoje.getFullYear()}`;
 
-    const vlrTotalNum = Number(p.valor_total !== undefined ? p.valor_total : 1440);
+    let vlrTotalNum = Number(p.valor_total !== undefined ? p.valor_total : 1440);
+    if (p && !p._isPreviewModelo && typeof window.obterAditivosAssinadosDoContrato === 'function' && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const ads = window.obterAditivosAssinadosDoContrato(p);
+        if (ads.length > 0) {
+            let rawProdsP = [];
+            let rawServsP = [];
+            try { rawProdsP = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []); } catch (_) {}
+            try { rawServsP = typeof p.itens_servicos === 'string' ? JSON.parse(p.itens_servicos || '[]') : (Array.isArray(p.itens_servicos) ? p.itens_servicos : []); } catch (_) {}
+            const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(p, rawProdsP, rawServsP);
+            const tipoUpCt = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            const ehEvCt = tipoUpCt === 'EVENTO' || tipoUpCt === 'EQUIPAMENTOS' || tipoUpCt === 'EQUIPAMENTO';
+            let aprovBaseCt = [];
+            if (Number(p.proposta_comparativa) === 1) {
+                try { aprovBaseCt = Array.isArray(p.produtos_aprovados) ? p.produtos_aprovados : JSON.parse(p.produtos_aprovados || '[]'); } catch (_) {}
+            }
+            const somaP = mesclados.produtos.reduce((acc, it, idxIt) => {
+                if (!it || it._substituido_por_aditivo) return acc;
+                if (!it._from_aditivo_dinamico && Number(p.proposta_comparativa) === 1 && aprovBaseCt.length > 0 && typeof window.itemComparativaEstaAprovado === 'function' && !window.itemComparativaEstaAprovado(it, idxIt, aprovBaseCt)) {
+                    return acc;
+                }
+                const q = Math.max(1, Number(it.quantidade || 1) || 1);
+                const vu = Number(it.valor ?? it.valor_unitario ?? 0) || 0;
+                const porDia = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : (q * vu);
+                const nDias = (ehEvCt && typeof window.obterQtdDiariasProdutoEvento === 'function') ? Math.max(1, window.obterQtdDiariasProdutoEvento(it)) : 1;
+                return acc + (porDia * nDias);
+            }, 0);
+            if (somaP > 0) vlrTotalNum = somaP;
+        }
+    }
     const vlrExtenso = (typeof valorPorExtenso === 'function' ? valorPorExtenso(vlrTotalNum) : 'um mil e quatrocentos e quarenta reais').toUpperCase();
 
     const clienteRazao = limparIcone(p.cliente_nome || cli.nome_razao_social || 'CONSTRUTORA EXEMPLO S.A.');
@@ -31155,7 +31739,8 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
             p.itens_servicos,
             p.tipo || 'OBRA MENSAL',
             Boolean(!pRaw || (!pRaw.id && !pRaw.cliente_nome) || pRaw._isPreviewModelo),
-            p.itens
+            p.itens,
+            p
         ),
         '{{TABELA_VALORES_AVARIAS}}': window.gerarHtmlTabelaValoresAvariasContrato(listaAvarias)
     };

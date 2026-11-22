@@ -41933,6 +41933,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN datas_retirada_equipamentos TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN contatos_responsaveis_contrato_json TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN contato_instalacao_contrato TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN aditivo_operacao TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN aditivo_itens_substituidos_json TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Limpar datas de período de cobrança que foram pré-preenchidas automaticamente a partir do período da proposta
     db.run("UPDATE propostas SET periodo_cobranca_inicio = NULL, periodo_cobranca_fim = NULL WHERE periodo_cobranca_inicio = periodo_inicio AND periodo_cobranca_fim = periodo_fim AND (contatos_responsaveis_contrato_json IS NULL OR TRIM(contatos_responsaveis_contrato_json) IN ('', '{}', '{\"nfe\":[],\"cobranca\":[],\"os\":[],\"instalacao\":\"\"}'))", () => {});
@@ -42746,7 +42748,7 @@ const uploadAnexosContratoMem = multer({
   limits: { fileSize: 50 * 1024 * 1024 }
 });
 
-// GET /api/propostas/:id/anexos-contrato - Listar anexos do contrato
+// GET /api/propostas/:id/anexos-contrato - Listar anexos do contrato (incluindo automaticamente o Contrato Assinado e Aditivos Assinados)
 app.get('/api/propostas/:id/anexos-contrato', authenticateToken, (req, res) => {
   const propId = Number(req.params.id);
   if (!propId) return res.status(400).json({ error: 'ID inválido' });
@@ -42755,7 +42757,100 @@ app.get('/api/propostas/:id/anexos-contrato', authenticateToken, (req, res) => {
     [propId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(Array.isArray(rows) ? rows : []);
+      const manuais = Array.isArray(rows) ? rows : [];
+      db.get('SELECT id, codigo, contrato, fase_negociacao, situacao_contrato, assinafy_status, assinafy_signed_r2_key, assinafy_signed_at, pdf_enviado_assinafy_r2_key, atualizado_em FROM propostas WHERE id = ?', [propId], (errP, propRow) => {
+        if (errP || !propRow) return res.json(manuais);
+        const automaticos = [];
+        const codContratoNorm = String(propRow.contrato || '').trim().replace(/^0+/, '') || String(propRow.contrato || '').trim();
+
+        const finalizarListagemAnexos = (r2KeyContratoAssinado, dataContratoAssinado) => {
+          if (r2KeyContratoAssinado) {
+            const numCt = String(propRow.contrato || propRow.codigo || propId).padStart(2, '0');
+            automaticos.push({
+              id: `auto_contrato_${propId}`,
+              proposta_id: propId,
+              titulo: `Contrato Nº ${numCt} — Assinado Digitalmente`,
+              nome_arquivo: `Contrato_${numCt}_Assinado.pdf`,
+              mime_type: 'application/pdf',
+              tamanho: 0,
+              r2_key: r2KeyContratoAssinado,
+              criado_por: 'Assinafy (Automático)',
+              criado_em: dataContratoAssinado || propRow.assinafy_signed_at || propRow.atualizado_em || '',
+              automatico: true,
+              tipo_automatico: 'contrato_assinado'
+            });
+          }
+
+          db.all(
+            `SELECT id, codigo, tipo, fase_negociacao, situacao_contrato, contrato_vinculado, contrato_vinculado_id,
+                    assinafy_status, assinafy_signed_r2_key, assinafy_signed_at, pdf_enviado_assinafy_r2_key, atualizado_em
+             FROM propostas
+             WHERE id != ?
+               AND UPPER(TRIM(COALESCE(tipo, ''))) IN ('ADITIVO', 'PROPOSTA ADITIVO')
+               AND (
+                 contrato_vinculado_id = ?
+                 OR (? != '' AND LTRIM(TRIM(COALESCE(contrato_vinculado, '')), '0') = LTRIM(?, '0'))
+               )
+             ORDER BY id ASC`,
+            [propId, propId, codContratoNorm, codContratoNorm],
+            (errAds, adRows) => {
+              if (!errAds && Array.isArray(adRows)) {
+                adRows.forEach(ad => {
+                  const faseAd = String(ad.fase_negociacao || '').trim().toUpperCase();
+                  const sitAd = String(ad.situacao_contrato || '').trim().toUpperCase();
+                  const statusAssinafy = String(ad.assinafy_status || '').trim().toLowerCase();
+                  const r2Ad = ad.assinafy_signed_r2_key || ((faseAd === 'PROPOSTA ASSINADA' || faseAd === 'APROVADA' || sitAd.includes('CONTRATO ASSINADO') || statusAssinafy === 'certificated' || statusAssinafy === 'signed') ? ad.pdf_enviado_assinafy_r2_key : null);
+                  if (r2Ad) {
+                    const codAd = String(ad.codigo || ad.id).padStart(2, '0');
+                    automaticos.push({
+                      id: `auto_aditivo_${ad.id}`,
+                      proposta_id: propId,
+                      aditivo_id: ad.id,
+                      titulo: `Proposta de Aditivo Nº ${codAd} — Assinada Digitalmente`,
+                      nome_arquivo: `Proposta_Aditivo_${codAd}_Assinada.pdf`,
+                      mime_type: 'application/pdf',
+                      tamanho: 0,
+                      r2_key: r2Ad,
+                      criado_por: 'Assinafy (Automático)',
+                      criado_em: ad.assinafy_signed_at || ad.atualizado_em || '',
+                      automatico: true,
+                      tipo_automatico: 'aditivo_assinado'
+                    });
+                  }
+                });
+              }
+              res.json([...automaticos, ...manuais]);
+            }
+          );
+        };
+
+        if (propRow.assinafy_signed_r2_key) {
+          finalizarListagemAnexos(propRow.assinafy_signed_r2_key, propRow.assinafy_signed_at);
+        } else {
+          // Buscar no histórico de auditoria caso o contrato tenha sido reaberto mas já teve versão assinada
+          db.all(
+            `SELECT data_hora, snapshot_json FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND snapshot_json IS NOT NULL AND snapshot_json != '' ORDER BY id DESC`,
+            [propId],
+            (errAud, audRows) => {
+              let r2Hist = null;
+              let dtHist = null;
+              if (!errAud && Array.isArray(audRows)) {
+                for (const ar of audRows) {
+                  try {
+                    const snap = JSON.parse(ar.snapshot_json);
+                    if (snap && snap.assinafy_signed_r2_key && String(snap._origem_log || '').toLowerCase() === 'contrato') {
+                      r2Hist = snap.assinafy_signed_r2_key;
+                      dtHist = ar.data_hora;
+                      break;
+                    }
+                  } catch (_) {}
+                }
+              }
+              finalizarListagemAnexos(r2Hist, dtHist);
+            }
+          );
+        }
+      });
     }
   );
 });
@@ -42895,13 +42990,71 @@ app.put('/api/propostas/:id/anexos-contrato/:anexoId', authenticateToken, (req, 
 // GET /api/propostas/:id/anexos-contrato/:anexoId/arquivo - Visualizar ou baixar anexo via stream do Cloudflare R2
 app.get('/api/propostas/:id/anexos-contrato/:anexoId/arquivo', authenticateToken, (req, res) => {
   const propId = Number(req.params.id);
-  const anexoId = Number(req.params.anexoId);
+  const rawAnexoId = String(req.params.anexoId || '').trim();
+  const dispType = req.query.download === '1' ? 'attachment' : 'inline';
+
+  const servirArquivoR2 = async (r2Key, nomeArquivo, mimeType) => {
+    const safeFilename = encodeURIComponent(nomeArquivo || 'documento.pdf');
+    try {
+      const r2b = require('./utils/r2');
+      if (!r2b.isReady()) return res.status(503).send('Armazenamento R2 não configurado.');
+      const { stream, contentType } = await r2b.downloadStreamFromR2(r2Key);
+      res.setHeader('Content-Type', contentType || mimeType || 'application/pdf');
+      res.setHeader('Content-Disposition', `${dispType}; filename*=UTF-8''${safeFilename}`);
+      stream.pipe(res);
+    } catch (e) {
+      console.error('[CONTRATOS_ANEXOS] Erro ao servir anexo automático R2:', e);
+      res.status(500).send('Erro ao abrir o documento assinado.');
+    }
+  };
+
+  if (rawAnexoId.startsWith('auto_contrato_')) {
+    return db.get('SELECT id, codigo, contrato, assinafy_signed_r2_key FROM propostas WHERE id = ?', [propId], (errP, propRow) => {
+      if (errP || !propRow) return res.status(404).send('Contrato não encontrado.');
+      const numCt = String(propRow.contrato || propRow.codigo || propId).padStart(2, '0');
+      if (propRow.assinafy_signed_r2_key) {
+        return servirArquivoR2(propRow.assinafy_signed_r2_key, `Contrato_${numCt}_Assinado.pdf`, 'application/pdf');
+      }
+      db.all(
+        `SELECT snapshot_json FROM auditoria WHERE programa = 'Proposta' AND registro_id = ? AND snapshot_json IS NOT NULL AND snapshot_json != '' ORDER BY id DESC`,
+        [propId],
+        (errAud, audRows) => {
+          let r2Hist = null;
+          if (!errAud && Array.isArray(audRows)) {
+            for (const ar of audRows) {
+              try {
+                const snap = JSON.parse(ar.snapshot_json);
+                if (snap && snap.assinafy_signed_r2_key && String(snap._origem_log || '').toLowerCase() === 'contrato') {
+                  r2Hist = snap.assinafy_signed_r2_key;
+                  break;
+                }
+              } catch (_) {}
+            }
+          }
+          if (!r2Hist) return res.status(404).send('Documento assinado do contrato não encontrado.');
+          return servirArquivoR2(r2Hist, `Contrato_${numCt}_Assinado.pdf`, 'application/pdf');
+        }
+      );
+    });
+  }
+
+  if (rawAnexoId.startsWith('auto_aditivo_')) {
+    const adId = Number(rawAnexoId.replace('auto_aditivo_', ''));
+    return db.get('SELECT id, codigo, assinafy_signed_r2_key, pdf_enviado_assinafy_r2_key FROM propostas WHERE id = ?', [adId], (errAd, adRow) => {
+      if (errAd || !adRow) return res.status(404).send('Proposta de aditivo não encontrada.');
+      const r2Ad = adRow.assinafy_signed_r2_key || adRow.pdf_enviado_assinafy_r2_key;
+      if (!r2Ad) return res.status(404).send('Documento assinado do aditivo não encontrado.');
+      const codAd = String(adRow.codigo || adRow.id).padStart(2, '0');
+      return servirArquivoR2(r2Ad, `Proposta_Aditivo_${codAd}_Assinada.pdf`, 'application/pdf');
+    });
+  }
+
+  const anexoId = Number(rawAnexoId);
   db.get(
     'SELECT * FROM comercial_contratos_anexos WHERE id = ? AND proposta_id = ?',
     [anexoId, propId],
     async (err, row) => {
       if (err || !row) return res.status(404).send('Anexo não encontrado.');
-      const dispType = req.query.download === '1' ? 'attachment' : 'inline';
       const safeFilename = encodeURIComponent(row.nome_arquivo || 'anexo');
       try {
         if (row.r2_key) {
@@ -43043,8 +43196,9 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         status, motivo_reprovacao, criado_por, itens, servico_precificacao_id, regiao,
         percentual_zona, valor_km, distancia_km, valor_zona_calculado, valor_distancia_calculado,
         itens_servicos, proposta_comparativa, produtos_aprovados, interveniente_nome, contrato_interveniente, interveniente_contato_nome,
-        periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, datas_retirada_equipamentos, contatos_responsaveis_contrato_json, contato_instalacao_contrato, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        periodo_cobranca_inicio, periodo_cobranca_fim, datas_entrega_equipamentos, datas_retirada_equipamentos, contatos_responsaveis_contrato_json, contato_instalacao_contrato,
+        aditivo_operacao, aditivo_itens_substituidos_json, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, contrato, d.local, d.tipo, d.atendente, d.data_cadastro, d.validade_proposta || null, d.previsao_fechamento,
         d.fase_negociacao, d.modelo_impressao, d.cliente_nome, d.contato_nome,
@@ -43076,6 +43230,8 @@ app.post('/api/propostas', authenticateToken, (req, res) => {
         d.datas_retirada_equipamentos ? (typeof d.datas_retirada_equipamentos === 'string' ? d.datas_retirada_equipamentos : JSON.stringify(d.datas_retirada_equipamentos)) : '[]',
         d.contatos_responsaveis_contrato_json ? (typeof d.contatos_responsaveis_contrato_json === 'string' ? d.contatos_responsaveis_contrato_json : JSON.stringify(d.contatos_responsaveis_contrato_json)) : '{}',
         d.contato_instalacao_contrato || null,
+        d.aditivo_operacao || null,
+        d.aditivo_itens_substituidos_json ? (typeof d.aditivo_itens_substituidos_json === 'string' ? d.aditivo_itens_substituidos_json : JSON.stringify(d.aditivo_itens_substituidos_json)) : null,
         agora, agora
       ], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -43373,7 +43529,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       status=?, motivo_reprovacao=?, itens=?, servico_precificacao_id=?, regiao=?,
       percentual_zona=?, valor_km=?, distancia_km=?, valor_zona_calculado=?, valor_distancia_calculado=?,
       itens_servicos=?, proposta_comparativa=?, produtos_aprovados=?, interveniente_nome=?, contrato_interveniente=?, interveniente_contato_nome=?,
-      periodo_cobranca_inicio=?, periodo_cobranca_fim=?, datas_entrega_equipamentos=?, datas_retirada_equipamentos=?, contatos_responsaveis_contrato_json=?, contato_instalacao_contrato=?, atualizado_em=?
+      periodo_cobranca_inicio=?, periodo_cobranca_fim=?, datas_entrega_equipamentos=?, datas_retirada_equipamentos=?, contatos_responsaveis_contrato_json=?, contato_instalacao_contrato=?,
+      aditivo_operacao=?, aditivo_itens_substituidos_json=?, atualizado_em=?
       WHERE id=?`,
     [
       contratoFinal, sitContratoFinal, tituloContratoFinal, assinaturaR2Final, assinaturaMimeFinal, aceiteEmFinal, aprovadoPorFinal, aprovadoEmFinal,
@@ -43414,6 +43571,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       d.datas_retirada_equipamentos !== undefined ? (typeof d.datas_retirada_equipamentos === 'string' ? d.datas_retirada_equipamentos : JSON.stringify(d.datas_retirada_equipamentos || [])) : (oldRow.datas_retirada_equipamentos || '[]'),
       d.contatos_responsaveis_contrato_json !== undefined ? (typeof d.contatos_responsaveis_contrato_json === 'string' ? d.contatos_responsaveis_contrato_json : JSON.stringify(d.contatos_responsaveis_contrato_json || {})) : (oldRow.contatos_responsaveis_contrato_json || '{}'),
       d.contato_instalacao_contrato !== undefined ? (d.contato_instalacao_contrato || null) : (oldRow.contato_instalacao_contrato || null),
+      d.aditivo_operacao !== undefined ? (d.aditivo_operacao || null) : (oldRow.aditivo_operacao || null),
+      d.aditivo_itens_substituidos_json !== undefined ? (typeof d.aditivo_itens_substituidos_json === 'string' ? d.aditivo_itens_substituidos_json : JSON.stringify(d.aditivo_itens_substituidos_json || {})) : (oldRow.aditivo_itens_substituidos_json || null),
       agora, proposalId
     ], function(errUpdate) {
       if (errUpdate) return res.status(500).json({ error: errUpdate.message });

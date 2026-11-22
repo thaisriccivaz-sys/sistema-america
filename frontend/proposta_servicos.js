@@ -837,6 +837,17 @@
             : (v => (Number(v) || 0).toFixed(2).replace('.', ','));
         const linhas = lista.map((s, idx) => {
             s.quantidade = 1;
+            const ehModoCtrServ = window._modoTelaComercial === 'contrato';
+            const substituidoAditivoCodServ = s && s._substituido_por_aditivo ? String(s._substituido_por_aditivo) : '';
+            const styleRiscadoServ = substituidoAditivoCodServ ? 'text-decoration:line-through; opacity:0.6; color:#64748b;' : '';
+            const badgeOrigemServHtml = ehModoCtrServ
+                ? (s && s._from_aditivo_dinamico
+                    ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #eab308; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">${esc(s._badge_origem || 'Aditivo')}</span>`
+                    : `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #7dd3fc; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Contrato Base</span>`)
+                : '';
+            const badgeSubstituidoServHtml = substituidoAditivoCodServ
+                ? `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:6px; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substituidoAditivoCodServ)}</span>`
+                : '';
             const nome = String(s.servico || s.descricao || '').replace(/^\d+\s*-\s*/, '').trim();
             const permiteFobItem = window.servicoPermiteFreteFob(nome, s.codigo);
             if (!permiteFobItem && s.frete_fob) s.frete_fob = false;
@@ -860,11 +871,11 @@
                     ? `<input type="number" step="0.01" min="0" max="100" value="${temDescAtivo ? Number(descValAtual.toFixed(2)) : ''}" placeholder="0"
                             ${!podeDescServGrid ? 'disabled readonly' : `onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'pct', this.value)"`}
                             title="${!podeDescServGrid ? titleSemPermDescServ : 'Editar desconto (%)'}"
-                            style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''}">`
+                            style="width:72px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''} ${styleRiscadoServ}">`
                     : `<input type="text" inputmode="numeric" value="${fmtM(descValAtual)}" placeholder="0,00"
                             ${!podeDescServGrid ? 'disabled readonly' : `onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" oninput="window.onInputDescontoRsItemServicoProposta(${idx}, this)" onchange="window.atualizarDescontoItemServicoProposta(${idx}, 'valor', this.value)"`}
                             title="${!podeDescServGrid ? titleSemPermDescServ : 'Editar desconto (R$)'}"
-                            style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''}">`;
+                            style="width:76px; border:none; border-left:1px solid ${descBorder}; background:rgba(255,255,255,0.65); color:${descColor}; font-weight:700; font-size:0.78rem; padding:2px 6px; height:100%; text-align:right; outline:none; box-sizing:border-box; ${!podeDescServGrid ? 'cursor:not-allowed;' : ''} ${styleRiscadoServ}">`;
                 descHtml = `
                     <div title="${!podeDescServGrid ? titleSemPermDescServ : ''}" style="display:inline-flex; align-items:center; border:1px solid ${descBorder}; background:${descBg}; border-radius:6px; overflow:hidden; height:28px; ${!podeDescServGrid ? 'opacity:0.75; cursor:not-allowed;' : ''}">
                         <select ${!podeDescServGrid ? 'disabled' : `onchange="window.atualizarDescontoItemServicoProposta(${idx}, this.value, this.value === 'pct' ? '0' : '0,00')"`}
@@ -881,26 +892,26 @@
             s.tem_valor_tabela = temValorTabelaServItem;
             const titleBloqTabelaServ = 'Valor cadastrado na Tabela de Valores. Para alterar o valor, utilize o campo de Desconto.';
             return `
-            <tr style="border-bottom:1px solid #e2e8f0;">
+            <tr style="border-bottom:1px solid #e2e8f0; ${s?._from_aditivo_dinamico ? 'background:#fefce8;' : ''}">
                 <td style="padding:8px 10px; font-weight:600; color:#1e293b;">
-                    <div>${typeof window.formatarNomeProdutoComVacHtml === 'function' ? window.formatarNomeProdutoComVacHtml(nome) : esc(nome)} ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : (vUnit <= 0 ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">CORTESIA</span>' : '')}</div>
+                    <div><span style="${styleRiscadoServ}">${typeof window.formatarNomeProdutoComVacHtml === 'function' ? window.formatarNomeProdutoComVacHtml(nome) : esc(nome)}</span> ${isFob ? '<span style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">FOB</span>' : (vUnit <= 0 ? '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.68rem; font-weight:800; margin-left:4px;">CORTESIA</span>' : '')}${badgeOrigemServHtml}${badgeSubstituidoServHtml}</div>
                     ${permiteFobItem ? `<label style="display:inline-flex; align-items:center; gap:4px; font-size:0.7rem; color:#64748b; font-weight:600; margin-top:3px; cursor:pointer;">
                         <input type="checkbox" ${isFob ? 'checked' : ''} onchange="window.atualizarItemServicoProposta(${idx}, 'frete_fob', this.checked)" style="width:auto; margin:0;"> Frete FOB
                     </label>` : ''}
                 </td>
                 <td style="padding:8px 10px;">
                     <input type="text" value="${esc(s.observacao || '')}" onchange="window.atualizarItemServicoProposta(${idx}, 'observacao', this.value)" placeholder="Observação..."
-                        style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box;">
+                        style="width:100%; padding:4px 8px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; box-sizing:border-box; ${styleRiscadoServ}">
                 </td>
                 <td style="padding:8px 10px; text-align:center;">${descHtml}</td>
                 <td style="padding:8px 10px; text-align:right;">
                     ${isFob
-                        ? '<input type="text" value="FOB" disabled style="width:115px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed;">'
+                        ? `<input type="text" value="FOB" disabled style="width:115px; padding:4px 6px; border:1px solid #fde68a; background:#fffbeb; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:800; color:#b45309; cursor:not-allowed; ${styleRiscadoServ}">`
                         : `<input type="text" inputmode="numeric" data-serv-unit-input="${idx}" value="${fmtM(vUnit)}"
                             ${temValorTabelaServItem
                                 ? `readonly data-bloqueado-tabela="1" title="${titleBloqTabelaServ}"`
                                 : `onfocus="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" onclick="if(typeof window.posicionarCursorFimMoeda==='function') window.posicionarCursorFimMoeda(this);" oninput="window.onInputValorItemServicoProposta(${idx}, this)" onchange="window.atualizarItemServicoProposta(${idx}, 'valor', this.value)"`}
-                            style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaServItem ? '#475569' : '#0f172a'}; background:${temValorTabelaServItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaServItem ? 'cursor:not-allowed;' : ''}">`
+                            style="width:115px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; text-align:right; font-weight:700; color:${temValorTabelaServItem ? '#475569' : '#0f172a'}; background:${temValorTabelaServItem ? '#f1f5f9' : '#fff'}; ${temValorTabelaServItem ? 'cursor:not-allowed;' : ''} ${styleRiscadoServ}">`
                     }
                 </td>
                 <td style="padding:8px 10px; text-align:center;">
