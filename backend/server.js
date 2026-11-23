@@ -11647,8 +11647,19 @@ app.post('/api/documentos', authenticateToken, uploadMemoriaDoc.single('file'), 
     }
 
 
-    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS', 'RESCISAO'];
+    const abasMultiplas = ['Advertências', 'Multas', 'Atestados', 'Boletim de ocorrência', 'Terapia', 'CONTRATOS_AVULSOS', 'CONTRATOS', 'RESCISAO', 'Pagamentos'];
     const isMultiplo = !document_id && abasMultiplas.includes(tab_name);
+
+    if (tab_name === 'Pagamentos') {
+        const nowBrt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const dd = String(nowBrt.getUTCDate()).padStart(2, '0');
+        const mm = String(nowBrt.getUTCMonth() + 1).padStart(2, '0');
+        const yyyy = nowBrt.getUTCFullYear();
+        const dataPrefix = `${dd}-${mm}-${yyyy}`;
+        if (!file_name.startsWith(dataPrefix)) {
+            file_name = `${dataPrefix}_${file_name}`;
+        }
+    }
 
     if (isMultiplo) {
         // Função para garantir nome único apenas na mesma pasta (mesmo colaborador e mesma aba)
@@ -15116,7 +15127,9 @@ app.post('/api/recibos/avulso/gerar', authenticateToken, async (req, res) => {
         const tituloSafe    = normStr(titulo || 'ReciboAvulso').slice(0, 40);
         const nomeColabSafe = normStr(colab.nome_completo || 'Colaborador').slice(0, 60);
         const mesPad = String(mes).padStart(2, '0');
-        const nomeArquivo = 'ReciboAvulso_' + tituloSafe + '_' + nomeColabSafe + '_' + mesPad + ano + '.pdf';
+        const nowBrt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+        const dataPrefix = `${String(nowBrt.getUTCDate()).padStart(2, '0')}-${String(nowBrt.getUTCMonth() + 1).padStart(2, '0')}-${nowBrt.getUTCFullYear()}`;
+        const nomeArquivo = `${dataPrefix}_ReciboAvulso_${tituloSafe}_${nomeColabSafe}_${mesPad}${ano}.pdf`;
 
         let r2Key = null;
         if (r2Mod.isReady()) {

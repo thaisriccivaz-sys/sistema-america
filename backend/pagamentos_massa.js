@@ -311,9 +311,10 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
         db.all(
             `SELECT id, file_path, r2_key, assinafy_id FROM documentos
              WHERE colaborador_id = ? AND tab_name = 'Pagamentos'
+               AND document_type = ?
                AND (month = ? OR month = ?)
                AND year = ?`,
-            [colaboradorId, mesPad, mesSemPad, ano],
+            [colaboradorId, tipoDocumento || 'Pagamentos', mesPad, mesSemPad, ano],
             (err, rows) => err ? reject(err) : resolve(rows || [])
         );
     });
@@ -332,10 +333,7 @@ async function salvarDocumentoNoBanco({ colaboradorId, nomeColab, bufferPDF, nom
         }
         // Remove arquivo físico antigo (silenciosamente)
         try { if (docAntigo.file_path && fs.existsSync(docAntigo.file_path)) fs.unlinkSync(docAntigo.file_path); } catch(_) {}
-        // Remove do R2 se tiver chave
-        if (docAntigo.r2_key && r2Mod.isReady()) {
-            try { await r2Mod.deleteFromR2(docAntigo.r2_key); } catch(_) {}
-        }
+        // Regra R2: manter arquivos no Cloudflare R2 sem apagar
         // Remove registro do banco
         await new Promise((resolve) => db.run('DELETE FROM documentos WHERE id = ?', [docAntigo.id], () => resolve()));
     }

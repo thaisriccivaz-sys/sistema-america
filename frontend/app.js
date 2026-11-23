@@ -7513,6 +7513,9 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
 
     // Suporte ao separador ### para Advertências: 'Título###TipoSimples'
     let docLabel = docType;
+    if (tabId === 'Pagamentos' && docType === 'Pagamentos' && isSaved && existingDoc.upload_date) {
+        docLabel = `Pagamentos — ${formatUtcDate(existingDoc.upload_date)}`;
+    }
     let docBadge = '';
     let tipoAdvSimples = '';
     if (tabId === 'Atestados' && isSaved && existingDoc.atestado_tipo) {
@@ -7796,8 +7799,8 @@ function createDocSlot(tabId, docType, existingDoc, year = null, month = null, b
                         </div>
                         ` : ''}
                         ${(!isAssinado && !(tabId === 'Atestados' && isSaved)) ? `
-                        <label class="btn ${(isSaved && !isAsoPlaceholder) ? 'btn-warning' : 'btn-primary'}" title="${isAsoPlaceholder ? 'Anexar ASO' : isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
-                            <i class="ph ph-upload-simple"></i> ${isAsoPlaceholder ? 'Anexar ASO' : isSaved ? 'Substituir' : 'Upload'}
+                        <label class="btn ${(isSaved && !isAsoPlaceholder && !(tabId === 'Pagamentos' && docType === 'Pagamentos')) ? 'btn-warning' : 'btn-primary'}" title="${isAsoPlaceholder ? 'Anexar ASO' : (tabId === 'Pagamentos' && docType === 'Pagamentos' && isSaved) ? 'Adicionar Novo Recibo' : isSaved ? 'Substituir' : 'Fazer Upload'}" style="height: 42px; display: flex; align-items: center;">
+                            <i class="ph ph-upload-simple"></i> ${isAsoPlaceholder ? 'Anexar ASO' : (tabId === 'Pagamentos' && docType === 'Pagamentos' && isSaved) ? 'Novo Recibo' : isSaved ? 'Substituir' : 'Upload'}
                             <input type="file" accept=".pdf" style="display:none;" onchange="
                                 const venc = this.closest('.doc-item').querySelector('.venc-input')?.value; 
                                 if((${needsVencimento}) && !venc) { alert('Data de vencimento é obrigatória'); this.value=''; return; } 
@@ -9119,12 +9122,19 @@ window.renderPagamentosCompetencia = function () {
 
     // ── Slots mensais ──────────────────────────────────────────────────────────
     const docs = currentDocs.filter(d => d.tab_name === 'Pagamentos' && d.year == y && d.month == m);
-    // doc tipo Pagamentos (holerite salvo via Docs. em Massa) — fica em primeiro, roxo
-    const docPagamentos = [...docs].sort((a, b) => b.id - a.id).find(x => x.document_type === 'Pagamentos');
-    const slotPag = createDocSlot('Pagamentos', 'Pagamentos', docPagamentos, `'${y}'`, `'${m}'`);
-    // Estilo roxo para o cartão Pagamentos
-    slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
-    subContainer.appendChild(slotPag);
+    // doc tipo Pagamentos (holerite/recibo salvo) — exibe todos os recibos anexados no mês, roxo
+    const docsPagamentos = [...docs].filter(x => x.document_type === 'Pagamentos').sort((a, b) => b.id - a.id);
+    if (docsPagamentos.length === 0) {
+        const slotPag = createDocSlot('Pagamentos', 'Pagamentos', null, `'${y}'`, `'${m}'`);
+        slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
+        subContainer.appendChild(slotPag);
+    } else {
+        docsPagamentos.forEach(docPag => {
+            const slotPag = createDocSlot('Pagamentos', 'Pagamentos', docPag, `'${y}'`, `'${m}'`);
+            slotPag.style.cssText = 'border-left: 4px solid #a21caf; background: linear-gradient(to right, #fdf4ff, #fff);';
+            subContainer.appendChild(slotPag);
+        });
+    }
 
 
 
@@ -9287,11 +9297,12 @@ window.renderPagamentosCompetencia = function () {
                             `;
                         }
                     }
+                    const uploadDateStr = d.upload_date ? formatUtcDate(d.upload_date) : '';
                     return `
                     <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
                         <i class="ph ph-file-pdf" style="color:#1e40af; font-size:1.4rem;"></i>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-weight:600; font-size:0.85rem; color:#1e3a8a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Férias'}">Férias ${y}</div>
+                            <div style="font-weight:600; font-size:0.85rem; color:#1e3a8a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Férias'}">Férias ${uploadDateStr ? '— ' + uploadDateStr : y}</div>
                             <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
                         </div>
                         <div style="display:flex; align-items:center; gap:4px;">
@@ -9371,11 +9382,12 @@ window.renderPagamentosCompetencia = function () {
                             `;
                         }
                     }
+                    const uploadDateStr = d.upload_date ? formatUtcDate(d.upload_date) : '';
                     return `
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem; min-width:220px;">
                         <i class="ph ph-file-text" style="color:#64748b; font-size:1.4rem;"></i>
                         <div style="flex:1; min-width:0;">
-                            <div style="font-weight:600; font-size:0.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Outros'}">Outros</div>
+                            <div style="font-weight:600; font-size:0.85rem; color:#374151; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${d.file_name || 'Outros'}">Outros${uploadDateStr ? ' — ' + uploadDateStr : ''}</div>
                             <div style="font-size:0.75rem; color:#64748b;">${d.file_name || ''}</div>
                         </div>
                         <div style="display:flex; align-items:center; gap:4px;">
