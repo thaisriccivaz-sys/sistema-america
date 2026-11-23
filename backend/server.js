@@ -47824,6 +47824,52 @@ app.get('/api/consulta-cnpj-situacao/:cnpj', authenticateToken, async (req, res)
   res.json(v);
 });
 
+// ── Integração CreditHub (Consulta Simples CPF/CNPJ com Cache de 90 dias e Score A-F) ──
+const credithubUtil = require('./utils/credithub');
+credithubUtil.ensureTables(db).catch(err => console.warn('[CREDITHUB] Aviso ao criar tabelas:', err.message));
+
+// GET /api/credithub/status/:documento - Verifica sem custo se há consulta salva nos últimos 90 dias
+app.get('/api/credithub/status/:documento', authenticateToken, async (req, res) => {
+  try {
+    const doc = String(req.params.documento || '').replace(/\D/g, '');
+    if (doc.length !== 11 && doc.length !== 14) {
+      return res.json({ cached: false, documento: doc });
+    }
+    const cached = await credithubUtil.obterConsultaCache90Dias(db, doc);
+    if (!cached) {
+      return res.json({ cached: false, documento: doc });
+    }
+    res.json({
+      cached: true,
+      documento: doc,
+      consultadoEm: cached.consultadoEm,
+      expiraEm: cached.expiraEm,
+      diasRestantes: cached.diasRestantes,
+      notaScore: cached.notaScore,
+      pontosScore: cached.pontosScore
+    });
+  } catch (err) {
+    console.error('[CREDITHUB] Erro ao verificar status:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/credithub/consultar - Retorna consulta do cache (< 90 dias) ou realiza nova Consulta Simples na CreditHub
+app.post('/api/credithub/consultar', authenticateToken, async (req, res) => {
+  try {
+    const doc = String(req.body.documento || '').replace(/\D/g, '');
+    if (doc.length !== 11 && doc.length !== 14) {
+      return res.status(400).json({ error: 'CPF ou CNPJ inválido para consulta.' });
+    }
+    const usuario = (req.user && (req.user.username || req.user.nome || req.user.email)) || 'sistema';
+    const resultado = await credithubUtil.consultarDocumentoCreditHub(db, doc, usuario);
+    res.json({ ok: true, ...resultado });
+  } catch (err) {
+    console.error('[CREDITHUB] Erro na consulta:', err.message);
+    res.status(500).json({ error: err.message || 'Erro ao consultar documento na CreditHub.' });
+  }
+});
+
 // GET /api/contatos - Listar todos os contatos (com filtro opcional ?cliente_id=)
 app.get('/api/contatos', authenticateToken, (req, res) => {
   const cliId = req.query.cliente_id;
