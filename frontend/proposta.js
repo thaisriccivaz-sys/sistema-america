@@ -36296,7 +36296,7 @@ window.atualizarEstadoBotaoCreditHubContrato = async function(valorClienteOpcion
     }
 };
 
-window.consultarScoreCreditHubClienteContrato = async function() {
+window.consultarScoreCreditHubClienteContrato = async function(forcarNova = false) {
     const btn = document.getElementById('btn-credithub-score-cliente');
     const cli = await window._resolverClienteObjetoContratoCreditHub();
     const doc = cli && cli.cpf_cnpj ? String(cli.cpf_cnpj).replace(/\D/g, '') : '';
@@ -36312,7 +36312,7 @@ window.consultarScoreCreditHubClienteContrato = async function() {
     }
 
     try {
-        const resp = await apiPost('/credithub/consultar', { documento: doc });
+        const resp = await apiPost('/credithub/consultar', { documento: doc, forcarNova: Boolean(forcarNova) });
         if (!resp || !resp.ok) {
             throw new Error((resp && resp.error) || 'Não foi possível realizar a consulta na CreditHub.');
         }
@@ -36338,6 +36338,28 @@ window.consultarScoreCreditHubClienteContrato = async function() {
     }
 };
 
+window._formatarMarkdownNostraCredit = function(mdText) {
+    if (!mdText) return '';
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmtInline = (line) => esc(line).replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#0f172a;">$1</strong>');
+    const lines = String(mdText).split('\n');
+    const htmlParts = [];
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+        if (/^#{1,4}\s+/.test(line)) {
+            const title = line.replace(/^#{1,4}\s+/, '');
+            htmlParts.push(`<div style="font-size:0.94rem;font-weight:800;color:#0f172a;margin:0.85rem 0 0.35rem;">${fmtInline(title)}</div>`);
+        } else if (/^[*•-]\s+/.test(line)) {
+            const item = line.replace(/^[*•-]\s+/, '');
+            htmlParts.push(`<div style="padding-left:0.85rem;margin:0.3rem 0;font-size:0.84rem;color:#334155;line-height:1.5;">• ${fmtInline(item)}</div>`);
+        } else {
+            htmlParts.push(`<p style="margin:0.35rem 0;font-size:0.84rem;color:#334155;line-height:1.5;">${fmtInline(line)}</p>`);
+        }
+    }
+    return htmlParts.join('');
+};
+
 window.abrirModalRelatorioCreditHub = function(resposta) {
     const oldModal = document.getElementById('modal-credithub-relatorio');
     if (oldModal) oldModal.remove();
@@ -36345,18 +36367,23 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
     const dados = resposta.dados || {};
     const idf = dados.identificacao || {};
     const score = dados.score || { nota: resposta.notaScore || 'A', pontos: resposta.pontosScore || 100, classificacao: 'Análise Concluída', cor: '#16a34a', bg: '#dcfce7', motivos: [] };
+    const analiseIA = dados.analiseIA || '';
     const quemConsultou = Array.isArray(dados.quemConsultou) ? dados.quemConsultou : [];
     const volumeMensal = Array.isArray(dados.volumeMensal) ? dados.volumeMensal : [];
     const enderecos = Array.isArray(dados.enderecos) ? dados.enderecos : [];
     const contatos = Array.isArray(dados.contatos) ? dados.contatos : [];
     const socios = Array.isArray(dados.socios) ? dados.socios : [];
     const dominios = Array.isArray(dados.dominios) ? dados.dominios : [];
-    const protestos = dados.protestos || { situacao: 'NÃO CONSTA', quantidade: 0, valorTotal: 0, cartorios: [] };
-    const ccf = dados.ccf || { quantidade: 0, valorTotal: 0, historico: [] };
+    const protestos = dados.protestos || { situacao: 'NÃO CONSTA', quantidade: 0, titulosDetalhados: 0, detalhamentoIncompleto: false, valorTotal: 0, cartorios: [], todosProtestos: [] };
+    const todosProtestos = Array.isArray(protestos.todosProtestos) ? protestos.todosProtestos : [];
+    const ccf = dados.ccf || { quantidade: 0, valorTotal: 0, ultimaOcorrencia: null, detalhes: [], historico: [] };
+    const ccfDetalhes = Array.isArray(ccf.detalhes) ? ccf.detalhes : [];
     const dividasPublicas = dados.dividasPublicas || { quantidade: 0, valorTotal: 0 };
-    const procObj = dados.processos || { total: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, processos: [] };
+    const procObj = dados.processos || { total: 0, totalArquivados: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, processos: [], arquivados: [] };
     const listaProcessos = Array.isArray(procObj.processos) ? procObj.processos : [];
+    const listaArquivados = Array.isArray(procObj.arquivados) ? procObj.arquivados : [];
     const resNeg = dados.resumoNegativacoes || { totalOcorrencias: 0, categoriasComOcorrencia: 0, valorTotalNegativado: 0, categoriaPredominante: 'Nenhuma' };
+    const ativSecundarias = Array.isArray(idf.atividadesSecundarias) ? idf.atividadesSecundarias : [];
 
     const fmtMoeda = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtDoc = (d) => {
@@ -36389,13 +36416,14 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
     }).join('');
 
     window._credithubProcessosAtuais = listaProcessos;
+    window._credithubArquivadosAtuais = listaArquivados;
 
     const overlay = document.createElement('div');
     overlay.id = 'modal-credithub-relatorio';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;font-family:"Inter",Arial,sans-serif;';
 
     overlay.innerHTML = `
-        <div style="background:#f1f5f9;border-radius:14px;width:100%;max-width:1050px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
+        <div style="background:#f1f5f9;border-radius:14px;width:100%;max-width:1060px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;">
             <!-- Topbar Fixa -->
             <div style="background:#0f172a;color:#fff;padding:0.9rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;">
                 <div style="display:flex;align-items:center;gap:0.75rem;">
@@ -36449,6 +36477,22 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                     </div>
                 </div>
 
+                <!-- BLOCO IA: NOSTRACREDIT (ASSISTENTE DE ANÁLISE DE CRÉDITO OFICIAL CREDITHUB) -->
+                ${analiseIA ? `
+                    <div style="background:#fff;border-radius:12px;padding:1.2rem 1.35rem;border:1px solid #cbd5e1;box-shadow:0 2px 10px rgba(2,132,199,0.06);">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;padding-bottom:0.65rem;border-bottom:1px solid #f1f5f9;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#0284c7;color:#fff;font-weight:900;font-size:0.82rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">IA</div>
+                            <div>
+                                <div style="font-size:0.95rem;font-weight:800;color:#0f172a;">Assistente de Análise de Crédito — NostraCredit (IA CreditHub)</div>
+                                <div style="font-size:0.74rem;color:#64748b;">Diagnóstico detalhado do dossiê para tomada de decisão</div>
+                            </div>
+                        </div>
+                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:1rem 1.15rem;">
+                            ${window._formatarMarkdownNostraCredit(analiseIA)}
+                        </div>
+                    </div>
+                ` : ''}
+
                 <!-- BLOCO 1: IDENTIFICAÇÃO & SITUAÇÃO CADASTRAL (Igual Pág. 1 do PDF) -->
                 <div style="background:#fff;border-radius:12px;padding:1.25rem;border:1px solid #e2e8f0;">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid #e2e8f0;">
@@ -36459,6 +36503,8 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                             <span style="background:#f1f5f9;color:#334155;padding:4px 12px;border-radius:999px;font-size:0.76rem;font-weight:700;">${esc(fmtDataHora(resposta.consultadoEm))}</span>
                             <span style="background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:999px;font-size:0.76rem;font-weight:800;">${esc(fmtDoc(idf.cnpj || resposta.documento))}</span>
+                            ${ccf.quantidade > 0 ? `<span style="background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:999px;font-size:0.76rem;font-weight:800;">Cheque sem Fundo${ccf.ultimaOcorrencia ? ' com Última Ocorrência em ' + esc(ccf.ultimaOcorrencia) : ''}</span>` : ''}
+                            ${protestos.quantidade > 0 ? `<span style="background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:999px;font-size:0.76rem;font-weight:800;">${protestos.quantidade} Protestos</span>` : ''}
                             <span style="background:${procObj.total > 0 ? '#fee2e2' : '#dcfce7'};color:${procObj.total > 0 ? '#b91c1c' : '#15803d'};padding:4px 12px;border-radius:999px;font-size:0.76rem;font-weight:800;">${procObj.total} processo(s)</span>
                         </div>
                     </div>
@@ -36479,7 +36525,7 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                                 <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;">IDENTIFICAÇÃO</div>
                                 <div style="margin-top:4px;">
                                     <span style="font-size:0.68rem;color:#64748b;display:block;">NOME FANTASIA</span>
-                                    <strong style="font-size:0.9rem;color:#0f172a;">${esc(idf.nomeFantasia || '-')}</strong>
+                                    <strong style="font-size:0.9rem;color:#0f172a;">${esc(idf.nomeFantasia || idf.razaoSocial || '-')}</strong>
                                 </div>
                             </div>
 
@@ -36510,10 +36556,12 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                                         <span style="font-size:0.68rem;color:#64748b;display:block;">IDADE DA EMPRESA</span>
                                         <strong style="font-size:0.88rem;color:#0f172a;">${esc(idf.idadeEmpresa ? idf.idadeEmpresa + ' anos' : '-')}</strong>
                                     </div>
-                                    <div style="grid-column:span 2;">
-                                        <span style="font-size:0.68rem;color:#64748b;display:block;">PORTE DA EMPRESA</span>
-                                        <strong style="font-size:0.88rem;color:#0f172a;">${esc(idf.porteEmpresa || '-')}</strong>
-                                    </div>
+                                    ${idf.porteEmpresa ? `
+                                        <div style="grid-column:span 2;">
+                                            <span style="font-size:0.68rem;color:#64748b;display:block;">PORTE DA EMPRESA</span>
+                                            <strong style="font-size:0.88rem;color:#0f172a;">${esc(idf.porteEmpresa)}</strong>
+                                        </div>
+                                    ` : ''}
                                 </div>
                             </div>
 
@@ -36521,6 +36569,14 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                                 <div>
                                     <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;">ATIVIDADE ECONÔMICA</div>
                                     <strong style="font-size:0.84rem;color:#0f172a;display:block;margin-top:3px;">${esc(idf.cnaeDescricao || '-')}</strong>
+                                    ${ativSecundarias.length > 0 ? `
+                                        <div style="margin-top:6px;">
+                                            <span style="font-size:0.65rem;color:#64748b;font-weight:700;display:block;margin-bottom:3px;">ATIVIDADES ECONÔMICAS SECUNDÁRIAS</span>
+                                            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                                                ${ativSecundarias.map(at => `<span style="background:#f1f5f9;color:#334155;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">${esc(at)}</span>`).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
                                 </div>
                                 <div>
                                     <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;">FINANCEIRO · CAPITAL SOCIAL</div>
@@ -36540,7 +36596,9 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                             <div style="display:flex;align-items:flex-end;gap:14px;height:110px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
                                 ${volumeMensal.map(m => {
                                     const h = Math.max(12, Math.round(((Number(m.quantidade) || 0) / maxVol) * 75));
-                                    const mesLbl = (mesesNomes[(Number(m.mes) || 1) - 1] || m.mes) + '/' + String(m.ano || '').slice(-2);
+                                    const mesIdx = (Number(m.mes) || parseInt(String(m.data || '').split('-')[1], 10) || 1) - 1;
+                                    const anoShort = String(m.ano || String(m.data || '').split('-')[0] || '').slice(-2);
+                                    const mesLbl = (mesesNomes[mesIdx] || m.mes) + '/' + anoShort;
                                     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
                                         <span style="font-size:0.72rem;font-weight:800;color:#0284c7;">${m.quantidade}</span>
                                         <div style="width:100%;max-width:44px;height:${h}px;background:#0284c7;border-radius:6px 6px 0 0;"></div>
@@ -36665,45 +36723,49 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                             <span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:999px;font-size:0.72rem;font-weight:800;">${dominios.length} domínio(s)</span>
                         </div>
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                            ${dominios.length === 0 ? `<span style="color:#94a3b8;font-size:0.8rem;">Nenhum domínio registrado.</span>` : dominios.map(d => `
+                            ${dominios.length === 0 ? `<span style="color:#94a3b8;font-size:0.8rem;">Não há ocorrência de domínios.</span>` : dominios.map(d => `
                                 <span style="background:#f8fafc;border:1px solid #cbd5e1;color:#0f172a;padding:5px 12px;border-radius:8px;font-size:0.82rem;font-weight:700;">${esc(d)}</span>
                             `).join('')}
                         </div>
                     </div>
                 </div>
 
-                <!-- BLOCO 5: RESUMO DE NEGATIVAÇÕES E APONTAMENTOS (Pág. 4, 5 e 6 do PDF) -->
+                <!-- BLOCO 5: RESUMO DE NEGATIVAÇÕES E OCORRÊNCIAS (Pág. 3 e 4 do PDF) -->
                 <div style="background:#fff;border-radius:12px;padding:1.25rem;border:1px solid #e2e8f0;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
-                        <i class="ph ph-chart-pie-slice" style="font-size:1.3rem;color:#0284c7;"></i>
-                        <div>
-                            <h4 style="margin:0;font-size:1rem;color:#0284c7;font-weight:800;">Resumo de Negativações e Ocorrências</h4>
-                            <span style="font-size:0.76rem;color:#64748b;">Fontes: Cartórios de Protesto (CENPROT) · CCF/Bacen · Dívidas União · Tribunais (Jus.br)</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <i class="ph ph-chart-pie-slice" style="font-size:1.3rem;color:#0284c7;"></i>
+                            <div>
+                                <h4 style="margin:0;font-size:1rem;color:#0284c7;font-weight:800;">Resumo de Negativações e Ocorrências</h4>
+                                <span style="font-size:0.76rem;color:#64748b;">Fontes: Cartórios de Protesto (CENPROT) · CCF/Bacen · Dívidas União · Tribunais (Jus.br)</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="background:${resNeg.totalOcorrencias > 0 ? '#fee2e2' : '#dcfce7'};color:${resNeg.totalOcorrencias > 0 ? '#b91c1c' : '#15803d'};padding:4px 12px;border-radius:999px;font-size:0.78rem;font-weight:800;">
+                                Total de ocorrências: ${resNeg.totalOcorrencias || 0}
+                            </span>
+                            <span style="background:#f1f5f9;color:#334155;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;">
+                                Predominante: ${esc(resNeg.categoriaPredominante || 'Nenhuma')}
+                            </span>
                         </div>
                     </div>
 
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.85rem;margin-bottom:1rem;">
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.85rem;">
+                        <div style="background:${protestos.quantidade > 0 ? '#fef2f2' : '#f8fafc'};border:1px solid ${protestos.quantidade > 0 ? '#fecaca' : '#e2e8f0'};border-radius:10px;padding:0.9rem;">
                             <div style="font-size:0.72rem;color:#64748b;font-weight:700;">PROTESTOS (CENPROT)</div>
                             <div style="font-size:1.55rem;font-weight:900;color:${protestos.quantidade > 0 ? '#dc2626' : '#0f172a'};margin:4px 0;">${protestos.quantidade || 0}</div>
                             <div style="font-size:0.75rem;color:#475569;display:flex;justify-content:space-between;">
-                                <span>Valor total</span><strong>${fmtMoeda(protestos.valorTotal)}</strong>
+                                <span>Valor total</span>
+                                <strong>${protestos.detalhamentoIncompleto ? 'Indisponível (parcial ' + fmtMoeda(protestos.valorTotal) + ')' : fmtMoeda(protestos.valorTotal)}</strong>
                             </div>
                         </div>
 
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem;">
+                        <div style="background:${ccf.quantidade > 0 ? '#fef2f2' : '#f8fafc'};border:1px solid ${ccf.quantidade > 0 ? '#fecaca' : '#e2e8f0'};border-radius:10px;padding:0.9rem;">
                             <div style="font-size:0.72rem;color:#64748b;font-weight:700;">CHEQUES SEM FUNDOS (CCF)</div>
                             <div style="font-size:1.55rem;font-weight:900;color:${ccf.quantidade > 0 ? '#dc2626' : '#0f172a'};margin:4px 0;">${ccf.quantidade || 0}</div>
                             <div style="font-size:0.75rem;color:#475569;display:flex;justify-content:space-between;">
-                                <span>Situação</span><strong>${ccf.quantidade > 0 ? 'Consta CCF' : 'Sem ocorrências'}</strong>
-                            </div>
-                        </div>
-
-                        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:0.9rem;">
-                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;">DÍVIDAS PÚBLICAS (UNIÃO/FGTS)</div>
-                            <div style="font-size:1.55rem;font-weight:900;color:${dividasPublicas.quantidade > 0 ? '#dc2626' : '#0f172a'};margin:4px 0;">${dividasPublicas.quantidade || 0}</div>
-                            <div style="font-size:0.75rem;color:#475569;display:flex;justify-content:space-between;">
-                                <span>Valor total</span><strong>${fmtMoeda(dividasPublicas.valorTotal)}</strong>
+                                <span>${ccf.ultimaOcorrencia ? 'Última ocorrência' : 'Situação'}</span>
+                                <strong>${esc(ccf.ultimaOcorrencia || (ccf.quantidade > 0 ? 'Consta CCF' : 'Sem ocorrências'))}</strong>
                             </div>
                         </div>
 
@@ -36714,15 +36776,112 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                                 <span>Valor das causas</span><strong>${fmtMoeda(procObj.valorTotalCausas)}</strong>
                             </div>
                         </div>
-                    </div>
 
-                    ${protestos.cartorios && protestos.cartorios.length > 0 ? `
-                        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:0.85rem;margin-top:0.5rem;">
-                            <div style="font-weight:800;font-size:0.82rem;color:#9a3412;margin-bottom:6px;">Cartórios de Protesto Encontrados:</div>
-                            ${protestos.cartorios.map(c => `<div style="font-size:0.78rem;color:#7c2d12;padding:3px 0;">• <strong>${esc(c.cartorio)}</strong> (${esc(c.cidade)}/${esc(c.uf)}) — ${c.quantidade} protesto(s)</div>`).join('')}
+                        <div style="background:${dividasPublicas.quantidade > 0 ? '#fef2f2' : '#f8fafc'};border:1px solid ${dividasPublicas.quantidade > 0 ? '#fecaca' : '#e2e8f0'};border-radius:10px;padding:0.9rem;">
+                            <div style="font-size:0.72rem;color:#64748b;font-weight:700;">DÍVIDAS PÚBLICAS (UNIÃO/FGTS)</div>
+                            <div style="font-size:1.55rem;font-weight:900;color:${dividasPublicas.quantidade > 0 ? '#dc2626' : '#0f172a'};margin:4px 0;">${dividasPublicas.quantidade || 0}</div>
+                            <div style="font-size:0.75rem;color:#475569;display:flex;justify-content:space-between;">
+                                <span>Valor total</span><strong>${fmtMoeda(dividasPublicas.valorTotal)}</strong>
+                            </div>
                         </div>
-                    ` : ''}
+                    </div>
                 </div>
+
+                <!-- BLOCO 5B: APONTAMENTOS NA CENTRAL DE PROTESTOS (CENPROT) + PROTESTOS GERAIS (Igual Pág. 5 a 11 do PDF) -->
+                ${protestos.quantidade > 0 ? `
+                    <div style="background:#fff;border-radius:12px;padding:1.25rem;border:1px solid #fecaca;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.9rem;">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:36px;height:36px;border-radius:50%;background:#dc2626;color:#fff;display:flex;align-items:center;justify-content:center;">
+                                    <i class="ph ph-megaphone" style="font-size:1.2rem;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin:0;font-size:1rem;color:#0f172a;font-weight:800;">Apontamentos na Central de Protestos (CENPROT)</h4>
+                                    <span style="font-size:0.76rem;color:#64748b;">
+                                        ${protestos.quantidade} protesto(s) informado(s) pela CENPROT · Títulos detalhados: <strong>${protestos.titulosDetalhados || todosProtestos.length} de ${protestos.quantidade}</strong> · Cartórios com registros: <strong>${(protestos.cartorios || []).length}</strong>
+                                    </span>
+                                </div>
+                            </div>
+                            <span style="background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:999px;font-size:0.78rem;font-weight:800;">${protestos.quantidade} protestos · ${fmtMoeda(protestos.valorTotal)}</span>
+                        </div>
+
+                        ${protestos.detalhamentoIncompleto ? `
+                            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:0.75rem 0.95rem;margin-bottom:0.85rem;font-size:0.78rem;color:#9a3412;">
+                                <strong>Detalhamento incompleto:</strong> Não foi possível obter todos os títulos (${protestos.titulosDetalhados} de ${protestos.quantidade} detalhados). O valor total completo não está disponível. A falta de detalhes não indica pagamento ou baixa.
+                            </div>
+                        ` : ''}
+
+                        ${(protestos.cartorios || []).length > 0 ? `
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0.65rem;margin-bottom:1rem;">
+                                ${protestos.cartorios.map(c => `
+                                    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0.75rem 0.9rem;">
+                                        <div style="font-weight:800;font-size:0.82rem;color:#0f172a;">${esc(c.cartorio)}</div>
+                                        <div style="font-size:0.73rem;color:#64748b;margin-top:2px;">Localidade: <strong>${esc(c.cidade)} / ${esc(c.uf)}</strong></div>
+                                        ${c.endereco ? `<div style="font-size:0.7rem;color:#64748b;margin-top:2px;">${esc(c.endereco)} ${c.telefone ? '· Tel: ' + esc(c.telefone) : ''}</div>` : ''}
+                                        <div style="display:flex;gap:12px;margin-top:6px;font-size:0.74rem;">
+                                            <span>Protestos informados: <strong style="color:#dc2626;">${c.quantidade}</strong></span>
+                                            <span>Títulos detalhados: <strong>${c.titulosDetalhados || (c.protestos || []).length} de ${c.quantidade}</strong></span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+
+                        ${todosProtestos.length > 0 ? `
+                            <div style="font-size:0.84rem;font-weight:800;color:#0f172a;margin-bottom:0.55rem;">Protestos Gerais (${todosProtestos.length} título(s) detalhado(s))</div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:0.65rem;max-height:340px;overflow-y:auto;padding-right:4px;">
+                                ${todosProtestos.map(p => `
+                                    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:0.75rem 0.9rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:0.76rem;">
+                                        <div>
+                                            <span style="font-size:0.64rem;color:#64748b;display:block;">DATA DO PROTESTO</span>
+                                            <strong style="color:#0f172a;font-size:0.82rem;">${esc(p.data || '-')}</strong>
+                                        </div>
+                                        <div>
+                                            <span style="font-size:0.64rem;color:#64748b;display:block;">VALOR DO PROTESTO</span>
+                                            <strong style="color:#b91c1c;font-size:0.82rem;">${fmtMoeda(p.valor)}</strong>
+                                        </div>
+                                        <div>
+                                            <span style="font-size:0.64rem;color:#64748b;display:block;">ANUÊNCIA / PAGO</span>
+                                            <strong style="color:${p.temAnuencia ? '#15803d' : '#0f172a'};">${esc(p.anuenciaPago || 'Não')}</strong>
+                                        </div>
+                                        <div style="grid-column:span 3;font-size:0.68rem;color:#64748b;border-top:1px solid #fee2e2;padding-top:4px;">
+                                            ${esc(p.cartorio || '')} ${p.cidade ? '· ' + esc(p.cidade) + '/' + esc(p.uf) : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+
+                <!-- BLOCO 5C: CHEQUES SEM FUNDOS EM INSTITUIÇÃO BANCÁRIA (Igual Pág. 11 do PDF) -->
+                ${ccf.quantidade > 0 ? `
+                    <div style="background:#fff;border-radius:12px;padding:1.25rem;border:1px solid #fecaca;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.85rem;">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:36px;height:36px;border-radius:50%;background:#dc2626;color:#fff;display:flex;align-items:center;justify-content:center;">
+                                    <i class="ph ph-money" style="font-size:1.2rem;"></i>
+                                </div>
+                                <div>
+                                    <h4 style="margin:0;font-size:1rem;color:#0f172a;font-weight:800;">Cheques sem Fundos em Instituição Bancária</h4>
+                                    <span style="font-size:0.76rem;color:#64748b;">Detalhes acerca de cheques sem fundos emitidos (CCF / Bacen)</span>
+                                </div>
+                            </div>
+                            <span style="background:#fee2e2;color:#b91c1c;padding:4px 12px;border-radius:999px;font-size:0.78rem;font-weight:800;">${ccf.quantidade} cheque(s) sem fundo</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+                            ${(ccfDetalhes.length > 0 ? ccfDetalhes : [{ banco: '-', agencia: '-', quantidade: ccf.quantidade, ultimaOcorrencia: ccf.ultimaOcorrencia, alineaMotivo: '-' }]).map(item => `
+                                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:0.85rem 1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;font-size:0.8rem;">
+                                    <div><span style="font-size:0.65rem;color:#64748b;display:block;">BANCO</span><strong style="color:#0f172a;">${esc(item.banco || '-')}</strong></div>
+                                    <div><span style="font-size:0.65rem;color:#64748b;display:block;">AGÊNCIA</span><strong style="color:#0f172a;">${esc(item.agencia || '-')}</strong></div>
+                                    <div><span style="font-size:0.65rem;color:#64748b;display:block;">QTDE. OCORRÊNCIAS</span><strong style="color:#dc2626;">${item.quantidade || 1}</strong></div>
+                                    <div><span style="font-size:0.65rem;color:#64748b;display:block;">ÚLTIMA OCORRÊNCIA</span><strong style="color:#0f172a;">${esc(item.ultimaOcorrencia || '-')}</strong></div>
+                                    <div><span style="font-size:0.65rem;color:#64748b;display:block;">ALÍNEA</span><strong style="color:#0f172a;">${esc(item.alineaMotivo || '-')}</strong></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
 
                 <!-- BLOCO 6: PROCESSOS JURÍDICOS COM FILTRO EM TEMPO REAL -->
                 <div style="background:#fff;border-radius:12px;padding:1.25rem;border:1px solid #e2e8f0;">
@@ -36735,6 +36894,7 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                                     Polo Passivo (Réu): <strong style="color:#dc2626;">${procObj.poloPassivo || 0}</strong> ·
                                     Polo Ativo (Autor): <strong style="color:#16a34a;">${procObj.poloAtivo || 0}</strong> ·
                                     Outros/Terceiro: <strong>${procObj.outrosPolos || 0}</strong>
+                                    ${listaArquivados.length > 0 ? ` · Arquivados/Suspensos: <strong>${listaArquivados.length}</strong>` : ''}
                                 </span>
                             </div>
                         </div>
@@ -36749,7 +36909,7 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
                         </div>
                     </div>
 
-                    <div id="credithub-lista-processos-container" style="display:flex;flex-direction:column;gap:0.75rem;max-height:460px;overflow-y:auto;"></div>
+                    <div id="credithub-lista-processos-container" style="display:flex;flex-direction:column;gap:0.75rem;max-height:520px;overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
@@ -36762,21 +36922,25 @@ window.abrirModalRelatorioCreditHub = function(resposta) {
 window.filtrarProcessosModalCreditHub = function() {
     const container = document.getElementById('credithub-lista-processos-container');
     if (!container) return;
-    const todos = window._credithubProcessosAtuais || [];
+    const todosAtivos = window._credithubProcessosAtuais || [];
+    const todosArquivados = window._credithubArquivadosAtuais || [];
     const termoRaw = document.getElementById('credithub-filtro-processos')?.value || '';
     const poloSel = document.getElementById('credithub-filtro-polo')?.value || '';
     const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const termo = norm(termoRaw);
 
-    const filtrados = todos.filter(p => {
+    const matchFn = (p) => {
         if (poloSel && p.poloCliente !== poloSel) return false;
         if (!termo) return true;
         const partesStr = (p.envolvidos || []).map(e => `${e.nome} ${(e.advogados || []).join(' ')}`).join(' ');
-        const alvo = norm(`${p.numeroProcesso} ${p.assunto} ${p.classeProcessual} ${p.siglaDiario} ${partesStr}`);
+        const alvo = norm(`${p.numeroProcesso} ${p.assunto} ${p.classeProcessual} ${p.siglaDiario} ${p.situacaoProcessual} ${p.evidenciaSituacao} ${partesStr}`);
         return alvo.includes(termo);
-    });
+    };
 
-    if (filtrados.length === 0) {
+    const filtradosAtivos = todosAtivos.filter(matchFn);
+    const filtradosArquivados = todosArquivados.filter(matchFn);
+
+    if (filtradosAtivos.length === 0 && filtradosArquivados.length === 0) {
         container.innerHTML = `<div style="padding:1.25rem;text-align:center;color:#94a3b8;font-size:0.85rem;">Nenhum processo encontrado para o filtro selecionado.</div>`;
         return;
     }
@@ -36784,30 +36948,32 @@ window.filtrarProcessosModalCreditHub = function() {
     const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const fmtMoeda = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    container.innerHTML = filtrados.map(p => {
+    const renderCard = (p, isArq = false) => {
         const envList = (p.envolvidos || []).slice(0, 12);
         const maisEnv = Math.max(0, (p.envolvidos || []).length - envList.length);
         return `
-            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:0.95rem 1.1rem;background:#f8fafc;">
+            <div style="border:1px solid ${isArq ? '#cbd5e1' : '#e2e8f0'};border-radius:10px;padding:0.95rem 1.1rem;background:${isArq ? '#f1f5f9' : '#f8fafc'};">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.55rem;">
                     <div>
                         <div style="font-size:0.95rem;font-weight:800;color:#0f172a;">${esc(p.numeroProcesso)}</div>
                         <span style="font-size:0.68rem;color:#64748b;">Número do processo (CNJ)</span>
                     </div>
-                    <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        ${isArq ? `<span style="background:#e2e8f0;color:#475569;padding:3px 10px;border-radius:999px;font-size:0.7rem;font-weight:800;">${esc(p.situacaoProcessual)}</span>` : ''}
                         <span style="background:${p.poloCliente === 'PASSIVO' ? '#fee2e2' : p.poloCliente === 'ATIVO' ? '#dcfce7' : '#e2e8f0'};color:${p.poloCliente === 'PASSIVO' ? '#b91c1c' : p.poloCliente === 'ATIVO' ? '#15803d' : '#475569'};padding:3px 10px;border-radius:999px;font-size:0.72rem;font-weight:800;">
                             ${p.poloCliente === 'PASSIVO' ? 'Passivo (Réu)' : p.poloCliente === 'ATIVO' ? 'Ativo (Autor)' : 'Envolvido / Terceiro'}
                         </span>
                         <span style="background:#fff;border:1px solid #cbd5e1;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:800;color:#0f172a;">
-                            ${fmtMoeda(p.valorCausa)}
+                            ${isArq ? 'Valor histórico: ' : ''}${fmtMoeda(p.valorCausa)}
                         </span>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0.5rem;font-size:0.78rem;margin-bottom:0.65rem;">
+                    <div><span style="color:#64748b;font-size:0.66rem;display:block;">SITUAÇÃO PROCESSUAL</span><strong>${esc(p.situacaoProcessual)}</strong></div>
+                    ${p.evidenciaSituacao ? `<div><span style="color:#64748b;font-size:0.66rem;display:block;">EVIDÊNCIA DA SITUAÇÃO</span><strong>${esc(p.evidenciaSituacao)}</strong></div>` : ''}
                     <div><span style="color:#64748b;font-size:0.66rem;display:block;">ASSUNTO(S)</span><strong>${esc(p.assunto)}</strong></div>
                     <div><span style="color:#64748b;font-size:0.66rem;display:block;">CLASSE PROCESSUAL</span><strong>${esc(p.classeProcessual)}</strong></div>
-                    <div><span style="color:#64748b;font-size:0.66rem;display:block;">ÚLTIMA EVIDÊNCIA / SITUAÇÃO</span><strong>${esc(p.evidenciaSituacao || p.situacaoProcessual)}</strong></div>
-                    <div><span style="color:#64748b;font-size:0.66rem;display:block;">DIÁRIO / UF</span><strong>${esc(p.siglaDiario)} · ${esc(p.estado)}</strong></div>
+                    <div><span style="color:#64748b;font-size:0.66rem;display:block;">SIGLA DO DIÁRIO / ESTADO</span><strong>${esc(p.siglaDiario)} · ${esc(p.estado)}</strong></div>
                 </div>
                 <div style="border-top:1px solid #e2e8f0;padding-top:0.55rem;">
                     <div style="font-size:0.66rem;font-weight:700;color:#64748b;margin-bottom:4px;">ENVOLVIDOS NA ÚLTIMA MOVIMENTAÇÃO</div>
@@ -36827,7 +36993,24 @@ window.filtrarProcessosModalCreditHub = function() {
                 </div>
             </div>
         `;
-    }).join('');
+    };
+
+    let htmlOut = filtradosAtivos.map(p => renderCard(p, false)).join('');
+    if (filtradosArquivados.length > 0) {
+        htmlOut += `
+            <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:2px dashed #cbd5e1;">
+                <div style="margin-bottom:0.6rem;">
+                    <div style="font-size:0.92rem;font-weight:800;color:#334155;">Arquivados e suspensos (${filtradosArquivados.length})</div>
+                    <span style="font-size:0.74rem;color:#64748b;">Exibidos apenas para consulta; não contam como ocorrência ativa.</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    ${filtradosArquivados.map(p => renderCard(p, true)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = htmlOut;
 };
 
 window.imprimirRelatorioCreditHub = function() {
@@ -36841,6 +37024,7 @@ window.imprimirRelatorioCreditHub = function() {
     w.document.close();
     setTimeout(() => { w.focus(); w.print(); }, 350);
 };
+
 
 
 

@@ -1,14 +1,20 @@
 /**
  * Utilitário de integração com a API da CreditHub (BIPBOP / Harlan / IRQL)
  * Realiza Consulta Simples de CPF/CNPJ, gerencia token JWT (com auto-renovação via
- * CREDITHUB_USER / CREDITHUB_PASS / CREDITHUB_API_KEY), armazena cache de 90 dias
- * no SQLite e calcula a Nota de Risco de A a F.
+ * CREDITHUB_USER / CREDITHUB_PASS / CREDITHUB_API_KEY), resolve desafios PoW (Jurischain),
+ * consulta NostraCredit IA (LlamaApi.Consulta), Protestos (IEPTB), Cheques sem Fundos (CCF),
+ * Processos Jurídicos (JUSBR), Dívidas, Cadastro/QSA/Endereços/Contatos (FINDER),
+ * armazena cache de 90 dias no SQLite e calcula a Nota de Risco de A a F.
  */
 
 const https = require('https');
+const vm = require('vm');
+
 const IRQL_BASE_URL = 'https://irql.credithub.com.br/';
+const WEBSERVICE_CDN_URL = 'https://cdn.credithub.com.br/1.97.5/@credithub/webservice';
 const DEFAULT_PUBLIC_API_KEY = '6057b71263c21e4ada266c9d4d4da613';
 const FALLBACK_INITIAL_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxNzkuMTc5LjExLjIwMyIsImF1ZCI6Imh0dHBzOi8vcGFpbmVsLmNyZWRpdGh1Yi5jb20uYnIiLCJpYXQiOjE3OTU0NTg2OTguOTQxNzcyLCJleHAiOjE3OTYwNjM0OTguOTQxNzcyLCJ1aWQiOiJmaW5hbmNlaXJvQGFtZXJpY2FyZW50YWwuY29tLmJyIn0.eAIW_5JodYQLTaJHBxbKmEpcoDmmloWO9l3Do9B7LQc';
+const CURRENT_PARSER_VERSION = 3;
 
 async function _fetchIrqlText(url, options = {}) {
     try {
@@ -19,9 +25,8 @@ async function _fetchIrqlText(url, options = {}) {
         if (!causeCode.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE') && !String(err.message || '').includes('fetch failed')) {
             throw err;
         }
-        // Fallback HTTPS caso o servidor IRQL não envie certificado intermediário na cadeia TLS do Node
         let bodyBuf = null;
-        const headers = {};
+        const headers = Object.assign({}, options.headers || {});
         if (options.body) {
             const wrapped = new Response(options.body);
             const ct = wrapped.headers.get('content-type');
@@ -44,6 +49,91 @@ async function _fetchIrqlText(url, options = {}) {
             req.end();
         });
     }
+}
+
+let _jurischainSolverPromise = null;
+async function _getJurischainSolver() {
+    if (_jurischainSolverPromise) return _jurischainSolverPromise;
+    _jurischainSolverPromise = (async () => {
+        try {
+            let tWs = await _fetchIrqlText(WEBSERVICE_CDN_URL);
+            tWs = tWs.replace(/\(\'\'\+function\(\)\{return 0x0;\}\)\[\'indexOf\'\]\(\'\\x0a\'\)/g, '0');
+            const listeners = {};
+            const sandbox = {
+                CREDITHUB: { install: (id, deps, factory) => { try { factory({}, {}, {}); } catch (_) {} } },
+                window: {}, self: {}, globalThis: {},
+                document: {
+                    addEventListener: (ev, fn) => { listeners[ev] = fn; },
+                    removeEventListener: (ev) => { delete listeners[ev]; },
+                    dispatchEvent: (ev) => { if (listeners[ev.type]) listeners[ev.type](ev); },
+                    getElementById: () => null,
+                    createElement: () => ({})
+                },
+                CustomEvent: class { constructor(type, opts) { this.type = type; this.detail = opts ? opts.detail : undefined; } },
+                requestAnimationFrame: (fn) => setTimeout(fn, 1),
+                cancelAnimationFrame: (id) => clearTimeout(id),
+                fetch: global.fetch, FormData: global.FormData, Blob: global.Blob, Headers: global.Headers,
+                Request: global.Request, Response: global.Response, AbortController: global.AbortController,
+                TextEncoder: global.TextEncoder, TextDecoder: global.TextDecoder, crypto: global.crypto,
+                performance: global.performance, WebSocket: class {}, console,
+                setTimeout, clearTimeout, setInterval, clearInterval, URL, URLSearchParams, Buffer,
+                Uint8Array, ArrayBuffer, DataView, Int32Array, Uint32Array, Float64Array, Float32Array,
+                Int16Array, Uint16Array, Int8Array, Uint8ClampedArray,
+                Promise, Error, TypeError, RangeError, RegExp, Math, Date, JSON, Object, Array, String,
+                Number, Boolean, Symbol, Map, Set, WeakMap, WeakSet,
+                encodeURIComponent, decodeURIComponent, parseInt, parseFloat, isNaN, isFinite
+            };
+            sandbox.window = sandbox;
+            sandbox.self = sandbox;
+            sandbox.globalThis = sandbox;
+            vm.createContext(sandbox);
+            vm.runInContext(tWs, sandbox);
+            if (typeof sandbox.solveJurischain === 'function') {
+                return sandbox.solveJurischain;
+            }
+            return null;
+        } catch (err) {
+            console.warn('[CREDITHUB] Aviso ao inicializar solver Jurischain:', err.message);
+            _jurischainSolverPromise = null;
+            return null;
+        }
+    })();
+    return _jurischainSolverPromise;
+}
+
+async function _callIrqlWithPoW(apiKey, query, params = {}) {
+    const url = `${IRQL_BASE_URL}?apiKey=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(query)}`;
+    const buildForm = () => {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(params)) {
+            if (v !== undefined && v !== null) fd.append(k, String(v));
+        }
+        return fd;
+    };
+
+    const text1 = await _fetchIrqlText(url, { method: 'POST', body: buildForm() });
+    if (text1 && text1.includes('<exception') && text1.includes('code="402"')) {
+        const cid = (text1.match(/challenge_id="([^"]+)"/) || [])[1];
+        const seed = (text1.match(/seed="([^"]+)"/) || [])[1];
+        const diff = parseInt((text1.match(/difficulty="([^"]+)"/) || [])[1] || '1', 10);
+        if (cid && seed) {
+            const solver = await _getJurischainSolver();
+            if (solver) {
+                const solved = await solver({ seed, difficulty: diff, timeout: 10000 });
+                if (solved) {
+                    return await _fetchIrqlText(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-Jurischain-Id': cid,
+                            'X-Jurischain-Response': solved
+                        },
+                        body: buildForm()
+                    });
+                }
+            }
+        }
+    }
+    return text1;
 }
 
 function _wrapDb(dbOrFn) {
@@ -87,12 +177,12 @@ async function ensureTables(dbOrFn) {
 function _isJwtExpired(token) {
     if (!token || typeof token !== 'string') return true;
     const parts = token.split('.');
-    if (parts.length !== 3) return false; // chave estática
+    if (parts.length !== 3) return false;
     try {
         const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
         if (!payload.exp) return false;
         const nowSec = Math.floor(Date.now() / 1000);
-        return (payload.exp - 300) <= nowSec; // 5 min margem
+        return (payload.exp - 300) <= nowSec;
     } catch (_) {
         return false;
     }
@@ -108,6 +198,17 @@ function _extractXmlTag(xml, tag) {
 function _extractXmlBlocks(xml, tag) {
     if (!xml) return [];
     const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+    const out = [];
+    let m;
+    while ((m = re.exec(String(xml))) !== null) {
+        out.push(m[1]);
+    }
+    return out;
+}
+
+function _extractInnerXmlBlocks(xml, tag) {
+    if (!xml) return [];
+    const re = new RegExp(`<${tag}(?:\\s[^>]*)?>((?:(?!<${tag}(?:\\s|>))[\\s\\S])*?)<\\/${tag}>`, 'gi');
     const out = [];
     let m;
     while ((m = re.exec(String(xml))) !== null) {
@@ -174,23 +275,48 @@ async function getValidApiKey(dbOrFn, forceRefresh = false) {
     throw new Error('Credenciais da CreditHub não configuradas no ambiente (CREDITHUB_API_KEY ou CREDITHUB_USER / CREDITHUB_PASS).');
 }
 
-async function _execPushJob(apiKey, query, params, labelPrefix, maxWaitMs = 20000) {
-    const docClean = String(params.documento || '').replace(/\D/g, '');
-    const label = `${labelPrefix}-${docClean}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const fdCreate = new FormData();
-    for (const [k, v] of Object.entries(params)) fdCreate.append(k, String(v));
-    fdCreate.append('pushMaxVersion', '1');
-    fdCreate.append('pushWebSocketDeliver', 'false');
-    fdCreate.append('pushRecordRequest', 'true');
-    fdCreate.append('pushExpireToday', 'true');
-    fdCreate.append('pushQuery', query);
-    fdCreate.append('pushLabel', label);
+async function _execQueryOrPush(apiKey, query, params, labelPrefix, maxWaitMs = 38000) {
+    // 1. Tenta chamada direta com resolução automática de PoW (X-Jurischain)
+    try {
+        const directText = await _callIrqlWithPoW(apiKey, query, params);
+        if (directText && !directText.includes('<exception')) {
+            return directText;
+        }
+        if (directText && directText.includes('<exception')) {
+            const excMsg = _extractXmlTag(directText, 'exception');
+            if (/token|autentica|apiKey|sessão|expirad/i.test(excMsg)) {
+                const err = new Error(_decodeXmlEntities(excMsg));
+                err.isAuthError = true;
+                throw err;
+            }
+        }
+    } catch (e) {
+        if (e.isAuthError) throw e;
+    }
 
-    const tCreate = await _fetchIrqlText(`${IRQL_BASE_URL}?apiKey=${encodeURIComponent(apiKey)}&q=${encodeURIComponent("INSERT INTO 'PUSH'.'JOB'")}`, {
-        method: 'POST',
-        body: fdCreate
+    // 2. Fallback via PUSH.JOB / PUSH.DOCUMENT (para consultas assíncronas que exigem fila)
+    const docClean = String(params.documento || '').replace(/\D/g, '');
+    const dayTag = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const label = `${labelPrefix}-${docClean}-${dayTag}`;
+
+    try {
+        const existingText = await _callIrqlWithPoW(apiKey, "SELECT FROM 'PUSH'.'DOCUMENT'", { label });
+        if (existingText && !existingText.includes('<exception')) {
+            return existingText;
+        }
+    } catch (_) {}
+
+    const createParams = Object.assign({}, params, {
+        pushMaxVersion: '1',
+        pushWebSocketDeliver: 'false',
+        pushRecordRequest: 'true',
+        pushExpireToday: 'true',
+        pushQuery: query,
+        pushLabel: label
     });
-    if (tCreate.includes('<exception')) {
+
+    const tCreate = await _callIrqlWithPoW(apiKey, "INSERT INTO 'PUSH'.'JOB'", createParams);
+    if (tCreate && tCreate.includes('<exception')) {
         const excMsg = _extractXmlTag(tCreate, 'exception');
         if (/token|autentica|apiKey|sessão|expirad/i.test(excMsg)) {
             const err = new Error(_decodeXmlEntities(excMsg));
@@ -201,17 +327,9 @@ async function _execPushJob(apiKey, query, params, labelPrefix, maxWaitMs = 2000
 
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
-        await new Promise(r => setTimeout(r, 750));
-        const fdDoc = new FormData();
-        fdDoc.append('label', label);
-        const text = await _fetchIrqlText(`${IRQL_BASE_URL}?apiKey=${encodeURIComponent(apiKey)}&q=${encodeURIComponent("SELECT FROM 'PUSH'.'DOCUMENT'")}`, {
-            method: 'POST',
-            body: fdDoc
-        });
-        if (!text.includes('code="33"') && !text.includes('Não há um documento disponível')) {
-            const fdDel = new FormData();
-            fdDel.append('label', label);
-            _fetchIrqlText(`${IRQL_BASE_URL}?apiKey=${encodeURIComponent(apiKey)}&q=${encodeURIComponent("DELETE FROM 'PUSH'.'JOB'")}`, { method: 'POST', body: fdDel }).catch(() => {});
+        await new Promise(r => setTimeout(r, 900));
+        const text = await _callIrqlWithPoW(apiKey, "SELECT FROM 'PUSH'.'DOCUMENT'", { label });
+        if (text && !text.includes('<exception')) {
             return text;
         }
     }
@@ -223,7 +341,7 @@ function _parseFinderXml(xml) {
     const cadBlock = _extractXmlTag(xml, 'cadastro') || xml;
     const cnpj = _decodeXmlEntities(_extractXmlTag(cadBlock, 'cnpj') || _extractXmlTag(cadBlock, 'cpf') || _extractXmlTag(xml, 'entrada'));
     const razaoSocial = _decodeXmlEntities(_extractXmlTag(cadBlock, 'razaoSocial') || _extractXmlTag(cadBlock, 'nome'));
-    const nomeFantasia = _decodeXmlEntities(_extractXmlTag(cadBlock, 'nomeFantasia'));
+    const nomeFantasia = _decodeXmlEntities(_extractXmlTag(cadBlock, 'nomeFantasia')) || razaoSocial;
     const situacao = _decodeXmlEntities(_extractXmlTag(cadBlock, 'receitaStatus') || _extractXmlTag(cadBlock, 'situacao'));
     const dataStatusReceita = _decodeXmlEntities(_extractXmlTag(cadBlock, 'dataReceitaStatus') || _extractXmlTag(cadBlock, 'statusData'));
     const tipoEmpresa = _decodeXmlEntities(_extractXmlTag(cadBlock, 'tipoEmpresa'));
@@ -236,9 +354,12 @@ function _parseFinderXml(xml) {
     const capitalSocialRaw = _decodeXmlEntities(_extractXmlTag(cadBlock, 'capitalSocial'));
     const capitalSocial = parseFloat(String(capitalSocialRaw || '0').replace(',', '.')) || 0;
 
+    // Atividades Econômicas Secundárias
+    const cnaesSecBlocks = _extractInnerXmlBlocks(xml, 'cadastroCnpjCnaesSecundarias');
+    const atividadesSecundarias = cnaesSecBlocks.map(b => _decodeXmlEntities(_extractXmlTag(b, 'descricao'))).filter(Boolean);
+
     // Quadro Societário
-    const qsaOuter = _extractXmlTag(xml, 'quadroSocietario');
-    const sociosBlocks = _extractXmlBlocks(qsaOuter, 'quadroSocietario');
+    const sociosBlocks = _extractInnerXmlBlocks(xml, 'quadroSocietario');
     const socios = sociosBlocks.map(b => ({
         documento: _decodeXmlEntities(_extractXmlTag(b, 'documento')),
         nome: _decodeXmlEntities(_extractXmlTag(b, 'nome')),
@@ -248,8 +369,7 @@ function _parseFinderXml(xml) {
     })).filter(s => s.nome || s.documento);
 
     // Endereços
-    const endOuter = _extractXmlTag(xml, 'enderecos');
-    const endBlocks = _extractXmlBlocks(endOuter, 'enderecos');
+    const endBlocks = _extractInnerXmlBlocks(xml, 'enderecos');
     const enderecosSeen = new Set();
     const enderecos = [];
     for (const b of endBlocks) {
@@ -271,9 +391,8 @@ function _parseFinderXml(xml) {
     }
 
     // Telefones e E-mails
-    const telOuter = _extractXmlTag(xml, 'telefones');
-    const fixosBlocks = _extractXmlBlocks(_extractXmlTag(telOuter, 'fixos'), 'fixos');
-    const moveisBlocks = _extractXmlBlocks(_extractXmlTag(telOuter, 'moveis'), 'moveis');
+    const fixosBlocks = _extractInnerXmlBlocks(xml, 'fixos');
+    const moveisBlocks = _extractInnerXmlBlocks(xml, 'moveis');
     const telefonesSeen = new Set();
     const contatos = [];
     for (const b of [...fixosBlocks, ...moveisBlocks]) {
@@ -287,8 +406,7 @@ function _parseFinderXml(xml) {
         }
     }
 
-    const emailOuter = _extractXmlTag(xml, 'emails');
-    const emailBlocks = _extractXmlBlocks(emailOuter, 'emails');
+    const emailBlocks = _extractInnerXmlBlocks(xml, 'emails');
     const emailsSeen = new Set();
     for (const b of emailBlocks) {
         const em = _decodeXmlEntities(_extractXmlTag(b, 'email')).trim().toLowerCase();
@@ -299,21 +417,25 @@ function _parseFinderXml(xml) {
     }
 
     // Quem consultou (histórico e histórico mensal)
-    const histOuter = _extractXmlTag(xml, 'historico');
-    const consultaBlocks = _extractXmlBlocks(histOuter, 'consulta');
+    const consultaBlocks = _extractInnerXmlBlocks(xml, 'consulta');
     const quemConsultou = consultaBlocks.map(b => ({
         usuario: _decodeXmlEntities(_extractXmlTag(b, 'usuario')),
         data: _decodeXmlEntities(_extractXmlTag(b, 'ultimaConsulta'))
     })).filter(c => c.usuario);
 
     const histMensalOuter = _extractXmlTag(xml, 'historico-mensal');
-    const mesBlocks = _extractXmlBlocks(histMensalOuter, 'mes');
-    const volumeMensal = mesBlocks.map(b => ({
-        data: _decodeXmlEntities(_extractXmlTag(b, 'data')),
-        ano: parseInt(_extractXmlTag(b, 'ano'), 10) || 0,
-        mes: parseInt(_extractXmlTag(b, 'mes'), 10) || 0,
-        quantidade: parseInt(_extractXmlTag(b, 'quantidade'), 10) || 0
-    }));
+    const volumeMensal = [];
+    if (histMensalOuter) {
+        const reMes = /<mes[^>]*>\s*<data>([\s\S]*?)<\/data>\s*<ano>([\s\S]*?)<\/ano>\s*<mes>([\s\S]*?)<\/mes>\s*<quantidade>([\s\S]*?)<\/quantidade>\s*<\/mes>/gi;
+        let mMes;
+        while ((mMes = reMes.exec(histMensalOuter)) !== null) {
+            const dataStr = _decodeXmlEntities(mMes[1].trim());
+            const anoNum = parseInt(mMes[2].trim(), 10) || parseInt(dataStr.split('-')[0], 10) || 0;
+            const mesNum = parseInt(mMes[3].trim(), 10) || parseInt(dataStr.split('-')[1], 10) || 0;
+            const qtdNum = parseInt(mMes[4].trim(), 10) || 0;
+            volumeMensal.push({ data: dataStr, ano: anoNum, mes: mesNum, quantidade: qtdNum });
+        }
+    }
 
     // Dívidas públicas embutidas no FINDER
     const divOuter = _extractXmlTag(xml, 'dividas');
@@ -334,6 +456,7 @@ function _parseFinderXml(xml) {
             porteEmpresa,
             cnae,
             cnaeDescricao,
+            atividadesSecundarias,
             capitalSocial
         },
         socios,
@@ -346,7 +469,9 @@ function _parseFinderXml(xml) {
 }
 
 function _parseIeptbXml(xml) {
-    if (!xml) return { situacao: 'NÃO CONSULTADO', quantidade: 0, valorTotal: 0, cartorios: [] };
+    if (!xml || xml.includes('<exception')) {
+        return { situacao: 'NÃO CONSULTADO', consta: false, quantidade: 0, titulosDetalhados: 0, detalhamentoIncompleto: false, valorTotal: 0, cartorios: [], todosProtestos: [] };
+    }
     const situacao = _decodeXmlEntities(_extractXmlTag(xml, 'situacao')) || 'NÃO CONSTA';
     const registros = parseInt(_extractXmlTag(xml, 'registros'), 10) || 0;
     const rawStr = _decodeXmlEntities(_extractXmlTag(xml, 'raw'));
@@ -354,68 +479,190 @@ function _parseIeptbXml(xml) {
     try { if (rawStr) rawObj = JSON.parse(rawStr); } catch (_) {}
 
     let valorTotal = 0;
+    let titulosDetalhados = 0;
     const cartorios = [];
-    const cartBlocks = _extractXmlBlocks(xml, 'cartorio');
+    const todosProtestos = [];
+    const cartBlocks = _extractInnerXmlBlocks(xml, 'cartorio');
+
     for (const cb of cartBlocks) {
         const nomeCart = _decodeXmlEntities(_extractXmlTag(cb, 'nome') || _extractXmlTag(cb, 'codigo_cartorio'));
+        const enderecoCart = _decodeXmlEntities(_extractXmlTag(cb, 'endereco'));
         const cidade = _decodeXmlEntities(_extractXmlTag(cb, 'cidade') || _extractXmlTag(cb, 'municipio'));
         const uf = _decodeXmlEntities(_extractXmlTag(cb, 'uf'));
+        const telefone = _decodeXmlEntities(_extractXmlTag(cb, 'telefone'));
         const qtd = parseInt(_extractXmlTag(cb, 'protestos') || _extractXmlTag(cb, 'quantidade'), 10) || 0;
-        const protBlocks = _extractXmlBlocks(cb, 'protesto');
+        const protBlocks = _extractInnerXmlBlocks(cb, 'protesto');
+
         const protestos = protBlocks.map(pb => {
-            const v = parseFloat(String(_extractXmlTag(pb, 'valor') || '0').replace(',', '.')) || 0;
+            const vRaw = _extractXmlTag(pb, 'valor') || _extractXmlTag(pb, 'valorProtestado') || '0';
+            const vClean = vRaw.includes(',') && vRaw.includes('.') ? vRaw.replace(/\./g, '').replace(',', '.') : vRaw.replace(',', '.');
+            const v = parseFloat(vClean) || 0;
             valorTotal += v;
-            return {
+            titulosDetalhados++;
+            const temAnuencia = /true|sim|1/i.test(_extractXmlTag(pb, 'temAnuencia'));
+            const item = {
                 data: _decodeXmlEntities(_extractXmlTag(pb, 'dataProtesto') || _extractXmlTag(pb, 'data')),
                 valor: v,
+                anuenciaPago: temAnuencia ? 'Sim' : 'Não',
+                temAnuencia,
                 apresentante: _decodeXmlEntities(_extractXmlTag(pb, 'nomeApresentante')),
-                cedente: _decodeXmlEntities(_extractXmlTag(pb, 'nomeCedente'))
+                cedente: _decodeXmlEntities(_extractXmlTag(pb, 'nomeCedente')),
+                cartorio: nomeCart,
+                cidade,
+                uf
             };
+            todosProtestos.push(item);
+            return item;
         });
-        cartorios.push({ cartorio: nomeCart, cidade, uf, quantidade: qtd || protestos.length, protestos });
+
+        cartorios.push({
+            cartorio: nomeCart,
+            endereco: enderecoCart,
+            cidade,
+            uf,
+            telefone,
+            quantidade: qtd || protestos.length,
+            titulosDetalhados: protestos.length,
+            protestos
+        });
     }
 
-    const totalQtd = registros || (rawObj && Number(rawObj.qtdTitulos)) || cartorios.reduce((s, c) => s + (c.quantidade || 0), 0);
+    // Ordenar todosProtestos da data mais recente para a mais antiga
+    todosProtestos.sort((a, b) => {
+        const pa = String(a.data || '').split('/');
+        const pb = String(b.data || '').split('/');
+        const ta = pa.length === 3 ? new Date(`${pa[2]}-${pa[1]}-${pa[0]}`).getTime() : 0;
+        const tb = pb.length === 3 ? new Date(`${pb[2]}-${pb[1]}-${pb[0]}`).getTime() : 0;
+        return tb - ta;
+    });
+
+    const somaCartorios = cartorios.reduce((s, c) => s + (c.quantidade || 0), 0);
+    const totalQtd = Math.max(registros, (rawObj && Number(rawObj.qtdTitulos)) || 0, somaCartorios, titulosDetalhados);
+    const detalhamentoIncompleto = totalQtd > 0 && titulosDetalhados < totalQtd;
+
     return {
         situacao,
         consta: situacao.toUpperCase() === 'CONSTA' || totalQtd > 0,
         quantidade: totalQtd,
+        titulosDetalhados,
+        detalhamentoIncompleto,
         valorTotal,
-        cartorios
+        cartorios,
+        todosProtestos
     };
 }
 
-function _parseJusbrJson(text, docConsultado) {
-    if (!text) return { total: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, outrosPolos: 0, processos: [] };
+function _parseCcfXml(xml, basicHistoryCcfs = []) {
+    const lastHist = Array.isArray(basicHistoryCcfs) && basicHistoryCcfs.length > 0 ? basicHistoryCcfs[basicHistoryCcfs.length - 1] : null;
+    if (!xml || xml.includes('<exception')) {
+        return {
+            quantidade: lastHist ? (Number(lastHist.quantidade) || 0) : 0,
+            valorTotal: lastHist ? (Number(lastHist.valorTotal) || 0) : 0,
+            ultimaOcorrencia: lastHist ? lastHist.data : null,
+            detalhes: [],
+            historico: basicHistoryCcfs || []
+        };
+    }
+
+    const sumQte = parseInt(_extractXmlTag(xml, 'sumQteOcorrencias') || _extractXmlTag(xml, 'totalRegistro') || _extractXmlTag(xml, 'registros'), 10) || 0;
+    const ultimaOcorrencia = _decodeXmlEntities(_extractXmlTag(xml, 'ultimaOcorrencia') || _extractXmlTag(xml, 'ultimo')) || (lastHist ? lastHist.data : null);
+
+    const detalhes = [];
+    const listBlock = _extractXmlTag(xml, 'list') || xml;
+    const itemRe = /<item\d+[^>]*>([\s\S]*?)<\/item\d+>/gi;
+    let m;
+    while ((m = itemRe.exec(listBlock)) !== null) {
+        const b = m[1];
+        detalhes.push({
+            banco: _decodeXmlEntities(_extractXmlTag(b, 'banco')),
+            agencia: _decodeXmlEntities(_extractXmlTag(b, 'agencia')),
+            quantidade: parseInt(_extractXmlTag(b, 'qteOcorrencias'), 10) || 1,
+            ultimaOcorrencia: _decodeXmlEntities(_extractXmlTag(b, 'ultimo')) || ultimaOcorrencia,
+            alineaMotivo: _decodeXmlEntities(_extractXmlTag(b, 'motivo'))
+        });
+    }
+
+    const totalQtd = Math.max(sumQte, detalhes.reduce((s, d) => s + (d.quantidade || 0), 0), lastHist ? (Number(lastHist.quantidade) || 0) : 0);
+
+    return {
+        quantidade: totalQtd,
+        valorTotal: 0,
+        ultimaOcorrencia,
+        detalhes,
+        historico: basicHistoryCcfs || []
+    };
+}
+
+function _normNameForMatch(s) {
+    return String(s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9\s]/g, ' ')
+        .replace(/\b(LTDA|EIRELI|EIRELLI|ME|EPP|SA|S\s+A)\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function _parseJusbrJson(text, docConsultado, razaoSocialCliente = '') {
+    if (!text || text.includes('<exception')) {
+        return { total: 0, totalGeral: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, outrosPolos: 0, processos: [], arquivados: [] };
+    }
     let data = null;
     try { data = JSON.parse(text); } catch (_) {
         try { data = JSON.parse(JSON.parse(text)); } catch (_2) {}
     }
     if (!data || !Array.isArray(data.content)) {
-        return { total: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, outrosPolos: 0, processos: [] };
+        return { total: 0, totalGeral: 0, valorTotalCausas: 0, poloPassivo: 0, poloAtivo: 0, outrosPolos: 0, processos: [], arquivados: [] };
     }
+
     const docClean = String(docConsultado || '').replace(/\D/g, '');
+    const normRazao = _normNameForMatch(razaoSocialCliente);
+    const razaoTokens = normRazao.split(' ').filter(w => w.length >= 3);
+    const prefixMatch = razaoTokens.slice(0, 2).join(' ');
+
     let valorTotalCausas = 0;
     let poloPassivo = 0;
     let poloAtivo = 0;
     let outrosPolos = 0;
+    const processos = [];
+    const arquivados = [];
 
-    const processos = data.content.map(p => {
+    for (const p of data.content) {
         const tram = (Array.isArray(p.tramitacoes) && p.tramitacoes[0]) || {};
         const valorAcao = parseFloat(tram.valorAcao) || 0;
-        valorTotalCausas += valorAcao;
         const assuntos = Array.isArray(tram.assunto) ? tram.assunto.map(a => a.descricao).filter(Boolean).join(', ') : '';
         const classes = Array.isArray(tram.classe) ? tram.classe.map(c => c.descricao).filter(Boolean).join(', ') : '';
         const siglaTribunal = p.siglaTribunal || (tram.tribunal && tram.tribunal.sigla) || '';
         const ultimoMov = tram.ultimoMovimento ? {
+            codigo: tram.ultimoMovimento.codigo,
             dataHora: tram.ultimoMovimento.dataHora,
-            descricao: tram.ultimoMovimento.descricao
+            descricao: tram.ultimoMovimento.descricao || ''
         } : null;
+
+        const movDesc = String((ultimoMov && ultimoMov.descricao) || '');
+        const movCod = Number(ultimoMov && ultimoMov.codigo) || 0;
+        const isArquivadoDef = movCod === 246 || /arquivado definitivamente|baixa definitiva.*arquiv/i.test(movDesc);
+        const isArquivadoProv = movCod === 245 || /arquivado provisoriamente|suspenso|sobrestado/i.test(movDesc);
+        const isArquivado = isArquivadoDef || isArquivadoProv || tram.ativo === false;
+
+        let situacaoProcessual = tram.situacaoProcessual || 'Situação não confirmada';
+        if (isArquivadoDef) situacaoProcessual = 'Arquivado definitivamente';
+        else if (isArquivadoProv) situacaoProcessual = 'Arquivado provisoriamente';
+
+        let evidenciaSituacao = tram.evidenciaSituacao || '';
+        if (!evidenciaSituacao && ultimoMov && (isArquivado || /baixa definitiva|arquivado/i.test(movDesc))) {
+            const dtFmt = ultimoMov.dataHora ? new Date(ultimoMov.dataHora).toLocaleDateString('pt-BR') : '';
+            evidenciaSituacao = `${dtFmt ? dtFmt + ' · ' : ''}${movDesc} · JUSBR`;
+        }
 
         let poloCliente = 'OUTRO';
         const envolvidos = (Array.isArray(tram.partes) ? tram.partes : []).map(pt => {
             const docsParte = Array.isArray(pt.documentosPrincipais) ? pt.documentosPrincipais.map(d => String(d.numero || '').replace(/\D/g, '')) : [];
-            const isCliente = docClean && docsParte.includes(docClean);
+            const normPtNome = _normNameForMatch(pt.nome);
+            const matchByDoc = Boolean(docClean && docsParte.includes(docClean));
+            const matchByName = Boolean(!matchByDoc && normRazao && normPtNome && (normPtNome === normRazao || (prefixMatch.length >= 7 && normPtNome.startsWith(prefixMatch))));
+            const isCliente = matchByDoc || matchByName;
             const poloUpper = String(pt.polo || '').toUpperCase();
             if (isCliente) {
                 if (poloUpper.includes('PASSIVO')) poloCliente = 'PASSIVO';
@@ -433,18 +680,19 @@ function _parseJusbrJson(text, docConsultado) {
             };
         });
 
-        if (poloCliente === 'PASSIVO') poloPassivo++;
-        else if (poloCliente === 'ATIVO') poloAtivo++;
-        else outrosPolos++;
-
         let uf = '';
         if (siglaTribunal.endsWith('SP')) uf = 'SP';
+        else if (siglaTribunal.endsWith('RJ')) uf = 'RJ';
+        else if (siglaTribunal.endsWith('MG')) uf = 'MG';
+        else if (siglaTribunal.endsWith('PR')) uf = 'PR';
+        else if (siglaTribunal.endsWith('RS')) uf = 'RS';
+        else if (siglaTribunal.endsWith('SC')) uf = 'SC';
         else if (siglaTribunal.length >= 4 && siglaTribunal.startsWith('TJ')) uf = siglaTribunal.slice(2);
 
-        return {
+        const itemProc = {
             numeroProcesso: p.numeroProcesso || '',
-            situacaoProcessual: tram.situacaoProcessual || 'Situação não confirmada',
-            evidenciaSituacao: tram.evidenciaSituacao || (ultimoMov ? `${ultimoMov.dataHora ? new Date(ultimoMov.dataHora).toLocaleDateString('pt-BR') + ' · ' : ''}${ultimoMov.descricao || ''}` : ''),
+            situacaoProcessual,
+            evidenciaSituacao,
             assunto: assuntos || 'Não informado',
             classeProcessual: classes || 'Não informado',
             valorCausa: valorAcao,
@@ -452,23 +700,38 @@ function _parseJusbrJson(text, docConsultado) {
             estado: uf || 'SP',
             dataAjuizamento: tram.dataHoraAjuizamento || '',
             poloCliente,
+            isArquivado,
             envolvidos
         };
-    });
+
+        if (isArquivado) {
+            arquivados.push(itemProc);
+        } else {
+            valorTotalCausas += valorAcao;
+            if (poloCliente === 'PASSIVO') poloPassivo++;
+            else if (poloCliente === 'ATIVO') poloAtivo++;
+            else outrosPolos++;
+            processos.push(itemProc);
+        }
+    }
 
     return {
         total: processos.length,
-        totalEncontradoBase: data.total || processos.length,
+        totalArquivados: arquivados.length,
+        totalGeral: processos.length + arquivados.length,
         valorTotalCausas,
         poloPassivo,
         poloAtivo,
         outrosPolos,
-        processos
+        processos,
+        arquivados
     };
 }
 
 function _parseBasicHistory(rawText) {
-    if (!rawText) return { ccfs: [], protestos: [], dividas: [], processos: [], serasa: [], boaVista: [] };
+    if (!rawText || rawText.includes('<exception')) {
+        return { ccfs: [], protestos: [], dividas: [], processos: [], serasa: [], boaVista: [] };
+    }
     let obj = null;
     try {
         obj = JSON.parse(rawText);
@@ -479,11 +742,95 @@ function _parseBasicHistory(rawText) {
     return {
         ccfs: Array.isArray(obj.ccfs) ? obj.ccfs : [],
         protestos: Array.isArray(obj.protestos) ? obj.protestos : [],
-        dividas: Array.isArray(obj.dividas) ? obj.dividas : [],
-        processos: Array.isArray(obj.processos) ? obj.processos : [],
+        dividas: Array.isArray(obj.dividasPublicasGrafico) ? obj.dividasPublicasGrafico : (Array.isArray(obj.dividas) ? obj.dividas : []),
+        processos: Array.isArray(obj.processosJuridicos) ? obj.processosJuridicos : (Array.isArray(obj.processos) ? obj.processos : []),
         serasa: Array.isArray(obj.serasa) ? obj.serasa : [],
         boaVista: Array.isArray(obj.boaVista) ? obj.boaVista : []
     };
+}
+
+/**
+ * Consulta a IA NostraCredit oficial da CreditHub (SELECT FROM 'LlamaApi'.'Consulta')
+ */
+async function _consultarNostraCreditIA(apiKey, dados) {
+    try {
+        const idf = dados.identificacao || {};
+        const prot = dados.protestos || {};
+        const ccf = dados.ccf || {};
+        const div = dados.dividasPublicas || {};
+        const proc = dados.processos || {};
+
+        const textoProtestos = prot.detalhamentoIncompleto
+            ? `${prot.quantidade} protestos informados pela CENPROT, com detalhamento incompleto (${prot.titulosDetalhados} de ${prot.quantidade} detalhados). Valores e classificação completa indisponíveis. A falta de detalhes não indica pagamento ou baixa.`
+            : `${prot.quantidade || 0} protesto(s) registrado(s) na CENPROT, somando R$ ${Number(prot.valorTotal || 0).toFixed(2)}.`;
+
+        const classesAtivas = [...new Set((proc.processos || []).map(p => `${p.classeProcessual} (${p.assunto}) — Polo: ${p.poloCliente}`))].slice(0, 12);
+
+        const promptContent = `Analisar o dossiê da seguinte empresa:
+- Foco em identificar protestos, processos judiciais e problemas financeiros que possam impactar a empresa.
+
+Esta análise é para uma pessoa jurídica.
+
+\`\`\`yaml
+dadosFiltrados:
+  resumoDaEmpresa:
+    razaoSocial: ${JSON.stringify(idf.razaoSocial || '')}
+    cnpj: ${JSON.stringify(idf.cnpj || dados.documento || '')}
+    situacao: ${JSON.stringify(idf.situacao || 'ATIVA')}
+    idadeEmpresa: ${JSON.stringify(String(idf.idadeEmpresa || ''))}
+    capitalSocial: ${Number(idf.capitalSocial || 0)}
+  quantidadeProtestos: ${Number(prot.quantidade || 0)}
+  consultaProtestos:
+    parcial: ${Boolean(prot.detalhamentoIncompleto)}
+    quantidadeConhecida: ${Number(prot.quantidade || 0)}
+    valorTotalConhecido: ${Number(prot.valorTotal || 0)}
+    textoObrigatorio: ${JSON.stringify(textoProtestos)}
+  ccf: ${Number(ccf.quantidade || 0)}
+  ccfData:
+    totalOcorrencias: ${Number(ccf.quantidade || 0)}
+    ultimoRegistro: ${JSON.stringify(ccf.ultimaOcorrencia || '')}
+  dividasPublicas:
+    quantidade: ${Number(div.quantidade || 0)}
+    valorTotal: ${Number(div.valorTotal || 0)}
+  ProcessosJuridicos:
+    totalAtivos: ${Number(proc.total || 0)}
+    poloPassivoReu: ${Number(proc.poloPassivo || 0)}
+    poloAtivoAutor: ${Number(proc.poloAtivo || 0)}
+    valorTotalCausas: ${Number(proc.valorTotalCausas || 0)}
+    principaisAcoes: ${JSON.stringify(classesAtivas)}
+\`\`\`
+
+## LIMINAR — SEM SINAL
+Não há indício potencial nem confirmado no dossiê.
+Neste caso (e só neste caso) use: **Liminares: Nenhuma.**
+
+**Responda sempre em português claro.**`;
+
+        const rawStreamText = await _callIrqlWithPoW(apiKey, "SELECT FROM 'LlamaApi'.'Consulta'", {
+            model: 'credithub-ql',
+            messages: JSON.stringify([{ role: 'user', content: promptContent }])
+        });
+
+        if (rawStreamText && !rawStreamText.includes('<exception')) {
+            let fullResponse = '';
+            const lines = rawStreamText.split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    const chunk = (parsed.message && parsed.message.content) || parsed.response || '';
+                    fullResponse += chunk;
+                } catch (_) {}
+            }
+            if (fullResponse.trim()) {
+                return fullResponse.trim();
+            }
+        }
+    } catch (err) {
+        console.warn('[CREDITHUB] Aviso ao consultar NostraCredit IA:', err.message);
+    }
+    return null;
 }
 
 /**
@@ -501,56 +848,57 @@ function calcularNotaScoreCreditHub(dados) {
         motivos.push('Situação cadastral ATIVA na Receita Federal');
     }
 
-    const qtdProtestos = Number(dados?.protestos?.quantidade || 0);
-    const valProtestos = Number(dados?.protestos?.valorTotal || 0);
-    if (qtdProtestos > 0) {
-        const pen = Math.min(45, 18 + qtdProtestos * 5 + (valProtestos > 50000 ? 12 : valProtestos > 10000 ? 6 : 0));
-        pontos -= pen;
-        motivos.push(`${qtdProtestos} protesto(s) em cartório${valProtestos > 0 ? ' (R$ ' + valProtestos.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ')' : ''}`);
+    const qtdProt = Number(dados?.protestos?.quantidade) || 0;
+    const valProt = Number(dados?.protestos?.valorTotal) || 0;
+    const protIncompleto = Boolean(dados?.protestos?.detalhamentoIncompleto);
+    if (qtdProt > 0) {
+        const descProt = Math.min(55, 18 + (qtdProt - 1) * 4 + (valProt > 50000 ? 12 : valProt > 10000 ? 6 : 0));
+        pontos -= descProt;
+        motivos.push(`${qtdProt} protesto(s) em cartório (CENPROT)${protIncompleto ? ' — detalhamento incompleto' : ''}`);
     } else {
         motivos.push('Sem protestos em cartório (CENPROT)');
     }
 
-    const qtdCcf = Number(dados?.ccf?.quantidade || 0);
+    const qtdCcf = Number(dados?.ccf?.quantidade) || 0;
     if (qtdCcf > 0) {
-        const pen = Math.min(35, 15 + qtdCcf * 5);
-        pontos -= pen;
-        motivos.push(`${qtdCcf} cheque(s) sem fundos (CCF)`);
+        const descCcf = Math.min(40, 25 + (qtdCcf - 1) * 5);
+        pontos -= descCcf;
+        motivos.push(`${qtdCcf} cheque(s) sem fundo (CCF)${dados?.ccf?.ultimaOcorrencia ? ' · últ. ' + dados.ccf.ultimaOcorrencia : ''}`);
     } else {
         motivos.push('Sem cheques devolvidos (CCF)');
     }
 
-    const qtdDividas = Number(dados?.dividasPublicas?.quantidade || 0);
-    const valDividas = Number(dados?.dividasPublicas?.valorTotal || 0);
-    if (qtdDividas > 0) {
-        const pen = Math.min(35, 15 + qtdDividas * 5);
-        pontos -= pen;
-        motivos.push(`${qtdDividas} dívida(s) pública(s) com a União (R$ ${valDividas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`);
+    const qtdDiv = Number(dados?.dividasPublicas?.quantidade) || 0;
+    const valDiv = Number(dados?.dividasPublicas?.valorTotal) || 0;
+    if (qtdDiv > 0) {
+        const descDiv = Math.min(45, 20 + (qtdDiv - 1) * 5 + (valDiv > 100000 ? 15 : 5));
+        pontos -= descDiv;
+        motivos.push(`${qtdDiv} dívida(s) pública(s) ativa(s) com a União/FGTS`);
     } else {
         motivos.push('Sem dívidas públicas com a União');
     }
 
-    const procPassivo = Number(dados?.processos?.poloPassivo || 0);
-    const procAtivo = Number(dados?.processos?.poloAtivo || 0);
-    const temFalenciaRJ = (dados?.processos?.processos || []).some(p =>
-        p.poloCliente === 'PASSIVO' && /fal[eê]ncia|recupera[cç][aã]o judicial/i.test(`${p.assunto} ${p.classeProcessual}`)
-    );
-
-    if (temFalenciaRJ) {
-        pontos -= 45;
-        motivos.push('Alerta: Processo de Recuperação Judicial / Falência como polo passivo');
-    }
+    const procPassivo = Number(dados?.processos?.poloPassivo) || 0;
+    const procAtivo = Number(dados?.processos?.poloAtivo) || 0;
+    const procTotal = Number(dados?.processos?.total) || 0;
+    const valCausas = Number(dados?.processos?.valorTotalCausas) || 0;
+    const listaAtivos = Array.isArray(dados?.processos?.processos) ? dados.processos.processos : [];
+    const temExecucaoPassiva = listaAtivos.some(p => p.poloCliente === 'PASSIVO' && /execu[cç][aã]o|cumprimento de senten[cç]a|fal[eê]ncia|recupera[cç][aã]o/i.test(`${p.classeProcessual} ${p.assunto}`));
 
     if (procPassivo > 0) {
-        const pen = Math.min(25, Math.ceil(procPassivo * 2.5));
-        pontos -= pen;
-        motivos.push(`${procPassivo} processo(s) jurídico(s) no polo passivo (réu)`);
+        let descProc = Math.min(40, procPassivo * 3 + (valCausas > 500000 ? 12 : valCausas > 100000 ? 7 : 0) + (temExecucaoPassiva ? 10 : 0));
+        pontos -= descProc;
+        motivos.push(`${procPassivo} processo(s) ativo(s) no polo passivo (réu)${temExecucaoPassiva ? ' incluindo Execuções/Cumprimento de Sentença' : ''}`);
+    } else if (procTotal > 0 && procAtivo === 0) {
+        const descProc = Math.min(20, procTotal * 2);
+        pontos -= descProc;
+        motivos.push(`${procTotal} processo(s) jurídico(s) ativo(s) registrado(s)`);
     } else {
-        motivos.push('Nenhum processo jurídico no polo passivo (réu)');
+        motivos.push('Nenhum processo jurídico ativo no polo passivo (réu)');
     }
 
     if (procAtivo > 0) {
-        motivos.push(`${procAtivo} processo(s) jurídico(s) como autor/cobrança (polo ativo — não penaliza)`);
+        motivos.push(`${procAtivo} processo(s) ativo(s) como autor (polo ativo)`);
     }
 
     const idade = parseInt(dados?.identificacao?.idadeEmpresa, 10) || 0;
@@ -574,12 +922,12 @@ function calcularNotaScoreCreditHub(dados) {
         nota = 'B'; classificacao = 'Risco Baixo · Bom'; cor = '#16a34a'; bg = '#f0fdf4';
     } else if (pontos >= 60) {
         nota = 'C'; classificacao = 'Risco Moderado · Regular'; cor = '#ca8a04'; bg = '#fef9c3';
-    } else if (pontos >= 45) {
+    } else if (pontos >= 40) {
         nota = 'D'; classificacao = 'Risco Médio-Alto · Atenção'; cor = '#ea580c'; bg = '#ffedd5';
-    } else if (pontos >= 25) {
+    } else if (pontos >= 20) {
         nota = 'E'; classificacao = 'Risco Alto · Restrições Relevantes'; cor = '#dc2626'; bg = '#fee2e2';
     } else {
-        nota = 'F'; classificacao = 'Risco Crítico · Impeditivo'; cor = '#991b1b'; bg = '#fecaca';
+        nota = 'F'; classificacao = 'Risco Muito Elevado · Crédito Não Recomendado'; cor = '#991b1b'; bg = '#fecaca';
     }
 
     return { nota, pontos, classificacao, cor, bg, motivos };
@@ -589,7 +937,7 @@ function calcularNotaScoreCreditHub(dados) {
  * Verifica se há consulta válida (< 90 dias) no banco de dados para o CPF/CNPJ.
  */
 async function obterConsultaCache90Dias(dbOrFn, documento) {
-    const { dbGet } = _wrapDb(dbOrFn);
+    const { dbGet, dbRun } = _wrapDb(dbOrFn);
     await ensureTables(dbOrFn);
     const docClean = String(documento || '').replace(/\D/g, '');
     if (!docClean) return null;
@@ -605,6 +953,12 @@ async function obterConsultaCache90Dias(dbOrFn, documento) {
 
     let dados = null;
     try { dados = JSON.parse(row.dados_json); } catch (_) { return null; }
+
+    // Invalida cache legado (versões anteriores do parser)
+    if (!dados || dados.parserVersion !== CURRENT_PARSER_VERSION) {
+        await dbRun('DELETE FROM credithub_consultas WHERE id = ?', [row.id]).catch(() => {});
+        return null;
+    }
 
     const consultadoDate = new Date(row.consultado_em.includes('T') ? row.consultado_em : row.consultado_em.replace(' ', 'T') + 'Z');
     const expiraDate = new Date(consultadoDate.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -626,7 +980,7 @@ async function obterConsultaCache90Dias(dbOrFn, documento) {
 /**
  * Executa a Consulta Simples completa na CreditHub (ou retorna do cache de 90 dias).
  */
-async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = 'sistema') {
+async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = 'sistema', forcarNova = false) {
     const { dbRun } = _wrapDb(dbOrFn);
     await ensureTables(dbOrFn);
     const docClean = String(documento || '').replace(/\D/g, '');
@@ -634,23 +988,23 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
         throw new Error('Documento inválido. Informe um CPF (11 dígitos) ou CNPJ (14 dígitos).');
     }
 
-    // 1. Verificar cache de 90 dias primeiro
-    const cached = await obterConsultaCache90Dias(dbOrFn, docClean);
-    if (cached) return cached;
+    if (!forcarNova) {
+        const cached = await obterConsultaCache90Dias(dbOrFn, docClean);
+        if (cached) return cached;
+    }
 
-    // 2. Obter token válido (com retry automático caso tenha expirado)
     let apiKey = await getValidApiKey(dbOrFn, false);
 
     const runAllQueries = async (token) => {
-        const basicUrl = `${IRQL_BASE_URL}?q=${encodeURIComponent("SELECT FROM 'DOCUMENTHISTORY'.'BASICHISTORY'")}&apiKey=${encodeURIComponent(token)}&documento=${docClean}`;
-        const [finderXml, domText, ieptbXml, jusbrText, basicText] = await Promise.all([
-            _execPushJob(token, "SELECT FROM 'FINDER'.'BILLING'", { documento: docClean }, 'cs-finder', 22000),
-            _execPushJob(token, "SELECT FROM 'DOMINIOS'.'CONSULTA'", { documento: docClean }, 'cs-dominios', 15000).catch(() => '[]'),
-            _execPushJob(token, "SELECT FROM 'IEPTB'.'IEPTBHARLAN'", { documento: docClean }, 'cs-ieptb', 25000).catch(() => null),
-            _execPushJob(token, "SELECT FROM 'JUSBR'.'DOCUMENTO'", { documento: docClean }, 'cs-jusbr', 25000).catch(() => null),
-            _fetchIrqlText(basicUrl).catch(() => '')
+        const [finderXml, domText, ieptbXml, ccfXml, jusbrText, basicText] = await Promise.all([
+            _execQueryOrPush(token, "SELECT FROM 'FINDER'.'BILLING'", { documento: docClean }, 'cs-finder', 35000),
+            _execQueryOrPush(token, "SELECT FROM 'DOMINIOS'.'CONSULTA'", { documento: docClean }, 'cs-dominios', 20000).catch(() => '[]'),
+            _execQueryOrPush(token, "SELECT FROM 'IEPTB'.'IEPTBHARLAN'", { documento: docClean }, 'cs-ieptb', 38000).catch(() => null),
+            _execQueryOrPush(token, "SELECT FROM 'CCF'.'CONSULTA'", { documento: docClean }, 'cs-ccf', 25000).catch(() => null),
+            _execQueryOrPush(token, "SELECT FROM 'JUSBR'.'DOCUMENTO'", { documento: docClean }, 'cs-jusbr', 45000).catch(() => null),
+            _callIrqlWithPoW(token, "SELECT FROM 'DOCUMENTHISTORY'.'BASICHISTORY'", { documento: docClean }).catch(() => '')
         ]);
-        return { finderXml, domText, ieptbXml, jusbrText, basicText };
+        return { finderXml, domText, ieptbXml, ccfXml, jusbrText, basicText };
     };
 
     let rawResults;
@@ -666,7 +1020,7 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
     }
 
     const finder = _parseFinderXml(rawResults.finderXml) || {
-        identificacao: { cnpj: docClean, razaoSocial: '', nomeFantasia: '', situacao: 'ATIVA' },
+        identificacao: { cnpj: docClean, razaoSocial: '', nomeFantasia: '', situacao: 'ATIVA', atividadesSecundarias: [] },
         socios: [], enderecos: [], contatos: [], quemConsultou: [], volumeMensal: [], dividasFinder: { quantidade: 0, valorTotal: 0 }
     };
 
@@ -676,17 +1030,10 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
         if (Array.isArray(parsedDom)) dominios = parsedDom;
     } catch (_) {}
 
-    const protestos = _parseIeptbXml(rawResults.ieptbXml);
-    const processos = _parseJusbrJson(rawResults.jusbrText, docClean);
     const basicHistory = _parseBasicHistory(rawResults.basicText);
-
-    const lastCcf = basicHistory.ccfs.length > 0 ? basicHistory.ccfs[basicHistory.ccfs.length - 1] : null;
-    const ccf = {
-        quantidade: lastCcf ? (Number(lastCcf.quantidade) || 0) : 0,
-        valorTotal: lastCcf ? (Number(lastCcf.valorTotal) || 0) : 0,
-        ultimaOcorrencia: lastCcf ? lastCcf.data : null,
-        historico: basicHistory.ccfs
-    };
+    const protestos = _parseIeptbXml(rawResults.ieptbXml);
+    const ccf = _parseCcfXml(rawResults.ccfXml, basicHistory.ccfs);
+    const processos = _parseJusbrJson(rawResults.jusbrText, docClean, finder.identificacao.razaoSocial);
 
     const dividasPublicas = {
         quantidade: finder.dividasFinder.quantidade || 0,
@@ -694,7 +1041,7 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
     };
 
     const totalOcorrencias = (protestos.quantidade || 0) + (ccf.quantidade || 0) + (dividasPublicas.quantidade || 0) + (processos.total || 0);
-    const valorTotalNegativado = (protestos.valorTotal || 0) + (ccf.valorTotal || 0) + (dividasPublicas.valorTotal || 0);
+    const valorTotalNegativado = (protestos.detalhamentoIncompleto ? 0 : (protestos.valorTotal || 0)) + (ccf.valorTotal || 0) + (dividasPublicas.valorTotal || 0);
 
     let categoriaPredominante = 'Nenhuma ocorrência';
     const cats = [
@@ -707,6 +1054,7 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
     const categoriasComOcorrencia = cats.filter(c => c.qtd > 0).length;
 
     const dadosCompletos = {
+        parserVersion: CURRENT_PARSER_VERSION,
         dataHoraConsulta: new Date().toISOString(),
         documento: docClean,
         identificacao: finder.identificacao,
@@ -729,9 +1077,15 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
         evolucaoHistorico: basicHistory
     };
 
-    const scoreInfo = calcularNotaScoreCreditHub(dadosCompletos);
-    dadosCompletos.score = scoreInfo;
+    const [scoreInfo, analiseIaNostraCredit] = await Promise.all([
+        Promise.resolve(calcularNotaScoreCreditHub(dadosCompletos)),
+        _consultarNostraCreditIA(apiKey, dadosCompletos)
+    ]);
 
+    dadosCompletos.score = scoreInfo;
+    dadosCompletos.analiseIA = analiseIaNostraCredit;
+
+    await dbRun('DELETE FROM credithub_consultas WHERE documento = ?', [docClean]).catch(() => {});
     const insertRes = await dbRun(
         `INSERT INTO credithub_consultas (documento, razao_social, nome_fantasia, nota_score, pontos_score, dados_json, consultado_em, consultado_por)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)`,

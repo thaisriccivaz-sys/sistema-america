@@ -47862,7 +47862,8 @@ app.post('/api/credithub/consultar', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'CPF ou CNPJ inválido para consulta.' });
     }
     const usuario = (req.user && (req.user.username || req.user.nome || req.user.email)) || 'sistema';
-    const resultado = await credithubUtil.consultarDocumentoCreditHub(db, doc, usuario);
+    const forcarNova = Boolean(req.body && req.body.forcarNova);
+    const resultado = await credithubUtil.consultarDocumentoCreditHub(db, doc, usuario, forcarNova);
     res.json({ ok: true, ...resultado });
   } catch (err) {
     console.error('[CREDITHUB] Erro na consulta:', err.message);
