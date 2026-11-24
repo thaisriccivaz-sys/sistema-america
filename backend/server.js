@@ -42538,7 +42538,7 @@ app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res
         db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (e, r) => resolve(r || null));
       });
       let novaSitContrato = propRow ? (propRow.situacao_contrato || 'AGUARDANDO ASSINATURA') : 'ENVIADO PARA ASSINATURA';
-      if (propRow) {
+      if (propRow && !req.body.nao_mudar_situacao_contrato) {
         const sitAtualNorm = String(propRow.situacao_contrato || 'AGUARDANDO ASSINATURA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
         if (!sitAtualNorm || sitAtualNorm === 'AGUARDANDO ASSINATURA' || sitAtualNorm === 'EM ELABORACAO') {
           novaSitContrato = 'ENVIADO PARA ASSINATURA';
@@ -42574,7 +42574,7 @@ app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res
       const propRow = await new Promise((resolve) => {
         db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (e, r) => resolve(r || null));
       });
-      if (propRow) {
+      if (propRow && !req.body.nao_mudar_situacao_contrato) {
         const faseAtualNorm = String(propRow.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
         if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA' && faseAtualNorm !== 'ENVIADO PARA ASSINATURA' && faseAtualNorm !== 'APROVADO - ADITIVO ASSINADO') {
           novaFase = 'Proposta Enviada';
