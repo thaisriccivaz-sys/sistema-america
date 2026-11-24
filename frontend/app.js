@@ -19888,8 +19888,8 @@ window.loadAssinaturasDigitais = async function () {
                 </select>
                 <select id="ass-filter-situacao" onchange="window.filtrarAssinaturas()"
                     style="border:1px solid #e2e8f0;border-radius:6px;padding:0.4rem 0.75rem;font-size:0.85rem;color:#334155;background:#fff;cursor:pointer;">
+                    <option value="Ativos" selected>Apenas Ativos</option>
                     <option value="Todos">Todos (Ativos e Desligados)</option>
-                    <option value="Ativos">Apenas Ativos</option>
                     <option value="Desligados">Apenas Desligados</option>
                 </select>
                 <select id="ass-filter-tipo" onchange="window.filtrarAssinaturas()"
@@ -19952,7 +19952,7 @@ window.filtrarAssinaturas = function () {
     const filterColab = (document.getElementById('ass-filter-colab')?.value || '').toLowerCase();
     const filterStatus = document.getElementById('digitais-filter-status')?.value || '';
     const filterTipo = document.getElementById('ass-filter-tipo')?.value || '';
-    const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Todos';
+    const filterSituacao = document.getElementById('ass-filter-situacao')?.value || 'Ativos';
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
 
     const filtered = dados.filter(d => {
@@ -19989,19 +19989,25 @@ window.filtrarAssinaturas = function () {
         return;
     }
 
+    const isThaisRicci = Boolean(window.currentUser && String(window.currentUser.username || '').trim().toLowerCase() === 'thais.ricci');
+
     tbody.innerHTML = filtered.map(d => {
         const isSigned = d.assinafy_status === 'Assinado';
         const statusBadge = isSigned
             ? '<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-check-circle"></i> Assinado</span>'
             : '<span style="background:#fef9c3;color:#92400e;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;"><i class="ph ph-clock"></i> Aguardando</span>';
 
-        let viewBtn = `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
+        const trashBtn = isThaisRicci
+            ? `<button onclick="window.excluirAssinatura(${d.id}, '${d.source}', this)" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.65rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;" title="Excluir assinatura"><i class="ph ph-trash"></i></button>`
+            : '';
+
+        let viewBtn = trashBtn ? `<div style="display:flex;gap:4px;justify-content:center;">${trashBtn}</div>` : `<span style="color:#94a3b8;font-size:0.78rem;">—</span>`;
         if (isSigned) {
             const nomeEsc = (d.nome_documento || '').replace(/'/g, "\\'");
             if (d.source === 'documento') {
-                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><!-- Trash button hidden --></div>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopupDocumento(${d.id}, '${nomeEsc}')" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>${trashBtn}</div>`;
             } else {
-                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button><!-- Trash button hidden --></div>`;
+                viewBtn = `<div style="display:flex;gap:4px;justify-content:center;"><button onclick="window.openSignedDocPopup(${d.id}, '${nomeEsc}', event)" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><i class="ph ph-eye"></i> Ver PDF</button>${trashBtn}</div>`;
             }
         } else if (d.assinafy_id) {
             // Qualquer status não-assinado com assinafy_id → pode reenviar e sincronizar
@@ -20009,7 +20015,7 @@ window.filtrarAssinaturas = function () {
                 <!-- Botão azul de sync ocultado conforme solicitação, agora usa-se o rosa no topo -->
                 <button onclick="window.syncAssinatura(${d.id}, '${d.source}', this)" style="display:none; background:#0284c7;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;align-items:center;gap:4px;" title="Sincronizar com Assinafy"><i class="ph ph-arrows-clockwise"></i></button>
                 <button onclick="window.reenviarAssinatura(${d.id}, '${d.source}', this)" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:0.35rem 0.75rem;font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Reenviar"><i class="ph ph-paper-plane-right"></i></button>
-                <!-- Trash button hidden -->
+                ${trashBtn}
             </div>`;
         }
 
@@ -20071,7 +20077,7 @@ window.syncAssinatura = async function (id, source, btn) {
 
 
 window.excluirAssinatura = async function (id, source, btn) {
-    if (!confirm('Tem certeza que deseja excluir de forma permanente este pedido de assinatura? Isso retornará o documento ao status pendente no prontuário e o remover desta tela.')) return;
+    if (!confirm('Tem certeza que deseja excluir de forma permanente este pedido de assinatura? Isso retornará o documento ao status pendente no prontuário e o removerá desta tela.')) return;
     
     const token = window._assinaturaToken || window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
     const oldHtml = btn.innerHTML;
@@ -20090,6 +20096,13 @@ window.excluirAssinatura = async function (id, source, btn) {
         if (typeof showToast !== 'undefined') showToast('Assinatura excluída com sucesso', 'success');
         else alert('Assinatura excluída com sucesso');
         
+        if (Array.isArray(window._assinaturasData)) {
+            window._assinaturasData = window._assinaturasData.filter(item => !(Number(item.id) === Number(id) && item.source === source));
+            if (typeof window.filtrarAssinaturas === 'function') {
+                window.filtrarAssinaturas();
+                return;
+            }
+        }
         if (window.loadAssinaturasDigitais) await window.loadAssinaturasDigitais();
     } catch (err) {
         if (typeof showToast !== 'undefined') showToast(err.message, 'error');

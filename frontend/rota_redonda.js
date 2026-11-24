@@ -1475,7 +1475,31 @@ function abrirModalListaOS(numOs, registros) {
 function parseJsonFront(val) {
     if (!val) return [];
     if (Array.isArray(val)) return val;          // já é array (vindo do pipeline por ID)
-    try { return JSON.parse(val); } catch { return typeof val === 'string' ? [val] : []; }
+    try {
+        const p = JSON.parse(val);
+        return Array.isArray(p) ? p : (typeof val === 'string' ? [val] : []);
+    } catch { return typeof val === 'string' ? [val] : []; }
+}
+
+function parseListaStringsLimpaFront(val) {
+    const rawArr = parseJsonFront(val);
+    const out = [];
+    rawArr.forEach(item => {
+        let s = '';
+        if (typeof item === 'string') {
+            s = item;
+        } else if (item && typeof item === 'object') {
+            s = String(item.nome || item.habilidade || item.value || item.label || item.desc || '').trim();
+        }
+        if (!s) return;
+        s.split(',').forEach(part => {
+            const clean = part.trim();
+            if (clean && !/\[object\s+object\]/i.test(clean)) {
+                out.push(clean);
+            }
+        });
+    });
+    return out;
 }
 
 window._carregarRegistroNaTela = function(os) {
@@ -1546,9 +1570,12 @@ function carregarRegistroNaTela(os) {
     osState.enderecoConfirmado   = true;
     osState.enderecoObrigatorio  = false;
     osState.produtos             = parseJsonFront(os.produtos).map(p => ({ ...p, id: Date.now() + Math.random() }));
-    osState.tiposServico         = new Set(parseJsonFront(os.habilidades));
-    osState.acoes                = new Set(parseJsonFront(os.variaveis));
-    osState.habEquipe            = new Set(parseJsonFront(os.habilidade_equipe));
+    osState.tiposServico         = new Set(parseListaStringsLimpaFront(os.habilidades));
+    osState.acoes                = new Set(parseListaStringsLimpaFront(os.variaveis));
+    osState.habEquipe            = new Set(parseListaStringsLimpaFront(os.habilidade_equipe));
+    if (osState.tiposServico.size === 0 && os.tipo_servico) {
+        aplicarHabilidadesDoServico(false);
+    }
 
     // Fallback: Inferir variáveis não parseadas através dos ícones presentes no nome do cliente
     if (os.cliente) {
@@ -3641,11 +3668,11 @@ function aplicarHabilidadesDoServico(wipeManuals = false) {
     let manuais = new Set();
     if (!wipeManuals) {
         const TODAS_AUTO = new Set([...habilidadesBase, ...habProdutos]);
-        manuais = new Set([...osState.tiposServico].filter(h => !TODAS_AUTO.has(h)));
+        manuais = new Set([...osState.tiposServico].filter(h => typeof h === 'string' && h.trim() && !/\[object\s+object\]/i.test(h) && !TODAS_AUTO.has(h)));
     }
 
     // 4) Reconstrói o conjunto final
-    osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais]);
+    osState.tiposServico = new Set([...habilidadesBase, ...habProdutos, ...manuais].filter(h => typeof h === 'string' && h.trim() && !/\[object\s+object\]/i.test(h)));
     
     // 5) Reconstrói Ações (Variáveis) preservando variáveis selecionadas manualmente (ex: TROCA DE EQUIPAMENTO) em qualquer serviço
     const acoesManuais = new Set([...osState.acoes].filter(a => !acoesProdutos.has(a) && !(a === 'LEVAR CARRINHO' && !isEntregaRetirada && wipeManuals)));
@@ -3691,7 +3718,10 @@ function rrAtualizarCheckboxesHabAtend() {
 function rrAtualizarDisplayHabAtend() {
     const display = document.getElementById('rr-hab-atend-display');
     if (!display) return;
-    const selecionadas = [...osState.tiposServico];
+    const selecionadas = [...osState.tiposServico].filter(sk => typeof sk === 'string' && sk.trim() && !/\[object\s+object\]/i.test(sk));
+    if (selecionadas.length !== osState.tiposServico.size) {
+        osState.tiposServico = new Set(selecionadas);
+    }
     if (selecionadas.length === 0) {
         display.innerHTML = '<span id="rr-hab-atend-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>';
     } else {
@@ -3741,7 +3771,10 @@ function rrAtualizarDisplayHabEquipe() {
     const placeholder = document.getElementById('rr-hab-equipe-placeholder');
     if (!display) return;
 
-    const selecionadas = [...osState.habEquipe];
+    const selecionadas = [...osState.habEquipe].filter(sk => typeof sk === 'string' && sk.trim() && !/\[object\s+object\]/i.test(sk));
+    if (selecionadas.length !== osState.habEquipe.size) {
+        osState.habEquipe = new Set(selecionadas);
+    }
     if (selecionadas.length === 0) {
         display.innerHTML = '<span id="rr-hab-equipe-placeholder" style="color:#94a3b8; font-size:0.7rem;">Selecionar...</span>';
     } else {

@@ -3513,26 +3513,49 @@ app.get('/api/admissao-assinaturas/alertas-recentes', authenticateToken, (req, r
 app.delete('/api/assinaturas/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { source } = req.query; // 'admissao' ou 'documento'
-    
+    const usr = String(req.user?.username || '').trim().toLowerCase();
+    if (usr !== 'thais.ricci') {
+        return res.status(403).json({ error: 'Apenas o usuário thais.ricci tem permissão para excluir assinaturas.' });
+    }
     if (!id || !source) {
         return res.status(400).json({ error: 'Parâmetros incompletos.' });
     }
 
     try {
+        const getAssinafyId = (sql, params) => new Promise(resolve => db.get(sql, params, (e, r) => resolve(r?.assinafy_id || null)));
+        const runSql = (sql, params) => new Promise((resolve, reject) => db.run(sql, params, err => err ? reject(err) : resolve()));
+
+        let assinafyId = null;
         if (source === 'admissao') {
-            await new Promise((resolve, reject) => db.run(
+            assinafyId = await getAssinafyId('SELECT assinafy_id FROM admissao_assinaturas WHERE id = ?', [id]);
+            await runSql(
                 `UPDATE admissao_assinaturas 
                  SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, enviado_em = NULL, assinado_em = NULL 
                  WHERE id = ?`,
-                [id], (err) => err ? reject(err) : resolve()
-            ));
+                [id]
+            );
         } else {
-            await new Promise((resolve, reject) => db.run(
+            assinafyId = await getAssinafyId('SELECT assinafy_id FROM documentos WHERE id = ?', [id]);
+            await runSql(
                 `UPDATE documentos 
-                 SET assinafy_id = NULL, assinafy_status = 'PENDENTE', assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
+                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
                  WHERE id = ?`,
-                [id], (err) => err ? reject(err) : resolve()
-            ));
+                [id]
+            );
+        }
+        if (assinafyId) {
+            await runSql(
+                `UPDATE admissao_assinaturas 
+                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, enviado_em = NULL, assinado_em = NULL 
+                 WHERE assinafy_id = ?`,
+                [assinafyId]
+            );
+            await runSql(
+                `UPDATE documentos 
+                 SET assinafy_id = NULL, assinafy_status = NULL, assinafy_url = NULL, assinafy_sent_at = NULL, assinafy_signed_at = NULL 
+                 WHERE assinafy_id = ?`,
+                [assinafyId]
+            );
         }
         res.json({ sucesso: true, message: 'Pedido de assinatura excluído permanentemente.' });
     } catch (err) {
@@ -25307,6 +25330,33 @@ app.get('/api/logistica/frota', authenticateToken, (req, res) => {
 });
 
 
+function _limparListaStringsOs(val) {
+    if (!val) return [];
+    let arr = [];
+    if (Array.isArray(val)) {
+        arr = val;
+    } else {
+        try {
+            const p = JSON.parse(val);
+            arr = Array.isArray(p) ? p : (typeof val === 'string' ? [val] : []);
+        } catch (e) {
+            arr = typeof val === 'string' ? [val] : [];
+        }
+    }
+    const out = [];
+    arr.forEach(item => {
+        let s = '';
+        if (typeof item === 'string') s = item;
+        else if (item && typeof item === 'object') s = String(item.nome || item.habilidade || item.value || item.label || item.desc || '').trim();
+        if (!s) return;
+        s.split(',').forEach(part => {
+            const clean = part.trim();
+            if (clean && !/\[object\s+object\]/i.test(clean)) out.push(clean);
+        });
+    });
+    return out;
+}
+
 // GET /api/logistica/os/:id ??? Busca OS espec??fica pelo ID
 app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
     const id = parseInt(req.params.id);
@@ -25315,7 +25365,14 @@ app.get('/api/logistica/os/:id', authenticateToken, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'OS nao encontrada.' });
         const parseField = (val) => { try { return JSON.parse(val || '[]'); } catch (e) { return []; } };
-        res.json({ ...row, produtos: parseField(row.produtos), variaveis: parseField(row.variaveis), habilidades: parseField(row.habilidades), dias_semana: parseField(row.dias_semana) });
+        res.json({
+            ...row,
+            produtos: parseField(row.produtos),
+            variaveis: _limparListaStringsOs(row.variaveis),
+            habilidades: _limparListaStringsOs(row.habilidades),
+            habilidade_equipe: _limparListaStringsOs(row.habilidade_equipe),
+            dias_semana: parseField(row.dias_semana)
+        });
     });
 });
 
@@ -25623,6 +25680,21 @@ app.get('/api/logistica/pipeline', authenticateToken, (req, res) => {
 // =====================================================================
 // ROTINA DE CORREÇÃO DE DADOS (SE -> Sexta, GUARITA INDIVIDUAL O -> OBRA)
 db.serialize(() => {
+    db.all(`SELECT id, habilidades, variaveis, habilidade_equipe FROM os_logistica WHERE habilidades LIKE '%object Object%' OR variaveis LIKE '%object Object%' OR habilidade_equipe LIKE '%object Object%' OR habilidades LIKE '%{%'`, (errObj, rowsObj) => {
+        if (!errObj && rowsObj && rowsObj.length > 0) {
+            const stmtObj = db.prepare('UPDATE os_logistica SET habilidades = ?, variaveis = ?, habilidade_equipe = ? WHERE id = ?');
+            rowsObj.forEach(r => {
+                stmtObj.run([
+                    JSON.stringify(_limparListaStringsOs(r.habilidades)),
+                    JSON.stringify(_limparListaStringsOs(r.variaveis)),
+                    JSON.stringify(_limparListaStringsOs(r.habilidade_equipe)),
+                    r.id
+                ]);
+            });
+            stmtObj.finalize();
+            console.log(`[FIX] Limpou [object Object] em habilidades/variáveis de ${rowsObj.length} OS.`);
+        }
+    });
     db.all(`SELECT id, dias_semana, produtos FROM os_logistica WHERE dias_semana LIKE '%"SE"%' OR produtos LIKE '% O"%'`, (err, rows) => {
         if (err) return;
         if (rows && rows.length > 0) {
