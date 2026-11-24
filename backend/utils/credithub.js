@@ -14,7 +14,7 @@ const IRQL_BASE_URL = 'https://irql.credithub.com.br/';
 const WEBSERVICE_CDN_URL = 'https://cdn.credithub.com.br/1.97.5/@credithub/webservice';
 const DEFAULT_PUBLIC_API_KEY = '6057b71263c21e4ada266c9d4d4da613';
 const FALLBACK_INITIAL_API_KEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiIxNzkuMTc5LjExLjIwMyIsImF1ZCI6Imh0dHBzOi8vcGFpbmVsLmNyZWRpdGh1Yi5jb20uYnIiLCJpYXQiOjE3OTU0NTg2OTguOTQxNzcyLCJleHAiOjE3OTYwNjM0OTguOTQxNzcyLCJ1aWQiOiJmaW5hbmNlaXJvQGFtZXJpY2FyZW50YWwuY29tLmJyIn0.eAIW_5JodYQLTaJHBxbKmEpcoDmmloWO9l3Do9B7LQc';
-const CURRENT_PARSER_VERSION = 3;
+const CURRENT_PARSER_VERSION = 4;
 
 async function _fetchIrqlText(url, options = {}) {
     try {
@@ -383,7 +383,7 @@ function _parseFinderXml(xml) {
             cidade: _decodeXmlEntities(_extractXmlTag(b, 'cidade')),
             uf: _decodeXmlEntities(_extractXmlTag(b, 'uf'))
         };
-        const key = `${item.logradouro}|${item.numero}|${item.cep}`.toUpperCase();
+        const key = `${item.logradouro}|${item.cep}`.toUpperCase();
         if ((item.logradouro || item.cep) && !enderecosSeen.has(key)) {
             enderecosSeen.add(key);
             enderecos.push(item);
