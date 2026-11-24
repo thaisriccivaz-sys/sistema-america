@@ -25667,7 +25667,9 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
         SELECT fv.id, fv.placa, fv.marca_modelo_versao, fv.cor_predominante, fv.ano_fabricacao, fv.ano_modelo,
                fv.exercicio, fv.renavam, fv.motor, fv.chassi, fv.tipo_veiculo, fv.capacidade_tanque, fv.capacidade_carga,
                fv.altura_com_banheiro, fv.altura_sem_banheiro, fv.largura_com_banheiro, fv.largura_sem_banheiro,
-               fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.foto_base64, fv.foto_url,
+               fv.profundidade_com_banheiro, fv.profundidade_sem_banheiro, fv.crlv_filename, fv.crlv_url,
+               CASE WHEN (fv.crlv_base64 IS NOT NULL AND TRIM(fv.crlv_base64) != '') OR (fv.crlv_url IS NOT NULL AND TRIM(fv.crlv_url) != '') OR (fv.crlv_filename IS NOT NULL AND TRIM(fv.crlv_filename) != '') THEN 1 ELSE 0 END as tem_crlv,
+               fv.foto_base64, fv.foto_url,
                fv.created_at, fv.updated_at, fv.km_atual, fv.km_updated_at, fv.garantia_fabrica, fv.garantia_fabrica_ate, fv.data_inicio_garantia, fv.uso_severo,
                (SELECT MAX(h.data) FROM frota_km_historico h WHERE h.veiculo_id = fv.id) as ultima_data_km,
                CASE
@@ -25715,6 +25717,127 @@ app.get('/api/frota/veiculos', authenticateToken, async (req, res) => {
     });
 });
 
+async function _obterBufferCrlvVeiculo(row) {
+    if (!row) return null;
+    if (row.crlv_base64 && typeof row.crlv_base64 === 'string' && !row.crlv_base64.startsWith('http') && !row.crlv_base64.startsWith('s3://')) {
+        const b64 = row.crlv_base64.includes(',') ? row.crlv_base64.split(',')[1] : row.crlv_base64;
+        try {
+            const buf = Buffer.from(b64.trim(), 'base64');
+            if (buf && buf.length > 0) return buf;
+        } catch (e) {}
+    }
+    const url = (row.crlv_url && typeof row.crlv_url === 'string') ? row.crlv_url.trim()
+        : ((row.crlv_base64 && typeof row.crlv_base64 === 'string' && (row.crlv_base64.startsWith('http') || row.crlv_base64.startsWith('s3://'))) ? row.crlv_base64.trim() : '');
+    if (!url) return null;
+
+    const r2 = require('./utils/r2');
+    if (r2.isReady()) {
+        try {
+            let r2Key = null;
+            if (url.startsWith('s3://')) {
+                const parts = url.replace('s3://', '').split('/');
+                parts.shift();
+                r2Key = parts.join('/');
+            } else if (process.env.R2_PUBLIC_URL && url.startsWith(process.env.R2_PUBLIC_URL)) {
+                r2Key = url.slice(process.env.R2_PUBLIC_URL.replace(/\/+$/, '').length + 1);
+            } else if (url.includes('/Frota/')) {
+                r2Key = 'Frota/' + url.split('/Frota/')[1];
+            }
+            if (r2Key) {
+                r2Key = decodeURIComponent(r2Key);
+                const { stream } = await r2.downloadStreamFromR2(r2Key);
+                if (stream) {
+                    if (typeof stream.transformToByteArray === 'function') {
+                        const bytes = await stream.transformToByteArray();
+                        return Buffer.from(bytes);
+                    }
+                    const chunks = [];
+                    await new Promise((resolve, reject) => {
+                        stream.on('data', c => chunks.push(c));
+                        stream.on('end', resolve);
+                        stream.on('error', reject);
+                    });
+                    return Buffer.concat(chunks);
+                }
+            }
+        } catch (eR2) {
+            console.warn('[FROTA CRLV] Falha ao ler do R2 via SDK:', eR2.message);
+        }
+    }
+
+    if (url.startsWith('http')) {
+        try {
+            const axios = require('axios');
+            const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000 });
+            if (resp && resp.data) return Buffer.from(resp.data);
+        } catch (eHttp) {
+            console.warn('[FROTA CRLV] Falha ao baixar via HTTP:', eHttp.message);
+        }
+    }
+    return null;
+}
+
+function _nomePdfPlacaVeiculo(placa, fallbackId) {
+    const p = String(placa || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    return `${p || ('VEICULO_' + (fallbackId || 'DOC'))}.pdf`;
+}
+
+// POST / GET - baixar documentos (CRLVs) de todos os veículos (ou veículos filtrados) em massa (ZIP com <PLACA>.pdf)
+const _handleBaixarCrlvFrotaZip = async (req, res) => {
+    try {
+        let ids = [];
+        if (req.body && Array.isArray(req.body.ids)) {
+            ids = req.body.ids.map(x => parseInt(x, 10)).filter(x => !isNaN(x) && x > 0);
+        } else if (req.query && req.query.ids) {
+            ids = String(req.query.ids).split(',').map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x) && x > 0);
+        }
+        let sql = 'SELECT id, placa, crlv_base64, crlv_filename, crlv_url FROM frota_veiculos';
+        let params = [];
+        if (ids.length > 0) {
+            sql += ` WHERE id IN (${ids.map(() => '?').join(',')})`;
+            params = ids;
+        }
+        sql += ' ORDER BY placa ASC';
+
+        const rows = await new Promise((resolve, reject) => {
+            db.all(sql, params, (err, r) => err ? reject(err) : resolve(r || []));
+        });
+
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip();
+        let adicionados = 0;
+        const nomesUsados = new Set();
+
+        for (const row of rows) {
+            if (!row.crlv_base64 && !row.crlv_url) continue;
+            const buf = await _obterBufferCrlvVeiculo(row);
+            if (!buf || buf.length === 0) continue;
+            let nomePdf = _nomePdfPlacaVeiculo(row.placa, row.id);
+            if (nomesUsados.has(nomePdf)) {
+                nomePdf = `${nomePdf.replace(/\.pdf$/i, '')}_${row.id}.pdf`;
+            }
+            nomesUsados.add(nomePdf);
+            zip.addFile(nomePdf, buf);
+            adicionados++;
+        }
+
+        if (adicionados === 0) {
+            return res.status(404).json({ error: 'Nenhum documento PDF de veículo encontrado para baixar.' });
+        }
+
+        const zipBuffer = zip.toBuffer();
+        const dataIso = _obterDataHoraSPStr().slice(0, 10);
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="Documentos_Veiculos_Frota_${dataIso}.zip"`);
+        res.send(zipBuffer);
+    } catch (e) {
+        console.error('[FROTA CRLV ZIP] Erro:', e.message);
+        res.status(500).json({ error: 'Erro ao gerar arquivo com documentos da frota: ' + e.message });
+    }
+};
+app.post('/api/frota/veiculos/crlv-zip', authenticateToken, _handleBaixarCrlvFrotaZip);
+app.get('/api/frota/veiculos/crlv-zip', authenticateToken, _handleBaixarCrlvFrotaZip);
+
 // GET - buscar veiculo por id
 app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     db.get('SELECT * FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
@@ -25724,14 +25847,52 @@ app.get('/api/frota/veiculos/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET - visualizar CRLV (PDF em base64)
+// GET - visualizar / baixar CRLV (PDF em base64 com nome padronizado <PLACA>.pdf)
 app.get('/api/frota/veiculos/:id/crlv', authenticateToken, (req, res) => {
-    db.get('SELECT crlv_base64, crlv_filename, crlv_url FROM frota_veiculos WHERE id = ?', [req.params.id], (err, row) => {
+    db.get('SELECT id, placa, crlv_base64, crlv_filename, crlv_url FROM frota_veiculos WHERE id = ?', [req.params.id], async (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row || (!row.crlv_base64 && !row.crlv_url)) return res.status(404).json({ error: 'CRLV nao encontrado' });
-        res.json({ crlv_base64: row.crlv_base64, crlv_filename: row.crlv_filename, crlv_url: row.crlv_url });
+        const nomePadrao = _nomePdfPlacaVeiculo(row.placa, row.id);
+        let b64 = row.crlv_base64;
+        if (!b64 || b64.startsWith('http') || b64.startsWith('s3://')) {
+            const buf = await _obterBufferCrlvVeiculo(row);
+            if (buf && buf.length > 0) {
+                b64 = 'data:application/pdf;base64,' + buf.toString('base64');
+            }
+        }
+        res.json({
+            placa: row.placa,
+            crlv_base64: b64,
+            crlv_filename: nomePadrao,
+            crlv_filename_original: row.crlv_filename,
+            crlv_url: row.crlv_url
+        });
     });
 });
+
+// GET - stream direto do PDF do veículo com nome <PLACA>.pdf no Content-Disposition
+const _handleStreamCrlvPdfVeiculo = (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
+    if (!token) return res.status(401).send('Não autenticado');
+    jwt.verify(token, JWT_SECRET, (errJwt) => {
+        if (errJwt) return res.status(403).send('Token inválido');
+        db.get('SELECT id, placa, crlv_base64, crlv_filename, crlv_url FROM frota_veiculos WHERE id = ?', [req.params.id], async (err, row) => {
+            if (err) return res.status(500).send(err.message);
+            if (!row || (!row.crlv_base64 && !row.crlv_url)) return res.status(404).send('CRLV não encontrado');
+            const buf = await _obterBufferCrlvVeiculo(row);
+            if (!buf || buf.length === 0) return res.status(404).send('Arquivo PDF do CRLV não encontrado');
+            const nomePdf = _nomePdfPlacaVeiculo(row.placa, row.id);
+            const disp = req.query.download === '1' ? 'attachment' : 'inline';
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Length', buf.length);
+            res.setHeader('Content-Disposition', `${disp}; filename="${nomePdf}"`);
+            res.send(buf);
+        });
+    });
+};
+app.get('/api/frota/veiculos/:id/crlv-pdf', _handleStreamCrlvPdfVeiculo);
+app.get('/api/frota/veiculos/:id/crlv-pdf/:nomeArquivo', _handleStreamCrlvPdfVeiculo);
 
 // POST - cadastrar novo veiculo
 app.post('/api/frota/veiculos', authenticateToken, async (req, res) => {

@@ -204,6 +204,7 @@ function renderCardsFrota() {
       if (wA !== wB) return wA - wB;
       return (a.placa || '').localeCompare(b.placa || '');
   });
+  window._frotaFiltrados = rows;
 
   const ct = document.getElementById('frota-contador');
   if (ct) {
@@ -349,7 +350,7 @@ function renderCardsFrota() {
             </div>
             <div style="display:flex;gap:4px;">
                 <button onclick="window.abrirPopupManutencaoCard(${v.id}, ${emManutencao ? 1 : 0}, '${statusManutAtivo||''}')" style="background:${emManutencao ? (statusManutAtivo==='em_andamento' ? '#dc2626' : '#d97706') : '#94a3b8'};color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="${emManutencao ? (statusManutAtivo==='em_andamento' ? '🔴 Em Manutenção — Finalizar' : '🟡 Manutenção Agendada — Finalizar') : 'Registrar Manutenção'}"><i class="ph ph-wrench"></i></button>
-                ${v.crlv_filename ? `<button onclick="window.visualizarCRLV(${v.id})" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Visualizar CRLV"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
+                ${(v.crlv_filename || v.crlv_url || v.tem_crlv) ? `<button onclick="window.visualizarCRLV(${v.id}, '${String(v.placa||'').replace(/'/g,'')}')" style="background:#0891b2;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Baixar / Visualizar CRLV (${v.placa || 'PDF'})"><i class="ph ph-file-pdf"></i></button>` : `<button disabled style="background:#e2e8f0;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:not-allowed;" title="Sem CRLV"><i class="ph ph-file-pdf"></i></button>`}
                 <button onclick="window.abrirModalFrota(${v.id})" style="background:#2563eb;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Editar"><i class="ph ph-pencil"></i></button>
                 ${(window._frotaModoCompras || (document.getElementById('frota-veiculos-container')?.parentElement?.id === 'view-compras-gestao-frota')) ? '' : `<button onclick="window.excluirVeiculoFrota(${v.id},'${v.placa}')" style="background:#dc2626;color:#fff;border:none;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Excluir"><i class="ph ph-trash"></i></button>`}
             </div>
@@ -1151,29 +1152,24 @@ window.salvarKmCard = async function(vid) {
     }
 };
 
-window.visualizarCRLV = async function(id) {
-
-  const tok = window.currentToken || localStorage.getItem('token');
+window.visualizarCRLV = async function(id, placa) {
+  const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
   try {
+    let placaLimpa = String(placa || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (!placaLimpa) {
+      const vLocal = (window._frotaDados || []).find(x => String(x.id) === String(id));
+      if (vLocal && vLocal.placa) placaLimpa = String(vLocal.placa).trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    }
     const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao baixar CRLV');
     if (!data.crlv_base64 && !data.crlv_url) throw new Error('Documento não encontrado.');
-
-    if (data.crlv_url) {
-      window.open(data.crlv_url, '_blank');
-      return;
+    if (!placaLimpa && data.placa) {
+      placaLimpa = String(data.placa).trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
     }
-
-    let base64Data = data.crlv_base64;
-    if (base64Data.includes(',')) base64Data = base64Data.split(',')[1];
-    
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
-    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const nomePdf = `${placaLimpa || ('VEICULO_' + id)}.pdf`;
+    const pdfStreamUrl = `/api/frota/veiculos/${id}/crlv-pdf/${encodeURIComponent(nomePdf)}?token=${encodeURIComponent(tok)}`;
+    window.open(pdfStreamUrl, '_blank');
   } catch (err) { alert('Erro ao visualizar CRLV: ' + err.message); }
 };
 
@@ -1395,7 +1391,8 @@ window.initFrotaVeiculos = async function() {
         </div> 
         Gestão de Frota
     </h2>
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button id="btn-frota-baixar-docs" onclick="window.baixarDocumentosFrotaEmMassa()" style="background:#fff;color:#0891b2;border:1px solid #bae6fd;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onmouseover="this.style.background='#ecfeff'" onmouseout="this.style.background='#fff'"><i class="ph ph-file-pdf"></i> Baixar Documentos</button>
         <button onclick="window.exportarFrotaExcel()" style="background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:0.2s;" onmouseover="this.style.background='#f1f5f9'"><i class="ph ph-download-simple"></i> Baixar Excel</button>
         <label style="background:#0284c7;color:#fff;border:none;border-radius:10px;padding:0.7rem 1.2rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 10px rgba(2,132,199,0.25);transition:0.2s;" onmouseover="this.style.background='#0369a1'">
             <i class="ph ph-upload-simple"></i> Importar Excel
@@ -1761,14 +1758,19 @@ window.salvarVeiculoFrota=async function(id){
 };
 
 window.baixarCRLV = async function(id, placa) {
-  const tok = window.currentToken || localStorage.getItem('token');
+  const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
   try {
     const res = await fetch(`/api/frota/veiculos/${id}/crlv`, { headers: { Authorization: 'Bearer ' + tok } });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao baixar CRLV');
     if (!data.crlv_base64 && !data.crlv_url) throw new Error('Documento CRLV não encontrado para este veículo.');
-    const nomeArq = data.crlv_filename || (`CRLV_${placa || id}.pdf`);
-    if (data.crlv_base64) {
+    let placaLimpa = String(placa || data.placa || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (!placaLimpa) {
+      const vLocal = (window._frotaDados || []).find(x => String(x.id) === String(id));
+      if (vLocal && vLocal.placa) placaLimpa = String(vLocal.placa).trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    }
+    const nomeArq = `${placaLimpa || ('VEICULO_' + id)}.pdf`;
+    if (data.crlv_base64 && !data.crlv_base64.startsWith('http')) {
       let b64 = data.crlv_base64;
       if (b64.includes(',')) b64 = b64.split(',')[1];
       const byteCharacters = atob(b64);
@@ -1784,11 +1786,67 @@ window.baixarCRLV = async function(id, placa) {
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
       return;
     }
-    if (data.crlv_url) {
-      window.open(data.crlv_url, '_blank');
-    }
+    const pdfRes = await fetch(`/api/frota/veiculos/${id}/crlv-pdf/${encodeURIComponent(nomeArq)}?download=1&token=${encodeURIComponent(tok)}`, {
+      headers: { Authorization: 'Bearer ' + tok }
+    });
+    if (!pdfRes.ok) throw new Error('Erro ao baixar PDF do documento.');
+    const blob = await pdfRes.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArq;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
   } catch (err) {
     alert('Erro ao baixar CRLV: ' + err.message);
+  }
+};
+
+window.baixarDocumentosFrotaEmMassa = async function() {
+  const tok = window.currentToken || localStorage.getItem('token') || localStorage.getItem('erp_token');
+  const listaBase = (Array.isArray(window._frotaFiltrados) && window._frotaFiltrados.length > 0)
+    ? window._frotaFiltrados
+    : (window._frotaDados || []);
+  if (!listaBase.length) {
+    alert('Nenhum veículo encontrado para baixar os documentos.');
+    return;
+  }
+  const btn = document.getElementById('btn-frota-baixar-docs');
+  const htmlOriginal = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Baixando Documentos...';
+  }
+  try {
+    const ids = listaBase.map(v => v.id).filter(Boolean);
+    const res = await fetch('/api/frota/veiculos/crlv-zip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+      body: JSON.stringify({ ids })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Erro ao baixar documentos dos veículos.');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Documentos_Veiculos_Frota_${new Date().toISOString().slice(0, 10)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    }, 2000);
+  } catch (err) {
+    alert('Erro ao baixar documentos em massa: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = htmlOriginal || '<i class="ph ph-file-pdf"></i> Baixar Documentos';
+    }
   }
 };
 
