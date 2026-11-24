@@ -1482,37 +1482,98 @@ global.matchUsuarioComColaborador = function(u, colabs) {
     return null;
 };
 
-// REGRA ESTRITA (usada para BLOQUEAR acesso): o usuário só é considerado "de colaborador desligado" quando
-// o nome é IGUAL (sem acento/caixa/espaços) ao de colaborador(es) e TODOS os colaboradores com esse nome estão Desligados.
-// Nunca usar o vínculo aproximado (matchUsuarioComColaborador) para bloquear acesso.
+// Verifica de forma segura se um usuário pertence a um colaborador Desligado (comparando contra TODOS os colaboradores,
+// suportando equivalência s/z como Sousa/Souza, preposições de/da/do, e-mail e username nome.sobrenome, e garantindo que
+// NENHUM colaborador ativo tenha o mesmo vínculo).
 global.usuarioEhDeColaboradorDesligado = function(u, colabs) {
-    if (!u || !Array.isArray(colabs)) return null;
+    if (!u || !Array.isArray(colabs) || !colabs.length) return null;
     const norm = (s) => s ? String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ") : "";
+    const normSpell = (s) => norm(s).replace(/z/g, "s");
+    const stopWords = new Set(['de', 'da', 'do', 'dos', 'das', 'e']);
+    const systemUsers = new Set(['admin', 'administrador', 'portaria', 'ti', 'rh', 'logistica', 'financeiro', 'comercial', 'diretoria', 'operacional', 'processos', 'sac', 'patio', 'lideranca']);
+    const getTokens = (s) => normSpell(s).split(/[^a-z0-9]+/).filter(t => t && !stopWords.has(t));
+
+    const uUsername = norm(u.username);
+    if (systemUsers.has(uUsername)) return null;
+
     const uNome = norm(u.nome);
-    if (!uNome || uNome.includes(' ') === false) return null;
-    const iguais = colabs.filter(c => norm(c.nome_completo) === uNome);
-    if (!iguais.length) return null;
-    const todosDesligados = iguais.every(c => String(c.status || '').trim().toLowerCase() === 'desligado');
-    return todosDesligados ? iguais[0] : null;
+    const uSpell = normSpell(u.nome);
+    const uTokens = getTokens(u.nome);
+    const uEmail = norm(u.email);
+    const userParts = normSpell(u.username || '').split(/[._-]+/).filter(t => t && t.length >= 3 && !systemUsers.has(t) && !stopWords.has(t));
+
+    const candidatos = colabs.filter(col => {
+        const cNome = norm(col.nome_completo);
+        const cSpell = normSpell(col.nome_completo);
+        const cTokens = getTokens(col.nome_completo);
+        if (!cNome || cTokens.length < 2) return false;
+
+        // 1. Nome completo igual (com ou sem equivalência s/z e preposições)
+        if (uNome && (cNome === uNome || cSpell === uSpell)) return true;
+        if (uTokens.length >= 2 && uTokens.join(' ') === cTokens.join(' ')) return true;
+
+        // 2. E-mail corporativo ou pessoal exato
+        if (uEmail && (norm(col.email) === uEmail || norm(col.email_corporativo) === uEmail)) return true;
+
+        // 3. Todos os tokens do nome do usuário (>= 2 tokens, mesmo primeiro nome) estão no nome do colaborador (ou vice-versa)
+        if (uTokens.length >= 2 && uTokens[0] === cTokens[0]) {
+            if (uTokens.every(t => cTokens.includes(t)) || cTokens.every(t => uTokens.includes(t))) {
+                return true;
+            }
+        }
+
+        // 4. Username nome.sobrenome (>= 2 partes, mesmo primeiro nome) bate com os tokens do colaborador
+        if (userParts.length >= 2 && cTokens[0] === userParts[0] && (!uTokens.length || uTokens[0] === cTokens[0])) {
+            if (userParts.every(p => cTokens.includes(p))) {
+                return true;
+            }
+        }
+
+        return false;
+    });
+
+    if (!candidatos.length) return null;
+    const todosDesligados = candidatos.every(c => String(c.status || '').trim().toLowerCase() === 'desligado');
+    return todosDesligados ? candidatos[0] : null;
 };
 
-global.desabilitarAcessoColaboradorDesligado = function(colaboradorId) {
-    if (!colaboradorId) return;
-    db.get(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE id = ?`, [colaboradorId], (errC, colab) => {
-        if (errC || !colab) return;
-        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, status FROM colaboradores`, [], (errAll, todosColabs) => {
-        if (errAll) return;
+global.sincronizarUsuariosDeColaboradoresDesligados = function() {
+    db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores`, [], (errAll, todosColabs) => {
+        if (errAll || !Array.isArray(todosColabs) || !todosColabs.length) return;
         db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errU, usuarios) => {
             if (errU || !Array.isArray(usuarios)) return;
             usuarios.forEach(u => {
                 const matched = global.usuarioEhDeColaboradorDesligado(u, todosColabs);
-                if (matched && matched.id === colab.id) {
+                if (matched) {
                     db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], (errUpd) => {
-                        if (!errUpd) console.log(`[ACESSO] Usuário ${u.username} (ID=${u.id}) desabilitado automaticamente pois colaborador ${colab.nome_completo} está Desligado.`);
+                        if (!errUpd) console.log(`[ACESSO] Usuário ${u.username} (ID=${u.id}) inativado automaticamente pois colaborador ${matched.nome_completo} está Desligado.`);
                     });
                 }
             });
         });
+    });
+};
+
+global.desabilitarAcessoColaboradorDesligado = function(colaboradorId) {
+    if (!colaboradorId) {
+        if (global.sincronizarUsuariosDeColaboradoresDesligados) global.sincronizarUsuariosDeColaboradoresDesligados();
+        return;
+    }
+    db.get(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores WHERE id = ?`, [colaboradorId], (errC, colab) => {
+        if (errC || !colab) return;
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, status FROM colaboradores`, [], (errAll, todosColabs) => {
+            if (errAll || !Array.isArray(todosColabs)) return;
+            db.all(`SELECT id, username, nome, email, departamento, ativo FROM usuarios WHERE ativo = 1`, [], (errU, usuarios) => {
+                if (errU || !Array.isArray(usuarios)) return;
+                usuarios.forEach(u => {
+                    const matched = global.usuarioEhDeColaboradorDesligado(u, todosColabs);
+                    if (matched) {
+                        db.run(`UPDATE usuarios SET ativo = 0 WHERE id = ?`, [u.id], (errUpd) => {
+                            if (!errUpd) console.log(`[ACESSO] Usuário ${u.username} (ID=${u.id}) desabilitado automaticamente pois colaborador ${matched.nome_completo} está Desligado.`);
+                        });
+                    }
+                });
+            });
         });
     });
 };
@@ -1536,7 +1597,10 @@ db.run(`CREATE TABLE IF NOT EXISTS _migrations_applied (key TEXT PRIMARY KEY, ap
         if (!errDeb && this.changes > 0) console.log('[MIGRATION] Usuário da Débora excluído com sucesso.');
     });
 
-    // (Removido: inativação em massa de usuários a cada startup — causava bloqueio indevido de colaboradores ativos.)
+    // Sincronizar inativação de usuários vinculados a colaboradores que estão com status = Desligado
+    if (global.sincronizarUsuariosDeColaboradoresDesligados) {
+        global.sincronizarUsuariosDeColaboradoresDesligados();
+    }
 
     // Sincronizar colaboradores.foto_path a partir da tabela documentos (aba Fotos / FOTO_PERFIL) quando foto_path estiver vazio
     db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, foto_path, foto_base64 FROM colaboradores WHERE (foto_path IS NULL OR TRIM(foto_path) = '')`, [], (errFp, colabsSemFotoPath) => {
@@ -4618,9 +4682,10 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         const valid = bcrypt.compareSync(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Usuário ou senha incorretos' });
         db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status FROM colaboradores`, [], (errCol, allColabs) => {
-            if (!errCol && Array.isArray(allColabs) && global.matchUsuarioComColaborador) {
+            if (!errCol && Array.isArray(allColabs) && global.usuarioEhDeColaboradorDesligado) {
                 const matchedColab = global.usuarioEhDeColaboradorDesligado(user, allColabs);
                 if (matchedColab) {
+                    db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [user.id]);
                     return res.status(403).json({ error: 'Colaborador desligado. Acesso bloqueado.' });
                 }
             }
@@ -6415,8 +6480,8 @@ app.put('/api/colaboradores/:id', authenticateToken, (req, res) => {
             res.json({ message: 'Colaborador atualizado com sucesso' });
 
             // Se o status é Desligado, verificar se era responsavel por departamento e inativar usuário do sistema
-            if (String(data.status || '').trim() === 'Desligado') {
-                if (oldColab.status !== 'Desligado') checkColaboradorDesligado(id);
+            if (String(data.status || '').trim().toLowerCase() === 'desligado') {
+                if (String(oldColab.status || '').trim().toLowerCase() !== 'desligado') checkColaboradorDesligado(id);
                 if (global.desabilitarAcessoColaboradorDesligado) global.desabilitarAcessoColaboradorDesligado(id);
                 db.run("UPDATE usuarios SET ativo = 0 WHERE LOWER(TRIM(nome)) = LOWER(TRIM(?)) OR LOWER(TRIM(nome)) = LOWER(TRIM(?))", [data.nome_completo || oldColab.nome_completo, oldColab.nome_completo], (err) => {
                     if (err) console.error("Erro ao inativar usuário vinculado:", err);
@@ -19932,6 +19997,13 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
                 if (c) {
                     u.colaborador_id = c.id;
                     u.foto_colaborador = c.foto_base64 || ('/api/colaboradores/foto/' + c.id);
+                }
+                if (u.ativo !== 0 && global.usuarioEhDeColaboradorDesligado) {
+                    const colabDesl = global.usuarioEhDeColaboradorDesligado(u, colabs);
+                    if (colabDesl) {
+                        u.ativo = 0;
+                        db.run('UPDATE usuarios SET ativo = 0 WHERE id = ?', [u.id]);
+                    }
                 }
             });
             
