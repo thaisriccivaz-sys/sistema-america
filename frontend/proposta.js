@@ -5150,22 +5150,26 @@ function _renderFormPropostaInt() {
                             </div>
                             <div>
                                 <label class="prop-lbl">Condição de Pagamento *</label>
-                                <select id="prop-cond-pag" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
-                                    <option value="">-- Selecione --</option>
-                                    ${(() => {
-                                        const ehVendaAtual = Boolean(window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')));
-                                        const condVendaFixa = window.CONDICAO_PAGAMENTO_VENDA_FIXA || '50% na formalização do pedido / 50% na coleta do material';
-                                        const rawValAtual = ehVendaAtual ? condVendaFixa : String(v('condicao_pagamento') || '').trim();
-                                        const valAtual = rawValAtual.toUpperCase() === 'PIX 100% ADIANTADO' ? 'PIX 100% ANTECIPADO' : rawValAtual;
-                                        const lista = [...PROP_COND_PAG];
-                                        if (ehVendaAtual && !lista.includes(condVendaFixa)) {
-                                            lista.unshift(condVendaFixa);
-                                        } else if (!ehVendaAtual && valAtual && valAtual !== condVendaFixa && !lista.includes(valAtual)) {
-                                            lista.unshift(valAtual);
-                                        }
-                                        return lista.map(c => `<option value="${_escHtmlProp(c)}" ${valAtual===c?'selected':''}>${_escHtmlProp(c)}</option>`).join('');
-                                    })()}
-                                </select>
+                                ${(() => {
+                                    const ehVendaAtual = Boolean(window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')));
+                                    const condVendaFixa = window.CONDICAO_PAGAMENTO_VENDA_FIXA || '50% na formalização do pedido / 50% na coleta do material';
+                                    let rawValAtual = ehVendaAtual ? condVendaFixa : String(v('condicao_pagamento') || '').trim();
+                                    if (!rawValAtual && (!prop || !prop.id) && v('tipo') && typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function') {
+                                        rawValAtual = String(window.obterCondicaoPagamentoPadraoPorTipo(v('tipo')) || '').trim();
+                                    }
+                                    const valAtual = rawValAtual.toUpperCase() === 'PIX 100% ADIANTADO' ? 'PIX 100% ANTECIPADO' : rawValAtual;
+                                    const condSalvaLiberada = (prop && prop.id && valAtual) ? String(valAtual).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim() : '';
+                                    const lista = [...PROP_COND_PAG];
+                                    if (ehVendaAtual && !lista.includes(condVendaFixa)) {
+                                        lista.unshift(condVendaFixa);
+                                    } else if (!ehVendaAtual && valAtual && valAtual !== condVendaFixa && !lista.includes(valAtual)) {
+                                        lista.unshift(valAtual);
+                                    }
+                                    return `<select id="prop-cond-pag" data-valor-anterior="${_escHtmlProp(valAtual)}" data-senha-gestor-liberada="${_escHtmlProp(condSalvaLiberada)}" onfocus="this.setAttribute('data-valor-anterior', this.value || '');" onchange="if(typeof window.onChangeCondicaoPagamentoProposta === 'function') window.onChangeCondicaoPagamentoProposta(this);" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
+                                        <option value="">-- Selecione --</option>
+                                        ${lista.map(c => `<option value="${_escHtmlProp(c)}" ${valAtual===c?'selected':''}>${_escHtmlProp(c)}</option>`).join('')}
+                                    </select>`;
+                                })()}
                             </div>
                         </div>
 
@@ -6642,11 +6646,17 @@ window.aplicarVisualGrupoCliente = function(grupoValor, escopo = 'main') {
 window._aplicarEstiloCondPagBloqueado = function(bloqueado) {
     const condPagEl = document.getElementById('prop-cond-pag');
     if (!condPagEl) return;
+    Array.from(condPagEl.options || []).forEach(o => {
+        o.style.removeProperty('color');
+        o.style.removeProperty('font-weight');
+    });
+    const propInput = document.getElementById('prop-cliente');
+    const cliEstaVermelho = Boolean(bloqueado && propInput && propInput.classList.contains('input-faturamento-bloqueado'));
     const tipoAtualLimpo = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const condAdtBase = (tipoAtualLimpo === 'ADITIVO')
         ? String(document.getElementById('prop-contrato-aditivo')?.getAttribute('data-contrato-cond-pag') || '').trim()
         : '';
-    if (bloqueado) {
+    if (cliEstaVermelho) {
         const rawBloq = condAdtBase || 'PIX 100% ANTECIPADO';
         const valBloq = rawBloq.toUpperCase() === 'PIX 100% ADIANTADO' ? 'PIX 100% ANTECIPADO' : rawBloq;
         let opt = Array.from(condPagEl.options || []).find(o => String(o.value).trim().toUpperCase() === valBloq.toUpperCase());
@@ -6702,6 +6712,9 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
         window._aplicarEstiloInputBloqueado(propInput, false);
         window._aplicarEstiloCondPagBloqueado(false);
         window._aplicarIconeGrupoClienteProposta('');
+        if (typeof window.atualizarEstadoBotaoCreditHubContrato === 'function') {
+            window.atualizarEstadoBotaoCreditHubContrato('');
+        }
         return;
     }
     try {
@@ -6754,6 +6767,9 @@ window.verificarBloqueioFaturamentoProposta = async function(nomeOuTermo) {
         window._aplicarEstiloInputBloqueado(propInputAfterCache, isBloq);
         window._aplicarEstiloCondPagBloqueado(isBloq);
         window._aplicarIconeGrupoClienteProposta(iconeGrupo);
+        if (typeof window.atualizarEstadoBotaoCreditHubContrato === 'function') {
+            window.atualizarEstadoBotaoCreditHubContrato(raw);
+        }
     } catch (e) {
         console.error(e);
     }
@@ -10097,6 +10113,7 @@ window.salvarPropostaNova = async function() {
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
     if (!obter('prop-cond-pag').trim()) { alert('O campo Condição de Pagamento é obrigatório.'); document.getElementById('prop-cond-pag')?.focus(); return; }
+    if (typeof window.validarSenhaGestorCondicaoPagamentoProposta === 'function' && !(await window.validarSenhaGestorCondicaoPagamentoProposta())) return;
     if (window.tipoPropostaUsaContratoBase && window.tipoPropostaUsaContratoBase(tipo) && !obter('prop-contrato-aditivo').trim()) {
         const ehAvVal = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '').startsWith('AVARIA');
         alert('O campo Nº do Contrato (contrato base) é obrigatório para propostas do tipo ' + (ehAvVal ? 'Avaria' : 'Aditivo') + '.');
@@ -10531,6 +10548,16 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
         if (resp && (resp.success || resp.id)) {
             const isEditing = Boolean(_propostasEditandoId);
             const finalId = _propostasEditandoId || resp.id;
+            if (window._propHistSenhaGestorPendente && finalId) {
+                const detHist = window._propHistSenhaGestorPendente;
+                window._propHistSenhaGestorPendente = null;
+                try {
+                    await apiPost('/propostas/' + finalId + '/registrar-acao', {
+                        acao: 'Senha do Gestor Aplicada',
+                        detalhe: detHist
+                    });
+                } catch (_) {}
+            }
             await carregarPropostas();
             if (finalId) {
                 _propostasEditandoId = finalId;
@@ -10618,6 +10645,7 @@ window.estornarPropostaEdicao = async function() {
     if (!obter('prop-cliente').trim()) { alert('O campo Cliente é obrigatório para salvar a proposta.'); document.getElementById('prop-cliente')?.focus(); return; }
     if (!obter('prop-contato').trim()) { alert('O campo Contato é obrigatório para salvar a proposta.'); document.getElementById('prop-contato')?.focus(); return; }
     if (!obter('prop-cond-pag').trim()) { alert('O campo Condição de Pagamento é obrigatório.'); document.getElementById('prop-cond-pag')?.focus(); return; }
+    if (typeof window.validarSenhaGestorCondicaoPagamentoProposta === 'function' && !(await window.validarSenhaGestorCondicaoPagamentoProposta())) return;
 
     if (window.tipoPropostaExigeNomeEvento && window.tipoPropostaExigeNomeEvento(tipo)) {
         const nomeEventoVal = obter('prop-nome-evento').trim();
@@ -23409,7 +23437,13 @@ window.obterCondicaoPagamentoPadraoPorTipo = function(tipo) {
         return 'BOLETO - DDL 28 DIAS';
     }
     if (
+        t === 'EVENTO' ||
         t === 'EQUIPAMENTOS' ||
+        t === 'EQUIPAMENTO'
+    ) {
+        return 'PIX 100% ANTECIPADO';
+    }
+    if (
         t === 'LOCAÇÃO CONTAINER' ||
         t === 'LOCACAO CONTAINER'
     ) {
@@ -36372,18 +36406,21 @@ window.atualizarEstadoBotaoCreditHubContrato = async function(valorClienteOpcion
     const btn = document.getElementById('btn-credithub-score-cliente');
     const lblNota = document.getElementById('lbl-credithub-score-nota');
     if (!btn) return;
-    if (window._modoTelaComercial !== 'contrato') {
-        btn.style.display = 'none';
-        return;
-    }
-    btn.style.display = 'inline-flex';
+    const ehContrato = (window._modoTelaComercial === 'contrato');
 
     const setCinza = (motivo) => {
+        if (!ehContrato) {
+            btn.style.display = 'none';
+            if (lblNota) { lblNota.style.display = 'none'; lblNota.textContent = ''; }
+            return;
+        }
+        btn.style.display = 'inline-flex';
         btn.style.background = '#64748b';
         btn.title = motivo || 'Consulta Simples CreditHub (Nenhuma consulta realizada nos últimos 90 dias — clique para consultar)';
         if (lblNota) { lblNota.style.display = 'none'; lblNota.textContent = ''; }
     };
     const setPorNota = (statusInfo) => {
+        btn.style.display = 'inline-flex';
         const nota = String(statusInfo.notaScore || 'A').toUpperCase();
         btn.style.background = (window._credithubCoresPorNota && window._credithubCoresPorNota[nota]) || '#16a34a';
         const dtStr = statusInfo.consultadoEm ? new Date(statusInfo.consultadoEm.includes('T') ? statusInfo.consultadoEm : statusInfo.consultadoEm.replace(' ', 'T') + 'Z').toLocaleDateString('pt-BR') : '';
@@ -36422,11 +36459,21 @@ window.atualizarEstadoBotaoCreditHubContrato = async function(valorClienteOpcion
 
 window.consultarScoreCreditHubClienteContrato = async function(forcarNova = false) {
     const btn = document.getElementById('btn-credithub-score-cliente');
+    const ehContrato = (window._modoTelaComercial === 'contrato');
     const cli = await window._resolverClienteObjetoContratoCreditHub();
     const doc = cli && cli.cpf_cnpj ? String(cli.cpf_cnpj).replace(/\D/g, '') : '';
     if (doc.length !== 11 && doc.length !== 14) {
         Swal.fire('Atenção', 'Selecione um cliente com CPF ou CNPJ válido no campo Cliente para realizar a consulta na CreditHub.', 'warning');
         return;
+    }
+
+    if (!ehContrato) {
+        const stCache = window._credithubStatusCacheFront[doc] || (await apiGet(`/credithub/status/${doc}`).catch(() => null));
+        if (!stCache || !stCache.cached) {
+            if (btn) btn.style.display = 'none';
+            return;
+        }
+        forcarNova = false;
     }
 
     if (btn) {
@@ -36435,7 +36482,7 @@ window.consultarScoreCreditHubClienteContrato = async function(forcarNova = fals
     }
 
     try {
-        const resp = await apiPost('/credithub/consultar', { documento: doc, forcarNova: Boolean(forcarNova) });
+        const resp = await apiPost('/credithub/consultar', { documento: doc, forcarNova: Boolean(ehContrato && forcarNova) });
         if (!resp || !resp.ok) {
             throw new Error((resp && resp.error) || 'Não foi possível realizar a consulta na CreditHub.');
         }
@@ -36461,6 +36508,169 @@ window.consultarScoreCreditHubClienteContrato = async function(forcarNova = fals
 };
 
 window.CREDITHUB_SENHA_GESTOR_COMERCIAL = 'CoMerc2499_';
+
+window._normalizarCondicaoPagamentoComercial = function(cond) {
+    return String(cond || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+};
+
+window._ehCondicaoPixAntecipadoProposta = function(cond) {
+    const c = window._normalizarCondicaoPagamentoComercial(cond);
+    return [
+        'PIX 100% ANTECIPADO',
+        'PIX 100% ADIANTADO',
+        'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
+        'PIX ATE 02 DIAS UTEIS ANTES DA ENTREGA',
+        'PIX ATE 2 DIAS UTEIS ANTES DA ENTREGA'
+    ].includes(c);
+};
+
+window._ehTipoEventoOuEquipamentosProposta = function(tipoOpcional) {
+    const raw = (tipoOpcional !== undefined && tipoOpcional !== null && String(tipoOpcional).trim() !== '')
+        ? tipoOpcional
+        : (document.getElementById('prop-tipo')?.value || '');
+    const efetivo = (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(raw) : raw) || raw;
+    const t = String(efetivo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/^PROPOSTA\s+/, '').trim();
+    return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'EQUIPAMENTO';
+};
+
+window.solicitarSenhaGestorCondicaoPagamentoProposta = async function(condPagEscolhida, tipoLabelOpcional = '') {
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const tipoRaw = tipoLabelOpcional || document.getElementById('prop-tipo')?.value || '';
+    const tipoEfetivo = (typeof window.obterTipoEfetivoProposta === 'function' ? window.obterTipoEfetivoProposta(tipoRaw) : tipoRaw) || tipoRaw;
+    const tipoNorm = String(tipoEfetivo || 'EVENTO / EQUIPAMENTOS').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+
+    const resSenha = await Swal.fire({
+        icon: 'lock',
+        title: 'Liberação do Gestor Necessária',
+        width: '540px',
+        html: `
+            <div style="text-align:left;font-size:0.86rem;color:#334155;line-height:1.5;">
+                <div style="background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:8px;color:#991b1b;margin-bottom:10px;">
+                    Em propostas do tipo <strong>${esc(tipoNorm)}</strong>, a condição de pagamento <strong>${esc(condPagEscolhida)}</strong> exige liberação com a <strong>Senha do Gestor</strong>.
+                </div>
+                <p style="margin:0 0 12px;color:#475569;font-size:0.82rem;">
+                    Apenas condições de <strong>PIX Antecipado</strong> (<strong>PIX 100% ANTECIPADO</strong>, <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong> ou <strong>PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA</strong>) são liberadas sem senha. Informe a senha abaixo para autorizar <strong>${esc(condPagEscolhida)}</strong>:
+                </p>
+                <label style="display:block;font-size:0.78rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Senha do Gestor Comercial *</label>
+                <input type="password" id="swal-input-senha-gestor-proposta" placeholder="Digite a senha do gestor para autorizar..." autocomplete="new-password" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="ph ph-lock-key-open"></i> Autorizar Condição',
+        cancelButtonText: 'Cancelar (Manter PIX 100% Antecipado)',
+        confirmButtonColor: '#0f766e',
+        cancelButtonColor: '#64748b',
+        focusConfirm: false,
+        didOpen: () => {
+            const inp = document.getElementById('swal-input-senha-gestor-proposta');
+            if (inp) {
+                inp.focus();
+                inp.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        Swal.clickConfirm();
+                    }
+                });
+            }
+        },
+        preConfirm: () => {
+            const digitada = (document.getElementById('swal-input-senha-gestor-proposta')?.value || '').trim();
+            if (!digitada) {
+                Swal.showValidationMessage('Informe a Senha do Gestor para autorizar esta condição de pagamento.');
+                return false;
+            }
+            if (digitada !== window.CREDITHUB_SENHA_GESTOR_COMERCIAL) {
+                Swal.showValidationMessage('Senha do Gestor incorreta.');
+                return false;
+            }
+            return true;
+        }
+    });
+
+    return Boolean(resSenha && resSenha.isConfirmed);
+};
+
+window.onChangeCondicaoPagamentoProposta = async function(selectEl) {
+    const el = selectEl || document.getElementById('prop-cond-pag');
+    if (!el) return;
+    if (window._modoTelaComercial === 'contrato') {
+        el.setAttribute('data-valor-anterior', el.value || '');
+        return;
+    }
+    const novaCond = String(el.value || '').trim();
+    if (!novaCond || !window._ehTipoEventoOuEquipamentosProposta() || window._ehCondicaoPixAntecipadoProposta(novaCond)) {
+        el.setAttribute('data-valor-anterior', novaCond);
+        return;
+    }
+    const normNova = window._normalizarCondicaoPagamentoComercial(novaCond);
+    const jaLiberada = el.getAttribute('data-senha-gestor-liberada') || '';
+    if (jaLiberada === normNova) {
+        el.setAttribute('data-valor-anterior', novaCond);
+        return;
+    }
+
+    const autorizado = await window.solicitarSenhaGestorCondicaoPagamentoProposta(novaCond);
+    if (!autorizado) {
+        const valorAnt = el.getAttribute('data-valor-anterior') || '';
+        const fallbackCond = (valorAnt && (window._ehCondicaoPixAntecipadoProposta(valorAnt) || el.getAttribute('data-senha-gestor-liberada') === window._normalizarCondicaoPagamentoComercial(valorAnt)))
+            ? valorAnt
+            : 'PIX 100% ANTECIPADO';
+        el.value = fallbackCond;
+        el.setAttribute('data-valor-anterior', fallbackCond);
+        return;
+    }
+
+    el.setAttribute('data-senha-gestor-liberada', normNova);
+    el.setAttribute('data-valor-anterior', novaCond);
+    const detalheHist = `Condição de Pagamento "${novaCond}" liberada na Proposta mediante Senha do Gestor`;
+    if (_propostasEditandoId) {
+        try {
+            await apiPost('/propostas/' + _propostasEditandoId + '/registrar-acao', {
+                acao: 'Senha do Gestor Aplicada',
+                detalhe: detalheHist
+            });
+        } catch (_) {}
+    } else {
+        window._propHistSenhaGestorPendente = detalheHist;
+    }
+};
+
+window.validarSenhaGestorCondicaoPagamentoProposta = async function() {
+    if (window._modoTelaComercial === 'contrato') return true;
+    if (!window._ehTipoEventoOuEquipamentosProposta()) return true;
+    const el = document.getElementById('prop-cond-pag');
+    const condAtual = String(el?.value || '').trim();
+    if (!condAtual || window._ehCondicaoPixAntecipadoProposta(condAtual)) return true;
+
+    const normAtual = window._normalizarCondicaoPagamentoComercial(condAtual);
+    if (el && el.getAttribute('data-senha-gestor-liberada') === normAtual) return true;
+
+    const autorizado = await window.solicitarSenhaGestorCondicaoPagamentoProposta(condAtual);
+    if (!autorizado) {
+        if (el) {
+            el.value = 'PIX 100% ANTECIPADO';
+            el.setAttribute('data-valor-anterior', 'PIX 100% ANTECIPADO');
+            el.focus();
+        }
+        return false;
+    }
+    if (el) {
+        el.setAttribute('data-senha-gestor-liberada', normAtual);
+        el.setAttribute('data-valor-anterior', condAtual);
+    }
+    const detalheHist = `Condição de Pagamento "${condAtual}" liberada na Proposta mediante Senha do Gestor`;
+    if (_propostasEditandoId) {
+        try {
+            await apiPost('/propostas/' + _propostasEditandoId + '/registrar-acao', {
+                acao: 'Senha do Gestor Aplicada',
+                detalhe: detalheHist
+            });
+        } catch (_) {}
+    } else {
+        window._propHistSenhaGestorPendente = detalheHist;
+    }
+    return true;
+};
 
 window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null) {
     if (window._modoTelaComercial !== 'contrato') return true;
@@ -36615,10 +36825,10 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
             mensagemBloqueioCondicao = `Este contrato de <strong>${esc(tipoNorm)}</strong> possui Frete FOB ou locação exclusiva de Chuveiro/Hidráulico/Guarita (sem Banheiro Standard, Luxo ou Extra Luxo junto) e o cliente obteve <strong>Nota ${esc(notaScore)}</strong> no Score CreditHub (de C para baixo).`;
             orientacaoAlternativaSemSenha = `Para esse perfil, a condição obrigatória é <strong>BOLETO ADIANTADO</strong>. Você pode fechar este aviso e alterar a Condição de Pagamento na tela do contrato para <strong>BOLETO ADIANTADO</strong> (não exige senha), ou informar a <strong>Senha do Gestor</strong> abaixo para liberar o envio na condição atual (<strong>${esc(condPagRaw)}</strong>).`;
         }
-    } else if (ehEvento && !ehPixAntecipado) {
+    } else if (ehEventoOuEquip && !ehPixAntecipado) {
         exigeSenhaGestor = true;
-        mensagemBloqueioCondicao = `Este contrato é do tipo <strong>EVENTO</strong> com a condição de pagamento <strong>${esc(condPagRaw)}</strong>${notaScore ? ` (Score CreditHub: <strong>Nota ${esc(notaScore)}</strong>)` : ''}.`;
-        orientacaoAlternativaSemSenha = `Em contratos de Evento, condições fora das 3 opções de PIX Antecipado (<strong>PIX 100% ANTECIPADO</strong>, <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong> ou <strong>PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA</strong>) exigem liberação com a <strong>Senha do Gestor</strong> (ou altere a condição na tela do contrato para uma das opções de PIX Antecipado para enviar sem senha).`;
+        mensagemBloqueioCondicao = `Este contrato é do tipo <strong>${esc(tipoNorm)}</strong> com a condição de pagamento <strong>${esc(condPagRaw)}</strong>${notaScore ? ` (Score CreditHub: <strong>Nota ${esc(notaScore)}</strong>)` : ''}.`;
+        orientacaoAlternativaSemSenha = `Em contratos de Evento ou Equipamentos, condições fora das 3 opções de PIX Antecipado (<strong>PIX 100% ANTECIPADO</strong>, <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong> ou <strong>PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA</strong>) exigem liberação com a <strong>Senha do Gestor</strong> (ou altere a condição na tela do contrato para uma das opções de PIX Antecipado para enviar sem senha).`;
     } else if (notaDeCParaBaixo) {
         const condicaoLiberadaParaNotaRuim = ehObra ? (ehBoletoAdiantado || ehPixAntecipado) : ehPixAntecipado;
         if (!condicaoLiberadaParaNotaRuim) {
