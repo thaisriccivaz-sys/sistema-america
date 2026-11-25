@@ -804,6 +804,7 @@ dadosFiltrados:
 Não há indício potencial nem confirmado no dossiê.
 Neste caso (e só neste caso) use: **Liminares: Nenhuma.**
 
+Na seção final de Recomendação, indique obrigatoriamente de forma explícita **Recomendação: APROVADO.** ou **Recomendação: REPROVADO.** conforme sua análise.
 **Responda sempre em português claro.**`;
 
         const rawStreamText = await _callIrqlWithPoW(apiKey, "SELECT FROM 'LlamaApi'.'Consulta'", {
@@ -834,14 +835,65 @@ Neste caso (e só neste caso) use: **Liminares: Nenhuma.**
 }
 
 /**
- * Calcula a pontuação de A a F (A = melhor nota, F = pior nota) analisando todos os dados da CreditHub.
+ * Identifica se o parecer da IA NostraCredit considerou o crédito APROVADO ou REPROVADO.
+ * Retorna 'APROVADO', 'REPROVADO' ou null (caso não haja texto de análise IA disponível).
  */
-function calcularNotaScoreCreditHub(dados) {
+function _extrairParecerNostraCreditIA(analiseIA) {
+    const txt = String(analiseIA || '').trim();
+    if (!txt) return null;
+
+    const norm = txt
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+
+    // 1. Verificar linha explícita de Recomendação / Decisão / Parecer Final
+    const recMatches = [...norm.matchAll(/(?:RECOMENDACAO(?:\s+FINAL)?|DECISAO(?:\s+DE\s+CREDITO|\s+FINAL)?|PARECER(?:\s+FINAL)?)\s*[:\-]\s*\**([^\n]+)/g)];
+    for (let i = recMatches.length - 1; i >= 0; i--) {
+        const linhaRec = String(recMatches[i][1] || '').trim();
+        if (/\b(REPROVAD[OA]|NEGAD[OA]|RECUSAD[OA]|NAO\s+APROVAD[OA]|NAO\s+RECOMENDAD[OA]|DESFAVORAVEL|CREDITO\s+NAO\s+RECOMENDADO|BLOQUEAD[OA]|INAPTO)\b/.test(linhaRec)) {
+            return 'REPROVADO';
+        }
+        if (/\b(APROVAD[OA]|RECOMENDAD[OA]|FAVORAVEL|LIBERAD[OA]|APTO)\b/.test(linhaRec)) {
+            return 'APROVADO';
+        }
+    }
+
+    // 2. Verificar no trecho final ("Recomendação Final") caso a decisão esteja na linha seguinte
+    const idxSecRec = norm.lastIndexOf('RECOMENDACAO FINAL');
+    const trechoFinal = idxSecRec >= 0 ? norm.slice(idxSecRec) : norm.slice(-700);
+
+    if (/\b(CREDITO\s+REPROVADO|RECOMENDACAO\s*[:\-]?\s*\**REPROVAD|NAO\s+RECOMEND(?:O|AMOS|ADA)\s+A\s+CONCESSAO|CREDITO\s+NAO\s+RECOMENDADO|CREDITO\s+NEGADO|IMPEDE\s+A\s+CONCESSAO\s+DE\s+CREDITO)\b/.test(trechoFinal)) {
+        return 'REPROVADO';
+    }
+    if (/\b(RECOMENDACAO\s*[:\-]?\s*\**APROVAD|CREDITO\s+APROVADO|TOMADOR\s+DE\s+CREDITO\s+RESPONSAVEL|NAO\s+IMPEDE\s+A\s+CONCESSAO\s+DE\s+CREDITO|BOM\s+PERFIL\s+DE\s+RISCO|BAIXO\s+RISCO\s+DE\s+INADIMPLENCIA|RISCO\s+DE\s+INADIMPLENCIA[^.\n]{0,40}\bBAIXO\b)\b/.test(trechoFinal)) {
+        return 'APROVADO';
+    }
+
+    // 3. Busca geral no texto inteiro
+    if (/\b(CREDITO\s+REPROVADO|NAO\s+RECOMEND(?:O|AMOS)\s+A\s+CONCESSAO\s+DE\s+CREDITO|CREDITO\s+NEGADO)\b/.test(norm)) {
+        return 'REPROVADO';
+    }
+    if (/\b(CREDITO\s+APROVADO|NAO\s+IMPEDE\s+A\s+CONCESSAO\s+DE\s+CREDITO|BOM\s+PERFIL\s+DE\s+RISCO)\b/.test(norm)) {
+        return 'APROVADO';
+    }
+
+    return null;
+}
+
+/**
+ * Calcula a pontuação de A a F (A = melhor nota, F = pior nota) analisando todos os dados da CreditHub
+ * em conjunto com o parecer da IA NostraCredit:
+ * - Apenas considera nota C para baixo (C, D, E, F) quando a IA NostraCredit considerar o crédito REPROVADO (ou CNPJ inapto/baixado).
+ * - Quando a IA NostraCredit considerar o crédito APROVADO, garante no mínimo nota B (ou A se pontuação >= 90).
+ */
+function calcularNotaScoreCreditHub(dados, analiseIAOverride) {
     let pontos = 100;
     const motivos = [];
 
     const sit = String(dados?.identificacao?.situacao || 'ATIVA').toUpperCase();
-    if (sit && sit !== 'ATIVA' && sit !== 'REGULAR') {
+    const situacaoRegular = !sit || sit === 'ATIVA' || sit === 'REGULAR';
+    if (!situacaoRegular) {
         pontos -= 75;
         motivos.push(`Situação cadastral na Receita Federal: ${sit}`);
     } else {
@@ -881,12 +933,14 @@ function calcularNotaScoreCreditHub(dados) {
     const procPassivo = Number(dados?.processos?.poloPassivo) || 0;
     const procAtivo = Number(dados?.processos?.poloAtivo) || 0;
     const procTotal = Number(dados?.processos?.total) || 0;
-    const valCausas = Number(dados?.processos?.valorTotalCausas) || 0;
     const listaAtivos = Array.isArray(dados?.processos?.processos) ? dados.processos.processos : [];
+    const valCausasPassivo = listaAtivos
+        .filter(p => p.poloCliente === 'PASSIVO')
+        .reduce((acc, p) => acc + (Number(p.valorCausa) || 0), 0);
     const temExecucaoPassiva = listaAtivos.some(p => p.poloCliente === 'PASSIVO' && /execu[cç][aã]o|cumprimento de senten[cç]a|fal[eê]ncia|recupera[cç][aã]o/i.test(`${p.classeProcessual} ${p.assunto}`));
 
     if (procPassivo > 0) {
-        let descProc = Math.min(40, procPassivo * 3 + (valCausas > 500000 ? 12 : valCausas > 100000 ? 7 : 0) + (temExecucaoPassiva ? 10 : 0));
+        let descProc = Math.min(40, procPassivo * 3 + (valCausasPassivo > 500000 ? 12 : valCausasPassivo > 100000 ? 7 : 0) + (temExecucaoPassiva ? 10 : 0));
         pontos -= descProc;
         motivos.push(`${procPassivo} processo(s) ativo(s) no polo passivo (réu)${temExecucaoPassiva ? ' incluindo Execuções/Cumprimento de Sentença' : ''}`);
     } else if (procTotal > 0 && procAtivo === 0) {
@@ -911,6 +965,27 @@ function calcularNotaScoreCreditHub(dados) {
 
     pontos = Math.max(0, Math.min(100, Math.round(pontos)));
 
+    // ── Regra NostraCredit IA:
+    // Apenas considerar nota C para baixo (C, D, E, F) quando a IA da NostraCredit considerar o crédito REPROVADO.
+    // Quando a IA NostraCredit considerar como crédito APROVADO, considerar no mínimo como nota B (realizando as análises).
+    const textoIA = analiseIAOverride !== undefined ? analiseIAOverride : dados?.analiseIA;
+    const parecerIA = _extrairParecerNostraCreditIA(textoIA);
+
+    if (parecerIA === 'REPROVADO') {
+        if (pontos >= 75) {
+            pontos = 74; // Garante classificação de C para baixo quando reprovado pela IA
+        }
+        motivos.push('Parecer NostraCredit IA: Crédito Reprovado');
+    } else if (parecerIA === 'APROVADO' || (situacaoRegular && parecerIA !== 'REPROVADO')) {
+        if (pontos < 75) {
+            // Eleva proporcionalmente para a faixa da Nota B (75 a 88 pts), preservando a análise dos indicadores
+            pontos = Math.max(75, Math.min(88, Math.round(75 + (pontos / 75) * 12)));
+        }
+        if (parecerIA === 'APROVADO') {
+            motivos.push('Parecer NostraCredit IA: Crédito Aprovado');
+        }
+    }
+
     let nota = 'A';
     let classificacao = 'Risco Muito Baixo · Excelente';
     let cor = '#16a34a';
@@ -930,7 +1005,7 @@ function calcularNotaScoreCreditHub(dados) {
         nota = 'F'; classificacao = 'Risco Muito Elevado · Crédito Não Recomendado'; cor = '#991b1b'; bg = '#fecaca';
     }
 
-    return { nota, pontos, classificacao, cor, bg, motivos };
+    return { nota, pontos, classificacao, cor, bg, pareciaIA: parecerIA, motivos };
 }
 
 /**
@@ -958,6 +1033,21 @@ async function obterConsultaCache90Dias(dbOrFn, documento) {
     if (!dados || dados.parserVersion !== CURRENT_PARSER_VERSION) {
         await dbRun('DELETE FROM credithub_consultas WHERE id = ?', [row.id]).catch(() => {});
         return null;
+    }
+
+    // Recalcula o score aplicando a regra vigente da IA NostraCredit sobre os dados em cache
+    const scoreAtualizado = calcularNotaScoreCreditHub(dados, dados.analiseIA);
+    const notaMudou = scoreAtualizado.nota !== row.nota_score ||
+        scoreAtualizado.pontos !== row.pontos_score ||
+        JSON.stringify(dados.score?.motivos || []) !== JSON.stringify(scoreAtualizado.motivos || []);
+    dados.score = scoreAtualizado;
+    if (notaMudou) {
+        row.nota_score = scoreAtualizado.nota;
+        row.pontos_score = scoreAtualizado.pontos;
+        await dbRun(
+            'UPDATE credithub_consultas SET nota_score = ?, pontos_score = ?, dados_json = ? WHERE id = ?',
+            [scoreAtualizado.nota, scoreAtualizado.pontos, JSON.stringify(dados), row.id]
+        ).catch(() => {});
     }
 
     const consultadoDate = new Date(row.consultado_em.includes('T') ? row.consultado_em : row.consultado_em.replace(' ', 'T') + 'Z');
@@ -1077,13 +1167,10 @@ async function consultarDocumentoCreditHub(dbOrFn, documento, usuarioSistema = '
         evolucaoHistorico: basicHistory
     };
 
-    const [scoreInfo, analiseIaNostraCredit] = await Promise.all([
-        Promise.resolve(calcularNotaScoreCreditHub(dadosCompletos)),
-        _consultarNostraCreditIA(apiKey, dadosCompletos)
-    ]);
-
-    dadosCompletos.score = scoreInfo;
+    const analiseIaNostraCredit = await _consultarNostraCreditIA(apiKey, dadosCompletos);
     dadosCompletos.analiseIA = analiseIaNostraCredit;
+    const scoreInfo = calcularNotaScoreCreditHub(dadosCompletos, analiseIaNostraCredit);
+    dadosCompletos.score = scoreInfo;
 
     await dbRun('DELETE FROM credithub_consultas WHERE documento = ?', [docClean]).catch(() => {});
     const insertRes = await dbRun(
