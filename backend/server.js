@@ -43542,6 +43542,64 @@ function resolverDadosAutorComentarioContrato(reqUser, callback) {
   );
 }
 
+// GET /api/comercial/contratos/comentarios-recentes - Listar últimos 50 comentários de todos os contratos (para quando o contrato na tela ainda não está preenchido)
+app.get('/api/comercial/contratos/comentarios-recentes', authenticateToken, (req, res) => {
+  const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  db.get('SELECT COUNT(*) as total_geral FROM comercial_contratos_comentarios', [], (errCnt, rowCnt) => {
+    const totalGeral = (!errCnt && rowCnt && rowCnt.total_geral) ? Number(rowCnt.total_geral) : 0;
+    db.all(
+      `SELECT c.id, c.proposta_id, c.parent_id, c.usuario_id, c.usuario_username, c.colaborador_id,
+              c.autor_nome, c.autor_departamento, c.autor_foto_url, c.comentario, c.anexos_json, c.criado_em,
+              p.codigo as proposta_codigo, p.contrato as numero_contrato, p.cliente_nome, p.titulo_contrato
+       FROM comercial_contratos_comentarios c
+       LEFT JOIN propostas p ON p.id = c.proposta_id
+       ORDER BY c.id DESC
+       LIMIT ?`,
+      [limite],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const lista = (Array.isArray(rows) ? rows : []).reverse();
+        if (!lista.length) return res.json({ success: true, total_geral: totalGeral, comentarios: [] });
+        db.all('SELECT id, username, nome, email, departamento, role FROM usuarios', [], (errU, usuarios) => {
+          db.all('/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+            const mapUsers = new Map();
+            (Array.isArray(usuarios) ? usuarios : []).forEach(u => mapUsers.set(Number(u.id), u));
+            const listaColabs = Array.isArray(colabs) ? colabs : [];
+            const mapColabs = new Map();
+            listaColabs.forEach(col => mapColabs.set(Number(col.id), col));
+
+            const enriquecidos = lista.map(item => {
+              let colab = item.colaborador_id ? mapColabs.get(Number(item.colaborador_id)) : null;
+              const uRow = item.usuario_id ? mapUsers.get(Number(item.usuario_id)) : null;
+              if (!colab && uRow && global.matchUsuarioComColaborador) {
+                colab = global.matchUsuarioComColaborador(uRow, listaColabs);
+              }
+              const nomeFinal = (colab && colab.nome_completo && String(colab.nome_completo).trim())
+                ? String(colab.nome_completo).trim()
+                : String(item.autor_nome || (uRow && (uRow.nome || uRow.username)) || 'Colaborador').trim();
+              const deptoFinal = (colab && colab.departamento && String(colab.departamento).trim())
+                ? String(colab.departamento).trim()
+                : String(item.autor_departamento || (uRow && (uRow.departamento || uRow.role)) || 'Geral').trim();
+              const temFotoColab = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
+              const fotoFinal = (colab && colab.id && temFotoColab)
+                ? `/api/colaboradores/foto/${colab.id}`
+                : (item.autor_foto_url || '');
+              return {
+                ...item,
+                colaborador_id: (colab && colab.id) ? Number(colab.id) : (item.colaborador_id || null),
+                autor_nome: nomeFinal,
+                autor_departamento: deptoFinal,
+                autor_foto_url: fotoFinal
+              };
+            });
+            res.json({ success: true, total_geral: totalGeral, comentarios: enriquecidos });
+          });
+        });
+      }
+    );
+  });
+});
+
 // GET /api/propostas/:id/comentarios-contrato - Listar histórico completo de comentários do contrato
 app.get('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res) => {
   const propId = Number(req.params.id);

@@ -5722,8 +5722,8 @@ function _renderFormPropostaInt() {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     } else if (window._modoTelaComercial === 'contrato') {
-        if (typeof window.renderizarListaComentariosContrato === 'function') {
-            window.renderizarListaComentariosContrato([]);
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(null);
         }
     }
 
@@ -25185,8 +25185,8 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     } else if (window._modoTelaComercial === 'contrato') {
-        if (typeof window.renderizarListaComentariosContrato === 'function') {
-            window.renderizarListaComentariosContrato([]);
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(null);
         }
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
@@ -26065,8 +26065,8 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     } else if (window._modoTelaComercial === 'contrato') {
-        if (typeof window.renderizarListaComentariosContrato === 'function') {
-            window.renderizarListaComentariosContrato([]);
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(null);
         }
     }
 };
@@ -26152,8 +26152,8 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
         }
     } else if (window._modoTelaComercial === 'contrato') {
-        if (typeof window.renderizarListaComentariosContrato === 'function') {
-            window.renderizarListaComentariosContrato([]);
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(null);
         }
     }
 };
@@ -32921,7 +32921,8 @@ window._ctrMontarDrawerComentarios = function() {
                 >
                     <i id="ctr-comentarios-drawer-icon" class="ph ph-caret-up-bold" style="font-size:0.9rem;"></i>
                     <span>Comentários</span>
-                    <span id="prop-comentarios-contrato-count-badge" style="background:#e2e8f0; color:#334155; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800;">0</span>
+                    <span id="prop-comentarios-contrato-count-badge" title="Total de comentários" style="background:#e2e8f0; color:#334155; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800;">0</span>
+                    <span id="prop-comentarios-contrato-novos-badge" title="Comentários novos não lidos" style="display:none; background:#dc2626; color:#ffffff; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800; box-shadow:0 1px 4px rgba(220,38,38,0.35);">0</span>
                 </button>
             </div>
 
@@ -32929,8 +32930,8 @@ window._ctrMontarDrawerComentarios = function() {
             <div id="ctr-comentarios-drawer-panel"
                 style="
                     width:100%; background:#ffffff;
-                    border-top:2px solid #cbd5e1;
-                    box-shadow:0 -8px 28px rgba(15,23,42,0.16);
+                    border-top:none;
+                    box-shadow:none;
                     max-height:0; overflow:hidden;
                     transition:max-height 0.32s cubic-bezier(.4,0,.2,1);
                     display:flex; flex-direction:column;
@@ -32941,7 +32942,7 @@ window._ctrMontarDrawerComentarios = function() {
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-wrap:wrap; flex-shrink:0;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <i class="ph ph-chats-circle" style="color:#6d28d9; font-size:1.15rem;"></i>
-                        <span style="font-weight:800; font-size:0.86rem; color:#1e293b;">Comentários do Contrato</span>
+                        <span id="ctr-comentarios-drawer-titulo" style="font-weight:800; font-size:0.86rem; color:#1e293b;">Comentários do Contrato</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-left:auto;">
                         <button type="button" onclick="window.carregarComentariosContratoAtivo(null, true)" title="Atualizar comentários"
@@ -32964,7 +32965,7 @@ window._ctrMontarDrawerComentarios = function() {
                 </div>
 
                 <!-- Campo "Comentários" fixo na base do drawer para adicionar novo comentário e anexos (pasta ou Ctrl+V) -->
-                <div style="padding:10px 16px; border-top:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
+                <div id="ctr-comentarios-composer-footer" style="padding:10px 16px; border-top:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
                         <label style="display:block; font-size:0.76rem; font-weight:800; color:#4c1d95; margin:0; text-transform:none;">
                             <i class="ph ph-chat-centered-text"></i> Comentários
@@ -33032,21 +33033,20 @@ window._ctrToggleDrawerComentarios = function(forcarEstado) {
     window._ctrDrawerComentariosAberto = novoEstado;
     panel.style.maxHeight = novoEstado ? '50vh' : '0';
     panel.style.height = novoEstado ? '50vh' : 'auto';
+    panel.style.borderTop = novoEstado ? '1.5px solid #cbd5e1' : 'none';
+    panel.style.boxShadow = novoEstado ? '0 -8px 28px rgba(15,23,42,0.16)' : 'none';
     if (icon) {
         icon.className = novoEstado ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
     }
     if (novoEstado) {
         const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
-        if (propId) {
-            window.carregarComentariosContratoAtivo(propId, false);
-        } else {
-            window.renderizarListaComentariosContrato([]);
-        }
+        window.carregarComentariosContratoAtivo(propId || null, false);
         setTimeout(() => {
+            window._marcarComentariosContratoComoVistos(propId || 'all', window._comentariosContratoCache || []);
             const wrap = document.getElementById('prop-comentarios-contrato-lista-wrap');
             if (wrap) wrap.scrollTop = wrap.scrollHeight;
-            document.getElementById('prop-comentario-contrato-novo-texto')?.focus();
-        }, 120);
+            if (propId) document.getElementById('prop-comentario-contrato-novo-texto')?.focus();
+        }, 150);
     }
 };
 
@@ -33058,14 +33058,23 @@ window._ctrAtualizarVisibilidadeDrawerComentarios = function() {
     const isFormVisivel = Boolean(formEl && formEl.offsetParent !== null);
     const ehContratoAtivo = window._modoTelaComercial === 'contrato' && isFormVisivel;
     if (ehContratoAtivo) {
-        if (w.style.display !== 'flex') w.style.display = 'flex';
+        if (w.style.display !== 'flex') {
+            w.style.display = 'flex';
+            const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+            window.carregarComentariosContratoAtivo(propId || null, false);
+        }
     } else {
         if (w.style.display !== 'none') {
             w.style.display = 'none';
             if (window._ctrDrawerComentariosAberto) {
                 const panel = document.getElementById('ctr-comentarios-drawer-panel');
                 const icon = document.getElementById('ctr-comentarios-drawer-icon');
-                if (panel) { panel.style.maxHeight = '0'; panel.style.height = 'auto'; }
+                if (panel) {
+                    panel.style.maxHeight = '0';
+                    panel.style.height = 'auto';
+                    panel.style.borderTop = 'none';
+                    panel.style.boxShadow = 'none';
+                }
                 if (icon) icon.className = 'ph ph-caret-up-bold';
                 window._ctrDrawerComentariosAberto = false;
             }
@@ -33080,6 +33089,102 @@ if (!window._ctrComentariosVisibilityInterval) {
         }
     }, 450);
 }
+
+if (!window._ctrComentariosPollNovosInterval) {
+    window._ctrComentariosPollNovosInterval = setInterval(() => {
+        const w = document.getElementById('ctr-comentarios-drawer-wrapper');
+        if (!w || w.style.display === 'none') return;
+        const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+        if (typeof window.carregarComentariosContratoAtivo === 'function') {
+            window.carregarComentariosContratoAtivo(propId || null, false, true);
+        }
+    }, 25000);
+}
+
+window._obterChaveUsuarioComentariosVistos = function() {
+    const u = (typeof window.obterNomeUsuarioLogado === 'function' ? window.obterNomeUsuarioLogado() : '') || localStorage.getItem('username') || 'default';
+    return `_ctrComentariosVistos_${String(u).toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+};
+
+window._obterMapaComentariosVistos = function() {
+    try {
+        const raw = localStorage.getItem(window._obterChaveUsuarioComentariosVistos());
+        const parsed = raw ? JSON.parse(raw) : null;
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (_) {
+        return {};
+    }
+};
+
+window._salvarMapaComentariosVistos = function(mapa) {
+    try {
+        localStorage.setItem(window._obterChaveUsuarioComentariosVistos(), JSON.stringify(mapa || {}));
+    } catch (_) {}
+};
+
+window._calcularComentariosNovosNaoVistos = function(escopoKey, lista) {
+    const arr = Array.isArray(lista) ? lista : [];
+    if (!arr.length) return 0;
+    const key = String(escopoKey || 'all');
+    const mapa = window._obterMapaComentariosVistos();
+    const lastSeenId = Number(mapa[key] || 0);
+    const maxId = arr.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0);
+    // Se a aba estiver aberta agora, já marca como visto e retorna 0
+    if (window._ctrDrawerComentariosAberto) {
+        if (maxId > lastSeenId) {
+            mapa[key] = maxId;
+            window._salvarMapaComentariosVistos(mapa);
+        }
+        return 0;
+    }
+    const meuNomeNorm = window._normTextoFiltroComentarioContrato(typeof window.obterNomeUsuarioLogado === 'function' ? window.obterNomeUsuarioLogado() : '');
+    let novos = 0;
+    arr.forEach(c => {
+        const cid = Number(c.id) || 0;
+        if (cid > lastSeenId) {
+            const autorNorm = window._normTextoFiltroComentarioContrato(c.autor_nome);
+            const userNorm = window._normTextoFiltroComentarioContrato(c.usuario_username);
+            if (!meuNomeNorm || (autorNorm !== meuNomeNorm && userNorm !== meuNomeNorm)) {
+                novos++;
+            }
+        }
+    });
+    return novos;
+};
+
+window._marcarComentariosContratoComoVistos = function(escopoKey, lista) {
+    const arr = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
+    const key = String(escopoKey || 'all');
+    const maxId = arr.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0);
+    const mapa = window._obterMapaComentariosVistos();
+    if (maxId > Number(mapa[key] || 0)) {
+        mapa[key] = maxId;
+        window._salvarMapaComentariosVistos(mapa);
+    }
+    const badgeNovos = document.getElementById('prop-comentarios-contrato-novos-badge');
+    if (badgeNovos) {
+        badgeNovos.style.display = 'none';
+        badgeNovos.textContent = '0';
+    }
+};
+
+window._atualizarBadgesContagemComentarios = function(totalCount, novosCount) {
+    const badgeTotal = document.getElementById('prop-comentarios-contrato-count-badge');
+    if (badgeTotal) {
+        badgeTotal.textContent = String(Number(totalCount) || 0);
+    }
+    const badgeNovos = document.getElementById('prop-comentarios-contrato-novos-badge');
+    if (badgeNovos) {
+        const n = Number(novosCount) || 0;
+        if (n > 0) {
+            badgeNovos.textContent = String(n);
+            badgeNovos.style.display = 'inline-flex';
+        } else {
+            badgeNovos.textContent = '0';
+            badgeNovos.style.display = 'none';
+        }
+    }
+};
 
 window._normTextoFiltroComentarioContrato = function(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -33111,25 +33216,54 @@ window._extrairDataIsoComentarioContrato = function(dtStr) {
     return m ? m[1] : '';
 };
 
-window.carregarComentariosContratoAtivo = async function(propIdOpcional, mostrarFeedback = false) {
-    const propId = Number(propIdOpcional || _propostasEditandoId || window._propostasEditandoId_contrato);
+window.carregarComentariosContratoAtivo = async function(propIdOpcional, mostrarFeedback = false, isPollingBackground = false) {
+    const propId = Number(propIdOpcional !== null && propIdOpcional !== undefined ? propIdOpcional : (_propostasEditandoId || window._propostasEditandoId_contrato));
     if (!propId) {
-        window._comentariosContratoCache = [];
-        window.renderizarListaComentariosContrato([]);
+        try {
+            const resRec = await apiGet('/comercial/contratos/comentarios-recentes?limit=50');
+            const listaRec = (resRec && Array.isArray(resRec.comentarios)) ? resRec.comentarios : [];
+            const totalGeral = (resRec && Number(resRec.total_geral) > 0) ? Number(resRec.total_geral) : listaRec.length;
+            window._comentariosContratoCache = listaRec;
+            window._comentariosContratoTotalGeral = totalGeral;
+            if (!isPollingBackground || window._ctrDrawerComentariosAberto) {
+                window.renderizarListaComentariosContrato(listaRec);
+            } else {
+                const novosRec = window._calcularComentariosNovosNaoVistos('all', listaRec);
+                window._atualizarBadgesContagemComentarios(totalGeral, novosRec);
+            }
+            if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`Últimos comentários dos contratos atualizados (${listaRec.length} exibido(s)).`);
+            }
+        } catch (eRec) {
+            console.warn('[COMENTARIOS_CONTRATO] Erro ao carregar comentários recentes de todos os contratos:', eRec);
+            if (!isPollingBackground) {
+                window._comentariosContratoCache = [];
+                window._comentariosContratoTotalGeral = 0;
+                window.renderizarListaComentariosContrato([]);
+            }
+        }
         return;
     }
     try {
         const res = await apiGet(`/propostas/${propId}/comentarios-contrato`);
         const lista = (res && Array.isArray(res.comentarios)) ? res.comentarios : [];
         window._comentariosContratoCache = lista;
+        window._comentariosContratoTotalGeral = lista.length;
         window.atualizarDatalistsFiltrosComentariosContrato(lista);
-        window.renderizarListaComentariosContrato(lista);
+        if (!isPollingBackground || window._ctrDrawerComentariosAberto) {
+            window.renderizarListaComentariosContrato(lista);
+        } else {
+            const novosCtr = window._calcularComentariosNovosNaoVistos(`ctr_${propId}`, lista);
+            window._atualizarBadgesContagemComentarios(lista.length, novosCtr);
+        }
         if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
             mostrarToastSucesso(`Histórico de comentários atualizado (${lista.length} comentário(s)).`);
         }
     } catch (e) {
         console.warn('[COMENTARIOS_CONTRATO] Erro ao carregar comentários do contrato:', e);
-        window.renderizarListaComentariosContrato([]);
+        if (!isPollingBackground) {
+            window.renderizarListaComentariosContrato([]);
+        }
     }
 };
 
@@ -33390,6 +33524,7 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
             window._comentariosContratoReplyAberto[String(parentId)] = false;
         }
         await window.carregarComentariosContratoAtivo(propId, false);
+        window._marcarComentariosContratoComoVistos(`ctr_${propId}`, window._comentariosContratoCache || []);
         if (anexosInseridos.length > 0 && typeof window.carregarAnexosContratoAtivo === 'function') {
             await window.carregarAnexosContratoAtivo(propId);
         }
@@ -33416,28 +33551,35 @@ window.renderizarListaComentariosContrato = function(lista) {
     const arrOrig = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
     // Ordena do mais antigo (em cima) para o mais novo (embaixo)
     const arr = [...arrOrig].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
-    const badge = document.getElementById('prop-comentarios-contrato-count-badge');
-    if (badge) {
-        badge.textContent = String(arr.length);
+    const propIdAtu = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    const ehModoTodosContratos = !propIdAtu;
+    const escopoKey = ehModoTodosContratos ? 'all' : `ctr_${propIdAtu}`;
+    const totalBadgeVal = ehModoTodosContratos
+        ? (Number(window._comentariosContratoTotalGeral) > 0 ? Number(window._comentariosContratoTotalGeral) : arr.length)
+        : arr.length;
+    const novosCount = window._calcularComentariosNovosNaoVistos(escopoKey, arr);
+    window._atualizarBadgesContagemComentarios(totalBadgeVal, novosCount);
+
+    const tituloEl = document.getElementById('ctr-comentarios-drawer-titulo');
+    if (tituloEl) {
+        tituloEl.textContent = ehModoTodosContratos
+            ? 'Últimos Comentários dos Contratos (até 50 recentes)'
+            : 'Comentários do Contrato';
+    }
+    const footerComposer = document.getElementById('ctr-comentarios-composer-footer');
+    if (footerComposer) {
+        footerComposer.style.display = ehModoTodosContratos ? 'none' : 'block';
     }
 
     const wrap = document.getElementById('prop-comentarios-contrato-lista-wrap');
     if (!wrap) return;
 
-    const propIdAtu = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
-    if (!propIdAtu) {
-        wrap.innerHTML = `
-            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:1.2rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
-                Selecione ou salve um contrato para visualizar e adicionar comentários no histórico.
-            </div>
-        `;
-        return;
-    }
-
     if (!arr.length) {
         wrap.innerHTML = `
             <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:1.2rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
-                Nenhum comentário registrado neste contrato até o momento. Adicione um comentário no campo abaixo.
+                ${ehModoTodosContratos
+                    ? 'Nenhum comentário registrado nos contratos até o momento.'
+                    : 'Nenhum comentário registrado neste contrato até o momento. Adicione um comentário no campo abaixo.'}
             </div>
         `;
         return;
@@ -33520,10 +33662,28 @@ window.renderizarListaComentariosContrato = function(lista) {
         const replyAberto = Boolean(window._comentariosContratoReplyAberto && window._comentariosContratoReplyAberto[String(idNum)]);
         const parentObj = c.parent_id ? byId.get(Number(c.parent_id)) : null;
         const destaqueFiltro = temFiltroAtivo && infoVis.proprioCombina;
+        const numCtrExib = String(c.numero_contrato || c.proposta_codigo || c.proposta_id || '').trim().padStart(2, '0');
+        const cliNomeRaw = String(c.cliente_nome || '').trim();
+        const cliNomeComIcone = (cliNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
+            ? window.formatarNomeClienteComIcone(cliNomeRaw)
+            : cliNomeRaw;
+        const propIdCard = Number(c.proposta_id || propIdAtu || 0);
 
         return `
             <div id="prop-comentario-card-${idNum}" style="${nivel > 0 ? 'margin-left:1.35rem; margin-top:0.5rem; border-left:2.5px solid #c4b5fd; padding-left:0.7rem;' : 'margin-bottom:0.6rem;'}">
                 <div style="background:${destaqueFiltro ? '#faf5ff' : '#ffffff'}; border:1px solid ${destaqueFiltro ? '#a855f7' : (nivel > 0 ? '#e9d5ff' : '#dbeafe')}; border-radius:9px; padding:0.65rem 0.8rem; box-shadow:0 1px 2px rgba(15,23,42,0.03);">
+                    ${ehModoTodosContratos && propIdCard ? `
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.45rem; padding-bottom:0.4rem; border-bottom:1px dashed #e2e8f0;">
+                            <button type="button" onclick="window._ctrToggleDrawerComentarios(false); window.abrirContratoDaProposta(${propIdCard});"
+                                title="Clique para abrir o Contrato Nº ${_escHtmlProp(numCtrExib)}"
+                                style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:2px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;"
+                                onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.04)'"
+                                onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">
+                                <i class="ph ph-file-text"></i> Contrato Nº ${_escHtmlProp(numCtrExib)}
+                            </button>
+                            ${cliNomeComIcone ? `<span style="font-size:0.79rem; font-weight:800; color:#0f172a;">${_escHtmlProp(cliNomeComIcone)}</span>` : ''}
+                        </div>
+                    ` : ''}
                     <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:center; gap:9px; min-width:0;">
                             <!-- Foto do Usuário / Colaborador com Fallback de Iniciais -->
@@ -33555,9 +33715,11 @@ window.renderizarListaComentariosContrato = function(lista) {
                         </div>
 
                         <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                            <button type="button" onclick="window.toggleResponderComentarioContrato(${idNum}, '${_escHtmlProp(String(c.autor_nome || '').replace(/'/g, ''))}')" title="Deixar um comentário dentro deste comentário" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; border-radius:6px; padding:3px 9px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f3ff'">
-                                <i class="ph ph-arrow-bend-down-right"></i> Responder
-                            </button>
+                            ${!ehModoTodosContratos ? `
+                                <button type="button" onclick="window.toggleResponderComentarioContrato(${idNum}, '${_escHtmlProp(String(c.autor_nome || '').replace(/'/g, ''))}')" title="Deixar um comentário dentro deste comentário" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; border-radius:6px; padding:3px 9px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f3ff'">
+                                    <i class="ph ph-arrow-bend-down-right"></i> Responder
+                                </button>
+                            ` : ''}
                         </div>
                     </div>
 
