@@ -5807,6 +5807,8 @@ if (formColab) {
             academia_desconto_valor: parseMoeda(document.getElementById('colab-academia-desconto-valor')?.value) || 0,
             folha_insalubridade: parseInt(document.querySelector('input[name="folha_insalubridade"]:checked')?.value) || 0,
             folha_insalubridade_valor: parseMoeda(document.getElementById('colab-folha-insalubridade-valor')?.value) || 0,
+            insalubridade: (parseInt(document.querySelector('input[name="folha_insalubridade"]:checked')?.value) || 0) === 1 ? 'Sim' : 'Não',
+            insalubridade_valor: (parseInt(document.querySelector('input[name="folha_insalubridade"]:checked')?.value) || 0) === 1 ? (parseMoeda(document.getElementById('colab-folha-insalubridade-valor')?.value) || 0) : 0,
             folha_periculosidade: parseInt(document.querySelector('input[name="folha_periculosidade"]:checked')?.value) || 0,
             folha_periculosidade_valor: parseMoeda(document.getElementById('colab-folha-periculosidade-valor')?.value) || 0,
             folha_mensalidade_sindical: parseInt(document.querySelector('input[name="folha_mensalidade_sindical"]:checked')?.value) || 0,
@@ -15061,8 +15063,17 @@ function calculateAdmissaoStep1Completion(c) {
         activeChecklist.push({ key: 'conjuge_cpf', label: 'CPF Cônjuge' });
     }
 
-    // Clonar c com campos resolvidos
-    const resolved = Object.assign({}, c, { conjuge_nome, conjuge_cpf });
+    // Clonar c com campos resolvidos (incluindo insalubridade de 7. Folha)
+    const temInsalubFolha = Number(c.folha_insalubridade) === 1 || c.folha_insalubridade === true || c.folha_insalubridade === 'Sim' || (c.folha_insalubridade === undefined && c.insalubridade === 'Sim');
+    const valInsalubFolha = temInsalubFolha
+        ? (c.folha_insalubridade_valor !== undefined && c.folha_insalubridade_valor !== null && c.folha_insalubridade_valor !== '' ? c.folha_insalubridade_valor : c.insalubridade_valor)
+        : '';
+    const resolved = Object.assign({}, c, {
+        conjuge_nome,
+        conjuge_cpf,
+        insalubridade: temInsalubFolha ? 'Sim' : 'Não',
+        insalubridade_valor: valInsalubFolha
+    });
 
     let filledCount = 0;
     const resultFields = [];
@@ -15100,8 +15111,8 @@ function calculateAdmissaoStep1Completion(c) {
     if (c.adiantamento_salarial === 'Sim') {
         extraFields.push({ label: 'Valor Adiantamento', value: c.adiantamento_valor, filled: !!c.adiantamento_valor, isExtra: true });
     }
-    if (c.insalubridade === 'Sim') {
-        extraFields.push({ label: 'Valor Insalubridade', value: c.insalubridade_valor, filled: !!c.insalubridade_valor, isExtra: true });
+    if (resolved.insalubridade === 'Sim') {
+        extraFields.push({ label: 'Valor Insalubridade', value: resolved.insalubridade_valor, filled: !!resolved.insalubridade_valor, isExtra: true });
     }
     if (c.meio_transporte && c.meio_transporte !== 'Próprio / A pé') {
         extraFields.push({ label: 'Valor Transporte', value: c.valor_transporte, filled: !!c.valor_transporte, isExtra: true });

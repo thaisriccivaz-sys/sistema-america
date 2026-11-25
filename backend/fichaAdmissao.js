@@ -17,6 +17,11 @@ function getFichaAdmissaoHtml(colaborador, baseUrl) {
         return new Intl.NumberFormat('pt-BR', {style: 'currency', currency: 'BRL'}).format(num);
     };
 
+    const temInsalubridade = Number(c.folha_insalubridade) === 1 || c.folha_insalubridade === true || c.folha_insalubridade === 'Sim' || (c.folha_insalubridade === undefined && c.insalubridade === 'Sim');
+    const valorInsalubridade = (Number(c.folha_insalubridade) === 1 || c.folha_insalubridade === true || c.folha_insalubridade === 'Sim')
+        ? (c.folha_insalubridade_valor !== undefined && c.folha_insalubridade_valor !== null && c.folha_insalubridade_valor !== '' ? c.folha_insalubridade_valor : c.insalubridade_valor)
+        : c.insalubridade_valor;
+
     const isIntermitente = c.tipo_contrato === 'Intermitente' ? '( X )' : '(   )';
     const isCLT = c.tipo_contrato === 'CLT' ? '( X )' : '(   )';
 
@@ -170,8 +175,8 @@ ${c.sexo === 'Masculino' ? `<div class="row" style="width:33%"><span class="labe
     </div>
     <div class="row" style="width:50%"><span class="label">Sal\u00e1rio:</span> <div class="value">${parseMoney(c.salario)}</div></div>
     <div class="grid-2" style="margin-top:5px">
-      <div class="row"><span class="label">Insalubridade:</span> <div class="value">${c.insalubridade==='Sim'?'Sim':'N\u00e3o'}</div></div>
-      <div class="row"><span class="label">Valor Insalubridade:</span> <div class="value">${c.insalubridade==='Sim'?parseMoney(c.insalubridade_valor):''}</div></div>
+      <div class="row"><span class="label">Insalubridade:</span> <div class="value">${temInsalubridade?'Sim':'N\u00e3o'}</div></div>
+      <div class="row"><span class="label">Valor Insalubridade:</span> <div class="value">${temInsalubridade?parseMoney(valorInsalubridade):''}</div></div>
       <div class="row"><span class="label">Meio de Transporte:</span> <div class="value">${safeStr(c.meio_transporte)}</div></div>
       <div class="row"><span class="label">Valor:</span> <div class="value">${c.meio_transporte === 'Vale Transporte (VT)' ? '6%' : parseMoney(c.valor_transporte)}</div></div>
       <div class="row"><span class="label">Vale Adiantamento:</span> <div class="value">${c.adiantamento_salarial==='Sim'?'Sim':'N\u00e3o'}</div></div>
