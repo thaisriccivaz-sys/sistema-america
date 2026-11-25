@@ -30580,8 +30580,6 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     // Período, Evento e Local de Instalação
     { tag: '{{PERIODO_INICIO}}', label: 'Período Início (Data de Entrega)', categoria: 'Período e Local', exemplo: '20/11/2026' },
     { tag: '{{PERIODO_FIM}}', label: 'Período Fim (Até)', categoria: 'Período e Local', exemplo: '20/12/2026' },
-    { tag: '{{PERIODO_COBRANCA_INICIO}}', label: 'Período de Cobrança — Início', categoria: 'Período e Local', exemplo: '20/11/2026' },
-    { tag: '{{PERIODO_COBRANCA_FIM}}', label: 'Período de Cobrança — Fim', categoria: 'Período e Local', exemplo: '20/12/2026' },
     { tag: '{{DATA_ENTREGA}}', label: 'Data de Entrega (numera automaticamente 1, 2, 3... ao salvar)', categoria: 'Período e Local', exemplo: '18/11/2026' },
     { tag: '{{DATA_RETIRADA}}', label: 'Data de Retirada (numera automaticamente 1, 2, 3... ao salvar)', categoria: 'Período e Local', exemplo: '20/11/2026' },
     { tag: '{{HORA_INICIO}}', label: 'Hora Início', categoria: 'Período e Local', exemplo: '08:00' },
@@ -33275,8 +33273,6 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         ? datasRetiradaFmtArr.join(', ')
         : fmtDataBr(p.periodo_fim || dataAtualBr);
 
-    const cobrancaIniBr = fmtDataBr(p.periodo_cobranca_inicio || p.periodo_inicio || dataAtualBr);
-    const cobrancaFimBr = fmtDataBr(p.periodo_cobranca_fim || p.periodo_fim || dataAtualBr);
     const tipoLimpoContrato = String(p.tipo || 'OBRA MENSAL').trim().replace(/^PROPOSTA\s+/i, '');
     const numContratoLimpo = String(p.contrato || p.numero_contrato || p.codigo || '0001').trim();
     const tituloCampoContrato = (String(p.titulo_contrato || '').trim() || (p._isPreviewModelo ? 'TÍTULO DO CONTRATO' : '')).toUpperCase();
@@ -33397,8 +33393,6 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
 
         '{{PERIODO_INICIO}}': fmtDataBr(p.periodo_inicio || dataAtualBr),
         '{{PERIODO_FIM}}': fmtDataBr(p.periodo_fim || dataAtualBr),
-        '{{PERIODO_COBRANCA_INICIO}}': cobrancaIniBr,
-        '{{PERIODO_COBRANCA_FIM}}': cobrancaFimBr,
         '{{DATA_ENTREGA}}': datasEntregaFmtArr[0] || fmtDataBr(p.periodo_inicio || dataAtualBr),
         '{{DATAS_ENTREGA}}': datasEntregaTodasTxt,
         '{{DATA_RETIRADA}}': datasRetiradaFmtArr[0] || fmtDataBr(p.periodo_fim || dataAtualBr),
