@@ -860,6 +860,12 @@ window.obterCamposObrigatoriosPendentesProposta = function(propOverride = null) 
     }
     if (!cliente) addPend('Cliente *', 'prop-cliente');
     if (!contato) addPend('Contato *', 'prop-contato');
+    if (ehModoCtr && typeof window.contratoEstaComIntervenienteAtivo === 'function' && window.contratoEstaComIntervenienteAtivo(prop)) {
+        const intervCli = obterVal('prop-interveniente', 'interveniente_nome');
+        const intervCt = obterVal('prop-interveniente-contato', 'interveniente_contato_nome');
+        if (!intervCli) addPend('Interveniente (Cliente) *', 'prop-interveniente');
+        if (!intervCt) addPend('Contato do Interveniente *', 'prop-interveniente-contato');
+    }
     if (typeof window.tipoPropostaUsaContratoBase === 'function' && window.tipoPropostaUsaContratoBase(tipo)) {
         const ctBase = obterVal('prop-contrato-aditivo', 'contrato_vinculado');
         if (!ctBase) addPend('Nº do Contrato (contrato base) *', 'prop-contrato-aditivo');
@@ -972,7 +978,7 @@ window.propostaOuContratoProntoParaEnviarAssinaturaQuadro = function(propOverrid
         if (!infoContratoOk) {
             return {
                 ok: false,
-                motivo: 'Preencha todos os campos obrigatórios de Título * e Informações do Contrato * para habilitar o envio para assinatura.'
+                motivo: 'Preencha todos os campos obrigatórios de Título *, Dados do Interveniente * (quando houver interveniente) e Informações do Contrato * para habilitar o envio para assinatura.'
             };
         }
         if (!temRespLegal) {
@@ -1275,6 +1281,18 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         Swal.fire('Aviso', 'Preencha o campo Título * do contrato antes de enviar para assinatura.', 'warning');
         document.getElementById('prop-titulo-contrato')?.focus();
         return;
+    }
+    if (ehModoContrato && typeof window.contratoEstaComIntervenienteAtivo === 'function' && window.contratoEstaComIntervenienteAtivo()) {
+        if (!obter('prop-interveniente').trim()) {
+            Swal.fire('Aviso', 'Preencha o campo obrigatório Interveniente (Cliente) * em Dados do Interveniente antes de enviar o contrato para assinatura.', 'warning');
+            document.getElementById('prop-interveniente')?.focus();
+            return;
+        }
+        if (!obter('prop-interveniente-contato').trim()) {
+            Swal.fire('Aviso', 'Preencha o campo obrigatório Contato do Interveniente * em Dados do Interveniente antes de enviar o contrato para assinatura.', 'warning');
+            document.getElementById('prop-interveniente-contato')?.focus();
+            return;
+        }
     }
     if (ehModoContrato && typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function' && !window.contratoTemCamposObrigatoriosEnvioPreenchidos()) {
         Swal.fire('Aviso', 'Preencha todos os campos obrigatórios do quadro Informações do Contrato (Responsáveis por NFe, Cobrança/Boleto, OS e Contato de Instalação) antes de enviar para assinatura.', 'warning');
@@ -5060,7 +5078,7 @@ function _renderFormPropostaInt() {
                     <!-- Seção: Dados do Interveniente (Abaixo de Dados do Cliente, sempre aberta quando o checkbox Interveniente estiver selecionado) -->
                     <div id="prop-wrapper-interveniente" style="display:${(window._modoTelaComercial === 'contrato' && (Number(prop?.contrato_interveniente) === 1 || prop?.contrato_interveniente === true || Boolean(v('interveniente_nome')) || String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'INTERVENIENTE')) ? 'block' : 'none'}; background:#f5f3ff; border:1.5px solid #c4b5fd; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                         <h4 style="margin:0 0 0.45rem; font-size:0.8rem; color:#5b21b6; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
-                            <i class="ph ph-buildings" style="color:#7048e8; font-size:1rem;"></i> Dados do Interveniente
+                            <i class="ph ph-buildings" style="color:#7048e8; font-size:1rem;"></i> Dados do Interveniente <span style="color:#dc2626;">*</span>
                         </h4>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
                             <div>
@@ -5070,7 +5088,7 @@ function _renderFormPropostaInt() {
                                         <input type="text" id="prop-interveniente" value="${_escHtmlProp(typeof window.formatarNomeClienteComIcone === 'function' && v('interveniente_nome') ? window.formatarNomeClienteComIcone(v('interveniente_nome')) : (v('interveniente_nome') || ''))}"
                                             placeholder="Digite para filtrar ou pesquise o cliente interveniente..."
                                             onfocus="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true);"
-                                            oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true); if(typeof window.onChangeIntervenienteContratoInput === 'function') window.onChangeIntervenienteContratoInput(this.value);"
+                                            oninput="if(typeof window.filtrarDropdownIntervenienteContrato === 'function') window.filtrarDropdownIntervenienteContrato(this.value, true); if(typeof window.onChangeIntervenienteContratoInput === 'function') window.onChangeIntervenienteContratoInput(this.value); if(typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); if(typeof window.abrirModalPesquisaIntervenienteContrato === 'function') window.abrirModalPesquisaIntervenienteContrato(document.getElementById('btn-pesq-interveniente-prop')); }"
                                             style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none !important;">
                                         <div id="prop-interveniente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
@@ -5084,13 +5102,13 @@ function _renderFormPropostaInt() {
                                 </div>
                             </div>
                             <div>
-                                <label class="prop-lbl">Contato do Interveniente</label>
+                                <label class="prop-lbl">Contato do Interveniente <span style="color:#ef4444;">*</span></label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div id="prop-interveniente-contato-combo-wrap" style="position:relative; flex:1;">
                                         <input type="text" id="prop-interveniente-contato" value="${_escHtmlProp(v('interveniente_contato_nome') || '')}"
                                             placeholder="Selecione ou digite o contato do interveniente..."
                                             onclick="if(typeof window.abrirDropdownContatosIntervenienteContrato === 'function') window.abrirDropdownContatosIntervenienteContrato(true, event);"
-                                            oninput="if(typeof window.filtrarDropdownContatosIntervenienteContrato === 'function') window.filtrarDropdownContatosIntervenienteContrato(this.value);"
+                                            oninput="if(typeof window.filtrarDropdownContatosIntervenienteContrato === 'function') window.filtrarDropdownContatosIntervenienteContrato(this.value); if(typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();"
                                             style="width:100%;padding:0.55rem 1.8rem 0.55rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none !important;">
                                         <button type="button" tabindex="-1" onclick="if(typeof window.toggleDropdownContatosIntervenienteContrato === 'function') window.toggleDropdownContatosIntervenienteContrato(event);" title="Selecionar contato vinculado ao interveniente" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:inline-flex; align-items:center; justify-content:center;">
                                             <i class="ph ph-caret-down" style="font-size:0.9rem;"></i>
@@ -6027,6 +6045,15 @@ window.contratoTemCamposObrigatoriosEnvioPreenchidos = function(propOverride = n
     };
     const titulo = obterVal('prop-titulo-contrato', 'titulo_contrato');
     if (!titulo) return false;
+
+    if (typeof window.contratoEstaComIntervenienteAtivo === 'function' && window.contratoEstaComIntervenienteAtivo(prop)) {
+        const intervCliRaw = obterVal('prop-interveniente', 'interveniente_nome');
+        const intervCli = typeof window.limparPrefixoGrupoCliente === 'function'
+            ? window.limparPrefixoGrupoCliente(intervCliRaw)
+            : intervCliRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+        const intervCt = obterVal('prop-interveniente-contato', 'interveniente_contato_nome');
+        if (!intervCli || !intervCt) return false;
+    }
 
     let respObj = (window._propResponsaveisContrato && typeof window._propResponsaveisContrato === 'object')
         ? window._propResponsaveisContrato
@@ -30576,6 +30603,8 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{INTERVENIENTE_TELEFONE}}', label: 'Telefone do Interveniente', categoria: 'Interveniente', exemplo: '(11) 2400-5000' },
     { tag: '{{INTERVENIENTE_EMAIL}}', label: 'E-mail do Interveniente', categoria: 'Interveniente', exemplo: 'contratos@interveniente.com.br' },
     { tag: '{{INTERVENIENTE_CONTATO_NOME}}', label: 'Contato do Interveniente', categoria: 'Interveniente', exemplo: 'Roberto Mendes' },
+    { tag: '{{TITULO_CLAUSULA_INTERVENIENTE}}', label: 'Título da Cláusula do Interveniente (acompanha a última cláusula do contrato)', categoria: 'Interveniente', exemplo: '7 – CLÁUSULA SÉTIMA' },
+    { tag: '{{NUMERO_CLAUSULA_INTERVENIENTE}}', label: 'Número do Subitem da Cláusula do Interveniente (acompanha a última cláusula do contrato)', categoria: 'Interveniente', exemplo: '7.1' },
 
     // Período, Evento e Local de Instalação
     { tag: '{{PERIODO_INICIO}}', label: 'Período Início (Data de Entrega)', categoria: 'Período e Local', exemplo: '20/11/2026' },
@@ -31216,6 +31245,7 @@ window.selecionarClienteIntervenienteDropdown = async function(idCli, razaoComIc
     if (drop) drop.style.display = 'none';
     const inpCt = document.getElementById('prop-interveniente-contato');
     if (inpCt) inpCt.value = '';
+    if (typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();
     const cliBase = document.getElementById('prop-cliente')?.value || '';
     if (cliBase.trim()) {
         await window.vincularIntervenienteAoClienteCentralizador({ id: idCli, nome_razao_social: razaoComIcone }, cliBase);
@@ -31319,7 +31349,7 @@ window.filtrarDropdownContatosIntervenienteContrato = async function(termo = '')
     }
     drop.innerHTML = filtrados.map(c => {
         const nomeEsc = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        return `<div onmousedown="event.preventDefault(); const el=document.getElementById('prop-interveniente-contato'); if(el){ el.value='${nomeEsc}'; } document.getElementById('prop-interveniente-contato-dropdown').style.display='none';"
+        return `<div onmousedown="event.preventDefault(); const el=document.getElementById('prop-interveniente-contato'); if(el){ el.value='${nomeEsc}'; } document.getElementById('prop-interveniente-contato-dropdown').style.display='none'; if(typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();"
             style="padding:7px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; font-size:0.82rem; display:flex; justify-content:space-between; gap:8px;"
             onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#fff'">
             <span style="font-weight:700; color:#1e293b;">${_escHtmlProp(c.nome || '')}</span>
@@ -33390,6 +33420,8 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{INTERVENIENTE_TELEFONE}}': fmtTelContrato(inter.telefone || inter.celular || '—'),
         '{{INTERVENIENTE_EMAIL}}': String(inter.email || '—').trim(),
         '{{INTERVENIENTE_CONTATO_NOME}}': String(p.interveniente_contato_nome || '—').trim(),
+        '{{TITULO_CLAUSULA_INTERVENIENTE}}': '11 – CLÁUSULA DÉCIMA PRIMEIRA',
+        '{{NUMERO_CLAUSULA_INTERVENIENTE}}': '11.1',
 
         '{{PERIODO_INICIO}}': fmtDataBr(p.periodo_inicio || dataAtualBr),
         '{{PERIODO_FIM}}': fmtDataBr(p.periodo_fim || dataAtualBr),
@@ -33637,9 +33669,88 @@ window._padraoAssinaturasContrato = function(ehInterveniente) {
 
 window._padraoTextoLegalIntervenienteContrato = function() {
     return [
-        'CLÁUSULA – DA CIÊNCIA E ANUÊNCIA DO INTERVENIENTE',
-        'O(A) {{INTERVENIENTE_RAZAO_SOCIAL}}, inscrito(a) no CNPJ/CPF sob o nº {{INTERVENIENTE_CNPJ}}, doravante denominado(a) INTERVENIENTE, por meio de sua assinatura neste instrumento, declara ter total ciência, concordância e conhecimento de todas as cláusulas, termos e condições do presente contrato de locação, incluindo o objeto, prazos, valores e responsabilidades assumidas pelas partes.'
+        '{{TITULO_CLAUSULA_INTERVENIENTE}} – DA CIÊNCIA DO INTERVENIENTE',
+        '{{NUMERO_CLAUSULA_INTERVENIENTE}} – O(A) interveniente {{INTERVENIENTE_RAZAO_SOCIAL}}, doravante denominado(a) Interveniente, por meio de sua assinatura neste instrumento, declara ter total ciência e conhecimento de todas as cláusulas, termos e condições do presente contrato do presente contrato, incluindo o objeto, prazos, valores e responsabilidades das partes.',
+        '',
+        'Guarulhos, {{DATA_ATUAL_EXTENSO}}'
     ].join('\n');
+};
+
+window._normalizarClausulaIntervenienteComMnemonicos = function(raw) {
+    let s = String(raw || '').trim();
+    if (!s) return window._padraoTextoLegalIntervenienteContrato();
+    // Substitui cabeçalhos fixos antigos (ex: "11 – CLÁUSULA DÉCIMA – DA CIÊNCIA DO INTERVENIENTE", "10 – CLÁUSULA DÉCIMA – DA CIÊNCIA DO INTERVENIENTE" ou "CLÁUSULA – DA CIÊNCIA E ANUÊNCIA DO INTERVENIENTE") pelo mnemônico dinâmico
+    s = s
+        .replace(/(?:^|>|\n)\s*(?:\d+\s*[–-]\s*)?CL[ÁA]USULA(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]+)*(?:\s+[–-]\s*DA\s+CI[ÊE]NCIA(?:\s+E\s+ANU[ÊE]NCIA)?\s+DO\s+INTERVENIENTE)/gi, (m) => {
+            const lead = m.startsWith('>') ? '>' : (m.startsWith('\n') ? '\n' : '');
+            return `${lead}{{TITULO_CLAUSULA_INTERVENIENTE}} – DA CIÊNCIA DO INTERVENIENTE`;
+        })
+        .replace(/(?:^|>|\n)\s*\d+\.1\s*[–-]\s*(?=O\(A\))/gi, (m) => {
+            const lead = m.startsWith('>') ? '>' : (m.startsWith('\n') ? '\n' : '');
+            return `${lead}{{NUMERO_CLAUSULA_INTERVENIENTE}} – `;
+        })
+        .replace(/\$\{entidade_cliente_centralizador_razaosocial\}/gi, '{{INTERVENIENTE_RAZAO_SOCIAL}}');
+    return s;
+};
+
+window._ordinalClausulaFeminino = function(num) {
+    const n = Number(num) || 1;
+    const mapa = {
+        1: 'PRIMEIRA',
+        2: 'SEGUNDA',
+        3: 'TERCEIRA',
+        4: 'QUARTA',
+        5: 'QUINTA',
+        6: 'SEXTA',
+        7: 'SÉTIMA',
+        8: 'OITAVA',
+        9: 'NONA',
+        10: 'DÉCIMA',
+        11: 'DÉCIMA PRIMEIRA',
+        12: 'DÉCIMA SEGUNDA',
+        13: 'DÉCIMA TERCEIRA',
+        14: 'DÉCIMA QUARTA',
+        15: 'DÉCIMA QUINTA',
+        16: 'DÉCIMA SEXTA',
+        17: 'DÉCIMA SÉTIMA',
+        18: 'DÉCIMA OITAVA',
+        19: 'DÉCIMA NONA',
+        20: 'VIGÉSIMA'
+    };
+    return mapa[n] || `${n}ª`;
+};
+
+window.calcularProximaClausulaInterveniente = function(clausulasBase) {
+    const txt = String(clausulasBase || '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(div|p|h[1-6]|li|tr)>/gi, '\n')
+        .replace(/<[^>]+>/g, '');
+    let maxNum = 0;
+    const linhas = txt.split(/\r?\n/);
+    for (let i = 0; i < linhas.length; i++) {
+        const ln = linhas[i].trim();
+        if (/INTERVENIENTE/i.test(ln) && /CI[ÊE]NCIA/i.test(ln)) continue;
+        const m = ln.match(/^(\d+)\s*[–-]\s*CL[ÁA]USULA\b/i);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > 0 && n < 100 && n > maxNum) maxNum = n;
+        }
+    }
+    if (maxNum === 0) {
+        const rgxSub = /(?:^|\n)\s*(\d+)\.\d+\s*[–.-]/g;
+        let ms;
+        while ((ms = rgxSub.exec(txt)) !== null) {
+            const n = parseInt(ms[1], 10);
+            if (n > 0 && n < 100 && n > maxNum) maxNum = n;
+        }
+    }
+    const prox = (maxNum > 0 ? maxNum : 10) + 1;
+    const ord = window._ordinalClausulaFeminino(prox);
+    return {
+        numero: prox,
+        titulo: `${prox} – CLÁUSULA ${ord}`,
+        subitem: `${prox}.1`
+    };
 };
 
 /* Extrai ou migra a estrutura (Preâmbulo + Tabela de Dados do Cliente + Cláusulas + Assinaturas) do modelo */
@@ -33674,7 +33785,7 @@ window.extrairEstruturaModeloContrato = function(m) {
         if (clauInterv === undefined && ehInterveniente) {
             // Extrair cláusula de interveniente se já estiver nas cláusulas ou usar padrão
             const rawC = String(parsedCaputs.clausulas || m.texto_contrato || '');
-            const mIdx = rawC.search(/\d*\s*[–-]?\s*CL[ÁA]USULA[^<\n]*INTERVENIENTE/i);
+            const mIdx = rawC.search(/(?:\{\{TITULO_CLAUSULA_INTERVENIENTE\}\}|\d*\s*[–-]?\s*CL[ÁA]USULA)[^<\n]*INTERVENIENTE/i);
             clauInterv = mIdx >= 0 ? rawC.slice(mIdx).trim() : window._padraoTextoLegalIntervenienteContrato();
         }
         return {
@@ -33683,7 +33794,7 @@ window.extrairEstruturaModeloContrato = function(m) {
             quadro_cliente: Object.assign({}, qCliPadrao, parsedCaputs.quadro_cliente || {}),
             quadro_interveniente: Object.assign({}, qIntPadrao, parsedCaputs.quadro_interveniente || {}),
             clausulas: parsedCaputs.clausulas !== undefined ? String(parsedCaputs.clausulas) : String(m.texto_contrato || ''),
-            clausula_interveniente: clauInterv !== undefined ? String(clauInterv) : window._padraoTextoLegalIntervenienteContrato(),
+            clausula_interveniente: window._normalizarClausulaIntervenienteComMnemonicos(clauInterv !== undefined ? String(clauInterv) : window._padraoTextoLegalIntervenienteContrato()),
             assinaturas: Array.isArray(parsedCaputs.assinaturas)
                 ? parsedCaputs.assinaturas
                 : window._padraoAssinaturasContrato(ehInterveniente),
@@ -33728,8 +33839,10 @@ window.extrairEstruturaModeloContrato = function(m) {
     }
 
     const joinedClau = clausulasLinhas.join('\n').trim();
-    const mIdxMig = joinedClau.search(/\d*\s*[–-]?\s*CL[ÁA]USULA[^<\n]*INTERVENIENTE/i);
-    const clauIntervMig = (ehInterveniente && mIdxMig >= 0) ? joinedClau.slice(mIdxMig).trim() : window._padraoTextoLegalIntervenienteContrato();
+    const mIdxMig = joinedClau.search(/(?:\{\{TITULO_CLAUSULA_INTERVENIENTE\}\}|\d*\s*[–-]?\s*CL[ÁA]USULA)[^<\n]*INTERVENIENTE/i);
+    const clauIntervMig = window._normalizarClausulaIntervenienteComMnemonicos(
+        (ehInterveniente && mIdxMig >= 0) ? joinedClau.slice(mIdxMig).trim() : window._padraoTextoLegalIntervenienteContrato()
+    );
 
     return {
         v: 2,
@@ -33873,7 +33986,7 @@ window.converterTextoContratoParaHtmlEditavel = function(raw) {
         const t = line.trim();
         if (!t) return '<div><br></div>';
         const esc = _escHtmlProp(line);
-        if (/^\d+\s*[–-]\s*CL[ÁA]USULA/i.test(t)) {
+        if (/^(\d+\s*[–-]\s*CL[ÁA]USULA|\{\{TITULO_CLAUSULA_INTERVENIENTE\}\})/i.test(t)) {
             return `<div style="font-weight:700; font-size:11pt; color:#0f172a; margin:14px 0 6px 0; padding-bottom:3px; border-bottom:1px solid #cbd5e1;">${esc}</div>`;
         }
         return `<div style="margin-bottom:5px;">${esc}</div>`;
@@ -33928,6 +34041,13 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
         est.quadro_interveniente = estInterv.quadro_interveniente;
     }
 
+    // Calcula dinamicamente o número da cláusula do interveniente com base na última cláusula do contrato base
+    const infoProxClau = typeof window.calcularProximaClausulaInterveniente === 'function'
+        ? window.calcularProximaClausulaInterveniente(est.clausulas)
+        : { numero: 11, titulo: '11 – CLÁUSULA DÉCIMA PRIMEIRA', subitem: '11.1' };
+    ctx['{{TITULO_CLAUSULA_INTERVENIENTE}}'] = infoProxClau.titulo;
+    ctx['{{NUMERO_CLAUSULA_INTERVENIENTE}}'] = infoProxClau.subitem;
+
     const ehInterveniente = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE') ||
         Number(pObj.contrato_interveniente) === 1 ||
         pObj.contrato_interveniente === true ||
@@ -33946,15 +34066,34 @@ window.gerarHtmlLayoutContratoPadrao = function(modelo, dadosContrato, listaAvar
     const htmlTabelaCliente = window.gerarHtmlTabelaDadosClienteContrato(est, ctx, ehInterveniente);
     let htmlClausulas = window.resolverHtmlRicoModeloContrato(est.clausulas, ctx);
 
-    // Se o contrato possuir Interveniente e o modelo base não for o próprio INTERVENIENTE, injeta o texto legal do Interveniente
+    // Se o contrato possuir Interveniente e o modelo base não for o próprio INTERVENIENTE, injeta o texto legal do Interveniente abaixo da última cláusula e ACIMA da data ("Guarulhos, ...")
     const ehModeloIntervProprio = String(m.codigo_tipo || m.nome || '').toUpperCase().includes('INTERVENIENTE');
     if (ehInterveniente && !ehModeloIntervProprio) {
-        const rawClauInterv = (estInterv && estInterv.clausula_interveniente)
+        const rawClauIntervOrig = (estInterv && estInterv.clausula_interveniente)
             ? estInterv.clausula_interveniente
             : window._padraoTextoLegalIntervenienteContrato();
+        const rawClauInterv = typeof window._normalizarClausulaIntervenienteComMnemonicos === 'function'
+            ? window._normalizarClausulaIntervenienteComMnemonicos(rawClauIntervOrig)
+            : rawClauIntervOrig;
         if (rawClauInterv && !String(est.clausulas || '').toUpperCase().includes('DA CIÊNCIA') && !String(est.clausulas || '').toUpperCase().includes('INTERVENIENTE')) {
-            const htmlClauInterv = window.resolverHtmlRicoModeloContrato(rawClauInterv, ctx);
-            htmlClausulas += `<div style="margin-top:12px;">${htmlClauInterv}</div>`;
+            // Remove eventual linha "Guarulhos, {{DATA_ATUAL_EXTENSO}}" do trecho do interveniente para não duplicar com a data do contrato base
+            const rawClauSemData = String(rawClauInterv)
+                .replace(/<(div|p)[^>]*>\s*(?:<[^>]+>\s*)*Guarulhos\s*,\s*(?:\{\{DATA_ATUAL_EXTENSO\}\}|[^<\n]+)(?:<\/[^>]+>\s*)*<\/\1>/gi, '')
+                .replace(/(?:^|\r?\n)\s*Guarulhos\s*,\s*(?:\{\{DATA_ATUAL_EXTENSO\}\}|[^\r\n<]+)\s*(?=$|\r?\n)/gi, '')
+                .trim();
+            const htmlClauInterv = window.resolverHtmlRicoModeloContrato(rawClauSemData, ctx);
+            const blocoInjetado = `<div style="margin:12px 0;">${htmlClauInterv}</div>`;
+            const rgxDataHtml = /(<(?:div|p)[^>]*>\s*(?:<[^>]+>\s*)*Guarulhos\s*,[\s\S]*?<\/(?:div|p)>)/i;
+            if (rgxDataHtml.test(htmlClausulas)) {
+                htmlClausulas = htmlClausulas.replace(rgxDataHtml, `${blocoInjetado}$1`);
+            } else {
+                const idxGuar = htmlClausulas.search(/Guarulhos\s*,/i);
+                if (idxGuar >= 0) {
+                    htmlClausulas = htmlClausulas.slice(0, idxGuar) + blocoInjetado + htmlClausulas.slice(idxGuar);
+                } else {
+                    htmlClausulas += blocoInjetado;
+                }
+            }
         }
     }
 

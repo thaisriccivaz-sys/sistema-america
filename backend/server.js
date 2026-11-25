@@ -48575,6 +48575,58 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_modelos_contrato (
         }
       );
     });
+    // Migração automática do modelo INTERVENIENTE para usar os mnemônicos dinâmicos {{TITULO_CLAUSULA_INTERVENIENTE}} e {{NUMERO_CLAUSULA_INTERVENIENTE}}
+    db.get(
+      "SELECT id, texto_contrato, caputs FROM comercial_modelos_contrato WHERE UPPER(TRIM(COALESCE(codigo_tipo, nome, ''))) = 'INTERVENIENTE'",
+      [],
+      (errIntRow, intRow) => {
+        if (errIntRow || !intRow) return;
+        const normIntervClau = (str) => {
+          if (!str) return str;
+          return String(str)
+            .replace(/(?:^|>|\n)\s*(?:\d+\s*[–-]\s*)?CL[ÁA]USULA(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ]+)*(?:\s+[–-]\s*DA\s+CI[ÊE]NCIA(?:\s+E\s+ANU[ÊE]NCIA)?\s+DO\s+INTERVENIENTE)/gi, (match) => {
+              const lead = match.startsWith('>') ? '>' : (match.startsWith('\n') ? '\n' : '');
+              return `${lead}{{TITULO_CLAUSULA_INTERVENIENTE}} – DA CIÊNCIA DO INTERVENIENTE`;
+            })
+            .replace(/(?:^|>|\n)\s*\d+\.1\s*[–-]\s*(?=O\(A\))/gi, (match) => {
+              const lead = match.startsWith('>') ? '>' : (match.startsWith('\n') ? '\n' : '');
+              return `${lead}{{NUMERO_CLAUSULA_INTERVENIENTE}} – `;
+            })
+            .replace(/\$\{entidade_cliente_centralizador_razaosocial\}/gi, '{{INTERVENIENTE_RAZAO_SOCIAL}}');
+        };
+        let novoTexto = normIntervClau(intRow.texto_contrato || '');
+        let novoCaputs = intRow.caputs || '';
+        let mudou = novoTexto !== (intRow.texto_contrato || '');
+        try {
+          const parsed = typeof intRow.caputs === 'string' ? JSON.parse(intRow.caputs) : intRow.caputs;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            if (parsed.clausula_interveniente) {
+              const normC = normIntervClau(parsed.clausula_interveniente);
+              if (normC !== parsed.clausula_interveniente) {
+                parsed.clausula_interveniente = normC;
+                novoCaputs = JSON.stringify(parsed);
+                mudou = true;
+              }
+            }
+            if (parsed.clausulas) {
+              const normCl = normIntervClau(parsed.clausulas);
+              if (normCl !== parsed.clausulas) {
+                parsed.clausulas = normCl;
+                novoCaputs = JSON.stringify(parsed);
+                mudou = true;
+              }
+            }
+          }
+        } catch (_) {}
+        if (mudou) {
+          db.run(
+            'UPDATE comercial_modelos_contrato SET texto_contrato = ?, caputs = ? WHERE id = ?',
+            [novoTexto, novoCaputs, intRow.id],
+            () => {}
+          );
+        }
+      }
+    );
   }, 400);
 });
 
