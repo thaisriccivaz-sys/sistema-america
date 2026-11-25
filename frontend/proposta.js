@@ -69,8 +69,7 @@ const PROP_TABELAS = [
     'LOCAÇÃO MENSAL OBRA[5]'
 ];
 const PROP_COND_PAG = [
-    'À VISTA',
-    'BOLETO ADIANTADO',
+    'BOLETO ANTECIPADO',
     'BOLETO - DDL 7 DIAS',
     'BOLETO - DDL 28 DIAS',
     'BOLETO - DDL 10 DIAS',
@@ -79,31 +78,29 @@ const PROP_COND_PAG = [
     'BOLETO - DDL 30 DIAS',
     'BOLETO - DDL 45 DIAS',
     'BOLETO - DDL 60 DIAS',
-    'CARTÃO DE CRÉDITO',
-    'PARCELAMENTO 2X (BOLETO)',
-    'PARCELAMENTO 2X (DEPÓSITO)',
-    'PARCELAMENTO 3X (BOLETO)',
-    'PARCELAMENTO 3X (DEPÓSITO)',
-    'PARCELAMENTO 4X (BOLETO)',
-    'PARCELAMENTO 4X (DEPÓSITO)',
-    'PARCELAMENTO 5X (BOLETO)',
-    'PARCELAMENTO 5X (DEPÓSITO)',
-    'PARCELAMENTO 6X (BOLETO)',
-    'PIX - DDL 7 DIAS',
-    'PIX - DDL 10 DIAS',
-    'PIX - DDL 15 DIAS',
-    'PIX - DDL 21 DIAS',
-    'PIX - DDL 28 DIAS',
-    'PIX - DDL 30 DIAS',
-    'PIX - DDL 45 DIAS',
-    'PIX - DDL 60 DIAS',
+    'PIX - 7 DIAS',
+    'PIX - 10 DIAS',
+    'PIX - 15 DIAS',
+    'PIX - 21 DIAS',
+    'PIX - 28 DIAS',
+    'PIX - 30 DIAS',
+    'PIX - 45 DIAS',
+    'PIX - 60 DIAS',
     'PIX 100% ANTECIPADO',
     'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
-    'PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA',
-    'REMESSA SEM COBRANCA',
-    'VARIÁVEL BOLETO',
-    'VARIÁVEL DINHEIRO'
+    'REMESSA SEM COBRANÇA'
 ];
+window.normalizarValorCondicaoPagamentoLista = function(rawVal) {
+    const s = String(rawVal || '').trim();
+    if (!s) return '';
+    const up = s.toUpperCase().replace(/\s+/g, ' ');
+    if (up === 'BOLETO ADIANTADO' || up === 'BOLETO ANTECIPADO') return 'BOLETO ANTECIPADO';
+    if (up === 'PIX 100% ADIANTADO' || up === 'PIX 100% ANTECIPADO') return 'PIX 100% ANTECIPADO';
+    if (up === 'REMESSA SEM COBRANCA' || up === 'REMESSA SEM COBRANÇA') return 'REMESSA SEM COBRANÇA';
+    const mPixDdl = up.match(/^PIX\s*-\s*DDL\s+(\d+\s+DIAS)$/i);
+    if (mPixDdl) return `PIX - ${mPixDdl[1].toUpperCase()}`;
+    return s;
+};
 const PROP_LOCAIS = ['AMERICA RENTAL', 'Filial SP', 'Filial RJ', 'Filial BH', 'Filial Campinas'];
 const PROP_TRANSPORTADORAS = ['', 'América Rental', 'Terceirizado', 'Cliente Retira'];
 const PROP_FRETES = ['', 'CIF', 'FOB', 'Sem Frete'];
@@ -1280,7 +1277,7 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         return;
     }
     if (ehModoContrato && typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function' && !window.contratoTemCamposObrigatoriosEnvioPreenchidos()) {
-        Swal.fire('Aviso', 'Preencha todos os campos obrigatórios do quadro Informações do Contrato (Período de Cobrança, Responsáveis por NFe, Cobrança/Boleto, OS e Contato de Instalação) antes de enviar para assinatura.', 'warning');
+        Swal.fire('Aviso', 'Preencha todos os campos obrigatórios do quadro Informações do Contrato (Responsáveis por NFe, Cobrança/Boleto, OS e Contato de Instalação) antes de enviar para assinatura.', 'warning');
         return;
     }
     const tipo = obter('prop-tipo');
@@ -5157,14 +5154,15 @@ function _renderFormPropostaInt() {
                                     if (!rawValAtual && (!prop || !prop.id) && v('tipo') && typeof window.obterCondicaoPagamentoPadraoPorTipo === 'function') {
                                         rawValAtual = String(window.obterCondicaoPagamentoPadraoPorTipo(v('tipo')) || '').trim();
                                     }
-                                    const valAtual = rawValAtual.toUpperCase() === 'PIX 100% ADIANTADO' ? 'PIX 100% ANTECIPADO' : rawValAtual;
-                                    const condSalvaLiberada = (prop && prop.id && valAtual) ? String(valAtual).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim() : '';
+                                    const valNorm = typeof window.normalizarValorCondicaoPagamentoLista === 'function'
+                                        ? window.normalizarValorCondicaoPagamentoLista(rawValAtual)
+                                        : rawValAtual;
                                     const lista = [...PROP_COND_PAG];
                                     if (ehVendaAtual && !lista.includes(condVendaFixa)) {
                                         lista.unshift(condVendaFixa);
-                                    } else if (!ehVendaAtual && valAtual && valAtual !== condVendaFixa && !lista.includes(valAtual)) {
-                                        lista.unshift(valAtual);
                                     }
+                                    const valAtual = lista.includes(valNorm) ? valNorm : '';
+                                    const condSalvaLiberada = (prop && prop.id && valAtual) ? String(valAtual).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim() : '';
                                     return `<select id="prop-cond-pag" data-valor-anterior="${_escHtmlProp(valAtual)}" data-senha-gestor-liberada="${_escHtmlProp(condSalvaLiberada)}" onfocus="this.setAttribute('data-valor-anterior', this.value || '');" onchange="if(typeof window.onChangeCondicaoPagamentoProposta === 'function') window.onChangeCondicaoPagamentoProposta(this);" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;">
                                         <option value="">-- Selecione --</option>
                                         ${lista.map(c => `<option value="${_escHtmlProp(c)}" ${valAtual===c?'selected':''}>${_escHtmlProp(c)}</option>`).join('')}
@@ -5532,18 +5530,6 @@ function _renderFormPropostaInt() {
                             <i class="ph ph-file-text" style="font-size:1.05rem; color:#4f46e5;"></i> Informações do Contrato
                         </h4>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem 0.85rem; align-items:start;">
-                            <div>
-                                <label class="prop-lbl">Período de Cobrança — Início *</label>
-                                <input type="date" id="prop-cobranca-ini" value="${_escHtmlProp(v('periodo_cobranca_inicio'))}"
-                                    onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
-                                    style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
-                            </div>
-                            <div>
-                                <label class="prop-lbl">Período de Cobrança — Fim *</label>
-                                <input type="date" id="prop-cobranca-fim" value="${_escHtmlProp(v('periodo_cobranca_fim'))}"
-                                    onchange="if(typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();"
-                                    style="width:100%;padding:0.52rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;height:36px;">
-                            </div>
                             <div id="prop-resp-wrap-nfe" style="position:relative;">
                                 <label class="prop-lbl">Responsável(is) por Receber NFe *</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
@@ -6041,10 +6027,6 @@ window.contratoTemCamposObrigatoriosEnvioPreenchidos = function(propOverride = n
     };
     const titulo = obterVal('prop-titulo-contrato', 'titulo_contrato');
     if (!titulo) return false;
-
-    const cobIni = obterVal('prop-cobranca-ini', 'periodo_cobranca_inicio');
-    const cobFim = obterVal('prop-cobranca-fim', 'periodo_cobranca_fim');
-    if (!cobIni || !cobFim) return false;
 
     let respObj = (window._propResponsaveisContrato && typeof window._propResponsaveisContrato === 'object')
         ? window._propResponsaveisContrato
@@ -36518,9 +36500,7 @@ window._ehCondicaoPixAntecipadoProposta = function(cond) {
     return [
         'PIX 100% ANTECIPADO',
         'PIX 100% ADIANTADO',
-        'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
-        'PIX ATE 02 DIAS UTEIS ANTES DA ENTREGA',
-        'PIX ATE 2 DIAS UTEIS ANTES DA ENTREGA'
+        'PIX 50% RESERVA + 50% ANTES DA ENTREGA'
     ].includes(c);
 };
 
@@ -36549,7 +36529,7 @@ window.solicitarSenhaGestorCondicaoPagamentoProposta = async function(condPagEsc
                     Em propostas do tipo <strong>${esc(tipoNorm)}</strong>, a condição de pagamento <strong>${esc(condPagEscolhida)}</strong> exige liberação com a <strong>Senha do Gestor</strong>.
                 </div>
                 <p style="margin:0 0 12px;color:#475569;font-size:0.82rem;">
-                    Apenas condições de <strong>PIX Antecipado</strong> (<strong>PIX 100% ANTECIPADO</strong>, <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong> ou <strong>PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA</strong>) são liberadas sem senha. Informe a senha abaixo para autorizar <strong>${esc(condPagEscolhida)}</strong>:
+                    Apenas condições de <strong>PIX Antecipado</strong> (<strong>PIX 100% ANTECIPADO</strong> ou <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong>) são liberadas sem senha. Informe a senha abaixo para autorizar <strong>${esc(condPagEscolhida)}</strong>:
                 </p>
                 <label style="display:block;font-size:0.78rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Senha do Gestor Comercial *</label>
                 <input type="password" id="swal-input-senha-gestor-proposta" placeholder="Digite a senha do gestor para autorizar..." autocomplete="new-password" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
@@ -36700,11 +36680,9 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
     const ehPixAntecipado = [
         'PIX 100% ANTECIPADO',
         'PIX 100% ADIANTADO',
-        'PIX 50% RESERVA + 50% ANTES DA ENTREGA',
-        'PIX ATE 02 DIAS UTEIS ANTES DA ENTREGA',
-        'PIX ATE 2 DIAS UTEIS ANTES DA ENTREGA'
+        'PIX 50% RESERVA + 50% ANTES DA ENTREGA'
     ].includes(condPagNorm);
-    const ehBoletoAdiantado = (condPagNorm === 'BOLETO ADIANTADO');
+    const ehBoletoAdiantado = (condPagNorm === 'BOLETO ANTECIPADO' || condPagNorm === 'BOLETO ADIANTADO');
 
     const prodsAtivos = (Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0)
         ? window._propProdutosAdicionados.filter(p => p && !p._substituido_por_aditivo)
@@ -36762,7 +36740,7 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
         motivoExigenciaScore = 'O contrato possui <strong>Frete FOB</strong> (a consulta de Score é obrigatória para todos os produtos com Frete FOB).';
     } else if (ehEventoOuEquip && !ehPixAntecipado) {
         exigeConsultaScore = true;
-        motivoExigenciaScore = `O contrato é do tipo <strong>${esc(tipoNorm)}</strong> e a condição de pagamento (<strong>${esc(condPagRaw)}</strong>) não é uma das 3 opções de PIX Antecipado.`;
+        motivoExigenciaScore = `O contrato é do tipo <strong>${esc(tipoNorm)}</strong> e a condição de pagamento (<strong>${esc(condPagRaw)}</strong>) não é uma das opções de PIX Antecipado.`;
     } else if (ehObraComRestricaoProdutoOuFob) {
         exigeConsultaScore = true;
         motivoExigenciaScore = 'O contrato é do tipo <strong>Obra</strong> contendo apenas <strong>Chuveiro, Hidráulico e/ou Guarita</strong> (sem Banheiro modelo Standard, Luxo ou Extra Luxo junto).';
@@ -36823,20 +36801,20 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
         if (!ehBoletoAdiantado && !ehPixAntecipado) {
             exigeSenhaGestor = true;
             mensagemBloqueioCondicao = `Este contrato de <strong>${esc(tipoNorm)}</strong> possui Frete FOB ou locação exclusiva de Chuveiro/Hidráulico/Guarita (sem Banheiro Standard, Luxo ou Extra Luxo junto) e o cliente obteve <strong>Nota ${esc(notaScore)}</strong> no Score CreditHub (de C para baixo).`;
-            orientacaoAlternativaSemSenha = `Para esse perfil, a condição obrigatória é <strong>BOLETO ADIANTADO</strong>. Você pode fechar este aviso e alterar a Condição de Pagamento na tela do contrato para <strong>BOLETO ADIANTADO</strong> (não exige senha), ou informar a <strong>Senha do Gestor</strong> abaixo para liberar o envio na condição atual (<strong>${esc(condPagRaw)}</strong>).`;
+            orientacaoAlternativaSemSenha = `Para esse perfil, a condição obrigatória é <strong>BOLETO ANTECIPADO</strong>. Você pode fechar este aviso e alterar a Condição de Pagamento na tela do contrato para <strong>BOLETO ANTECIPADO</strong> (não exige senha), ou informar a <strong>Senha do Gestor</strong> abaixo para liberar o envio na condição atual (<strong>${esc(condPagRaw)}</strong>).`;
         }
     } else if (ehEventoOuEquip && !ehPixAntecipado) {
         exigeSenhaGestor = true;
         mensagemBloqueioCondicao = `Este contrato é do tipo <strong>${esc(tipoNorm)}</strong> com a condição de pagamento <strong>${esc(condPagRaw)}</strong>${notaScore ? ` (Score CreditHub: <strong>Nota ${esc(notaScore)}</strong>)` : ''}.`;
-        orientacaoAlternativaSemSenha = `Em contratos de Evento ou Equipamentos, condições fora das 3 opções de PIX Antecipado (<strong>PIX 100% ANTECIPADO</strong>, <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong> ou <strong>PIX ATÉ 02 DIAS ÚTEIS ANTES DA ENTREGA</strong>) exigem liberação com a <strong>Senha do Gestor</strong> (ou altere a condição na tela do contrato para uma das opções de PIX Antecipado para enviar sem senha).`;
+        orientacaoAlternativaSemSenha = `Em contratos de Evento ou Equipamentos, condições fora de PIX Antecipado (<strong>PIX 100% ANTECIPADO</strong> ou <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong>) exigem liberação com a <strong>Senha do Gestor</strong> (ou altere a condição na tela do contrato para uma das opções de PIX Antecipado para enviar sem senha).`;
     } else if (notaDeCParaBaixo) {
         const condicaoLiberadaParaNotaRuim = ehObra ? (ehBoletoAdiantado || ehPixAntecipado) : ehPixAntecipado;
         if (!condicaoLiberadaParaNotaRuim) {
             exigeSenhaGestor = true;
             mensagemBloqueioCondicao = `O cliente possui <strong>Nota ${esc(notaScore)}</strong> na consulta de crédito da CreditHub (classificação de C para baixo) e o contrato está com a condição de pagamento <strong>${esc(condPagRaw)}</strong>.`;
             orientacaoAlternativaSemSenha = ehObra
-                ? `Altere a Condição de Pagamento na tela do contrato para <strong>BOLETO ADIANTADO</strong> (não exige senha), ou informe a <strong>Senha do Gestor</strong> abaixo para autorizar o envio na condição atual.`
-                : `Altere a Condição de Pagamento na tela do contrato para uma das 3 opções de <strong>PIX Antecipado</strong> (não exige senha), ou informe a <strong>Senha do Gestor</strong> abaixo para autorizar o envio na condição atual.`;
+                ? `Altere a Condição de Pagamento na tela do contrato para <strong>BOLETO ANTECIPADO</strong> (não exige senha), ou informe a <strong>Senha do Gestor</strong> abaixo para autorizar o envio na condição atual.`
+                : `Altere a Condição de Pagamento na tela do contrato para uma das opções de <strong>PIX Antecipado</strong> (não exige senha), ou informe a <strong>Senha do Gestor</strong> abaixo para autorizar o envio na condição atual.`;
         }
     }
 
