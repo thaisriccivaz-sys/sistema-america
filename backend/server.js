@@ -43622,6 +43622,73 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
         function (errIns) {
           if (errIns) return res.status(500).json({ error: errIns.message });
           const novoId = this.lastID;
+
+          // Disparar notificação (popup + e-mail) para os usuários selecionados em "Informações Adicionais de contrato"
+          db.get('SELECT id, codigo, contrato, titulo_contrato, tipo, cliente_nome FROM propostas WHERE id = ?', [propId], (errProp, propRow) => {
+            const numContrato = (propRow && (propRow.contrato || propRow.codigo)) || String(propId);
+            const codProposta = (propRow && propRow.codigo) || String(propId);
+            const cliNome = (propRow && propRow.cliente_nome) ? String(propRow.cliente_nome).replace(/^[💎🥇🥈🥉]\s*/, '').trim() : 'Cliente não informado';
+            const titCtr = (propRow && propRow.titulo_contrato) ? String(propRow.titulo_contrato).trim() : '';
+            const mDt = agora.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+            const dataHoraFmt = mDt ? `${mDt[3]}/${mDt[2]}/${mDt[1]} às ${mDt[4]}:${mDt[5]}` : agora;
+            const msgNotif = `Novo comentário no Contrato Nº ${numContrato} (${cliNome}) deixado por ${autor.autor_nome}: "${textoComentario}"`;
+            const dadosJson = JSON.stringify({
+              proposta_id: propId,
+              comentario_id: novoId,
+              numero_contrato: numContrato,
+              codigo_proposta: codProposta,
+              titulo_contrato: titCtr,
+              cliente_nome: cliNome,
+              autor_nome: autor.autor_nome,
+              autor_departamento: autor.autor_departamento,
+              data_hora: dataHoraFmt,
+              comentario: textoComentario
+            });
+
+            db.all("SELECT DISTINCT usuario_id FROM config_notificacoes WHERE tipo = 'informacoes_adicionais_contrato'", [], (errCN, rowsCN) => {
+              if (!errCN && Array.isArray(rowsCN) && rowsCN.length > 0) {
+                rowsCN.forEach(r => {
+                  db.run(
+                    "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                    [r.usuario_id, 'informacoes_adicionais_contrato', msgNotif, dadosJson],
+                    () => {}
+                  );
+                });
+              }
+            });
+
+            const escHtmlMail = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const systemUrl = (typeof obterUrlPublicaSistema === 'function') ? obterUrlPublicaSistema(process.env.BASE_URL) : 'https://fluxoar.com.br';
+            const subject = `💬 Novo Comentário no Contrato Nº ${numContrato} - ${cliNome}`;
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+              <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+              </div>
+              <div style="padding:24px;">
+                <div style="background:#6d28d9;border-radius:10px;padding:14px 20px;margin-bottom:20px;text-align:center;">
+                  <span style="color:#fff;font-size:1.15rem;font-weight:800;">💬 Novo Comentário no Contrato Nº ${escHtmlMail(numContrato)}</span>
+                </div>
+                <p style="color:#334155;font-size:0.95rem;">Um novo comentário foi registrado na aba de <strong>Comentários</strong> do contrato:</p>
+                <div style="background:#f5f3ff;border-left:4px solid #6d28d9;padding:14px 16px;border-radius:6px;margin:16px 0;font-size:0.9rem;color:#1e293b;line-height:1.5;">
+                  <div><strong>Contrato Nº:</strong> ${escHtmlMail(numContrato)}${titCtr ? ' — ' + escHtmlMail(titCtr) : ''}</div>
+                  <div><strong>Cliente:</strong> ${escHtmlMail(cliNome)}</div>
+                  <div><strong>Comentado por:</strong> ${escHtmlMail(autor.autor_nome)} (${escHtmlMail(autor.autor_departamento || 'Geral')})</div>
+                  <div><strong>Data e Hora:</strong> ${escHtmlMail(dataHoraFmt)}</div>
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #c4b5fd;white-space:pre-wrap;"><strong>Comentário:</strong><br>${escHtmlMail(textoComentario)}</div>
+                </div>
+                <div style="text-align:center;margin-top:22px;">
+                  <a href="${systemUrl}" style="background:#6d28d9;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:700;font-size:0.9rem;display:inline-block;">Acessar Sistema</a>
+                </div>
+              </div>
+            </div>`;
+            sendEmailParaNotificados('informacoes_adicionais_contrato', {
+              subject,
+              html,
+              attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+            });
+          });
+
           res.status(201).json({
             success: true,
             comentario: {
@@ -47814,9 +47881,25 @@ app.post('/api/comercial/precificacao-viabilidade', authenticateToken, (req, res
   }, 1500);
 })();
 
+function telefoneCompletoValidoServer(val) {
+  let d = String(val || '').replace(/\D+/g, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+  if ((d.length === 11 || d.length === 12) && d.startsWith('0')) d = d.slice(1);
+  return d.length === 10 || d.length === 11;
+}
+
 // POST /api/clientes - Criar novo cliente
 app.post('/api/clientes', authenticateToken, (req, res) => {
   const d = req.body;
+  if (!telefoneCompletoValidoServer(d.telefone)) {
+    return res.status(400).json({ error: 'Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (!telefoneCompletoValidoServer(d.celular)) {
+    return res.status(400).json({ error: 'Preencha o Celular / WhatsApp completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (d.telefone_2 && String(d.telefone_2).trim() && !telefoneCompletoValidoServer(d.telefone_2)) {
+    return res.status(400).json({ error: 'Preencha o Telefone 2 completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
@@ -47891,6 +47974,15 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
 // PUT /api/clientes/:id - Atualizar cliente
 app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const d = req.body;
+  if (!telefoneCompletoValidoServer(d.telefone)) {
+    return res.status(400).json({ error: 'Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (!telefoneCompletoValidoServer(d.celular)) {
+    return res.status(400).json({ error: 'Preencha o Celular / WhatsApp completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (d.telefone_2 && String(d.telefone_2).trim() && !telefoneCompletoValidoServer(d.telefone_2)) {
+    return res.status(400).json({ error: 'Preencha o Telefone 2 completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
@@ -48245,6 +48337,12 @@ app.get('/api/contatos/:id', authenticateToken, (req, res) => {
 // POST /api/contatos - Criar novo contato
 app.post('/api/contatos', authenticateToken, (req, res) => {
   const d = req.body;
+  if (!telefoneCompletoValidoServer(d.celular)) {
+    return res.status(400).json({ error: 'Preencha o Celular / WhatsApp completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (d.telefone && String(d.telefone).trim() && !telefoneCompletoValidoServer(d.telefone)) {
+    return res.status(400).json({ error: 'Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
   salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {
@@ -48286,6 +48384,12 @@ app.post('/api/contatos', authenticateToken, (req, res) => {
 // PUT /api/contatos/:id - Atualizar contato
 app.put('/api/contatos/:id', authenticateToken, (req, res) => {
   const d = req.body;
+  if (!telefoneCompletoValidoServer(d.celular)) {
+    return res.status(400).json({ error: 'Preencha o Celular / WhatsApp completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
+  if (d.telefone && String(d.telefone).trim() && !telefoneCompletoValidoServer(d.telefone)) {
+    return res.status(400).json({ error: 'Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.' });
+  }
   const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
 
   salvarOuAtualizarEmpresa(d.empresa_cliente, (err, clienteId) => {

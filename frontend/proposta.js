@@ -168,7 +168,7 @@ const CONTRATO_SITUACOES_CONFIG = [
     { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
     { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
-    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt' },
+    { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt', ocultoContrato: true },
     { nome: 'REPROVADO | CANCELADO',                  cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Fechado', icon: 'ph-x-circle' },
     { nome: 'ENCERRADO | CONCLUÍDO',                  cor: 'GREY',    bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', status: 'Fechado', icon: 'ph-archive' },
     { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', status: 'Ativo',   icon: 'ph-seal-check' }
@@ -280,26 +280,28 @@ window.avaliarBloqueioSituacaoContratoOpcao = function(cfgAlvo, sitAtualRaw) {
         }
     }
 
-    // "SOLICITAÇÃO DE RETIRADA EM ANDAMENTO" apenas clicável após a situação estar como "ENTREGUE - LIBERADO PARA FATURAMENTO"
+    // "SOLICITAÇÃO DE RETIRADA EM ANDAMENTO" apenas clicável após o contrato estar em "CONTRATO ASSINADO" (ou NÃO ASSINA CONTRATO - ENTREGA LIBERADA)
     if (alvo === 'SOLICITACAO DE RETIRADA EM ANDAMENTO') {
-        const permitido = sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO' || sitAtu === 'SOLICITACAO DE RETIRADA EM ANDAMENTO';
+        const permitido = sitAtu === 'CONTRATO ASSINADO' || sitAtu === 'NAO ASSINA CONTRATO - ENTREGA LIBERADA' || sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO' || sitAtu === 'SOLICITACAO DE RETIRADA EM ANDAMENTO';
         if (!permitido) {
             return {
                 disabled: true,
-                title: 'Disponível apenas após o contrato estar com a situação ENTREGUE - LIBERADO PARA FATURAMENTO'
+                title: 'Disponível apenas após o contrato estar com a situação CONTRATO ASSINADO'
             };
         }
     }
 
-    // "ENCERRADO | CONCLUÍDO" apenas clicável após a situação ficar como "ENTREGUE - LIBERADO PARA FATURAMENTO" (ou em retirada após entregue)
+    // "ENCERRADO | CONCLUÍDO" apenas clicável após o contrato estar assinado ou em retirada
     if (alvo === 'ENCERRADO | CONCLUIDO') {
-        const permitido = sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO'
+        const permitido = sitAtu === 'CONTRATO ASSINADO'
+            || sitAtu === 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'
+            || sitAtu === 'ENTREGUE - LIBERADO PARA FATURAMENTO'
             || sitAtu === 'SOLICITACAO DE RETIRADA EM ANDAMENTO'
             || sitAtu === 'ENCERRADO | CONCLUIDO';
         if (!permitido) {
             return {
                 disabled: true,
-                title: 'Disponível apenas após o contrato estar com a situação ENTREGUE - LIBERADO PARA FATURAMENTO'
+                title: 'Disponível apenas após o contrato estar com a situação CONTRATO ASSINADO'
             };
         }
     }
@@ -313,7 +315,7 @@ window.reconstruirOpcoesMenuSituacaoContrato = function(sitAtualRaw) {
     const sitSelNome = window.obterConfigSituacaoContrato(sitVal).nome;
     const sel = document.getElementById('prop-fase');
     if (sel) {
-        sel.innerHTML = CONTRATO_SITUACOES_CONFIG.map(cfg => {
+        sel.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
             const isSel = sitSelNome.toUpperCase() === cfg.nome.toUpperCase();
             const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
             return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${bloq.disabled ? `disabled title="${_escHtmlProp(bloq.title)}"` : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
@@ -322,7 +324,7 @@ window.reconstruirOpcoesMenuSituacaoContrato = function(sitAtualRaw) {
     }
     const menu = document.getElementById('prop-fase-custom-menu');
     if (menu) {
-        menu.innerHTML = CONTRATO_SITUACOES_CONFIG.map(cfg => {
+        menu.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
             const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
             const isDisCtr = Boolean(bloq.disabled);
@@ -1295,7 +1297,7 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
         }
     }
     if (ehModoContrato && typeof window.contratoTemCamposObrigatoriosEnvioPreenchidos === 'function' && !window.contratoTemCamposObrigatoriosEnvioPreenchidos()) {
-        Swal.fire('Aviso', 'Preencha todos os campos obrigatórios do quadro Informações do Contrato (Responsáveis por NFe, Cobrança/Boleto, OS e Contato de Instalação) antes de enviar para assinatura.', 'warning');
+        Swal.fire('Aviso', 'Preencha todos os campos obrigatórios do quadro Informações do Contrato (Responsável(is) por Receber NFe e boleto * e Contato de Instalação *) antes de enviar para assinatura.', 'warning');
         return;
     }
     const tipo = obter('prop-tipo');
@@ -4875,7 +4877,7 @@ function _renderFormPropostaInt() {
                             </div>
                             <select id="prop-fase" onchange="window.toggleMotivoReprovacao(this.value); if(window.atualizarBadgeSituacaoContratoForm) window.atualizarBadgeSituacaoContratoForm(this.value);" style="display:none;">
                                 ${window._modoTelaComercial === 'contrato'
-                                    ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
+                                    ? CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
                                         const sitSel = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
                                         const isSel = sitSel.toUpperCase() === cfg.nome.toUpperCase();
                                         const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
@@ -4923,7 +4925,7 @@ function _renderFormPropostaInt() {
                                 </button>
                                 <div id="prop-fase-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
                                     ${window._modoTelaComercial === 'contrato'
-                                        ? CONTRATO_SITUACOES_CONFIG.map(cfg => {
+                                        ? CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
                                             const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                                             const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
                                                 ? window.avaliarBloqueioSituacaoContratoOpcao(cfg, v('situacao_contrato'))
@@ -5549,7 +5551,7 @@ function _renderFormPropostaInt() {
                         </h4>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem 0.85rem; align-items:start;">
                             <div id="prop-resp-wrap-nfe" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber NFe *</label>
+                                <label class="prop-lbl">Responsável(is) por Receber NFe e boleto*</label>
                                 <div style="display:flex; gap:0.4rem; align-items:center;">
                                     <div style="position:relative; flex:1;">
                                         <input type="text" id="prop-resp-inp-nfe" autocomplete="off"
@@ -5572,56 +5574,6 @@ function _renderFormPropostaInt() {
                                     </button>
                                 </div>
                                 <div id="prop-resp-chips-nfe" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
-                            </div>
-                            <div id="prop-resp-wrap-cobranca" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber Cobrança e Boleto *</label>
-                                <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <div style="position:relative; flex:1;">
-                                        <input type="text" id="prop-resp-inp-cobranca" autocomplete="off"
-                                            placeholder="Clique ou digite para selecionar contato..."
-                                            onclick="window.abrirDropdownRespContrato('cobranca', true)"
-                                            onfocus="window.abrirDropdownRespContrato('cobranca', true)"
-                                            oninput="window.filtrarDropdownRespContrato('cobranca', this.value)"
-                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('cobranca'); }"
-                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
-                                        <button type="button" onclick="window.toggleDropdownRespContrato('cobranca', event)" tabindex="-1"
-                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
-                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
-                                        </button>
-                                        <div id="prop-resp-drop-cobranca" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
-                                    </div>
-                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-cobranca')?.value || '', false, 'resp_cobranca')" title="Cadastrar Novo Contato vinculado ao Cliente"
-                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
-                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
-                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
-                                    </button>
-                                </div>
-                                <div id="prop-resp-chips-cobranca" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
-                            </div>
-                            <div id="prop-resp-wrap-os" style="position:relative;">
-                                <label class="prop-lbl">Responsável(is) por Receber Informações da OS *</label>
-                                <div style="display:flex; gap:0.4rem; align-items:center;">
-                                    <div style="position:relative; flex:1;">
-                                        <input type="text" id="prop-resp-inp-os" autocomplete="off"
-                                            placeholder="Clique ou digite para selecionar contato..."
-                                            onclick="window.abrirDropdownRespContrato('os', true)"
-                                            onfocus="window.abrirDropdownRespContrato('os', true)"
-                                            oninput="window.filtrarDropdownRespContrato('os', this.value)"
-                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window.adicionarResponsavelContrato('os'); }"
-                                            style="width:100%; padding:0.52rem 28px 0.52rem 0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
-                                        <button type="button" onclick="window.toggleDropdownRespContrato('os', event)" tabindex="-1"
-                                            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; cursor:pointer; padding:4px; display:flex; align-items:center;">
-                                            <i class="ph ph-caret-down" style="font-size:0.85rem;"></i>
-                                        </button>
-                                        <div id="prop-resp-drop-os" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:2600; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 10px 25px rgba(15,23,42,0.14); max-height:210px; overflow-y:auto; margin-top:3px;"></div>
-                                    </div>
-                                    <button type="button" onclick="window.cadastrarNovoContatoProposta(document.getElementById('prop-resp-inp-os')?.value || '', false, 'resp_os')" title="Cadastrar Novo Contato vinculado ao Cliente"
-                                        style="background:#eab308; color:white; border:none; width:36px; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s;"
-                                        onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
-                                        <i class="ph ph-plus" style="font-size:1rem; font-weight:700;"></i>
-                                    </button>
-                                </div>
-                                <div id="prop-resp-chips-os" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
                             </div>
                             <div id="prop-resp-wrap-instalacao" style="position:relative;">
                                 <label class="prop-lbl">Contato de Instalação *</label>
@@ -5733,76 +5685,8 @@ function _renderFormPropostaInt() {
                         </div>
                     </div>
 
-                    <!-- Seção: Comentários do Contrato (Exclusiva na tela de Contratos — histórico imutável com comentários aninhados e filtros) -->
-                    <div id="prop-secao-comentarios" style="display:${isModoContratoRender ? 'block' : 'none'}; background:#f5f3ff; border:1.5px solid #ddd6fe; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
-                        <div onclick="window.toggleSecaoContratoAccordion('comentarios', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none; flex-wrap:wrap;">
-                            <h4 style="margin:0; font-size:0.82rem; color:#4c1d95; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em; flex-wrap:wrap;">
-                                <i class="ph ph-chats-circle" style="font-size:1.08rem; color:#6d28d9;"></i> Comentários
-                                <span id="prop-comentarios-contrato-count-badge" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; text-transform:none;">0 comentário(s)</span>
-                                <span style="background:#ffffff; color:#64748b; border:1px solid #e2e8f0; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:600; text-transform:none; display:inline-flex; align-items:center; gap:4px;">
-                                    <i class="ph ph-lock-key"></i> Histórico permanente (sem edição ou exclusão)
-                                </span>
-                            </h4>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <button type="button" onclick="event.stopPropagation(); window.carregarComentariosContratoAtivo(null, true);" title="Atualizar histórico de comentários deste contrato" style="background:#6d28d9; color:#ffffff; border:none; padding:4px 9px; border-radius:6px; font-weight:700; font-size:0.72rem; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
-                                    <i class="ph ph-arrows-clockwise" style="font-size:0.85rem;"></i> Atualizar
-                                </button>
-                                <button type="button" onclick="window.toggleSecaoContratoAccordion('comentarios', event)" title="Abrir / Fechar Comentários" style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #c4b5fd; background:#ede9fe; color:#5b21b6; cursor:pointer;">
-                                    <i id="prop-caret-comentarios" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.comentarios) ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="prop-secao-comentarios-body" style="display:${(window._contratoSecoesAbertas && window._contratoSecoesAbertas.comentarios) ? 'block' : 'none'}; margin-top:0.65rem;">
-                            <!-- Novo comentário principal -->
-                            <div style="background:#ffffff; border:1px solid #ddd6fe; border-radius:8px; padding:0.6rem 0.75rem; margin-bottom:0.65rem;">
-                                <label style="display:block; font-size:0.75rem; font-weight:700; color:#4c1d95; margin-bottom:4px; text-transform:none;">
-                                    <i class="ph ph-chat-centered-text"></i> Deixar novo comentário no contrato
-                                </label>
-                                <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
-                                    <textarea id="prop-comentario-contrato-novo-texto" rows="2" placeholder="Digite seu comentário sobre este contrato..." style="flex:1; min-width:240px; padding:0.5rem 0.65rem; border:1px solid #cbd5e1; border-radius:7px; font-size:0.83rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
-                                    <button type="button" id="prop-btn-enviar-comentario-contrato" onclick="window.enviarComentarioContrato(null)" style="background:#6d28d9; color:#ffffff; border:none; border-radius:7px; padding:0.52rem 0.95rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; height:38px; transition:background 0.15s;" onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
-                                        <i class="ph ph-paper-plane-right" style="font-size:0.95rem;"></i> Comentar
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Barra de Filtros em Tempo Real (por Usuário, por Departamento e por Data) -->
-                            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:0.55rem 0.75rem; margin-bottom:0.65rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:8px; align-items:end;">
-                                <div>
-                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
-                                        <i class="ph ph-user"></i> Filtrar por Usuário / Colaborador
-                                    </label>
-                                    <input type="text" id="prop-comentarios-filtro-usuario" list="prop-comentarios-datalist-usuarios" oninput="window.filtrarComentariosContratoEmTempoReal()" placeholder="Digite ou selecione o colaborador..." autocomplete="off" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
-                                    <datalist id="prop-comentarios-datalist-usuarios"></datalist>
-                                </div>
-                                <div>
-                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
-                                        <i class="ph ph-buildings"></i> Filtrar por Departamento
-                                    </label>
-                                    <input type="text" id="prop-comentarios-filtro-departamento" list="prop-comentarios-datalist-departamentos" oninput="window.filtrarComentariosContratoEmTempoReal()" placeholder="Digite ou selecione o departamento..." autocomplete="off" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
-                                    <datalist id="prop-comentarios-datalist-departamentos"></datalist>
-                                </div>
-                                <div>
-                                    <label style="display:block; font-size:0.71rem; font-weight:700; color:#475569; margin-bottom:3px; text-transform:none;">
-                                        <i class="ph ph-calendar-blank"></i> Filtrar por Data
-                                    </label>
-                                    <input type="date" id="prop-comentarios-filtro-data" oninput="window.filtrarComentariosContratoEmTempoReal()" onchange="window.filtrarComentariosContratoEmTempoReal()" style="width:100%; height:32px; padding:0 0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.79rem; box-sizing:border-box; text-transform:none;">
-                                </div>
-                                <div style="display:flex; align-items:center; gap:6px;">
-                                    <button type="button" onclick="window.limparFiltrosComentariosContrato()" title="Limpar filtros de comentários" style="height:32px; padding:0 0.75rem; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                                        <i class="ph ph-funnel-x"></i> Limpar Filtros
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Lista de Histórico de Comentários -->
-                            <div id="prop-comentarios-contrato-lista-wrap" style="max-height:520px; overflow-y:auto; padding-right:2px;">
-                                <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
-                                    Carregando histórico de comentários deste contrato...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Aba Inferior Fixa de Comentários do Contrato (mesmo estilo do Histórico de OS, abre meia tela) -->
+                    <div id="prop-secao-comentarios" style="display:none;"></div>
 
                     <!-- Observações -->
                     <div style="margin-bottom:0.5rem;">
@@ -5827,6 +5711,9 @@ function _renderFormPropostaInt() {
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (typeof window._ctrMontarDrawerComentarios === 'function') {
+        window._ctrMontarDrawerComentarios();
+    }
     if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
         if (typeof window.carregarAnexosContratoAtivo === 'function') {
             window.carregarAnexosContratoAtivo(_propostasEditandoId);
@@ -5836,6 +5723,10 @@ function _renderFormPropostaInt() {
         }
         if (typeof window.carregarComentariosContratoAtivo === 'function') {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
+    } else if (window._modoTelaComercial === 'contrato') {
+        if (typeof window.renderizarListaComentariosContrato === 'function') {
+            window.renderizarListaComentariosContrato([]);
         }
     }
 
@@ -6067,10 +5958,8 @@ window.contratoTemCamposObrigatoriosEnvioPreenchidos = function(propOverride = n
     }
     respObj = respObj || {};
     const temNfe = Array.isArray(respObj.nfe) && respObj.nfe.filter(Boolean).length > 0;
-    const temCob = Array.isArray(respObj.cobranca) && respObj.cobranca.filter(Boolean).length > 0;
-    const temOs = Array.isArray(respObj.os) && respObj.os.filter(Boolean).length > 0;
     const instVal = String(respObj.instalacao || prop.contato_instalacao_contrato || '').trim();
-    if (!temNfe || !temCob || !temOs || !instVal) return false;
+    if (!temNfe || !instVal) return false;
 
     return true;
 };
@@ -7954,6 +7843,13 @@ window.modalRenderTabelaContatos = function() {
     }).join('');
 };
 
+window.telefoneCompletoValido = function(val) {
+    let d = String(val || '').replace(/\D+/g, '');
+    if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+    if ((d.length === 11 || d.length === 12) && d.startsWith('0')) d = d.slice(1);
+    return d.length === 10 || d.length === 11;
+};
+
 window.modalSalvarContatoInline = function() {
     const nome = document.getElementById('modal-new-con-nome')?.value.trim() || '';
     const celular = document.getElementById('modal-new-con-celular')?.value.trim() || '';
@@ -7962,6 +7858,10 @@ window.modalSalvarContatoInline = function() {
 
     if (!nome) {
         Swal.fire('Aviso', 'Por favor, preencha o Nome do contato.', 'warning');
+        return;
+    }
+    if (!window.telefoneCompletoValido(celular)) {
+        Swal.fire('Telefone Incompleto', 'Preencha o telefone/celular completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
         return;
     }
 
@@ -8433,6 +8333,19 @@ window.modalSalvarCliente = async function(clientId) {
 
     if (faltantes.length > 0) {
         window.mostrarAvisoSemFecharModal('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
+        return;
+    }
+    if (!window.telefoneCompletoValido(telefone)) {
+        window.mostrarAvisoSemFecharModal('Telefone Incompleto', 'Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
+        return;
+    }
+    if (!window.telefoneCompletoValido(celular)) {
+        window.mostrarAvisoSemFecharModal('Celular / WhatsApp Incompleto', 'Preencha o Celular / WhatsApp completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
+        return;
+    }
+    const tel2Modal = (document.getElementById('modal-cli-telefone2')?.value || '').trim();
+    if (tel2Modal && !window.telefoneCompletoValido(tel2Modal)) {
+        window.mostrarAvisoSemFecharModal('Telefone 2 Incompleto', 'Preencha o Telefone 2 completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
         return;
     }
 
@@ -9319,6 +9232,15 @@ window.salvarNovoContatoModalProposta = async function() {
 
     if (!conNome) { alert('Por favor, preencha o Nome do Contato.'); return; }
     if (!conCelular) { alert('Por favor, preencha o Celular / WhatsApp do Contato.'); return; }
+    if (!window.telefoneCompletoValido(conCelular)) {
+        alert('Preencha o telefone/celular completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const mconEmpTel = getVal('mcon-emp-telefone');
+    if (mconEmpTel && !window.telefoneCompletoValido(mconEmpTel)) {
+        alert('Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
     if (!empRazao) { alert('Por favor, preencha a Razão Social da Empresa Cliente.'); return; }
     if (!empCnpj) { alert('Por favor, preencha o CPF/CNPJ da Empresa Cliente.'); return; }
 
@@ -15244,6 +15166,15 @@ window.modalSalvarEdicaoContato = async function(contatoId, idx = -1, origem = '
         alert('Por favor, preencha o Celular / WhatsApp do Contato.');
         return;
     }
+    if (!window.telefoneCompletoValido(conCelular)) {
+        alert('Preencha o Celular / WhatsApp completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const conTelFixoEdit = (document.getElementById('mcon-telefone')?.value || '').trim();
+    if (conTelFixoEdit && !window.telefoneCompletoValido(conTelFixoEdit)) {
+        alert('Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
 
     const cargoDepto = document.getElementById('mcon-cargo')?.value || '';
     const repAuto = document.getElementById('mcon-representante')?.value || window.obterNomeUsuarioLogado();
@@ -15500,6 +15431,20 @@ window.modalSalvarNovoContato = async function() {
     }
     if (!conCelular) {
         alert('Por favor, preencha o Celular / WhatsApp do Contato.');
+        return;
+    }
+    if (!window.telefoneCompletoValido(conCelular)) {
+        alert('Preencha o Celular / WhatsApp completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const mconTelFixoNovo = (document.getElementById('mcon-telefone')?.value || '').trim();
+    if (mconTelFixoNovo && !window.telefoneCompletoValido(mconTelFixoNovo)) {
+        alert('Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const mempTelNovo = (document.getElementById('memp-telefone')?.value || '').trim();
+    if (mempTelNovo && !window.telefoneCompletoValido(mempTelNovo)) {
+        alert('Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
         return;
     }
     if (!empCnpj) {
@@ -16284,9 +16229,19 @@ window.abrirModalNovoContato = function() {
             const idVal = document.getElementById('swal-contato-id').value;
             const nomeVal = document.getElementById('swal-contato-nome').value;
             const emailVal = document.getElementById('swal-contato-email').value;
+            const celVal = (document.getElementById('swal-contato-celular')?.value || '').trim();
+            const telVal = (document.getElementById('swal-contato-tel')?.value || '').trim();
             
             if (!idVal || !nomeVal) {
                 Swal.showValidationMessage('Identificação e Nome são obrigatórios.');
+                return false;
+            }
+            if (!window.telefoneCompletoValido(celVal)) {
+                Swal.showValidationMessage('Preencha o Celular completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+                return false;
+            }
+            if (telVal && !window.telefoneCompletoValido(telVal)) {
+                Swal.showValidationMessage('Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
                 return false;
             }
             return {
@@ -16333,6 +16288,19 @@ window.salvarCliente = async function() {
 
     if (faltantes.length > 0) {
         window.mostrarAvisoSemFecharModal('Campos Obrigatórios', 'Por favor, preencha os campos obrigatórios: ' + faltantes.join(', ') + '.', 'warning');
+        return;
+    }
+    if (!window.telefoneCompletoValido(telefone)) {
+        window.mostrarAvisoSemFecharModal('Telefone Incompleto', 'Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
+        return;
+    }
+    if (!window.telefoneCompletoValido(celular)) {
+        window.mostrarAvisoSemFecharModal('Celular / WhatsApp Incompleto', 'Preencha o Celular / WhatsApp completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
+        return;
+    }
+    const tel2Main = (document.getElementById('cli-telefone2')?.value || '').trim();
+    if (tel2Main && !window.telefoneCompletoValido(tel2Main)) {
+        window.mostrarAvisoSemFecharModal('Telefone 2 Incompleto', 'Preencha o Telefone 2 completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.', 'warning');
         return;
     }
 
@@ -17733,6 +17701,20 @@ window.salvarContato = async function() {
     }
     if (!conCelular) {
         alert('Por favor, preencha o Celular / WhatsApp do Contato.');
+        return;
+    }
+    if (!window.telefoneCompletoValido(conCelular)) {
+        alert('Preencha o Celular / WhatsApp completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const conTelFixoMain = (document.getElementById('con-telefone')?.value || '').trim();
+    if (conTelFixoMain && !window.telefoneCompletoValido(conTelFixoMain)) {
+        alert('Preencha o Telefone completo do contato no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
+        return;
+    }
+    const empTelMain = (document.getElementById('emp-telefone')?.value || '').trim();
+    if (empTelMain && !window.telefoneCompletoValido(empTelMain)) {
+        alert('Preencha o Telefone completo do cliente no formato (xx) xxxx-xxxx ou (xx) xxxxx-xxxx.');
         return;
     }
     if (!empCnpj) {
@@ -25202,6 +25184,9 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (typeof window._ctrMontarDrawerComentarios === 'function') {
+        window._ctrMontarDrawerComentarios();
+    }
     if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
         if (typeof window.carregarAnexosContratoAtivo === 'function') {
             window.carregarAnexosContratoAtivo(_propostasEditandoId);
@@ -25211,6 +25196,10 @@ window.selecionarContratoAditivoBusca = async function(numContrato, idContrato, 
         }
         if (typeof window.carregarComentariosContratoAtivo === 'function') {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
+    } else if (window._modoTelaComercial === 'contrato') {
+        if (typeof window.renderizarListaComentariosContrato === 'function') {
+            window.renderizarListaComentariosContrato([]);
         }
     }
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
@@ -26075,6 +26064,9 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (typeof window._ctrMontarDrawerComentarios === 'function') {
+        window._ctrMontarDrawerComentarios();
+    }
     if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
         if (typeof window.carregarAnexosContratoAtivo === 'function') {
             window.carregarAnexosContratoAtivo(_propostasEditandoId);
@@ -26084,6 +26076,10 @@ window.onChangeTipoPropostaPrecos = async function(novoTipo) {
         }
         if (typeof window.carregarComentariosContratoAtivo === 'function') {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
+    } else if (window._modoTelaComercial === 'contrato') {
+        if (typeof window.renderizarListaComentariosContrato === 'function') {
+            window.renderizarListaComentariosContrato([]);
         }
     }
 };
@@ -26155,6 +26151,9 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
     if (typeof window.renderizarChipsDatasEntregaContrato === 'function') {
         window.renderizarChipsDatasEntregaContrato();
     }
+    if (typeof window._ctrMontarDrawerComentarios === 'function') {
+        window._ctrMontarDrawerComentarios();
+    }
     if (window._modoTelaComercial === 'contrato' && _propostasEditandoId) {
         if (typeof window.carregarAnexosContratoAtivo === 'function') {
             window.carregarAnexosContratoAtivo(_propostasEditandoId);
@@ -26164,6 +26163,10 @@ window.onChangeTabelaPrecosManual = async function(novaTabela) {
         }
         if (typeof window.carregarComentariosContratoAtivo === 'function') {
             window.carregarComentariosContratoAtivo(_propostasEditandoId);
+        }
+    } else if (window._modoTelaComercial === 'contrato') {
+        if (typeof window.renderizarListaComentariosContrato === 'function') {
+            window.renderizarListaComentariosContrato([]);
         }
     }
 };
@@ -30588,6 +30591,7 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{CONTATO_CARGO}}', label: 'Cargo / Departamento do Contato', categoria: 'Contato', exemplo: 'Engenheiro Residente' },
     { tag: '{{CONTATO_INSTALACAO}}', label: 'Nome do Contato de Instalação', categoria: 'Contato', exemplo: 'Carlos Alberto' },
     { tag: '{{CONTATO_INSTALACAO_TELEFONE}}', label: 'Telefone do Contato de Instalação', categoria: 'Contato', exemplo: '(11) 98888-7777' },
+    { tag: '{{RESPONSAVEL_NFE_BOLETO}}', label: 'Responsável(is) por Receber NFe e Boleto', categoria: 'Contato', exemplo: 'Carlos Alberto - carlos@exemplo.com.br' },
 
     // Dados do Interveniente
     { tag: '{{INTERVENIENTE_RAZAO_SOCIAL}}', label: 'Razão Social / Nome do Interveniente', categoria: 'Interveniente', exemplo: 'CONSÓRCIO INTERVENIENTE LTDA' },
@@ -32358,6 +32362,7 @@ window.selecionarContatoRespDropdown = function(tipo, textoContato) {
         if (inp) inp.value = '';
     }
     window.renderizarResponsaveisContratoChips();
+    if (typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
 };
 
@@ -32381,6 +32386,7 @@ window.adicionarResponsavelContrato = function(tipo) {
         if (inp) inp.value = '';
     }
     window.renderizarResponsaveisContratoChips();
+    if (typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
 };
 
@@ -32394,6 +32400,7 @@ window.removerResponsavelContrato = function(tipo, idx) {
         st[tipo].splice(idx, 1);
     }
     window.renderizarResponsaveisContratoChips();
+    if (typeof window.atualizarQuadroAssinaturaDigitalDom === 'function') window.atualizarQuadroAssinaturaDigitalDom();
     if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
 };
 
@@ -32816,9 +32823,203 @@ window.renderizarListaOsContrato = function(lista) {
     `;
 };
 
-/* ── Quadro COMENTÁRIOS DO CONTRATO (Histórico imutável, comentários dentro do comentário e filtros por usuário/data/departamento) ── */
+/* ── ABA INFERIOR (DRAWER MEIA TELA) DE COMENTÁRIOS DO CONTRATO (Estilo Histórico de OS) ── */
 window._comentariosContratoCache = [];
 window._comentariosContratoReplyAberto = {};
+window._ctrDrawerComentariosAberto = false;
+
+window._ctrMontarDrawerComentarios = function() {
+    let wrapper = document.getElementById('ctr-comentarios-drawer-wrapper');
+    if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.id = 'ctr-comentarios-drawer-wrapper';
+        wrapper.style.cssText = [
+            'position:fixed',
+            'bottom:32px',          /* fica ACIMA da barra inferior de caminho (~32px), igual ao Histórico de OS */
+            'left:60px',            /* respeita a sidebar */
+            'right:0',
+            'z-index:9500',
+            'display:none',
+            'flex-direction:column',
+            'align-items:flex-start',
+            'pointer-events:none'
+        ].join(';');
+
+        wrapper.innerHTML = `
+            <!-- ABA INFERIOR (ESTILO HISTÓRICO DE OS) -->
+            <div id="ctr-comentarios-btn-row" style="padding:0 0 0 12px; pointer-events:auto;">
+                <button type="button" id="ctr-comentarios-toggle-btn"
+                    title="Comentários do Contrato"
+                    style="
+                        display:flex; align-items:center; gap:6px;
+                        background:#f1f5f9; border:1.5px solid #cbd5e1;
+                        border-bottom:none; border-radius:8px 8px 0 0;
+                        padding:5px 16px; cursor:pointer;
+                        color:#475569; font-size:0.78rem; font-weight:700;
+                        box-shadow:0 -2px 8px rgba(0,0,0,0.06);
+                        transition:background 0.15s, color 0.15s;
+                    "
+                    onmouseenter="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
+                    onmouseleave="this.style.background='#f1f5f9'; this.style.color='#475569';"
+                    onclick="window._ctrToggleDrawerComentarios()"
+                >
+                    <i id="ctr-comentarios-drawer-icon" class="ph ph-caret-up-bold" style="font-size:0.9rem;"></i>
+                    <span>Comentários</span>
+                    <span id="prop-comentarios-contrato-count-badge" style="background:#e2e8f0; color:#334155; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800;">0</span>
+                </button>
+            </div>
+
+            <!-- PAINEL MEIA TELA (50vh) -->
+            <div id="ctr-comentarios-drawer-panel"
+                style="
+                    width:100%; background:#ffffff;
+                    border-top:2px solid #cbd5e1;
+                    box-shadow:0 -8px 28px rgba(15,23,42,0.16);
+                    max-height:0; overflow:hidden;
+                    transition:max-height 0.32s cubic-bezier(.4,0,.2,1);
+                    display:flex; flex-direction:column;
+                    order:-1; pointer-events:auto;
+                "
+            >
+                <!-- Cabeçalho do Painel + Filtros -->
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-wrap:wrap; flex-shrink:0;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <i class="ph ph-chats-circle" style="color:#6d28d9; font-size:1.15rem;"></i>
+                        <span style="font-weight:800; font-size:0.86rem; color:#1e293b;">Comentários do Contrato</span>
+                        <span style="background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700;">
+                            Histórico (mais antigos acima • mais novos abaixo)
+                        </span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-left:auto;">
+                        <input type="text" id="prop-comentarios-filtro-usuario" list="prop-comentarios-datalist-usuarios"
+                            oninput="window.filtrarComentariosContratoEmTempoReal()"
+                            placeholder="Filtrar por usuário..." autocomplete="off"
+                            style="height:28px; width:170px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
+                        <datalist id="prop-comentarios-datalist-usuarios"></datalist>
+
+                        <input type="text" id="prop-comentarios-filtro-departamento" list="prop-comentarios-datalist-departamentos"
+                            oninput="window.filtrarComentariosContratoEmTempoReal()"
+                            placeholder="Departamento..." autocomplete="off"
+                            style="height:28px; width:135px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
+                        <datalist id="prop-comentarios-datalist-departamentos"></datalist>
+
+                        <input type="date" id="prop-comentarios-filtro-data"
+                            oninput="window.filtrarComentariosContratoEmTempoReal()" onchange="window.filtrarComentariosContratoEmTempoReal()"
+                            style="height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
+
+                        <button type="button" onclick="window.limparFiltrosComentariosContrato()" title="Limpar filtros"
+                            style="height:28px; padding:0 9px; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                            <i class="ph ph-funnel-x"></i> Limpar
+                        </button>
+
+                        <button type="button" onclick="window.carregarComentariosContratoAtivo(null, true)" title="Atualizar comentários"
+                            style="height:28px; padding:0 10px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                            <i class="ph ph-arrows-clockwise"></i> Atualizar
+                        </button>
+
+                        <button type="button" onclick="window._ctrToggleDrawerComentarios(false)" title="Fechar aba de comentários"
+                            style="height:28px; width:28px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; font-size:0.9rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                            <i class="ph ph-x"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de Histórico de Comentários (rolável, mais antigos em cima e mais novos embaixo) -->
+                <div id="prop-comentarios-contrato-lista-wrap" style="overflow-y:auto; flex:1; padding:12px 16px; background:#f8fafc; min-height:180px;">
+                    <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                        Carregando histórico de comentários deste contrato...
+                    </div>
+                </div>
+
+                <!-- Campo "Comentários" fixo na base do drawer para adicionar novo comentário -->
+                <div style="padding:10px 16px; border-top:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
+                    <label style="display:block; font-size:0.76rem; font-weight:800; color:#4c1d95; margin-bottom:4px; text-transform:none;">
+                        <i class="ph ph-chat-centered-text"></i> Comentários
+                    </label>
+                    <div style="display:flex; gap:8px; align-items:flex-end;">
+                        <textarea id="prop-comentario-contrato-novo-texto" rows="2"
+                            placeholder="Digite um comentário sobre este contrato... (Enter com Ctrl para enviar)"
+                            onkeydown="if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){ event.preventDefault(); window.enviarComentarioContrato(null); }"
+                            style="flex:1; padding:0.5rem 0.7rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; resize:none; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                        <button type="button" id="prop-btn-enviar-comentario-contrato" onclick="window.enviarComentarioContrato(null)"
+                            style="background:#6d28d9; color:#ffffff; border:none; border-radius:8px; padding:0 1.1rem; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; height:42px; transition:background 0.15s;"
+                            onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
+                            <i class="ph ph-paper-plane-right" style="font-size:1rem;"></i> Adicionar Comentário
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(wrapper);
+
+        document.addEventListener('mousedown', function _ctrClickForaComentarios(e) {
+            if (!window._ctrDrawerComentariosAberto) return;
+            const w = document.getElementById('ctr-comentarios-drawer-wrapper');
+            if (w && !w.contains(e.target) && !e.target.closest('.swal2-container')) {
+                window._ctrToggleDrawerComentarios(false);
+            }
+        });
+    }
+    window._ctrAtualizarVisibilidadeDrawerComentarios();
+};
+
+window._ctrToggleDrawerComentarios = function(forcarEstado) {
+    window._ctrMontarDrawerComentarios();
+    const panel = document.getElementById('ctr-comentarios-drawer-panel');
+    const icon = document.getElementById('ctr-comentarios-drawer-icon');
+    if (!panel) return;
+    const novoEstado = (typeof forcarEstado === 'boolean') ? forcarEstado : !window._ctrDrawerComentariosAberto;
+    window._ctrDrawerComentariosAberto = novoEstado;
+    panel.style.maxHeight = novoEstado ? '50vh' : '0';
+    panel.style.height = novoEstado ? '50vh' : 'auto';
+    if (icon) {
+        icon.className = novoEstado ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
+    }
+    if (novoEstado) {
+        const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+        if (propId) {
+            window.carregarComentariosContratoAtivo(propId, false);
+        } else {
+            window.renderizarListaComentariosContrato([]);
+        }
+        setTimeout(() => {
+            const wrap = document.getElementById('prop-comentarios-contrato-lista-wrap');
+            if (wrap) wrap.scrollTop = wrap.scrollHeight;
+            document.getElementById('prop-comentario-contrato-novo-texto')?.focus();
+        }, 120);
+    }
+};
+
+window._ctrAtualizarVisibilidadeDrawerComentarios = function() {
+    const w = document.getElementById('ctr-comentarios-drawer-wrapper');
+    if (!w) return;
+    const viewPropostas = document.getElementById('view-comercial-propostas') || document.getElementById('prop-view-form');
+    const formEl = document.getElementById('form-proposta');
+    const isFormVisivel = Boolean(formEl && formEl.offsetParent !== null);
+    const ehContratoAtivo = window._modoTelaComercial === 'contrato' && isFormVisivel;
+    if (ehContratoAtivo) {
+        if (w.style.display !== 'flex') w.style.display = 'flex';
+    } else {
+        if (w.style.display !== 'none') {
+            w.style.display = 'none';
+            if (window._ctrDrawerComentariosAberto) {
+                const panel = document.getElementById('ctr-comentarios-drawer-panel');
+                const icon = document.getElementById('ctr-comentarios-drawer-icon');
+                if (panel) { panel.style.maxHeight = '0'; panel.style.height = 'auto'; }
+                if (icon) icon.className = 'ph ph-caret-up-bold';
+                window._ctrDrawerComentariosAberto = false;
+            }
+        }
+    }
+};
+
+if (!window._ctrComentariosVisibilityInterval) {
+    window._ctrComentariosVisibilityInterval = setInterval(() => {
+        if (typeof window._ctrAtualizarVisibilidadeDrawerComentarios === 'function') {
+            window._ctrAtualizarVisibilidadeDrawerComentarios();
+        }
+    }, 450);
+}
 
 window._normTextoFiltroComentarioContrato = function(str) {
     return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -32986,19 +33187,31 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
 };
 
 window.renderizarListaComentariosContrato = function(lista) {
-    const arr = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
+    const arrOrig = Array.isArray(lista) ? lista : (window._comentariosContratoCache || []);
+    // Ordena do mais antigo (em cima) para o mais novo (embaixo)
+    const arr = [...arrOrig].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
     const badge = document.getElementById('prop-comentarios-contrato-count-badge');
     if (badge) {
-        badge.textContent = `${arr.length} comentário(s)`;
+        badge.textContent = String(arr.length);
     }
 
     const wrap = document.getElementById('prop-comentarios-contrato-lista-wrap');
     if (!wrap) return;
 
+    const propIdAtu = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propIdAtu) {
+        wrap.innerHTML = `
+            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:1.2rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Selecione ou salve um contrato para visualizar e adicionar comentários no histórico.
+            </div>
+        `;
+        return;
+    }
+
     if (!arr.length) {
         wrap.innerHTML = `
-            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
-                Nenhum comentário registrado neste contrato até o momento. Seja o primeiro a comentar acima.
+            <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:1.2rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                Nenhum comentário registrado neste contrato até o momento. Adicione um comentário no campo abaixo.
             </div>
         `;
         return;
@@ -33154,6 +33367,10 @@ window.renderizarListaComentariosContrato = function(lista) {
     };
 
     wrap.innerHTML = rootsVisiveis.map(r => renderizarNoComentario(r, 0, false)).join('');
+    // Rola automaticamente para o final onde ficam os comentários mais novos
+    setTimeout(() => {
+        if (wrap) wrap.scrollTop = wrap.scrollHeight;
+    }, 30);
 };
 
 window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, intervenienteObj, listaAvarias) {
@@ -33406,6 +33623,16 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{CONTATO_CARGO}}': String(con.cargo || con.departamento || '').trim(),
         '{{CONTATO_INSTALACAO}}': contatoInstalacaoNomeTxt,
         '{{CONTATO_INSTALACAO_TELEFONE}}': fmtTelContrato(contatoInstalacaoTelefoneTxt),
+        '{{RESPONSAVEL_NFE_BOLETO}}': (() => {
+            let arrNfe = [];
+            try {
+                const rawR = p.contatos_responsaveis_contrato_json
+                    ? (typeof p.contatos_responsaveis_contrato_json === 'string' ? JSON.parse(p.contatos_responsaveis_contrato_json || '{}') : p.contatos_responsaveis_contrato_json)
+                    : (!p._isPreviewModelo && window._propResponsaveisContrato ? window._propResponsaveisContrato : {});
+                if (rawR && Array.isArray(rawR.nfe)) arrNfe = rawR.nfe.map(x => String(x || '').trim()).filter(Boolean);
+            } catch (_) {}
+            return arrNfe.length > 0 ? arrNfe.join(', ') : String(p.contato_nome || con.nome || 'Carlos Alberto').trim();
+        })(),
 
         '{{INTERVENIENTE_RAZAO_SOCIAL}}': interRazao,
         '{{INTERVENIENTE_CNPJ}}': String(inter.cpf_cnpj || '00.000.000/0001-00').trim(),

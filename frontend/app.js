@@ -16499,6 +16499,12 @@ async function checkUserNotificacoes() {
                         ? 'ASSINATURA PARCIAL DE CONTRATO'
                         : (ehCtrPop ? 'CONTRATO ASSINADO POR TODAS AS PARTES' : 'PROPOSTA ASSINADA (ASSINAFY)');
                     navTarget = ehCtrPop ? 'comercial-contratos' : 'comercial-propostas';
+                } else if (notif.tipo === 'informacoes_adicionais_contrato') {
+                    bg = '#f5f3ff';
+                    color = '#6d28d9';
+                    icon = 'ph-chats-circle';
+                    titulo = 'NOVO COMENTÁRIO NO CONTRATO';
+                    navTarget = 'comercial-contratos';
                 } else {
                     bg = '#f1f5f9'; color = '#475569'; icon = 'ph-bell-ringing'; titulo = 'Notificação'; navTarget = 'dashboard';
                 }
@@ -16822,6 +16828,16 @@ async function checkUserNotificacoes() {
                         <div style="color:#0f172a;font-size:0.9rem;margin-bottom:4px;"><b>Nome do Cliente:</b> ${dados.cliente_nome || '—'}</div>
                         <div style="color:#0f172a;font-size:0.9rem;"><b>Assinado por:</b> ${dados.contato_nome || '—'}</div>
                     `);
+                } else if (notif.tipo === 'informacoes_adicionais_contrato') {
+                    const _escPop = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    contentHTML = `
+                        <div style="font-weight:800;font-size:1.05rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;">
+                            <i class="ph ${icon}"></i> NOVO COMENTÁRIO — CONTRATO Nº ${_escPop(dados.numero_contrato || dados.codigo_proposta || '—')}
+                        </div>
+                        <div style="color:#0f172a;font-size:0.88rem;margin-bottom:4px;"><b>Cliente:</b> ${_escPop(dados.cliente_nome || '—')}</div>
+                        <div style="color:#0f172a;font-size:0.88rem;margin-bottom:4px;"><b>Comentado por:</b> ${_escPop(dados.autor_nome || '—')} <span style="color:#64748b;font-size:0.78rem;">(${_escPop(dados.data_hora || '')})</span></div>
+                        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:0.83rem;color:#1e293b;max-height:90px;overflow-y:auto;white-space:pre-wrap;">${_escPop(dados.comentario || notif.mensagem || '')}</div>
+                    `;
                 } else {
                     contentHTML = `
                         <div style="font-weight:800;font-size:1.2rem;color:${color};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -16839,6 +16855,8 @@ async function checkUserNotificacoes() {
                     } else {
                         btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (typeof window.abrirPropostaDiretoId === 'function') { window.abrirPropostaDiretoId(${Number(dados.proposta_id)}); } else { navigateTo('comercial-propostas'); setTimeout(function(){ if(window.editarProposta) window.editarProposta(${Number(dados.proposta_id)}); }, 500); }`;
                     }
+                } else if (notif.tipo === 'informacoes_adicionais_contrato' && dados.proposta_id) {
+                    btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); if (typeof window.abrirContratoDaProposta === 'function') { window.abrirContratoDaProposta(${Number(dados.proposta_id)}); setTimeout(function(){ if(typeof window._ctrToggleDrawerComentarios === 'function') window._ctrToggleDrawerComentarios(true); }, 600); } else { navigateTo('comercial-contratos'); }`;
                 } else if (notif.tipo === 'novo_sinistro' && dados.colaborador_id) {
                     btnOnClick = `window.markUserNotifLida('${notif.id}'); this.closest('[data-notif-id]').remove(); window.verProntuarioColaborador('${dados.colaborador_id}', 'Sinistros');`;
                 } else if (notif.tipo === 'nova_ocorrencia' && dados.colaborador_id) {
