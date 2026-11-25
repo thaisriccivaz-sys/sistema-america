@@ -834,6 +834,7 @@ const BREADCRUMB_MAP = {
     'compras-revisao': { path: 'Financeiro → Frota → Revisão', code: 'FIN003' },
     'compras-estoque': { path: 'Financeiro → Estoque', code: 'FIN004' },
     // Comercial
+    'comercial-dashboard': { path: 'Comercial → Dashboard', code: 'COM015' },
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
     'comercial-contratos': { path: 'Comercial → Contratos', code: 'COM010' },
@@ -1038,6 +1039,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-modelos-contrato'] === undefined) mapPerms['comercial-modelos-contrato'] = true;
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
             if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
+            if (mapPerms['comercial-dashboard'] === undefined) mapPerms['comercial-dashboard'] = true;
         }
         if (mapPerms['app-lideranca-separacao'] || mapPerms['app-lideranca-resumo-rota'] || mapPerms['app-lideranca-entregas'] || mapPerms['app-lideranca-retiradas']) {
             if (mapPerms['app-lideranca-insumos'] === undefined) mapPerms['app-lideranca-insumos'] = true;
@@ -1359,6 +1361,7 @@ const TAB_META = {
     'compras-revisao': { color: '#1971c2', icon: 'ph-seal-check', title: 'Revisão' },
     'compras-estoque': { color: '#1971c2', icon: 'ph-package', title: 'Estoque' },
     // Comercial - Roxo
+    'comercial-dashboard': { color: '#7048e8', icon: 'ph-chart-line-up', title: 'Dashboard Comercial' },
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-contratos': { color: '#7048e8', icon: 'ph-files', title: 'Contratos' },
@@ -1592,6 +1595,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'comercial-assinaturas' && typeof window.renderTelaAssinaturasComercial === 'function') {
         setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
+    }
+    if (tab.target === 'comercial-dashboard' && typeof window.renderDashboardComercial === 'function') {
+        setTimeout(() => window.renderDashboardComercial(false), 50);
     }
     if (tab.target === 'estoque-equipamentos' && typeof window.carregarEquipamentosEstoque === 'function') {
         setTimeout(() => window.carregarEquipamentosEstoque(), 50);
@@ -1921,6 +1927,8 @@ function navigateTo(target) {
         }
     } else if (target === 'comercial-assinaturas') {
         if (typeof window.renderTelaAssinaturasComercial === 'function') setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
+    } else if (target === 'comercial-dashboard') {
+        if (typeof window.renderDashboardComercial === 'function') setTimeout(() => window.renderDashboardComercial(false), 50);
     } else if (target === 'comercial-comissao') {
         if (typeof window._comercialComissao !== 'undefined') setTimeout(() => window._comercialComissao.init(), 80);
     } else if (target === 'administrativo-senhas') {

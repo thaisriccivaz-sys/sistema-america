@@ -4982,7 +4982,7 @@ function _renderFormPropostaInt() {
                         <label class="prop-lbl">${v('fase_negociacao') === 'Cancelada' ? 'Motivo de Cancelamento *' : 'Motivo de Reprovação *'}</label>
                         <select id="prop-motivo-reprovacao" style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                             <option value="">-- Selecione o Motivo --</option>
-                            ${['Preço', 'Concorrência', 'Prazo', 'Especificação Técnica', 'Orçamento Esgotado', 'Outros'].map(opt => `<option value="${opt}" ${v('motivo_reprovacao')===opt?'selected':''}>${opt}</option>`).join('')}
+                            ${['Preço elevado', 'Cliente fechou com concorrente', 'Projeto cancelado', 'Cliente não respondeu', 'Prazo de entrega incompatível', 'Falta de disponibilidade de equipamento', 'Preço', 'Concorrência', 'Prazo', 'Especificação Técnica', 'Orçamento Esgotado', 'Outros'].map(opt => `<option value="${opt}" ${v('motivo_reprovacao')===opt?'selected':''}>${opt}</option>`).join('')}
                         </select>
                     </div>
 

@@ -74,7 +74,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Financeiro', pagina_id: 'compras-revisao', pagina_nome: 'Revisão', icone: 'ph-seal-check' },
     { modulo: 'Financeiro', pagina_id: 'compras-estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     // Módulo Comercial
-    { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-dashboard', pagina_nome: 'Dashboard', icone: 'ph-chart-line-up' }, { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
     { modulo: 'Comercial', pagina_id: 'comercial-tabela-precos', pagina_nome: 'Tabela Preços', icone: 'ph-table' },
     { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
     { modulo: 'Comercial', pagina_id: 'comercial-valores-avarias', pagina_nome: 'Valores de Avarias', icone: 'ph-warning-octagon' },
@@ -689,7 +689,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
+        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-dashboard', 'comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
