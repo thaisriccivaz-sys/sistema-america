@@ -43268,7 +43268,7 @@ app.post('/api/propostas/:id/anexos-contrato', authenticateToken, uploadAnexosCo
           }
         );
       });
-      inseridos.push({ id: newId, titulo: tituloAnexo, nome_arquivo: nomeOriginal });
+      inseridos.push({ id: newId, titulo: tituloAnexo, nome_arquivo: nomeOriginal, mime_type: mimeType, tamanho });
     }
 
     if (inseridos.length > 0) {
@@ -43287,7 +43287,7 @@ app.post('/api/propostas/:id/anexos-contrato', authenticateToken, uploadAnexosCo
         (e, r) => resolve(Array.isArray(r) ? r : [])
       );
     });
-    res.json({ success: true, anexos: todosAnexos });
+    res.json({ success: true, anexos: todosAnexos, inseridos });
   } catch (e) {
     console.error('[CONTRATOS_ANEXOS] Erro no upload de anexos:', e);
     res.status(500).json({ error: e.message || 'Erro ao anexar documento(s) ao contrato.' });
@@ -43492,9 +43492,11 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_contratos_comentarios (
   autor_departamento TEXT DEFAULT '',
   autor_foto_url TEXT DEFAULT '',
   comentario TEXT NOT NULL,
+  anexos_json TEXT DEFAULT '[]',
   criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
 )`, (errComCtr) => {
   if (errComCtr) console.error('[CONTRATOS_COMENTARIOS] Erro ao criar tabela comercial_contratos_comentarios:', errComCtr.message);
+  db.run("ALTER TABLE comercial_contratos_comentarios ADD COLUMN anexos_json TEXT DEFAULT '[]'", () => {});
 });
 
 function resolverDadosAutorComentarioContrato(reqUser, callback) {
@@ -43545,7 +43547,7 @@ app.get('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res)
   const propId = Number(req.params.id);
   if (!propId) return res.status(400).json({ error: 'ID inválido' });
   db.all(
-    'SELECT id, proposta_id, parent_id, usuario_id, usuario_username, colaborador_id, autor_nome, autor_departamento, autor_foto_url, comentario, criado_em FROM comercial_contratos_comentarios WHERE proposta_id = ? ORDER BY id ASC',
+    'SELECT id, proposta_id, parent_id, usuario_id, usuario_username, colaborador_id, autor_nome, autor_departamento, autor_foto_url, comentario, anexos_json, criado_em FROM comercial_contratos_comentarios WHERE proposta_id = ? ORDER BY id ASC',
     [propId],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -43595,7 +43597,16 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
   const propId = Number(req.params.id);
   if (!propId) return res.status(400).json({ error: 'ID do contrato inválido' });
   const textoComentario = String((req.body && req.body.comentario) || '').trim();
-  if (!textoComentario) return res.status(400).json({ error: 'Digite um comentário antes de enviar.' });
+  const anexosRaw = req.body && req.body.anexos_json
+    ? (typeof req.body.anexos_json === 'string' ? req.body.anexos_json : JSON.stringify(req.body.anexos_json))
+    : '[]';
+  let anexosArr = [];
+  try {
+    const pAn = JSON.parse(anexosRaw || '[]');
+    if (Array.isArray(pAn)) anexosArr = pAn;
+  } catch (_) {}
+  const anexosJsonStr = JSON.stringify(anexosArr);
+  if (!textoComentario && anexosArr.length === 0) return res.status(400).json({ error: 'Digite um comentário ou anexe um documento antes de enviar.' });
   const parentIdRaw = req.body && req.body.parent_id ? Number(req.body.parent_id) : null;
   const parentIdVal = (parentIdRaw && Number.isFinite(parentIdRaw) && parentIdRaw > 0) ? parentIdRaw : null;
 
@@ -43605,8 +43616,8 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
       db.run(
         `INSERT INTO comercial_contratos_comentarios (
           proposta_id, parent_id, usuario_id, usuario_username, colaborador_id,
-          autor_nome, autor_departamento, autor_foto_url, comentario, criado_em
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          autor_nome, autor_departamento, autor_foto_url, comentario, anexos_json, criado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           propId,
           parentIdVal,
@@ -43617,6 +43628,7 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
           autor.autor_departamento,
           autor.autor_foto_url,
           textoComentario,
+          anexosJsonStr,
           agora
         ],
         function (errIns) {
@@ -43631,7 +43643,9 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
             const titCtr = (propRow && propRow.titulo_contrato) ? String(propRow.titulo_contrato).trim() : '';
             const mDt = agora.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
             const dataHoraFmt = mDt ? `${mDt[3]}/${mDt[2]}/${mDt[1]} às ${mDt[4]}:${mDt[5]}` : agora;
-            const msgNotif = `Novo comentário no Contrato Nº ${numContrato} (${cliNome}) deixado por ${autor.autor_nome}: "${textoComentario}"`;
+            const resumoAnexos = anexosArr.length > 0 ? ` (${anexosArr.length} documento(s) anexado(s): ${anexosArr.map(a => a.nome_arquivo || a.titulo || 'anexo').join(', ')})` : '';
+            const textoParaNotif = (textoComentario || 'Documento(s) anexado(s) no comentário') + resumoAnexos;
+            const msgNotif = `Novo comentário no Contrato Nº ${numContrato} (${cliNome}) deixado por ${autor.autor_nome}: "${textoParaNotif}"`;
             const dadosJson = JSON.stringify({
               proposta_id: propId,
               comentario_id: novoId,
@@ -43642,7 +43656,7 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
               autor_nome: autor.autor_nome,
               autor_departamento: autor.autor_departamento,
               data_hora: dataHoraFmt,
-              comentario: textoComentario
+              comentario: textoParaNotif
             });
 
             db.all("SELECT DISTINCT usuario_id FROM config_notificacoes WHERE tipo = 'informacoes_adicionais_contrato'", [], (errCN, rowsCN) => {
@@ -43675,7 +43689,7 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
                   <div><strong>Cliente:</strong> ${escHtmlMail(cliNome)}</div>
                   <div><strong>Comentado por:</strong> ${escHtmlMail(autor.autor_nome)} (${escHtmlMail(autor.autor_departamento || 'Geral')})</div>
                   <div><strong>Data e Hora:</strong> ${escHtmlMail(dataHoraFmt)}</div>
-                  <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #c4b5fd;white-space:pre-wrap;"><strong>Comentário:</strong><br>${escHtmlMail(textoComentario)}</div>
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #c4b5fd;white-space:pre-wrap;"><strong>Comentário:</strong><br>${escHtmlMail(textoParaNotif)}</div>
                 </div>
                 <div style="text-align:center;margin-top:22px;">
                   <a href="${systemUrl}" style="background:#6d28d9;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:700;font-size:0.9rem;display:inline-block;">Acessar Sistema</a>
@@ -43702,6 +43716,7 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
               autor_departamento: autor.autor_departamento,
               autor_foto_url: autor.autor_foto_url,
               comentario: textoComentario,
+              anexos_json: anexosJsonStr,
               criado_em: agora
             }
           });

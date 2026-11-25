@@ -32418,11 +32418,78 @@ window._formatarTamanhoBytesAnexoContrato = function(bytes) {
 window._iconePorArquivoAnexoContrato = function(nomeArquivo, mimeType) {
     const ext = String(nomeArquivo || '').split('.').pop().toLowerCase();
     const mime = String(mimeType || '').toLowerCase();
-    if (ext === 'pdf' || mime.includes('pdf')) return { icon: 'ph-file-pdf', color: '#dc2626', bg: '#fef2f2' };
-    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || mime.startsWith('image/')) return { icon: 'ph-image', color: '#0284c7', bg: '#f0f9ff' };
-    if (['xls', 'xlsx', 'csv'].includes(ext) || mime.includes('spreadsheet') || mime.includes('excel')) return { icon: 'ph-file-xls', color: '#16a34a', bg: '#f0fdf4' };
-    if (['doc', 'docx'].includes(ext) || mime.includes('word')) return { icon: 'ph-file-doc', color: '#2563eb', bg: '#eff6ff' };
-    return { icon: 'ph-file-text', color: '#64748b', bg: '#f8fafc' };
+    if (ext === 'pdf' || mime.includes('pdf')) return { icon: 'ph-file-pdf', color: '#dc2626', bg: '#fef2f2', label: 'PDF', kind: 'pdf' };
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || mime.startsWith('image/')) return { icon: 'ph-image', color: '#0284c7', bg: '#f0f9ff', label: (ext || 'IMG').toUpperCase(), kind: 'image' };
+    if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext) || mime.startsWith('video/')) return { icon: 'ph-video-camera', color: '#7c3aed', bg: '#f5f3ff', label: (ext || 'VID').toUpperCase(), kind: 'video' };
+    if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext) || mime.startsWith('audio/')) return { icon: 'ph-speaker-high', color: '#0891b2', bg: '#ecfeff', label: (ext || 'AUD').toUpperCase(), kind: 'audio' };
+    if (['xls', 'xlsx', 'csv'].includes(ext) || mime.includes('spreadsheet') || mime.includes('excel')) return { icon: 'ph-file-xls', color: '#16a34a', bg: '#f0fdf4', label: (ext || 'XLS').toUpperCase(), kind: 'doc' };
+    if (['doc', 'docx'].includes(ext) || mime.includes('word')) return { icon: 'ph-file-doc', color: '#2563eb', bg: '#eff6ff', label: (ext || 'DOC').toUpperCase(), kind: 'doc' };
+    if (['ppt', 'pptx'].includes(ext) || mime.includes('presentation')) return { icon: 'ph-file-ppt', color: '#ea580c', bg: '#fff7ed', label: (ext || 'PPT').toUpperCase(), kind: 'doc' };
+    if (['zip', 'rar', '7z'].includes(ext) || mime.includes('zip') || mime.includes('compressed')) return { icon: 'ph-file-zip', color: '#ca8a04', bg: '#fefce8', label: (ext || 'ZIP').toUpperCase(), kind: 'doc' };
+    return { icon: 'ph-file-text', color: '#475569', bg: '#f8fafc', label: (ext && ext.length <= 5 ? ext.toUpperCase() : 'ARQ'), kind: 'doc' };
+};
+
+window._obterUrlArquivoAnexoContrato = function(anexoId, download = false, propIdOverride = null) {
+    const propId = Number(propIdOverride || _propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId || !anexoId) return '';
+    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    return `/api/propostas/${propId}/anexos-contrato/${encodeURIComponent(String(anexoId))} /arquivo`.replace(' /arquivo', '/arquivo') + `?${download ? 'download=1&' : ''}token=${encodeURIComponent(token)}`;
+};
+
+window._gerarHtmlMiniaturaAnexoContrato = function(anexo, tamanhoPx = 56) {
+    const a = anexo || {};
+    const ic = window._iconePorArquivoAnexoContrato(a.nome_arquivo, a.mime_type);
+    const idJsSafe = _escHtmlProp(String(a.id || '')).replace(/'/g, "\\'");
+    const urlInline = window._obterUrlArquivoAnexoContrato(a.id, false, a.proposta_id);
+    const w = Number(tamanhoPx) || 56;
+    const h = Number(tamanhoPx) || 56;
+    const badgeExt = `<span style="position:absolute; bottom:2px; right:2px; background:${ic.color}; color:#fff; font-size:0.56rem; font-weight:800; padding:1px 4px; border-radius:3px; line-height:1.1; pointer-events:none; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${_escHtmlProp(ic.label || 'ARQ')}</span>`;
+
+    if (ic.kind === 'image' && urlInline) {
+        return `
+            <div onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', false)" title="Clique para visualizar ${_escHtmlProp(a.nome_arquivo || 'imagem')}"
+                style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #cbd5e1; background:${ic.bg}; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+                <img src="${_escHtmlProp(urlInline)}" alt="${_escHtmlProp(a.nome_arquivo || '')}"
+                    style="width:100%; height:100%; object-fit:cover; display:block;"
+                    onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; flex-direction:column; color:${ic.color};">
+                    <i class="ph ${ic.icon}" style="font-size:1.35rem;"></i>
+                </div>
+                ${badgeExt}
+            </div>
+        `;
+    }
+
+    if (ic.kind === 'pdf' && urlInline) {
+        return `
+            <div onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', false)" title="Clique para visualizar ${_escHtmlProp(a.nome_arquivo || 'PDF')}"
+                style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #fca5a5; background:#ffffff; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+                <iframe src="${_escHtmlProp(urlInline)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" tabindex="-1"
+                    style="width:220px; height:220px; border:none; transform:scale(${(w / 220).toFixed(3)}); transform-origin:top left; pointer-events:none; position:absolute; top:0; left:0; background:#fff;"></iframe>
+                ${badgeExt}
+            </div>
+        `;
+    }
+
+    if (ic.kind === 'video' && urlInline) {
+        return `
+            <div onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', false)" title="Clique para abrir ${_escHtmlProp(a.nome_arquivo || 'vídeo')}"
+                style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #c4b5fd; background:#0f172a; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+                <video src="${_escHtmlProp(urlInline)}" muted preload="metadata" style="width:100%; height:100%; object-fit:cover; pointer-events:none;"></video>
+                ${badgeExt}
+            </div>
+        `;
+    }
+
+    // Demais formatos (Word, Excel, PowerPoint, ZIP, Áudio, TXT, etc.): miniatura estilo página de documento com dobra, linhas e selo colorido do formato
+    return `
+        <div onclick="window.abrirArquivoAnexoContrato('${idJsSafe}', false)" title="Clique para abrir ${_escHtmlProp(a.nome_arquivo || 'documento')}"
+            style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #cbd5e1; background:linear-gradient(145deg, #ffffff 0%, ${ic.bg} 100%); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+            <div style="position:absolute; top:0; right:0; width:12px; height:12px; background:#e2e8f0; border-bottom-left-radius:4px;"></div>
+            <i class="ph ${ic.icon}" style="font-size:1.45rem; color:${ic.color}; margin-bottom:6px;"></i>
+            ${badgeExt}
+        </div>
+    `;
 };
 
 window.carregarAnexosContratoAtivo = async function(propIdOpcional) {
@@ -32480,12 +32547,15 @@ window.renderizarListaAnexosContrato = function(lista) {
                         ? `<span style="font-size:0.7rem; font-weight:800; color:#854d0e; background:#fef9c3; border:1px solid #eab308; padding:2px 8px; border-radius:999px; white-space:nowrap;">Aditivo Assinado • Automático</span>`
                         : `<span style="font-size:0.7rem; font-weight:800; color:#0f766e; background:#ccfbf1; border:1px solid #5eead4; padding:2px 8px; border-radius:999px; white-space:nowrap;">Contrato Assinado • Automático</span>`)
                     : '';
+                const thumbHtml = typeof window._gerarHtmlMiniaturaAnexoContrato === 'function'
+                    ? window._gerarHtmlMiniaturaAnexoContrato(a, 54)
+                    : `<div style="width:44px; height:44px; border-radius:8px; background:${ic.bg}; color:${ic.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(0,0,0,0.06);">
+                        <i class="ph ${ic.icon}" style="font-size:1.25rem;"></i>
+                    </div>`;
                 return `
                     <div style="background:${ehAuto ? '#f8fafc' : '#ffffff'}; border:1px solid ${ehAuto ? '#99f6e4' : '#e2e8f0'}; border-radius:8px; padding:0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:center; gap:10px; flex:1 1 320px; min-width:240px;">
-                            <div style="width:36px; height:36px; border-radius:8px; background:${ic.bg}; color:${ic.color}; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(0,0,0,0.06);">
-                                <i class="ph ${ic.icon}" style="font-size:1.25rem;"></i>
-                            </div>
+                            ${thumbHtml}
                             <div style="flex:1; min-width:180px;">
                                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                     <span style="font-size:0.72rem; font-weight:800; color:#854d0e; background:#fef9c3; border:1px solid #fde047; padding:1px 6px; border-radius:4px; white-space:nowrap;">#${idx + 1}</span>
@@ -32550,7 +32620,7 @@ window.enviarArquivosAnexosContrato = async function(fileList) {
         files.forEach(f => fd.append('arquivos', f));
         if (tituloInicial) fd.append('titulo', tituloInicial);
 
-        const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const resp = await fetch(`/api/propostas/${propId}/anexos-contrato`, {
             method: 'POST',
             headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -32604,9 +32674,8 @@ window.salvarTituloAnexoContrato = async function(anexoId, novoTitulo) {
 window.abrirArquivoAnexoContrato = function(anexoId, download = false) {
     const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
     if (!propId || !anexoId) return;
-    const token = localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-    const url = `/api/propostas/${propId}/anexos-contrato/${anexoId}/arquivo?${download ? 'download=1&' : ''}token=${encodeURIComponent(token)}`;
-    window.open(url, '_blank');
+    const url = window._obterUrlArquivoAnexoContrato(anexoId, download, propId);
+    if (url) window.open(url, '_blank');
 };
 
 window.excluirAnexoContrato = async function(anexoId, nomeArquivo) {
@@ -32894,14 +32963,28 @@ window._ctrMontarDrawerComentarios = function() {
                     </div>
                 </div>
 
-                <!-- Campo "Comentários" fixo na base do drawer para adicionar novo comentário -->
+                <!-- Campo "Comentários" fixo na base do drawer para adicionar novo comentário e anexos (pasta ou Ctrl+V) -->
                 <div style="padding:10px 16px; border-top:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
-                    <label style="display:block; font-size:0.76rem; font-weight:800; color:#4c1d95; margin-bottom:4px; text-transform:none;">
-                        <i class="ph ph-chat-centered-text"></i> Comentários
-                    </label>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                        <label style="display:block; font-size:0.76rem; font-weight:800; color:#4c1d95; margin:0; text-transform:none;">
+                            <i class="ph ph-chat-centered-text"></i> Comentários
+                        </label>
+                        <span style="font-size:0.71rem; color:#64748b; font-weight:600;">
+                            <i class="ph ph-paperclip"></i> Anexe vários arquivos na pasta ou cole imagens/documentos com <strong>Ctrl+V</strong> (vão automaticamente para o quadro Anexos)
+                        </span>
+                    </div>
+                    <div id="prop-comentario-anexos-pending-main" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:6px; padding:6px 8px; background:#f5f3ff; border:1px dashed #c4b5fd; border-radius:8px;"></div>
                     <div style="display:flex; gap:8px; align-items:flex-end;">
+                        <input type="file" id="prop-comentario-files-inp-main" multiple style="display:none;" onchange="window.adicionarArquivosPendentesComentarioContrato(this.files, 'main'); this.value='';">
+                        <button type="button" onclick="document.getElementById('prop-comentario-files-inp-main')?.click()"
+                            title="Selecionar um ou vários documentos/imagens na pasta para anexar ao comentário e ao quadro Anexos"
+                            style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:8px; padding:0 0.85rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; height:42px; transition:background 0.15s;"
+                            onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+                            <i class="ph ph-paperclip" style="font-size:1.05rem;"></i> Anexar
+                        </button>
                         <textarea id="prop-comentario-contrato-novo-texto" rows="2"
-                            placeholder="Digite um comentário sobre este contrato... (Enter com Ctrl para enviar)"
+                            placeholder="Digite um comentário ou cole imagem/arquivo com Ctrl+V... (Ctrl+Enter para enviar)"
+                            onpaste="window.tratarPasteAnexoComentarioContrato(event, 'main')"
                             onkeydown="if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){ event.preventDefault(); window.enviarComentarioContrato(null); }"
                             style="flex:1; padding:0.5rem 0.7rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; resize:none; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
                         <button type="button" id="prop-btn-enviar-comentario-contrato" onclick="window.enviarComentarioContrato(null)"
@@ -32920,6 +33003,20 @@ window._ctrMontarDrawerComentarios = function() {
             const w = document.getElementById('ctr-comentarios-drawer-wrapper');
             if (w && !w.contains(e.target) && !e.target.closest('.swal2-container')) {
                 window._ctrToggleDrawerComentarios(false);
+            }
+        });
+
+        document.addEventListener('paste', function _ctrPasteGlobalComentarios(e) {
+            if (!window._ctrDrawerComentariosAberto) return;
+            const active = document.activeElement;
+            if (active && (active.id === 'prop-comentario-contrato-novo-texto' || String(active.id || '').startsWith('prop-comentario-reply-texto-'))) {
+                return; // já tratado pelo onpaste do próprio textarea
+            }
+            const cd = e.clipboardData;
+            if (!cd) return;
+            const hasFile = (cd.items && Array.from(cd.items).some(it => it && it.kind === 'file')) || (cd.files && cd.files.length > 0);
+            if (hasFile) {
+                window.tratarPasteAnexoComentarioContrato(e, 'main');
             }
         });
     }
@@ -33083,6 +33180,132 @@ window.toggleResponderComentarioContrato = function(comentarioId, autorNome) {
     }
 };
 
+window._comentariosAnexosPendentes = window._comentariosAnexosPendentes || {};
+
+window.adicionarArquivosPendentesComentarioContrato = function(fileList, targetKey = 'main') {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const key = String(targetKey || 'main');
+    if (!Array.isArray(window._comentariosAnexosPendentes[key])) {
+        window._comentariosAnexosPendentes[key] = [];
+    }
+    const now = Date.now();
+    files.forEach((f, idx) => {
+        if (!f) return;
+        let fileObj = f;
+        // Se foi colado via Ctrl+V como "image.png" genérico, gera um nome único com data/hora
+        if (/^image\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name || '')) {
+            const ext = (f.name.split('.').pop() || 'png').toLowerCase();
+            const dt = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const customName = `Print_${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}_${pad(dt.getHours())}h${pad(dt.getMinutes())}m${pad(dt.getSeconds())}s_${idx + 1}.${ext}`;
+            try {
+                fileObj = new File([f], customName, { type: f.type || 'image/png' });
+            } catch (_) {
+                fileObj = f;
+            }
+        }
+        const isImg = String(fileObj.type || '').toLowerCase().startsWith('image/');
+        const previewUrl = isImg && typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(fileObj) : '';
+        window._comentariosAnexosPendentes[key].push({
+            uid: `${now}_${Math.random().toString(36).slice(2, 7)}`,
+            file: fileObj,
+            name: fileObj.name || 'anexo',
+            size: fileObj.size || 0,
+            type: fileObj.type || '',
+            previewUrl
+        });
+    });
+    window.renderizarAnexosPendentesComentarioContrato(key);
+};
+
+window.removerArquivoPendenteComentarioContrato = function(targetKey, uid) {
+    const key = String(targetKey || 'main');
+    const arr = window._comentariosAnexosPendentes[key];
+    if (!Array.isArray(arr)) return;
+    const item = arr.find(x => x.uid === uid);
+    if (item && item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        try { URL.revokeObjectURL(item.previewUrl); } catch (_) {}
+    }
+    window._comentariosAnexosPendentes[key] = arr.filter(x => x.uid !== uid);
+    window.renderizarAnexosPendentesComentarioContrato(key);
+};
+
+window.limparArquivosPendentesComentarioContrato = function(targetKey) {
+    const key = String(targetKey || 'main');
+    const arr = window._comentariosAnexosPendentes[key];
+    if (Array.isArray(arr)) {
+        arr.forEach(item => {
+            if (item && item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+                try { URL.revokeObjectURL(item.previewUrl); } catch (_) {}
+            }
+        });
+    }
+    window._comentariosAnexosPendentes[key] = [];
+    window.renderizarAnexosPendentesComentarioContrato(key);
+};
+
+window.renderizarAnexosPendentesComentarioContrato = function(targetKey = 'main') {
+    const key = String(targetKey || 'main');
+    const box = document.getElementById(`prop-comentario-anexos-pending-${key}`);
+    if (!box) return;
+    const arr = Array.isArray(window._comentariosAnexosPendentes[key]) ? window._comentariosAnexosPendentes[key] : [];
+    if (!arr.length) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+    }
+    box.style.display = 'flex';
+    box.innerHTML = arr.map(item => {
+        const ic = window._iconePorArquivoAnexoContrato(item.name, item.type);
+        const tam = window._formatarTamanhoBytesAnexoContrato(item.size);
+        const thumb = item.previewUrl
+            ? `<img src="${_escHtmlProp(item.previewUrl)}" style="width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid #cbd5e1; flex-shrink:0;">`
+            : `<div style="width:34px; height:34px; border-radius:6px; background:${ic.bg}; color:${ic.color}; border:1px solid #cbd5e1; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; position:relative;">
+                <i class="ph ${ic.icon}" style="font-size:1.05rem;"></i>
+                <span style="font-size:0.48rem; font-weight:800; line-height:1;">${_escHtmlProp(ic.label || 'ARQ')}</span>
+            </div>`;
+        return `
+            <div style="display:inline-flex; align-items:center; gap:7px; background:#ffffff; border:1px solid #c4b5fd; border-radius:8px; padding:4px 8px; max-width:260px; box-shadow:0 1px 2px rgba(15,23,42,0.05);">
+                ${thumb}
+                <div style="min-width:0; flex:1;">
+                    <div style="font-size:0.74rem; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${_escHtmlProp(item.name)}">${_escHtmlProp(item.name)}</div>
+                    <div style="font-size:0.66rem; color:#64748b;">${_escHtmlProp(tam || ic.label || '')}</div>
+                </div>
+                <button type="button" onclick="window.removerArquivoPendenteComentarioContrato('${_escHtmlProp(key)}', '${_escHtmlProp(item.uid)}')" title="Remover anexo pendente"
+                    style="background:#fee2e2; color:#dc2626; border:none; width:20px; height:20px; border-radius:50%; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; flex-shrink:0;">
+                    &times;
+                </button>
+            </div>
+        `;
+    }).join('');
+};
+
+window.tratarPasteAnexoComentarioContrato = function(event, targetKey = 'main') {
+    const cd = event && (event.clipboardData || (event.originalEvent && event.originalEvent.clipboardData));
+    if (!cd) return;
+    const files = [];
+    if (cd.items && cd.items.length) {
+        for (let i = 0; i < cd.items.length; i++) {
+            const it = cd.items[i];
+            if (it && it.kind === 'file') {
+                const f = it.getAsFile();
+                if (f) files.push(f);
+            }
+        }
+    } else if (cd.files && cd.files.length) {
+        for (let i = 0; i < cd.files.length; i++) {
+            files.push(cd.files[i]);
+        }
+    }
+    if (files.length > 0) {
+        window.adicionarArquivosPendentesComentarioContrato(files, targetKey);
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`${files.length} arquivo(s) colado(s)! Clique em Adicionar Comentário para enviar.`);
+        }
+    }
+};
+
 window.enviarComentarioContrato = async function(parentIdOpcional) {
     const propId = Number(_propostasEditandoId || window._propostasEditandoId_contrato);
     if (!propId) {
@@ -33092,13 +33315,16 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
         return;
     }
     const parentId = (parentIdOpcional && Number(parentIdOpcional) > 0) ? Number(parentIdOpcional) : null;
+    const targetKey = parentId ? `reply_${parentId}` : 'main';
     const inputEl = parentId
         ? document.getElementById(`prop-comentario-reply-texto-${parentId}`)
         : document.getElementById('prop-comentario-contrato-novo-texto');
     const texto = inputEl ? String(inputEl.value || '').trim() : '';
-    if (!texto) {
+    const pendentes = Array.isArray(window._comentariosAnexosPendentes[targetKey]) ? window._comentariosAnexosPendentes[targetKey] : [];
+
+    if (!texto && pendentes.length === 0) {
         if (typeof Swal !== 'undefined') {
-            Swal.fire({ icon: 'warning', title: 'Comentário vazio', text: 'Digite uma mensagem antes de enviar o comentário.' });
+            Swal.fire({ icon: 'warning', title: 'Comentário vazio', text: 'Digite uma mensagem ou anexe um documento antes de enviar o comentário.' });
         }
         if (inputEl) inputEl.focus();
         return;
@@ -33115,6 +33341,33 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
 
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        let anexosInseridos = [];
+
+        // Se houver arquivos anexados ou colados no comentário, envia primeiro para o quadro de Anexos do contrato (Cloudflare R2)
+        if (pendentes.length > 0) {
+            const fd = new FormData();
+            pendentes.forEach(item => {
+                if (item && item.file) fd.append('arquivos', item.file);
+            });
+            const titPadrao = texto ? `Anexo de comentário: ${texto.slice(0, 60)}` : 'Anexo enviado via Comentários';
+            fd.append('titulo', titPadrao);
+
+            const respAnexo = await fetch(`/api/propostas/${propId}/anexos-contrato`, {
+                method: 'POST',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                body: fd
+            });
+            const dataAnexo = await respAnexo.json().catch(() => ({}));
+            if (!respAnexo.ok || dataAnexo.error) {
+                throw new Error(dataAnexo.error || 'Falha ao enviar documento(s) anexo(s) do comentário.');
+            }
+            if (Array.isArray(dataAnexo.inseridos) && dataAnexo.inseridos.length > 0) {
+                anexosInseridos = dataAnexo.inseridos;
+            } else if (Array.isArray(dataAnexo.anexos)) {
+                anexosInseridos = dataAnexo.anexos.slice(-pendentes.length);
+            }
+        }
+
         const resp = await fetch(`/api/propostas/${propId}/comentarios-contrato`, {
             method: 'POST',
             headers: {
@@ -33123,7 +33376,8 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
             },
             body: JSON.stringify({
                 comentario: texto,
-                parent_id: parentId
+                parent_id: parentId,
+                anexos_json: anexosInseridos
             })
         });
         const data = await resp.json().catch(() => ({}));
@@ -33131,12 +33385,20 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
             throw new Error(data.error || 'Não foi possível registrar o comentário.');
         }
         if (inputEl) inputEl.value = '';
+        window.limparArquivosPendentesComentarioContrato(targetKey);
         if (parentId) {
             window._comentariosContratoReplyAberto[String(parentId)] = false;
         }
         await window.carregarComentariosContratoAtivo(propId, false);
+        if (anexosInseridos.length > 0 && typeof window.carregarAnexosContratoAtivo === 'function') {
+            await window.carregarAnexosContratoAtivo(propId);
+        }
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso(parentId ? 'Resposta adicionada ao comentário!' : 'Comentário registrado no histórico do contrato!');
+            mostrarToastSucesso(
+                anexosInseridos.length > 0
+                    ? `Comentário registrado e ${anexosInseridos.length} documento(s) incluído(s) no quadro Anexos!`
+                    : (parentId ? 'Resposta adicionada ao comentário!' : 'Comentário registrado no histórico do contrato!')
+            );
         }
     } catch (e) {
         if (typeof Swal !== 'undefined') {
@@ -33299,16 +33561,62 @@ window.renderizarListaComentariosContrato = function(lista) {
                         </div>
                     </div>
 
-                    <!-- Texto do Comentário -->
-                    <div style="margin-top:0.45rem; padding-left:45px; font-size:0.83rem; color:#1e293b; line-height:1.45; white-space:pre-wrap; word-break:break-word;">${_escHtmlProp(c.comentario || '')}</div>
+                    <!-- Texto do Comentário e Anexos -->
+                    ${c.comentario ? `<div style="margin-top:0.45rem; padding-left:45px; font-size:0.83rem; color:#1e293b; line-height:1.45; white-space:pre-wrap; word-break:break-word;">${_escHtmlProp(c.comentario)}</div>` : ''}
+                    ${(() => {
+                        let anexosCom = [];
+                        try {
+                            if (c.anexos_json) {
+                                anexosCom = typeof c.anexos_json === 'string' ? JSON.parse(c.anexos_json || '[]') : (Array.isArray(c.anexos_json) ? c.anexos_json : []);
+                            }
+                        } catch (_) {}
+                        if (!Array.isArray(anexosCom) || !anexosCom.length) return '';
+                        return `
+                            <div style="margin-top:0.5rem; padding-left:45px; display:flex; flex-wrap:wrap; gap:8px;">
+                                ${anexosCom.map(ax => {
+                                    const axObj = Object.assign({ proposta_id: c.proposta_id || propIdAtu }, ax);
+                                    const idAxSafe = _escHtmlProp(String(axObj.id || '')).replace(/'/g, "\\'");
+                                    const thumbAx = typeof window._gerarHtmlMiniaturaAnexoContrato === 'function'
+                                        ? window._gerarHtmlMiniaturaAnexoContrato(axObj, 46)
+                                        : '';
+                                    const tamAx = window._formatarTamanhoBytesAnexoContrato(axObj.tamanho);
+                                    return `
+                                        <div style="display:inline-flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:5px 9px; max-width:310px;">
+                                            ${thumbAx}
+                                            <div style="min-width:0; flex:1;">
+                                                <div style="font-size:0.75rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${_escHtmlProp(axObj.nome_arquivo || axObj.titulo || 'Anexo')}">
+                                                    ${_escHtmlProp(axObj.nome_arquivo || axObj.titulo || 'Anexo')}
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                                    ${tamAx ? `<span style="font-size:0.67rem; color:#64748b;">${_escHtmlProp(tamAx)}</span>` : ''}
+                                                    <button type="button" onclick="window.abrirArquivoAnexoContrato('${idAxSafe}', false)" style="background:transparent; border:none; color:#2563eb; font-size:0.7rem; font-weight:700; cursor:pointer; padding:0;">Visualizar</button>
+                                                    <button type="button" onclick="window.abrirArquivoAnexoContrato('${idAxSafe}', true)" style="background:transparent; border:none; color:#15803d; font-size:0.7rem; font-weight:700; cursor:pointer; padding:0;">Baixar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    })()}
 
                     <!-- Caixa para responder dentro deste comentário -->
                     <div id="prop-comentario-reply-box-${idNum}" style="display:${replyAberto ? 'block' : 'none'}; margin-top:0.55rem; margin-left:45px; background:#f8fafc; border:1px solid #ddd6fe; border-radius:8px; padding:0.5rem 0.65rem;">
                         <div style="font-size:0.72rem; font-weight:700; color:#5b21b6; margin-bottom:4px;">
                             <i class="ph ph-arrow-bend-down-right"></i> Responder ao comentário de ${_escHtmlProp(c.autor_nome || 'Colaborador')}
                         </div>
+                        <div id="prop-comentario-anexos-pending-reply_${idNum}" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:6px; padding:5px 7px; background:#f5f3ff; border:1px dashed #c4b5fd; border-radius:7px;"></div>
                         <div style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap;">
-                            <textarea id="prop-comentario-reply-texto-${idNum}" rows="2" placeholder="Escreva seu comentário dentro deste comentário..." style="flex:1; min-width:200px; padding:0.45rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                            <input type="file" id="prop-comentario-files-inp-reply_${idNum}" multiple style="display:none;" onchange="window.adicionarArquivosPendentesComentarioContrato(this.files, 'reply_${idNum}'); this.value='';">
+                            <button type="button" onclick="document.getElementById('prop-comentario-files-inp-reply_${idNum}')?.click()"
+                                title="Anexar documentos/imagens nesta resposta"
+                                style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; padding:0 0.65rem; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; height:34px;">
+                                <i class="ph ph-paperclip"></i> Anexar
+                            </button>
+                            <textarea id="prop-comentario-reply-texto-${idNum}" rows="2"
+                                placeholder="Escreva sua resposta ou cole imagem/arquivo com Ctrl+V..."
+                                onpaste="window.tratarPasteAnexoComentarioContrato(event, 'reply_${idNum}')"
+                                style="flex:1; min-width:200px; padding:0.45rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
                             <div style="display:flex; gap:5px;">
                                 <button type="button" id="prop-btn-enviar-reply-comentario-${idNum}" onclick="window.enviarComentarioContrato(${idNum})" style="background:#6d28d9; color:#ffffff; border:none; border-radius:6px; padding:0.42rem 0.8rem; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; height:34px;">
                                     <i class="ph ph-paper-plane-right"></i> Enviar Resposta
