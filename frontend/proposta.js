@@ -1776,10 +1776,7 @@ window.renderQuadroAssinaturaDigitalContratoHtml = function(prop, usarDraft = fa
     const titleBloqQuadro = _escHtmlProp((stProntoQuadro && stProntoQuadro.motivo) || '');
 
     const rodapeBotaoEnviarHtml = !foiAssinadoGeral ? `
-        <div style="margin-top:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-            <span style="font-size:0.75rem; color:#475569;">
-                Adicione todos os signatários desejados na lista acima (incluindo pelo menos 1 <strong>Responsável Legal</strong>) e clique em <strong>Enviar para Assinatura</strong> para disparar ${labelDocQuadro.toLowerCase()}.
-            </span>
+        <div style="margin-top:10px; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px;">
             <button type="button" id="btn-quadro-enviar-assinatura-contrato" onclick="window.enviarContratoParaAssinaturaPeloQuadro()"
                 ${infoContratoCompletaQuadro ? '' : 'disabled'}
                 title="${infoContratoCompletaQuadro ? '' : titleBloqQuadro}"
@@ -5833,18 +5830,8 @@ window.aplicarBloqueioCamposPropostaNoContrato = function() {
 
     const garantirBannerSomenteLeitura = (bodyEl, idBanner) => {
         if (!bodyEl) return;
-        let banner = document.getElementById(idBanner);
-        if (!isCtr) {
-            if (banner) banner.remove();
-            return;
-        }
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = idBanner;
-            banner.style.cssText = 'background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:6px; padding:6px 10px; font-size:0.76rem; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:6px;';
-            banner.innerHTML = `<i class="ph ph-lock-key" style="font-size:0.95rem; color:#ea580c; flex-shrink:0;"></i> <span>Somente leitura no Contrato. Para alterar estas informações, estorne a proposta e realize a alteração na tela de Proposta.</span>`;
-            bodyEl.insertBefore(banner, bodyEl.firstChild);
-        }
+        const banner = document.getElementById(idBanner);
+        if (banner) banner.remove();
     };
 
     // 1. Período e Condições (mantendo Instalação editável para permitir adicionar mais de um endereço de instalação no Contrato)
@@ -32881,37 +32868,13 @@ window._ctrMontarDrawerComentarios = function() {
                     order:-1; pointer-events:auto;
                 "
             >
-                <!-- Cabeçalho do Painel + Filtros -->
+                <!-- Cabeçalho do Painel -->
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-wrap:wrap; flex-shrink:0;">
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         <i class="ph ph-chats-circle" style="color:#6d28d9; font-size:1.15rem;"></i>
                         <span style="font-weight:800; font-size:0.86rem; color:#1e293b;">Comentários do Contrato</span>
-                        <span style="background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:700;">
-                            Histórico (mais antigos acima • mais novos abaixo)
-                        </span>
                     </div>
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-left:auto;">
-                        <input type="text" id="prop-comentarios-filtro-usuario" list="prop-comentarios-datalist-usuarios"
-                            oninput="window.filtrarComentariosContratoEmTempoReal()"
-                            placeholder="Filtrar por usuário..." autocomplete="off"
-                            style="height:28px; width:170px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
-                        <datalist id="prop-comentarios-datalist-usuarios"></datalist>
-
-                        <input type="text" id="prop-comentarios-filtro-departamento" list="prop-comentarios-datalist-departamentos"
-                            oninput="window.filtrarComentariosContratoEmTempoReal()"
-                            placeholder="Departamento..." autocomplete="off"
-                            style="height:28px; width:135px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
-                        <datalist id="prop-comentarios-datalist-departamentos"></datalist>
-
-                        <input type="date" id="prop-comentarios-filtro-data"
-                            oninput="window.filtrarComentariosContratoEmTempoReal()" onchange="window.filtrarComentariosContratoEmTempoReal()"
-                            style="height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; text-transform:none;">
-
-                        <button type="button" onclick="window.limparFiltrosComentariosContrato()" title="Limpar filtros"
-                            style="height:28px; padding:0 9px; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                            <i class="ph ph-funnel-x"></i> Limpar
-                        </button>
-
                         <button type="button" onclick="window.carregarComentariosContratoAtivo(null, true)" title="Atualizar comentários"
                             style="height:28px; padding:0 10px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                             <i class="ph ph-arrows-clockwise"></i> Atualizar
@@ -33151,11 +33114,12 @@ window.enviarComentarioContrato = async function(parentIdOpcional) {
     }
 
     try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
         const resp = await fetch(`/api/propostas/${propId}/comentarios-contrato`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 comentario: texto,
