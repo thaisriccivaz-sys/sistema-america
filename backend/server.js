@@ -42614,7 +42614,7 @@ function resolverContextoUsuarioComercial(userJwt) {
   });
 }
 
-function obterListaAtendentesComercial() {
+function obterListaAtendentesComercial(incluirDesligados = false) {
   return new Promise((resolve) => {
     const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const matchNomeFlex = (a, b) => {
@@ -42631,9 +42631,13 @@ function obterListaAtendentesComercial() {
     };
 
     const qAll = (sql, params = []) => new Promise((res) => db.all(sql, params, (e, r) => res(Array.isArray(r) ? r : [])));
+    const sqlColabs = incluirDesligados
+      ? "SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, data_desligamento FROM colaboradores"
+      : "SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, data_desligamento FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'";
+
     Promise.all([
-      qAll("SELECT id, nome_completo, email, email_corporativo, departamento, cargo FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'"),
-      qAll('SELECT id, username, nome, email, departamento FROM usuarios WHERE COALESCE(ativo, 1) = 1'),
+      qAll(sqlColabs),
+      qAll('SELECT id, username, nome, email, departamento, ativo FROM usuarios'),
       qAll("SELECT email, colaborador_id, colaborador_nome FROM emails_corporativos WHERE status = 'ativo'"),
       qAll('SELECT id, nome, responsavel_id, responsavel_nome FROM departamentos')
     ]).then(([colabs, usuarios, emailsCorp, departamentos]) => {
@@ -42649,6 +42653,12 @@ function obterListaAtendentesComercial() {
         if (!nomeExibicao) return;
         const chave = normStr(nomeExibicao);
         if (!chave) return;
+
+        const isDesligado = Boolean(
+          (colab && (normStr(colab.status) === 'desligado' || (colab.data_desligamento && String(colab.data_desligamento).trim()))) ||
+          (!colab && userFallback && Number(userFallback.ativo) === 0)
+        );
+        if (isDesligado && !incluirDesligados) return;
 
         let ec = null;
         if (colab) {
@@ -42675,6 +42685,10 @@ function obterListaAtendentesComercial() {
         const existente = mapPorNome.get(chave);
         if (existente) {
           if (isGestorFlag) existente.is_gestor = true;
+          if (!isDesligado) {
+            existente.desligado = false;
+            existente.status = 'Ativo';
+          }
           if (!existente.email_corporativo && emailCorp) existente.email_corporativo = emailCorp;
           if (!existente.username && userVinc && userVinc.username) existente.username = userVinc.username;
           return;
@@ -42685,11 +42699,13 @@ function obterListaAtendentesComercial() {
           nome: nomeExibicao,
           username: userVinc ? String(userVinc.username || '').trim() : '',
           email_corporativo: emailCorp,
-          is_gestor: Boolean(isGestorFlag)
+          is_gestor: Boolean(isGestorFlag),
+          desligado: isDesligado,
+          status: isDesligado ? 'Desligado' : 'Ativo'
         });
       };
 
-      // 1) Colaboradores do departamento Comercial
+      // 1) Colaboradores do departamento Comercial (ativos e, se solicitado, desligados)
       colabs.forEach(c => {
         if (normStr(c.departamento).includes('comercial')) {
           const ehGestor = (gestorColabId && Number(c.id) === gestorColabId) || (gestorNomeRef && matchNomeFlex(c.nome_completo, gestorNomeRef));
@@ -42711,7 +42727,13 @@ function obterListaAtendentesComercial() {
         }
       }
 
-      const listaFinal = Array.from(mapPorNome.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      // Ordenar: Ativos primeiro (em ordem alfabética), Desligados no final (em ordem alfabética)
+      const listaFinal = Array.from(mapPorNome.values()).sort((a, b) => {
+        if (Boolean(a.desligado) !== Boolean(b.desligado)) {
+          return a.desligado ? 1 : -1;
+        }
+        return a.nome.localeCompare(b.nome, 'pt-BR');
+      });
       resolve(listaFinal);
     }).catch(() => resolve([]));
   });
@@ -42719,7 +42741,8 @@ function obterListaAtendentesComercial() {
 
 app.get('/api/comercial/atendentes', authenticateToken, async (req, res) => {
   try {
-    const lista = await obterListaAtendentesComercial();
+    const incluirDesligados = req.query.incluir_desligados === '1' || req.query.incluir_desligados === 'true';
+    const lista = await obterListaAtendentesComercial(incluirDesligados);
     res.json(lista);
   } catch (e) {
     res.status(500).json({ error: e.message });
