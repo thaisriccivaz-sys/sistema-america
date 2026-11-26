@@ -42253,6 +42253,10 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN contato_instalacao_contrato TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN aditivo_operacao TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN aditivo_itens_substituidos_json TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN numero_os TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN status_os TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN os_criada_em TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN os_tipo_operacao TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Limpar datas de período de cobrança que foram pré-preenchidas automaticamente a partir do período da proposta
     db.run("UPDATE propostas SET periodo_cobranca_inicio = NULL, periodo_cobranca_fim = NULL WHERE periodo_cobranca_inicio = periodo_inicio AND periodo_cobranca_fim = periodo_fim AND (contatos_responsaveis_contrato_json IS NULL OR TRIM(contatos_responsaveis_contrato_json) IN ('', '{}', '{\"nfe\":[],\"cobranca\":[],\"os\":[],\"instalacao\":\"\"}'))", () => {});
@@ -42348,6 +42352,22 @@ function gerarCodigoContrato(cb) {
     let maxSeq = 0;
     (rowsProp || []).forEach(r => {
       const c = String(r.contrato || '').trim();
+      if (/^\d+$/.test(c)) {
+        const n = parseInt(c, 10);
+        if (n > maxSeq) maxSeq = n;
+      }
+    });
+    const seq = maxSeq + 1;
+    cb(String(seq).padStart(2, '0'));
+  });
+}
+
+// Gerar código único sequencial próprio para OS Comercial (01, 02, 03...)
+function gerarCodigoOsComercial(cb) {
+  db.all("SELECT numero_os FROM propostas WHERE numero_os IS NOT NULL AND TRIM(numero_os) != ''", [], (err, rowsProp) => {
+    let maxSeq = 0;
+    (rowsProp || []).forEach(r => {
+      const c = String(r.numero_os || '').trim();
       if (/^\d+$/.test(c)) {
         const n = parseInt(c, 10);
         if (n > maxSeq) maxSeq = n;
@@ -43469,7 +43489,7 @@ app.delete('/api/propostas/:id/anexos-contrato/:anexoId', authenticateToken, asy
 app.get('/api/propostas/:id/os-contrato', authenticateToken, (req, res) => {
   const propId = Number(req.params.id);
   if (!propId) return res.status(400).json({ error: 'ID inválido' });
-  db.get('SELECT id, codigo, contrato, cliente_nome, endereco_instalacao FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+  db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
     if (errP) return res.status(500).json({ error: errP.message });
     if (!prop) return res.status(404).json({ error: 'Contrato não encontrado' });
 
@@ -43486,21 +43506,190 @@ app.get('/api/propostas/:id/os-contrato', authenticateToken, (req, res) => {
         const cRaw = String(r.contrato || '').trim();
         if (!cRaw) return false;
         if (normToken(cRaw) === normToken(numCtrRaw)) return true;
-        // Extrai números caso esteja como "05", "5", "CT 05", "CONTRATO 05"
         const tokens = cRaw.split(/[\s,;/|-]+/).map(t => t.replace(/^0+/, '') || '0');
         if (numCtrInt !== null && tokens.includes(String(numCtrInt))) return true;
         const onlyDigits = cRaw.replace(/\D+/g, '');
         if (numCtrInt !== null && onlyDigits && parseInt(onlyDigits, 10) === numCtrInt) return true;
         return false;
       });
+
+      const listaCombinada = [];
+      if (prop.numero_os && String(prop.numero_os).trim()) {
+        listaCombinada.push({
+          id: `com_os_${prop.id}`,
+          proposta_id: prop.id,
+          is_os_comercial: true,
+          numero_os: String(prop.numero_os).trim(),
+          contrato: numCtrRaw,
+          tipo_servico: prop.os_tipo_operacao || 'Entrega de equipamentos',
+          status_os: prop.status_os || 'LIBERADO',
+          data_os: String(prop.os_criada_em || '').slice(0, 10),
+          endereco: prop.endereco_instalacao || '',
+          responsavel: prop.contato_instalacao_contrato || prop.contato_nome || '',
+          produtos: prop.itens || '[]',
+          observacoes: prop.observacoes || ''
+        });
+      }
+      matched.forEach(m => listaCombinada.push(m));
+
       res.json({
         success: true,
         contrato: numCtrRaw,
         codigo_proposta: prop.codigo || '',
-        os_list: matched
+        os_list: listaCombinada
       });
     });
   });
+});
+
+// POST /api/propostas/:id/gerar-os-comercial - Gera OS Comercial sequencial para contrato assinado
+app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    if (!propId) return res.status(400).json({ error: 'ID inválido.' });
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+
+    db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+      if (errP) return res.status(500).json({ error: errP.message });
+      if (!prop) return res.status(404).json({ error: 'Contrato não encontrado.' });
+
+      const sitUp = String(prop.situacao_contrato || '').trim().toUpperCase();
+      const assSt = String(prop.assinafy_status || '').trim().toLowerCase();
+      const contratoAssinado = sitUp === 'CONTRATO ASSINADO' ||
+        sitUp === 'CONTRATO DIGITAL ASSINADO' ||
+        sitUp === 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA' ||
+        sitUp === 'NAO ASSINA CONTRATO - ENTREGA LIBERADA' ||
+        assSt === 'assinado' || assSt === 'signed' || assSt === 'certificated' ||
+        Boolean(prop.assinafy_signed_at) || Boolean(prop.assinafy_signed_r2_key);
+
+      if (!contratoAssinado) {
+        return res.status(400).json({ error: 'O contrato precisa estar assinado para poder gerar a OS.' });
+      }
+
+      if (prop.numero_os && String(prop.numero_os).trim()) {
+        return res.json({
+          success: true,
+          ja_existia: true,
+          numero_os: String(prop.numero_os).trim(),
+          status_os: prop.status_os || 'LIBERADO',
+          os_criada_em: prop.os_criada_em || '',
+          os_tipo_operacao: prop.os_tipo_operacao || 'Entrega de equipamentos',
+          proposta: prop
+        });
+      }
+
+      const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+      const dataHojeIso = agora.substring(0, 10);
+
+      gerarCodigoOsComercial((novoNumOs) => {
+        const statusInicial = 'LIBERADO';
+        const tipoOpInicial = 'Entrega de equipamentos';
+        db.run(
+          'UPDATE propostas SET numero_os = ?, status_os = ?, os_criada_em = ?, os_tipo_operacao = ?, atualizado_em = ? WHERE id = ?',
+          [novoNumOs, statusInicial, dataHojeIso, tipoOpInicial, agora, propId],
+          function(errUp) {
+            if (errUp) return res.status(500).json({ error: errUp.message });
+            const snap = JSON.stringify(Object.assign({}, prop, {
+              _origem_log: 'contrato',
+              numero_os: novoNumOs,
+              status_os: statusInicial,
+              os_criada_em: dataHojeIso,
+              os_tipo_operacao: tipoOpInicial
+            }));
+            db.run(
+              `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+               VALUES (?, 'Proposta', ?, 'OS Gerada do Contrato', '', ?, ?)`,
+              [autor, propId, `OS Nº ${novoNumOs} (${tipoOpInicial} · Status: ${statusInicial})`, snap]
+            );
+            const propAtualizada = Object.assign({}, prop, {
+              numero_os: novoNumOs,
+              status_os: statusInicial,
+              os_criada_em: dataHojeIso,
+              os_tipo_operacao: tipoOpInicial
+            });
+            res.json({
+              success: true,
+              ja_existia: false,
+              numero_os: novoNumOs,
+              status_os: statusInicial,
+              os_criada_em: dataHojeIso,
+              os_tipo_operacao: tipoOpInicial,
+              proposta: propAtualizada
+            });
+          }
+        );
+      });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao gerar OS.' });
+  }
+});
+
+// PATCH /api/propostas/:id/os-comercial - Atualiza Status da OS e informações na tela de OS do Comercial
+app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    if (!propId) return res.status(400).json({ error: 'ID inválido.' });
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const b = req.body || {};
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+      if (errP) return res.status(500).json({ error: errP.message });
+      if (!prop) return res.status(404).json({ error: 'OS não encontrada.' });
+
+      const novoStatusOs = b.status_os !== undefined ? String(b.status_os || 'LIBERADO').trim() : (prop.status_os || 'LIBERADO');
+      const novaDataOs = b.os_criada_em !== undefined ? String(b.os_criada_em || '').trim() : (prop.os_criada_em || agora.substring(0, 10));
+      const novoTitulo = b.titulo_contrato !== undefined ? String(b.titulo_contrato || '').trim() : (prop.titulo_contrato || '');
+      const novasObs = b.observacoes !== undefined ? String(b.observacoes || '') : (prop.observacoes || '');
+      const novoEnd = b.endereco_instalacao !== undefined ? String(b.endereco_instalacao || '') : (prop.endereco_instalacao || '');
+      const novosContatosJson = b.contatos_responsaveis_contrato_json !== undefined
+        ? (typeof b.contatos_responsaveis_contrato_json === 'string' ? b.contatos_responsaveis_contrato_json : JSON.stringify(b.contatos_responsaveis_contrato_json))
+        : (prop.contatos_responsaveis_contrato_json || '');
+      const novoContatoInst = b.contato_instalacao_contrato !== undefined ? String(b.contato_instalacao_contrato || '') : (prop.contato_instalacao_contrato || '');
+      const novasDatasEntrega = b.datas_entrega_equipamentos !== undefined ? String(b.datas_entrega_equipamentos || '') : (prop.datas_entrega_equipamentos || '');
+      const novasDatasRetirada = b.datas_retirada_equipamentos !== undefined ? String(b.datas_retirada_equipamentos || '') : (prop.datas_retirada_equipamentos || '');
+
+      db.run(
+        `UPDATE propostas SET
+          status_os = ?,
+          os_criada_em = ?,
+          titulo_contrato = ?,
+          observacoes = ?,
+          endereco_instalacao = ?,
+          contatos_responsaveis_contrato_json = ?,
+          contato_instalacao_contrato = ?,
+          datas_entrega_equipamentos = ?,
+          datas_retirada_equipamentos = ?,
+          atualizado_em = ?
+         WHERE id = ?`,
+        [novoStatusOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, agora, propId],
+        function(errUp) {
+          if (errUp) return res.status(500).json({ error: errUp.message });
+          if (String(prop.status_os || 'LIBERADO') !== novoStatusOs) {
+            const snap = JSON.stringify(Object.assign({}, prop, {
+              _origem_log: 'os_comercial',
+              status_os: novoStatusOs
+            }));
+            db.run(
+              `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+               VALUES (?, 'Proposta', ?, 'Status da OS', ?, ?, ?)`,
+              [autor, propId, String(prop.status_os || 'LIBERADO'), novoStatusOs, snap]
+            );
+          }
+          res.json({
+            success: true,
+            status_os: novoStatusOs,
+            os_criada_em: novaDataOs
+          });
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao salvar OS.' });
+  }
 });
 
 // ── COMENTÁRIOS DO CONTRATO (Histórico imutável com respostas aninhadas — sem edição e sem exclusão) ──

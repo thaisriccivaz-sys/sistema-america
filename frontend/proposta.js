@@ -4764,6 +4764,12 @@ function _renderFormPropostaInt() {
                             <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}" style="font-size:1rem;"></i>
                             <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
+                        <button type="button" id="btn-prop-gerar-os-contrato" onclick="window.gerarOsComercialDoContrato(${id || 'null'})" title="Gerar OS Comercial vinculada a este contrato assinado" style="display:${(!isNovo && window._modoTelaComercial === 'contrato' && !Boolean(v('numero_os') && String(v('numero_os')).trim()) && (['CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO', 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase()) || Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)))) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                            <i class="ph ph-clipboard-text" style="font-size:1rem;"></i> <span>Gerar OS</span>
+                        </button>
+                        <button type="button" id="btn-prop-abrir-os-comercial" onclick="window.abrirOsComercialDaProposta(${id || 'null'})" title="Abrir a OS Nº ${_escHtmlProp(v('numero_os') || '01')} na tela de OS do Comercial" style="display:${(!isNovo && Boolean(v('numero_os') && String(v('numero_os')).trim())) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
+                            <i class="ph ph-clipboard-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-os-comercial">OS Nº ${_escHtmlProp(v('numero_os') || '01')}</span>
+                        </button>
                         <button type="button" id="btn-prop-abrir-contrato" onclick="window.abrirContratoDaProposta(${id || 'null'})" style="display:${(window._modoTelaComercial !== 'contrato' && Boolean(v('contrato') && String(v('contrato')).trim()) && String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\\s+/i, '') !== 'ADITIVO') ? 'inline-flex' : 'none'}; background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'" onfocus="this.blur()">
                             <i class="ph ph-file-text" style="font-size:1rem;"></i> <span id="lbl-btn-prop-abrir-contrato">Contrato Nº ${_escHtmlProp(v('contrato') || '01')}</span>
                         </button>
@@ -6047,6 +6053,39 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             } else {
                 btnAbrirCtr.style.display = 'none';
             }
+        }
+    }
+
+    const numOsAtu = String((prop && prop.numero_os) || '').trim();
+    const sitCtrAtuUp = String(document.getElementById('prop-fase')?.value || (prop && prop.situacao_contrato) || '').trim().toUpperCase();
+    const contratoEstaAssinadoParaOs = Boolean(
+        sitCtrAtuUp === 'CONTRATO ASSINADO' ||
+        sitCtrAtuUp === 'CONTRATO DIGITAL ASSINADO' ||
+        sitCtrAtuUp === 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA' ||
+        sitCtrAtuUp === 'NAO ASSINA CONTRATO - ENTREGA LIBERADA' ||
+        foiAssinadaAssinafy
+    );
+
+    const btnGerarOsCtr = document.getElementById('btn-prop-gerar-os-contrato');
+    if (btnGerarOsCtr) {
+        if (window._modoTelaComercial === 'contrato' && _propostasEditandoId && contratoEstaAssinadoParaOs && !numOsAtu) {
+            btnGerarOsCtr.setAttribute('onclick', `window.gerarOsComercialDoContrato(${Number(_propostasEditandoId)})`);
+            btnGerarOsCtr.style.display = 'inline-flex';
+        } else {
+            btnGerarOsCtr.style.display = 'none';
+        }
+    }
+
+    const btnAbrirOsCom = document.getElementById('btn-prop-abrir-os-comercial');
+    if (btnAbrirOsCom) {
+        if (_propostasEditandoId && numOsAtu) {
+            const lblOs = document.getElementById('lbl-btn-prop-abrir-os-comercial');
+            if (lblOs) lblOs.textContent = 'OS Nº ' + numOsAtu;
+            btnAbrirOsCom.title = 'Abrir a OS Nº ' + numOsAtu + ' na tela de OS do Comercial';
+            btnAbrirOsCom.setAttribute('onclick', `window.abrirOsComercialDaProposta(${Number(_propostasEditandoId)})`);
+            btnAbrirOsCom.style.display = 'inline-flex';
+        } else {
+            btnAbrirOsCom.style.display = 'none';
         }
     }
 
@@ -32824,16 +32863,17 @@ window.renderizarListaOsContrato = function(lista) {
 
                 return `
                     <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; overflow:hidden;">
-                        <div onclick="window.toggleDetalheItemOsContrato('${key}', event)"
+                        <div onclick="${os.is_os_comercial ? `window.abrirOsComercialDaProposta(${Number(os.proposta_id)}, 'Entrega de equipamentos')` : `window.toggleDetalheItemOsContrato('${key}', event)`}"
                             style="padding:0.55rem 0.8rem; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; user-select:none; background:#f8fafc; transition:background 0.15s;"
                             onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
-                                <span style="background:#1e3a8a; color:#ffffff; font-weight:800; font-size:0.75rem; padding:2px 9px; border-radius:6px;">
+                                <span style="background:#16a34a; color:#ffffff; font-weight:800; font-size:0.75rem; padding:2px 9px; border-radius:6px;">
                                     OS Nº ${_escHtmlProp(os.numero_os || os.id)}
                                 </span>
                                 <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:800; font-size:0.73rem; padding:2px 8px; border-radius:6px;">
-                                    ${_escHtmlProp(tServ)}
+                                    ${_escHtmlProp(os.is_os_comercial ? 'Entrega de equipamentos' : tServ)}
                                 </span>
+                                ${os.status_os ? `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:800; font-size:0.71rem; padding:2px 8px; border-radius:999px;">${_escHtmlProp(os.status_os)}</span>` : ''}
                                 <span style="font-size:0.78rem; font-weight:700; color:#334155;">
                                     <i class="ph ph-calendar-blank"></i> ${_escHtmlProp(fmtDataBr(os.data_os))}
                                 </span>
@@ -32842,7 +32882,7 @@ window.renderizarListaOsContrato = function(lista) {
                                 </span>
                             </div>
                             <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                                <span style="font-size:0.72rem; font-weight:700; color:#2563eb;">Ver detalhes</span>
+                                <span style="font-size:0.72rem; font-weight:700; color:#2563eb;">${os.is_os_comercial ? 'Abrir OS Comercial' : 'Ver detalhes'}</span>
                                 <button type="button" onclick="window.toggleDetalheItemOsContrato('${key}', event)" title="Abrir / Fechar detalhes da OS"
                                     style="display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
                                     <i id="prop-os-contrato-caret-${key}" class="ph ph-caret-down" style="font-size:0.88rem; font-weight:700; transition:transform 0.2s; transform:${estaAberto ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
@@ -32852,7 +32892,7 @@ window.renderizarListaOsContrato = function(lista) {
                         <div id="prop-os-contrato-det-${key}" style="display:${estaAberto ? 'block' : 'none'}; padding:0.75rem 0.9rem; border-top:1px solid #e2e8f0; background:#ffffff; font-size:0.8rem; color:#1e293b;">
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:0.55rem 0.9rem; margin-bottom:0.6rem;">
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Número da OS / Contrato</strong>OS ${_escHtmlProp(os.numero_os || '—')} • Contrato ${_escHtmlProp(os.contrato || '—')}</div>
-                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Tipo de Serviço</strong>${_escHtmlProp(tServ)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Tipo de Serviço</strong>${_escHtmlProp(os.is_os_comercial ? 'Entrega de equipamentos' : tServ)}</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Data / Horário / Turno</strong>${_escHtmlProp(fmtDataBr(os.data_os))} (${_escHtmlProp(horarioTurno)})</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Dias da Semana</strong>${_escHtmlProp(diasStr)}</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Responsável / Contato</strong>${_escHtmlProp([os.responsavel, os.telefone, os.email].filter(Boolean).join(' • ') || '—')}</div>
@@ -32877,6 +32917,54 @@ window.renderizarListaOsContrato = function(lista) {
             }).join('')}
         </div>
     `;
+};
+
+window.gerarOsComercialDoContrato = async function(propIdOpcional) {
+    const propId = Number(propIdOpcional || _propostasEditandoId || window._propostasEditandoId_contrato);
+    if (!propId) return;
+    try {
+        const res = await apiPost(`/propostas/${propId}/gerar-os-comercial`, {});
+        if (!res || !res.success) {
+            Swal.fire('Aviso', (res && res.error) || 'Não foi possível gerar a OS deste contrato.', 'warning');
+            return;
+        }
+        if (Array.isArray(_propostasData)) {
+            const idx = _propostasData.findIndex(p => Number(p.id) === propId);
+            if (idx >= 0) {
+                _propostasData[idx].numero_os = res.numero_os;
+                _propostasData[idx].status_os = res.status_os || 'LIBERADO';
+                _propostasData[idx].os_criada_em = res.os_criada_em;
+                _propostasData[idx].os_tipo_operacao = res.os_tipo_operacao || 'Entrega de equipamentos';
+            }
+        }
+        if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+            window.atualizarVisibilidadeBotoesPosSalvoProposta();
+        }
+        if (typeof window.carregarOsContratoAtivo === 'function') {
+            window.carregarOsContratoAtivo(propId);
+        }
+        if (typeof mostrarToastSucesso === 'function') {
+            mostrarToastSucesso(`OS Nº ${res.numero_os} gerada com sucesso (Status: LIBERADO)!`);
+        }
+        window.abrirOsComercialDaProposta(propId, 'Entrega de equipamentos');
+    } catch (e) {
+        Swal.fire('Aviso', e.message || 'Erro ao gerar a OS.', 'warning');
+    }
+};
+
+window.abrirOsComercialDaProposta = function(propId, tipoOperacaoForcado = 'Entrega de equipamentos') {
+    const idNum = Number(propId);
+    if (!idNum) return;
+    window._comercialOsAbrirPropostaId = idNum;
+    window._comercialOsTipoOperacaoForcado = tipoOperacaoForcado || 'Entrega de equipamentos';
+    if (typeof navigateTo === 'function') {
+        navigateTo('comercial-os');
+    }
+    setTimeout(() => {
+        if (window._comercialOS && typeof window._comercialOS.carregarOsPorPropostaId === 'function') {
+            window._comercialOS.carregarOsPorPropostaId(idNum, tipoOperacaoForcado || 'Entrega de equipamentos');
+        }
+    }, 90);
 };
 
 /* ── ABA INFERIOR (DRAWER MEIA TELA) DE COMENTÁRIOS DO CONTRATO (Estilo Histórico de OS) ── */
