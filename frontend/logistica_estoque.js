@@ -126,10 +126,10 @@ window.renderTelaLogisticaEstoque = async function() {
                         '</div>' +
                     '</div>' +
 
-                    // Linha 2 do Topo: Pesquisar + Filtrar Modelo + Período De/Até + Tipo (Obra/Evento/Indiferente) + Limpar
+                    // Linha 2 do Topo: Pesquisar + Filtrar Modelo + Período De/Até + Tipo (Todos/Obra/Evento) + Limpar
                     '<div style="display:flex;align-items:flex-end;flex-wrap:wrap;gap:0.75rem;">' +
                         '<div style="flex:1;min-width:250px;">' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar (Série, Modelo, Cor, Equipamento Comercial, Contrato ou Cliente)</label>' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar</label>' +
                             '<div style="position:relative;">' +
                                 '<i class="ph ph-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>' +
                                 '<input type="text" id="filtro-log-est-texto" class="form-control" placeholder="Digite para filtrar em tempo real..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;padding-left:34px;height:38px;">' +
@@ -150,7 +150,7 @@ window.renderTelaLogisticaEstoque = async function() {
                         '<div>' +
                             '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-funnel"></i> Tipo (Obra / Evento)</label>' +
                             '<div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:10px;border:1px solid #e2e8f0;gap:3px;height:38px;box-sizing:border-box;align-items:center;">' +
-                                '<button type="button" id="btn-ctx-log-est-INDIFERENTE" onclick="window.setFiltroContextoLogisticaEstoque(\'INDIFERENTE\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:#059669;color:#fff;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">Indiferente</button>' +
+                                '<button type="button" id="btn-ctx-log-est-INDIFERENTE" onclick="window.setFiltroContextoLogisticaEstoque(\'INDIFERENTE\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:#059669;color:#fff;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">Todos</button>' +
                                 '<button type="button" id="btn-ctx-log-est-OBRA" onclick="window.setFiltroContextoLogisticaEstoque(\'OBRA\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">💙 Obra</button>' +
                                 '<button type="button" id="btn-ctx-log-est-EVENTO" onclick="window.setFiltroContextoLogisticaEstoque(\'EVENTO\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">💜 Evento</button>' +
                             '</div>' +
@@ -681,7 +681,7 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
               '</div>'
             : '<span style="color:#94a3b8;font-size:0.78rem;">Sem vínculo comercial</span>';
 
-        // Contrato vinculado/reservado para este equipamento considerando a data/período selecionado (apenas Nº do Contrato clicável para abrir o contrato)
+        // Contrato vinculado/reservado para este equipamento considerando a data/período selecionado (apenas o número do contrato clicável para abrir o contrato)
         const alocadas = alocacaoMap.get(Number(item.id)) || [];
         let contratoColHtml = '';
         if (alocadas.length > 0) {
@@ -689,8 +689,8 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
                 alocadas.map(a => {
                     const numCtr = a.contrato_numero || a.proposta_id || '—';
                     const propId = Number(a.proposta_id) || 0;
-                    return '<button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + propId + ')" title="Clique para abrir o Contrato #' + _escLogEst(numCtr) + '" style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:4px 10px;font-weight:800;font-size:0.8rem;cursor:pointer;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.background=\'#dbeafe\';this.style.borderColor=\'#93c5fd\'" onmouseout="this.style.background=\'#eff6ff\';this.style.borderColor=\'#bfdbfe\'">' +
-                        '<i class="ph ph-file-text"></i> Contrato #' + _escLogEst(numCtr) +
+                    return '<button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + propId + ')" title="Clique para abrir o Contrato ' + _escLogEst(numCtr) + '" style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:3px 9px;font-weight:800;font-size:0.78rem;cursor:pointer;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.background=\'#dbeafe\';this.style.borderColor=\'#93c5fd\'" onmouseout="this.style.background=\'#eff6ff\';this.style.borderColor=\'#bfdbfe\'">' +
+                        _escLogEst(numCtr) +
                     '</button>';
                 }).join('') +
             '</div>';
@@ -727,15 +727,15 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
 
     cont.innerHTML =
         '<div class="table-responsive">' +
-            '<table class="data-table" style="width:100%;">' +
+            '<table class="data-table" style="width:100%;font-size:0.78rem;">' +
                 '<thead>' +
-                    '<tr>' +
-                        '<th style="width:110px;">Série</th>' +
-                        '<th>Modelo</th>' +
-                        '<th>Cor</th>' +
-                        '<th>Contrato / Disponibilidade</th>' +
-                        '<th>Vínculo com Equipamentos</th>' +
-                        '<th style="text-align:right;">Ações</th>' +
+                    '<tr style="font-size:0.75rem;">' +
+                        '<th style="width:110px;font-size:0.75rem;">Série</th>' +
+                        '<th style="font-size:0.75rem;">Modelo</th>' +
+                        '<th style="font-size:0.75rem;">Cor</th>' +
+                        '<th style="font-size:0.75rem;">Contrato / Disponibilidade</th>' +
+                        '<th style="font-size:0.75rem;">Vínculo com Equipamentos</th>' +
+                        '<th style="text-align:right;font-size:0.75rem;">Ações</th>' +
                     '</tr>' +
                 '</thead>' +
                 '<tbody>' + rowsHtml + '</tbody>' +
@@ -756,14 +756,8 @@ window._renderTabelaReservasContratosLogEst = function(cont) {
         return alvo.includes(q);
     });
 
-    const avisoHtml =
-        '<div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:10px;padding:10px 14px;font-size:0.82rem;margin-bottom:0.85rem;display:flex;align-items:center;gap:8px;">' +
-            '<i class="ph ph-info" style="font-size:1.15rem;flex-shrink:0;"></i>' +
-            '<span>As reservas abaixo são geradas <strong>automaticamente apenas para Contratos ativos</strong> (propostas em negociação não reservam estoque). Ao selecionar um pacote/equipamento vinculado no contrato, o sistema reserva a quantidade correspondente para a data de entrega.</span>' +
-        '</div>';
-
     if (lista.length === 0) {
-        cont.innerHTML = avisoHtml +
+        cont.innerHTML =
             '<div style="text-align:center;padding:2.2rem 1rem;color:#64748b;background:#f8fafc;border-radius:12px;border:1px dashed #cbd5e1;">' +
                 '<i class="ph ph-calendar-blank" style="font-size:2rem;color:#94a3b8;display:block;margin-bottom:6px;"></i>' +
                 '<div style="font-weight:700;color:#334155;">Nenhuma reserva de contrato encontrada para os filtros selecionados</div>' +
@@ -776,28 +770,29 @@ window._renderTabelaReservasContratosLogEst = function(cont) {
         const nomeCliFmt = typeof window.formatarNomeClienteComIcone === 'function'
             ? window.formatarNomeClienteComIcone(nomeCliRaw)
             : nomeCliRaw;
+        const numCtr = r.contrato_numero || r.proposta_id || '—';
 
         return '<tr>' +
-            '<td><span style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:7px;padding:3px 9px;font-weight:700;font-size:0.8rem;white-space:nowrap;"><i class="ph ph-calendar"></i> ' + _escLogEst(_formatarDataBrLogEst(r.data_entrega)) + '</span></td>' +
-            '<td><button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + (Number(r.proposta_id) || 0) + ')" title="Clique para abrir o Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:3px 9px;font-weight:800;font-size:0.8rem;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-file-text"></i> Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '</button></td>' +
-            '<td style="font-weight:700;color:#0f172a;">' + _escLogEst(nomeCliFmt) + '</td>' +
-            '<td style="color:#334155;font-weight:600;">' + _escLogEst(r.equipamento_comercial_nome) + '</td>' +
-            '<td><span style="background:' + (String(r.modelo_estoque || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(r.modelo_estoque)) + '</span></td>' +
-            '<td style="font-weight:800;color:#1d4ed8;font-size:0.95rem;">' + (Number(r.quantidade) || 0) + '</td>' +
+            '<td><span style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:7px;padding:2px 8px;font-weight:700;font-size:0.75rem;white-space:nowrap;"><i class="ph ph-calendar"></i> ' + _escLogEst(_formatarDataBrLogEst(r.data_entrega)) + '</span></td>' +
+            '<td><button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + (Number(r.proposta_id) || 0) + ')" title="Clique para abrir o Contrato ' + _escLogEst(numCtr) + '" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:2px 8px;font-weight:800;font-size:0.76rem;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">' + _escLogEst(numCtr) + '</button></td>' +
+            '<td style="font-weight:700;color:#0f172a;font-size:0.76rem;">' + _escLogEst(nomeCliFmt) + '</td>' +
+            '<td style="color:#334155;font-weight:600;font-size:0.76rem;">' + _escLogEst(r.equipamento_comercial_nome) + '</td>' +
+            '<td><span style="background:' + (String(r.modelo_estoque || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:2px 8px;font-weight:800;font-size:0.75rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(r.modelo_estoque)) + '</span></td>' +
+            '<td style="font-weight:800;color:#1d4ed8;font-size:0.84rem;">' + (Number(r.quantidade) || 0) + '</td>' +
         '</tr>';
     }).join('');
 
-    cont.innerHTML = avisoHtml +
+    cont.innerHTML =
         '<div class="table-responsive">' +
-            '<table class="data-table" style="width:100%;">' +
+            '<table class="data-table" style="width:100%;font-size:0.76rem;">' +
                 '<thead>' +
-                    '<tr>' +
-                        '<th>Data de Entrega</th>' +
-                        '<th>Nº Contrato</th>' +
-                        '<th>Cliente</th>' +
-                        '<th>Equipamento no Contrato (Comercial)</th>' +
-                        '<th>Modelo Reservado no Estoque</th>' +
-                        '<th>Qtd. Reservada</th>' +
+                    '<tr style="font-size:0.74rem;">' +
+                        '<th style="font-size:0.74rem;">Entrega</th>' +
+                        '<th style="font-size:0.74rem;">Nº Contrato</th>' +
+                        '<th style="font-size:0.74rem;">Cliente</th>' +
+                        '<th style="font-size:0.74rem;">Equipamento no Contrato</th>' +
+                        '<th style="font-size:0.74rem;">Modelo Reservado</th>' +
+                        '<th style="font-size:0.74rem;">Qtd.</th>' +
                     '</tr>' +
                 '</thead>' +
                 '<tbody>' + rowsHtml + '</tbody>' +
