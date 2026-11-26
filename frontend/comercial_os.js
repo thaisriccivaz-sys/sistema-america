@@ -1,33 +1,47 @@
 /**
  * ============================================================================
  * MÓDULO: COMERCIAL → OS
- * Tela de OS do Comercial idêntica em estrutura e funcionalidades à tela de
- * Contratos, porém operando sobre as OS Comerciais geradas a partir de
- * contratos assinados.
+ * Tela de OS do Comercial (independente da tela de OS da Logística).
  *
  * Regras implementadas:
- *   - Nasce vinculada a um contrato assinado (através do botão "Gerar OS" no
- *     contrato ou automaticamente em sequência 01, 02...).
- *   - Tipo de operação ao abrir pelo contrato: "Entrega de equipamentos".
- *   - Status inicial da OS: "LIBERADO" (não exibe situação do contrato).
- *   - Status disponíveis da OS:
- *       1. LIBERADO
- *       2. ENTREGA AGENDADA
- *       3. ENTREGUE - ACOMPANHAMENTO OS
- *       4. RETIRADA AGENDADA
- *       5. RETIRADA PARCIAL REALIZADA
- *       6. RETIRADA TOTAL REALIZADA
- *   - Data de Cadastro = data de criação da OS (os_criada_em), e não do
- *     contrato nem da proposta.
+ *   - O campo Tipo * é preenchido com o Tipo de OS do Comercial:
+ *       1. Envio
+ *       2. Visita técnica
+ *       3. Limpa fossa
+ *       4. Compras
+ *       5. Equipamentos
+ *   - Regra automática de tipo ao gerar pelo contrato:
+ *       * Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum
+ *         equipamento da tela de OS da Logística → OS do tipo "Equipamentos".
+ *       * Quando tiver algum equipamento da tela de OS da Logística → OS do
+ *         tipo "Envio" (entrega: obra, evento, equipamentos, interveniente).
+ *   - É possível editar o Status da OS e o Tipo da OS.
+ *   - Oculta o quadro "Informações do Contrato / OS".
  *   - Oculta o campo "Condição de Pagamento".
- *   - Pesquisa no campo "Nº da OS" (Enter e Lupa) e no campo "Cliente" (Enter
- *     e Lupa): carrega direto pelo número ou abre modal listando todas as OS
- *     (permitindo buscar por Nº da OS, Nome do Cliente, Nº do Contrato ou
- *     Nº da Proposta), com botões clicáveis de Proposta (azul) e Contrato (amarelo).
+ *   - Oculta o campo e o quadro de "Interveniente" (tanto a checkbox ao lado
+ *     do título quanto o quadro de dados do interveniente).
+ *   - Na aba superior de OS do Comercial:
+ *       * Mostra o número da OS carregada na tela como no contrato: "05 - OS".
+ *       * Se tiver uma OS carregada na tela e abrir uma nova pelo menu, deixa
+ *         a aba da OS que está aberta com o número e abre uma nova aba sem
+ *         número nenhum ("OS").
+ *       * Se clicar no botão "Novo", abre na mesma aba uma nova OS para
+ *         preenchimento, e com a aba sem número ("OS").
+ *   - Os anexos do contrato NÃO são anexados automaticamente no quadro de
+ *     Anexos da OS do Comercial quando uma OS é criada pelo contrato (a OS
+ *     possui sua própria tabela de anexos comercial_os_anexos no Cloudflare R2).
  * ============================================================================
  */
 (function () {
     'use strict';
+
+    const OS_COMERCIAL_TIPOS = [
+        'Envio',
+        'Visita técnica',
+        'Limpa fossa',
+        'Compras',
+        'Equipamentos'
+    ];
 
     const OS_COMERCIAL_STATUS_CONFIG = [
         { nome: 'LIBERADO',                      bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'ph-check-circle' },
@@ -38,12 +52,17 @@
         { nome: 'RETIRADA TOTAL REALIZADA',      bg: '#f1f5f9', text: '#334155', border: '#cbd5e1', icon: 'ph-seal-check' }
     ];
 
+    window.OS_COMERCIAL_TIPOS = OS_COMERCIAL_TIPOS;
     window.OS_COMERCIAL_STATUS_CONFIG = OS_COMERCIAL_STATUS_CONFIG;
+    window._snapshotsOsComercial = window._snapshotsOsComercial || {};
+    window._activeOsComercialTabId = window._activeOsComercialTabId || 'comercial-os';
 
     const state = {
         propostaIdAtiva: null,
         osAtual: null,
         editadoNaoSalvo: false,
+        statusNovoDraft: 'LIBERADO',
+        tipoNovoDraft: '',
         secoesAbertas: {
             periodo: false,
             produtos: false,
@@ -93,6 +112,77 @@
         </span>`;
     };
 
+    /**
+     * Verifica se um produto pertence à lista de equipamentos da tela de OS da Logística:
+     * (STD, LX, EXL, PCD, CHUVEIRO, HIDRÁULICO, MICTÓRIO, PBII, PBIII, GUARITA, LIMPA FOSSA, CARRINHO, CAIXA D'ÁGUA)
+     */
+    function itemEhEquipamentoLogistica(nomeProd) {
+        const n = normStr(nomeProd);
+        if (!n) return false;
+        return (
+            n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n) ||
+            n.includes('luxo') || n.includes('luxury') || /\blx\b/.test(n) ||
+            n.includes('extra lux') || /\b(exl|elx)\b/.test(n) ||
+            n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel') ||
+            n.includes('chuveiro') ||
+            n.includes('hidraulic') ||
+            n.includes('mictorio') || n.includes('kros') ||
+            n.includes('pia') || n.includes('pbii') || n.includes('pbiii') || n.includes('lavatorio') ||
+            n.includes('guarita') ||
+            n.includes('fossa') || n.includes('succao') || n.includes('caminhao') ||
+            n.includes('carrinho') ||
+            (n.includes('caixa') && n.includes('agua')) ||
+            n.includes('banheiro') || n.includes('cabine')
+        );
+    }
+
+    /**
+     * Resolve o Tipo de OS Comercial (Envio, Visita técnica, Limpa fossa, Compras, Equipamentos)
+     * seguindo a regra:
+     * - Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum equipamento da OS da Logística → "Equipamentos"
+     * - Quando tiver algum equipamento da tela de OS da Logística → "Envio" (entrega: obra, evento, equipamentos, interveniente)
+     * - Quando for contrato de LIMPA FOSSA → "Limpa fossa"
+     */
+    function resolverTipoOsComercial(prop) {
+        if (!prop) return '';
+        const salvo = String(prop.os_tipo_operacao || '').trim();
+        const matchSalvo = OS_COMERCIAL_TIPOS.find(t => normStr(t) === normStr(salvo));
+        if (matchSalvo) {
+            // Se era contrato de EQUIPAMENTOS sem equipamento da logística, garante 'Equipamentos'
+            const tipoCtrUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoCtrUp === 'EQUIPAMENTOS') {
+                let itens = [];
+                try {
+                    itens = typeof prop.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop.itens) ? prop.itens : []);
+                } catch (_) { itens = []; }
+                const temEqLog = (Array.isArray(itens) ? itens : []).some(it => it && !it._substituido_por_aditivo && itemEhEquipamentoLogistica(it.produto || it.descricao || it.nome || ''));
+                if (!temEqLog) return 'Equipamentos';
+            }
+            return matchSalvo;
+        }
+
+        const tipoCtr = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
+
+        let itensArr = [];
+        try {
+            itensArr = typeof prop.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop.itens) ? prop.itens : []);
+        } catch (_) { itensArr = []; }
+
+        const temEquipLogistica = (Array.isArray(itensArr) ? itensArr : []).some(it => {
+            if (!it || it._substituido_por_aditivo) return false;
+            return itemEhEquipamentoLogistica(it.produto || it.descricao || it.nome || '');
+        });
+
+        if (tipoCtr === 'EQUIPAMENTOS' && !temEquipLogistica) {
+            return 'Equipamentos';
+        }
+        if (temEquipLogistica) {
+            return 'Envio';
+        }
+        return tipoCtr === 'EQUIPAMENTOS' ? 'Equipamentos' : 'Envio';
+    }
+
     function contratoEstaAssinado(p) {
         if (!p) return false;
         const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
@@ -124,7 +214,6 @@
         } else if (Array.isArray(window._propostasData)) {
             lista = window._propostasData;
         }
-        // Uma OS só existe se tiver numero_os gerado e contrato assinado
         return (Array.isArray(lista) ? lista : []).filter(p => {
             const temOs = Boolean(p.numero_os && String(p.numero_os).trim());
             const tipoUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -132,12 +221,27 @@
         });
     }
 
-    function atualizarTituloAbaSuperior(numOs) {
+    function obterTabIdAtivaOsComercial() {
+        const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
+        if (Array.isArray(tabsArr)) {
+            const ativa = tabsArr.find(t => t && t.active && t.target === 'comercial-os');
+            if (ativa && ativa.tabId) {
+                window._activeOsComercialTabId = ativa.tabId;
+                return ativa.tabId;
+            }
+        }
+        return window._activeOsComercialTabId || 'comercial-os';
+    }
+
+    function atualizarTituloAbaSuperior(numOs, tabIdOverride) {
         const tabsArr = (typeof appOpenTabs !== 'undefined' && Array.isArray(appOpenTabs)) ? appOpenTabs : window.appOpenTabs;
         if (!Array.isArray(tabsArr)) return;
-        const tabOs = tabsArr.find(t => t && t.target === 'comercial-os' && t.active) || tabsArr.find(t => t && t.target === 'comercial-os');
+        const tabIdAlvo = tabIdOverride || obterTabIdAtivaOsComercial();
+        const tabOs = tabsArr.find(t => t && t.tabId === tabIdAlvo)
+            || tabsArr.find(t => t && t.target === 'comercial-os' && t.active);
         if (!tabOs) return;
-        const novoTitulo = numOs ? `${String(numOs).padStart(2, '0')} - OS` : 'OS';
+        const numLimpo = String(numOs || '').trim();
+        const novoTitulo = numLimpo ? `${numLimpo.padStart(2, '0')} - OS` : 'OS';
         if (tabOs.title !== novoTitulo) {
             tabOs.title = novoTitulo;
             if (typeof renderAppTabs === 'function') renderAppTabs();
@@ -241,30 +345,13 @@
             ? hojeIso()
             : (String(v('os_criada_em') || '').trim().substring(0, 10) || hojeIso());
 
-        const statusOsAtual = obterConfigStatusOs(v('status_os') || 'LIBERADO').nome;
-        const tipoOperacaoOs = v('os_tipo_operacao') || 'Entrega de equipamentos';
+        const statusOsAtual = obterConfigStatusOs(isNovo ? (state.statusNovoDraft || 'LIBERADO') : (v('status_os') || 'LIBERADO')).nome;
+        const tipoOsAtual = isNovo ? (state.tipoNovoDraft || '') : resolverTipoOsComercial(prop);
 
         const clienteNomeRaw = v('cliente_nome');
         const clienteNomeFormatado = (!isNovo && clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
             ? window.formatarNomeClienteComIcone(clienteNomeRaw)
             : clienteNomeRaw;
-
-        const temInterveniente = Boolean(
-            Number(prop?.contrato_interveniente) === 1 ||
-            prop?.contrato_interveniente === true ||
-            Boolean(v('interveniente_nome'))
-        );
-
-        let respObj = {};
-        if (prop && prop.contatos_responsaveis_contrato_json) {
-            try {
-                respObj = typeof prop.contatos_responsaveis_contrato_json === 'string'
-                    ? JSON.parse(prop.contatos_responsaveis_contrato_json || '{}')
-                    : (prop.contatos_responsaveis_contrato_json || {});
-            } catch (_) { respObj = {}; }
-        }
-        const listaNfe = Array.isArray(respObj.nfe) ? respObj.nfe.filter(Boolean) : [];
-        const contatoInstalacao = String(respObj.instalacao || v('contato_instalacao_contrato') || v('contato_nome') || '').trim();
 
         const tipoLimpoUp = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehObra = tipoLimpoUp.includes('OBRA');
@@ -274,19 +361,19 @@
 
         container.innerHTML = `
             <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter',sans-serif;">
-                <!-- Toolbar Superior (Igual à tela de Contratos) -->
+                <!-- Toolbar Superior -->
                 <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                     <div style="display:flex; gap:0.45rem; align-items:center; flex-wrap:wrap; flex:1; width:100%;">
+                        <button type="button" id="btn-cos-novo" onclick="window._comercialOS.novaOSNaMesmaAba()"
+                            style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;"
+                            onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                        </button>
+
                         <button type="button" id="btn-cos-salvar" onclick="window._comercialOS.salvarAlteracoesOS()" ${(!isNovo && state.editadoNaoSalvo) ? '' : 'disabled'}
                             style="background:${(!isNovo && state.editadoNaoSalvo) ? '#16a34a' : '#cbd5e1'}; color:${(!isNovo && state.editadoNaoSalvo) ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(!isNovo && state.editadoNaoSalvo) ? 'pointer' : 'not-allowed'}; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;">
                             <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                         </button>
-
-                        ${!isNovo ? `
-                            <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:0.38rem 0.85rem; border-radius:6px; font-size:0.78rem; font-weight:800; display:inline-flex; align-items:center; gap:5px;">
-                                <i class="ph ph-truck" style="font-size:0.95rem;"></i> ${esc(tipoOperacaoOs)}
-                            </span>
-                        ` : ''}
 
                         <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
                             ${!isNovo && v('contrato') ? `
@@ -314,10 +401,10 @@
                     </div>
                 </div>
 
-                <!-- Corpo do Formulário (Mesma estrutura da tela de Contrato) -->
+                <!-- Corpo do Formulário -->
                 <div style="padding:1.5rem;">
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
-                        <!-- Linha 1: Nº da OS, Tipo *, Atendente -->
+                        <!-- Linha 1: Nº da OS, Tipo * (Envio, Visita técnica, Limpa fossa, Compras, Equipamentos), Atendente -->
                         <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Nº da OS</label>
@@ -337,9 +424,10 @@
 
                             <div>
                                 <label class="prop-lbl">Tipo *</label>
-                                <select id="cos-tipo" disabled style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;background:#f8fafc;color:#334155;">
+                                <select id="cos-tipo" onchange="window._comercialOS.onChangeTipoOs(this.value)"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;background:#fff;color:#1e293b;text-transform:none;">
                                     <option value="">-- Selecione --</option>
-                                    ${(window.CONTRATO_TIPOS || ['EVENTO', 'OBRA MENSAL', 'OBRA QUINZENAL', 'OBRA SEMANAL', 'LIMPA FOSSA', 'EQUIPAMENTOS', 'INTERVENIENTE']).map(t => `<option value="${esc(t)}" ${(v('tipo') === t || tipoLimpoUp === t) ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+                                    ${OS_COMERCIAL_TIPOS.map(t => `<option value="${esc(t)}" ${normStr(tipoOsAtual) === normStr(t) ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                                 </select>
                             </div>
 
@@ -350,20 +438,14 @@
                             </div>
                         </div>
 
-                        <!-- Linha 2: Título + Interveniente, Data Cadastro (Data de criação da OS), Status da OS -->
+                        <!-- Linha 2: Título (sem Interveniente), Data Cadastro (Data de criação da OS), Status da OS (sempre editável) -->
                         <div style="display:grid; grid-template-columns:1.6fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Título *</label>
-                                <div style="display:flex; gap:0.55rem; align-items:center;">
-                                    <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" ${isNovo ? 'disabled' : ''}
-                                        placeholder="Título da OS / Contrato..."
-                                        oninput="window._comercialOS.marcarEditado()"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none;">
-                                    <label class="prop-chk-inline-lbl" style="opacity:0.85;">
-                                        <input type="checkbox" ${temInterveniente ? 'checked' : ''} disabled style="width:14px; height:14px; accent-color:#7048e8; margin:0;">
-                                        <span>Interveniente</span>
-                                    </label>
-                                </div>
+                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" ${isNovo ? 'disabled' : ''}
+                                    placeholder="Título da OS / Contrato..."
+                                    oninput="window._comercialOS.marcarEditado()"
+                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none;">
                             </div>
 
                             <div>
@@ -376,8 +458,8 @@
                             <div>
                                 <label class="prop-lbl">Status da OS *</label>
                                 <div id="cos-status-custom-wrap" style="position:relative; width:100%;">
-                                    <button type="button" id="cos-status-custom-btn" ${isNovo ? 'disabled' : ''} onclick="window._comercialOS.toggleMenuStatusOs(event)"
-                                        style="width:100%; height:36px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:space-between; text-align:left; gap:8px; cursor:${isNovo ? 'not-allowed' : 'pointer'}; box-sizing:border-box;">
+                                    <button type="button" id="cos-status-custom-btn" onclick="window._comercialOS.toggleMenuStatusOs(event)"
+                                        style="width:100%; height:36px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:space-between; text-align:left; gap:8px; cursor:pointer; box-sizing:border-box;">
                                         <span id="cos-status-custom-badge">${window.renderBadgeStatusOsComercialHtml(statusOsAtual)}</span>
                                         <i class="ph ph-caret-down" style="font-size:0.9rem; color:#64748b;"></i>
                                     </button>
@@ -395,7 +477,7 @@
                             </div>
                         </div>
 
-                        <!-- Seção: Dados do Cliente (Com busca de OS por cliente no Enter e na Lupa) -->
+                        <!-- Seção: Dados do Cliente (Ocultando completamente o quadro de Interveniente conforme solicitado) -->
                         <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                             <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
                                 <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente <span style="color:#dc2626;">*</span>
@@ -422,29 +504,9 @@
                                         style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;text-transform:none;">
                                 </div>
                             </div>
-
-                            ${temInterveniente ? `
-                                <div style="margin-top:0.55rem; padding-top:0.5rem; border-top:1px dashed #f9a8d4;">
-                                    <div style="font-size:0.76rem; font-weight:800; color:#831843; margin-bottom:0.35rem; display:flex; align-items:center; gap:5px;">
-                                        <i class="ph ph-Handshake" style="color:#be185d;"></i> Dados do Interveniente <span style="color:#dc2626;">*</span>
-                                    </div>
-                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
-                                        <div>
-                                            <label class="prop-lbl">Cliente Interveniente *</label>
-                                            <input type="text" value="${esc(typeof window.formatarNomeClienteComIcone === 'function' ? window.formatarNomeClienteComIcone(v('interveniente_nome')) : v('interveniente_nome'))}" readonly
-                                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
-                                        </div>
-                                        <div>
-                                            <label class="prop-lbl">Contato do Interveniente *</label>
-                                            <input type="text" value="${esc(v('interveniente_contato_nome'))}" readonly
-                                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
-                                        </div>
-                                    </div>
-                                </div>
-                            ` : ''}
                         </div>
 
-                        <!-- Seção: Período e Locação (Ocultando o campo Condição de Pagamento conforme solicitado) -->
+                        <!-- Seção: Período e Locação (Ocultando o campo Condição de Pagamento) -->
                         <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
                             <div onclick="window._comercialOS.toggleSecao('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
                                 <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
@@ -564,27 +626,7 @@
                             </div>
                         ` : ''}
 
-                        <!-- Seção: Informações do Contrato / OS -->
-                        <div style="background:#eef2ff; border:1.5px solid #c7d2fe; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
-                            <h4 style="margin:0 0 0.55rem 0; font-size:0.82rem; color:#3730a3; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:0.02em;">
-                                <i class="ph ph-file-text" style="font-size:1.05rem; color:#4f46e5;"></i> Informações do Contrato / OS
-                            </h4>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.65rem 0.85rem;">
-                                <div>
-                                    <label class="prop-lbl">Responsável(is) por Receber NFe e boleto*</label>
-                                    <input type="text" value="${esc(listaNfe.join(', ') || '—')}" readonly
-                                        style="width:100%; padding:0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#f8fafc; height:36px;">
-                                </div>
-                                <div>
-                                    <label class="prop-lbl">Contato de Instalação *</label>
-                                    <input type="text" id="cos-contato-instalacao" value="${esc(contatoInstalacao)}" ${isNovo ? 'disabled' : ''}
-                                        oninput="window._comercialOS.marcarEditado()"
-                                        style="width:100%; padding:0.52rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.83rem; box-sizing:border-box; background:#fff; height:36px; text-transform:none;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Seção: Anexos -->
+                        <!-- Seção: Anexos (Exclusivos da OS do Comercial — anexos do contrato não são anexados automaticamente aqui) -->
                         <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
                             <div onclick="window._comercialOS.toggleSecao('anexos', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
                                 <h4 style="margin:0; font-size:0.82rem; color:#854d0e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase;">
@@ -597,9 +639,23 @@
                                 </button>
                             </div>
                             <div id="cos-secao-anexos-body" style="display:${state.secoesAbertas.anexos ? 'block' : 'none'}; margin-top:0.6rem;">
+                                ${!isNovo ? `
+                                    <div style="display:flex; gap:0.5rem; align-items:flex-end; margin-bottom:0.6rem; flex-wrap:wrap;">
+                                        <div style="flex:1; min-width:200px;">
+                                            <label class="prop-lbl" style="color:#713f12;">Título do Anexo</label>
+                                            <input type="text" id="cos-anexo-titulo-input" placeholder="Esclareça o título do anexo da OS..."
+                                                style="width:100%; padding:0.45rem 0.65rem; border:1px solid #fde047; border-radius:6px; font-size:0.82rem; background:#fff; text-transform:none; height:34px; box-sizing:border-box;">
+                                        </div>
+                                        <input type="file" id="cos-anexo-file-input" multiple style="display:none;" onchange="window._comercialOS.enviarAnexosOs(this.files)">
+                                        <button type="button" onclick="document.getElementById('cos-anexo-file-input')?.click()"
+                                            style="background:#ca8a04; color:#fff; border:none; padding:0 0.9rem; height:34px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                            <i class="ph ph-upload-simple"></i> Incluir Documento(s) Anexo(s)
+                                        </button>
+                                    </div>
+                                ` : ''}
                                 <div id="cos-anexos-lista-wrap">
                                     <div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
-                                        ${isNovo ? 'Selecione uma OS para visualizar os anexos.' : 'Carregando anexos...'}
+                                        ${isNovo ? 'Selecione uma OS para visualizar ou incluir anexos.' : 'Nenhum documento anexado nesta OS.'}
                                     </div>
                                 </div>
                             </div>
@@ -617,7 +673,6 @@
             </div>
         `;
 
-        // Atualiza o badge de quantidade de produtos mesmo com a seção fechada
         renderProdutosGridHtml(prop);
         if (!isNovo) {
             carregarAnexosOs(prop.id);
@@ -627,7 +682,7 @@
     async function carregarAnexosOs(propId) {
         if (!propId) return;
         try {
-            const res = await window.apiGet(`/propostas/${propId}/anexos-contrato`);
+            const res = await window.apiGet(`/propostas/${propId}/anexos-os-comercial`);
             const lista = (res && Array.isArray(res.anexos)) ? res.anexos : (Array.isArray(res) ? res : []);
             state.anexosAtuais = lista;
             const badge = document.getElementById('cos-anexos-count-badge');
@@ -635,14 +690,14 @@
             const wrap = document.getElementById('cos-anexos-lista-wrap');
             if (!wrap) return;
             if (!lista.length) {
-                wrap.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">Nenhum documento anexado.</div>`;
+                wrap.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">Nenhum documento anexado nesta OS.</div>`;
                 return;
             }
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
             wrap.innerHTML = `<div style="display:flex; flex-direction:column; gap:8px;">
                 ${lista.map((a, idx) => {
-                    const urlView = `/api/propostas/${propId}/anexos-contrato/${a.id}/arquivo?inline=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-                    const urlDown = `/api/propostas/${propId}/anexos-contrato/${a.id}/arquivo?download=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+                    const urlView = `/api/propostas/${propId}/anexos-os-comercial/${a.id}/arquivo?inline=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+                    const urlDown = `/api/propostas/${propId}/anexos-os-comercial/${a.id}/arquivo?download=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
                     return `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                         <div style="min-width:0;">
                             <div style="font-size:0.83rem; font-weight:700; color:#0f172a;">#${idx + 1} — ${esc(a.titulo || a.nome_arquivo || 'Anexo')}</div>
@@ -651,6 +706,10 @@
                         <div style="display:flex; gap:6px; flex-shrink:0;">
                             <a href="${urlView}" target="_blank" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; text-decoration:none;"><i class="ph ph-eye"></i> Visualizar</a>
                             <a href="${urlDown}" target="_blank" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; text-decoration:none;"><i class="ph ph-download-simple"></i> Baixar</a>
+                            <button type="button" onclick="window._comercialOS.excluirAnexoOs(${Number(a.id)})" title="Remover anexo da OS"
+                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-size:0.76rem; cursor:pointer;">
+                                <i class="ph ph-trash"></i>
+                            </button>
                         </div>
                     </div>`;
                 }).join('')}
@@ -693,7 +752,8 @@
                 ...p,
                 cliente_nome_limpo: nomeLimpo,
                 cliente_cnpj: clientCnpjMap[key] || '',
-                cliente_icone: clientIconMap[key] || ''
+                cliente_icone: clientIconMap[key] || '',
+                tipo_os_resolvido: resolverTipoOsComercial(p)
             };
         }).sort((a, b) => extrairNum(b.numero_os) - extrairNum(a.numero_os));
 
@@ -728,7 +788,7 @@
                         <td style="padding:10px 12px; font-weight:600; color:#334155;">${esc(p.titulo_contrato || '—')}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${esc(p.cliente_nome_limpo || '—')}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${esc(p.cliente_cnpj || '—')}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${esc(p.os_tipo_operacao || 'Entrega de equipamentos')}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${esc(p.tipo_os_resolvido || 'Envio')}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(dataFmt)}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${esc(totalFmt)}</td>
                         <td style="padding:10px 12px; text-align:center; white-space:nowrap;">${window.renderBadgeStatusOsComercialHtml(p.status_os || 'LIBERADO')}</td>
@@ -779,7 +839,7 @@
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; min-width:140px;">Título</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc;">Razão Social / Cliente</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; width:130px;">CNPJ</th>
-                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:165px;">Tipo OS</th>
+                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:155px;">Tipo OS</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:105px;">Data OS</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:right; width:120px;">Valor</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:175px;">Status da OS</th>
@@ -847,15 +907,72 @@
         async init() {
             if (window._comercialOsAbrirPropostaId) {
                 const pid = window._comercialOsAbrirPropostaId;
-                const tOp = window._comercialOsTipoOperacaoForcado || 'Entrega de equipamentos';
+                const tOp = window._comercialOsTipoOperacaoForcado || '';
                 window._comercialOsAbrirPropostaId = null;
+                window._comercialOsTipoOperacaoForcado = '';
                 await this.carregarOsPorPropostaId(pid, tOp);
                 return;
+            }
+            const tabKey = obterTabIdAtivaOsComercial();
+            const snap = window._snapshotsOsComercial && window._snapshotsOsComercial[tabKey];
+            if (snap) {
+                state.propostaIdAtiva = snap.propostaIdAtiva || null;
+                state.osAtual = snap.osAtual ? JSON.parse(JSON.stringify(snap.osAtual)) : null;
+                state.editadoNaoSalvo = Boolean(snap.editadoNaoSalvo);
+                state.statusNovoDraft = snap.statusNovoDraft || 'LIBERADO';
+                state.tipoNovoDraft = snap.tipoNovoDraft || '';
+                state.anexosAtuais = Array.isArray(snap.anexosAtuais) ? snap.anexosAtuais : [];
+            } else {
+                state.propostaIdAtiva = null;
+                state.osAtual = null;
+                state.editadoNaoSalvo = false;
+                state.statusNovoDraft = 'LIBERADO';
+                state.tipoNovoDraft = '';
+                state.anexosAtuais = [];
             }
             renderFormOS();
         },
 
-        async carregarOsPorPropostaId(propId, tipoOperacaoForcado = 'Entrega de equipamentos') {
+        salvarSnapshotAba(tabIdOverride) {
+            const tabKey = tabIdOverride || obterTabIdAtivaOsComercial();
+            if (!tabKey) return;
+            window._snapshotsOsComercial[tabKey] = {
+                propostaIdAtiva: state.propostaIdAtiva || null,
+                osAtual: state.osAtual ? JSON.parse(JSON.stringify(state.osAtual)) : null,
+                editadoNaoSalvo: Boolean(state.editadoNaoSalvo),
+                statusNovoDraft: state.statusNovoDraft || 'LIBERADO',
+                tipoNovoDraft: state.tipoNovoDraft || '',
+                anexosAtuais: Array.isArray(state.anexosAtuais) ? JSON.parse(JSON.stringify(state.anexosAtuais)) : []
+            };
+        },
+
+        limparSnapshotAba(tabIdOverride) {
+            const tabKey = tabIdOverride || obterTabIdAtivaOsComercial();
+            if (window._snapshotsOsComercial && tabKey) {
+                delete window._snapshotsOsComercial[tabKey];
+            }
+        },
+
+        resetarParaNovaAba() {
+            state.propostaIdAtiva = null;
+            state.osAtual = null;
+            state.editadoNaoSalvo = false;
+            state.statusNovoDraft = 'LIBERADO';
+            state.tipoNovoDraft = '';
+            state.anexosAtuais = [];
+        },
+
+        novaOSNaMesmaAba() {
+            this.resetarParaNovaAba();
+            const tabKey = obterTabIdAtivaOsComercial();
+            if (window._snapshotsOsComercial && tabKey) {
+                delete window._snapshotsOsComercial[tabKey];
+            }
+            atualizarTituloAbaSuperior(null, tabKey);
+            renderFormOS();
+        },
+
+        async carregarOsPorPropostaId(propId, tipoOperacaoForcado = '') {
             const idNum = Number(propId);
             if (!idNum) return;
             try {
@@ -865,12 +982,16 @@
                     Swal.fire('Aviso', 'Uma OS só pode existir para contratos assinados.', 'warning');
                     return;
                 }
-                if (tipoOperacaoForcado) {
+                if (tipoOperacaoForcado && OS_COMERCIAL_TIPOS.some(t => normStr(t) === normStr(tipoOperacaoForcado))) {
                     p.os_tipo_operacao = tipoOperacaoForcado;
+                } else {
+                    p.os_tipo_operacao = resolverTipoOsComercial(p);
                 }
                 state.propostaIdAtiva = p.id;
                 state.osAtual = p;
                 state.editadoNaoSalvo = false;
+                state.anexosAtuais = [];
+                this.salvarSnapshotAba();
                 renderFormOS();
             } catch (e) {
                 console.error('[COMERCIAL_OS] Erro ao carregar OS:', e);
@@ -887,7 +1008,6 @@
             const rawNorm = normStr(raw);
             const rawDigits = raw.replace(/\D/g, '').replace(/^0+/, '');
 
-            // 1. Verifica match exato pelo número da OS
             if (/^\d+$/.test(raw)) {
                 const matchOsExata = listaOs.find(p => {
                     const nOs = String(p.numero_os || '').trim();
@@ -902,7 +1022,6 @@
                 }
             }
 
-            // 2. Pode ter digitado o nome do cliente, número do contrato ou número da proposta:
             const matchesFlex = listaOs.filter(p => {
                 const nOs = normStr(p.numero_os);
                 const nCtr = normStr(p.contrato);
@@ -944,6 +1063,16 @@
             if (caret) caret.style.transform = novo ? 'rotate(180deg)' : 'rotate(0deg)';
         },
 
+        onChangeTipoOs(novoTipo) {
+            if (state.osAtual) {
+                state.osAtual.os_tipo_operacao = novoTipo;
+            } else {
+                state.tipoNovoDraft = novoTipo;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
         toggleMenuStatusOs(event) {
             if (event) {
                 event.preventDefault();
@@ -967,8 +1096,11 @@
             if (menu) menu.style.display = 'none';
             if (state.osAtual) {
                 state.osAtual.status_os = novoStatus;
+            } else {
+                state.statusNovoDraft = novoStatus;
             }
             this.marcarEditado();
+            this.salvarSnapshotAba();
         },
 
         marcarEditado() {
@@ -982,14 +1114,61 @@
             }
         },
 
+        async enviarAnexosOs(fileList) {
+            if (!state.osAtual || !state.osAtual.id) return;
+            const files = Array.from(fileList || []);
+            if (!files.length) return;
+            const titulo = String(document.getElementById('cos-anexo-titulo-input')?.value || '').trim();
+            const fd = new FormData();
+            files.forEach(f => fd.append('arquivos', f));
+            if (titulo) fd.append('titulo', titulo);
+            try {
+                const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const r = await fetch(`/api/propostas/${state.osAtual.id}/anexos-os-comercial`, {
+                    method: 'POST',
+                    headers: tk ? { 'Authorization': 'Bearer ' + tk } : {},
+                    body: fd
+                });
+                const res = await r.json();
+                if (!r.ok || !res.success) {
+                    Swal.fire('Erro', (res && res.error) || 'Não foi possível anexar documento(s) à OS.', 'error');
+                    return;
+                }
+                const inpTit = document.getElementById('cos-anexo-titulo-input');
+                if (inpTit) inpTit.value = '';
+                const inpFile = document.getElementById('cos-anexo-file-input');
+                if (inpFile) inpFile.value = '';
+                await carregarAnexosOs(state.osAtual.id);
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso('Anexo(s) incluído(s) na OS com sucesso!');
+                }
+            } catch (e) {
+                Swal.fire('Erro', e.message || 'Erro ao enviar anexo.', 'error');
+            }
+        },
+
+        async excluirAnexoOs(anexoId) {
+            if (!state.osAtual || !state.osAtual.id || !anexoId) return;
+            try {
+                const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const r = await fetch(`/api/propostas/${state.osAtual.id}/anexos-os-comercial/${anexoId}`, {
+                    method: 'DELETE',
+                    headers: tk ? { 'Authorization': 'Bearer ' + tk } : {}
+                });
+                if (r.ok) {
+                    await carregarAnexosOs(state.osAtual.id);
+                }
+            } catch (_) {}
+        },
+
         async salvarAlteracoesOS() {
             if (!state.osAtual || !state.osAtual.id) return;
             const payload = {
                 status_os: document.getElementById('cos-status-os')?.value || state.osAtual.status_os || 'LIBERADO',
+                os_tipo_operacao: document.getElementById('cos-tipo')?.value || state.osAtual.os_tipo_operacao || resolverTipoOsComercial(state.osAtual),
                 os_criada_em: document.getElementById('cos-data-cadastro')?.value || state.osAtual.os_criada_em || hojeIso(),
                 titulo_contrato: document.getElementById('cos-titulo-contrato')?.value || state.osAtual.titulo_contrato || '',
                 endereco_instalacao: document.getElementById('cos-endereco-instalacao')?.value || state.osAtual.endereco_instalacao || '',
-                contato_instalacao_contrato: document.getElementById('cos-contato-instalacao')?.value || state.osAtual.contato_instalacao_contrato || '',
                 observacoes: document.getElementById('cos-obs')?.value || ''
             };
             try {
@@ -1009,6 +1188,7 @@
                 }
                 Object.assign(state.osAtual, payload);
                 state.editadoNaoSalvo = false;
+                this.salvarSnapshotAba();
                 renderFormOS();
                 if (typeof mostrarToastSucesso === 'function') {
                     mostrarToastSucesso('OS salva com sucesso!');

@@ -1421,7 +1421,7 @@ function renderAppTabs() {
         const activeColor = t.color || '#0f172a';
         // Cor inativa: mesma cor do departamento mas com opacidade reduzida
         const inactiveColor = activeColor;
-        const displayTitle = ((t.target === 'comercial-proposta' || t.target === 'comercial-contratos') && t.title) ? t.title : (TAB_META[t.target]?.title || t.title);
+        const displayTitle = ((t.target === 'comercial-proposta' || t.target === 'comercial-contratos' || t.target === 'comercial-os') && t.title) ? t.title : (TAB_META[t.target]?.title || t.title);
         return `
         <div class="app-top-tab ${t.active ? 'active' : ''}" 
              onclick="navigateToTab('${t.tabId}')"
@@ -1456,11 +1456,15 @@ window.navigateToTab = function (tabId) {
         if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
             window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
         }
+    } else if (prevActiveTab && prevActiveTab.target === 'comercial-os' && window._comercialOS && typeof window._comercialOS.salvarSnapshotAba === 'function') {
+        window._comercialOS.salvarSnapshotAba(prevActiveTab.tabId);
     }
     if (tab.target === 'comercial-proposta') {
         window._activePropostaTabId = tab.tabId;
     } else if (tab.target === 'comercial-contratos') {
         window._activeContratoTabId = tab.tabId;
+    } else if (tab.target === 'comercial-os') {
+        window._activeOsComercialTabId = tab.tabId;
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
@@ -1644,6 +1648,8 @@ window.closeAppTab = async function (tabId, forceClose = false) {
     if (!forceClose && tabObj) {
         if (wasActive && (tabObj.target === 'comercial-proposta' || tabObj.target === 'comercial-contratos') && typeof window.salvarSnapshotEstadoFormComercial === 'function') {
             window.salvarSnapshotEstadoFormComercial(tabObj.target === 'comercial-contratos' ? 'contrato' : 'proposta', tabObj.tabId);
+        } else if (wasActive && tabObj.target === 'comercial-os' && window._comercialOS && typeof window._comercialOS.salvarSnapshotAba === 'function') {
+            window._comercialOS.salvarSnapshotAba(tabObj.tabId);
         }
     }
     const idxAfter = appOpenTabs.findIndex(t => t.tabId === tabId);
@@ -1652,6 +1658,8 @@ window.closeAppTab = async function (tabId, forceClose = false) {
     const wasActiveAfter = Boolean(tabObjAfter && tabObjAfter.active);
     if (tabObjAfter && (tabObjAfter.target === 'comercial-proposta' || tabObjAfter.target === 'comercial-contratos') && typeof window.limparEstadoAbaComercial === 'function') {
         window.limparEstadoAbaComercial(tabObjAfter.target === 'comercial-contratos' ? 'contrato' : 'proposta', wasActiveAfter, tabObjAfter.tabId);
+    } else if (tabObjAfter && tabObjAfter.target === 'comercial-os' && window._comercialOS && typeof window._comercialOS.limparSnapshotAba === 'function') {
+        window._comercialOS.limparSnapshotAba(tabObjAfter.tabId);
     }
     appOpenTabs.splice(idxAfter, 1);
 
@@ -1676,6 +1684,8 @@ function navigateTo(target) {
             if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
                 window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
             }
+        } else if (prevActiveTab && prevActiveTab.target === 'comercial-os' && window._comercialOS && typeof window._comercialOS.salvarSnapshotAba === 'function') {
+            window._comercialOS.salvarSnapshotAba(prevActiveTab.tabId);
         }
         const meta = getTabMeta(target);
         if (target === 'comercial-proposta') {
@@ -1721,6 +1731,37 @@ function navigateTo(target) {
             }
             appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
+        } else if (target === 'comercial-os') {
+            const osTabs = appOpenTabs.filter(t => t.target === 'comercial-os');
+            // Se não tiver nenhuma aba de OS aberta ainda, cria a primeira;
+            // Se já tiver uma aba aberta e ela estiver sem OS carregada (e não estamos abrindo um registro específico), reutiliza a aba vazia;
+            // Se a aba existente já estiver com uma OS carregada (ou se clicou no menu enquanto tinha uma OS carregada), mantém a aba da OS aberta com o número e abre uma nova sem número nenhum.
+            const abaVaziaExistente = !window._comercialOsAbrirPropostaId && osTabs.find(t => {
+                const snap = window._snapshotsOsComercial && window._snapshotsOsComercial[t.tabId];
+                const temOsNaAba = (snap && snap.propostaIdAtiva) || (t.title && t.title !== 'OS');
+                return !temOsNaAba;
+            });
+            if (abaVaziaExistente) {
+                window._activeOsComercialTabId = abaVaziaExistente.tabId;
+                appOpenTabs.forEach(t => t.active = (t.tabId === abaVaziaExistente.tabId));
+            } else {
+                let newTabId = 'comercial-os';
+                const newTitle = 'OS';
+                if (osTabs.length > 0 || appOpenTabs.some(t => t.tabId === 'comercial-os')) {
+                    let n = 2;
+                    while (appOpenTabs.some(t => t.tabId === `comercial-os-${n}`)) n++;
+                    newTabId = `comercial-os-${n}`;
+                }
+                window._activeOsComercialTabId = newTabId;
+                if (window._snapshotsOsComercial) {
+                    delete window._snapshotsOsComercial[newTabId];
+                }
+                if (!window._comercialOsAbrirPropostaId && window._comercialOS && typeof window._comercialOS.resetarParaNovaAba === 'function') {
+                    window._comercialOS.resetarParaNovaAba();
+                }
+                appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+                appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
+            }
         } else {
             // Telas simples: apenas uma aba por target
             const existingTab = appOpenTabs.find(t => t.tabId === target);

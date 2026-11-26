@@ -43584,7 +43584,46 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
 
       gerarCodigoOsComercial((novoNumOs) => {
         const statusInicial = 'LIBERADO';
-        const tipoOpInicial = 'Entrega de equipamentos';
+        // Regra do Tipo de OS Comercial ao gerar pelo contrato:
+        // - Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum equipamento da OS da Logística → tipo 'Equipamentos'
+        // - Quando tiver algum equipamento da tela de OS da Logística → tipo 'Envio' (entrega: obra, evento, equipamentos, interveniente)
+        // - Quando for contrato de LIMPA FOSSA → 'Limpa fossa'
+        const resolverTipoOsComercialDoContrato = (propRow) => {
+          const tipoCtr = String(propRow?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+          if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
+          let itensArr = [];
+          try {
+            itensArr = typeof propRow?.itens === 'string' ? JSON.parse(propRow.itens || '[]') : (Array.isArray(propRow?.itens) ? propRow.itens : []);
+          } catch (_) { itensArr = []; }
+          const temEquipLogistica = (Array.isArray(itensArr) ? itensArr : []).some(it => {
+            if (!it || it._substituido_por_aditivo) return false;
+            const n = String(it.produto || it.descricao || it.nome || '')
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            return (
+              n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n) ||
+              n.includes('luxo') || n.includes('luxury') || /\blx\b/.test(n) ||
+              n.includes('extra lux') || /\b(exl|elx)\b/.test(n) ||
+              n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel') ||
+              n.includes('chuveiro') ||
+              n.includes('hidraulic') ||
+              n.includes('mictorio') || n.includes('kros') ||
+              n.includes('pia') || n.includes('pbii') || n.includes('pbiii') || n.includes('lavatorio') ||
+              n.includes('guarita') ||
+              n.includes('fossa') || n.includes('succao') || n.includes('caminhao') ||
+              n.includes('carrinho') ||
+              (n.includes('caixa') && n.includes('agua')) ||
+              n.includes('banheiro') || n.includes('cabine')
+            );
+          });
+          if (tipoCtr === 'EQUIPAMENTOS' && !temEquipLogistica) {
+            return 'Equipamentos';
+          }
+          if (temEquipLogistica) {
+            return 'Envio';
+          }
+          return tipoCtr === 'EQUIPAMENTOS' ? 'Equipamentos' : 'Envio';
+        };
+        const tipoOpInicial = resolverTipoOsComercialDoContrato(prop);
         db.run(
           'UPDATE propostas SET numero_os = ?, status_os = ?, os_criada_em = ?, os_tipo_operacao = ?, atualizado_em = ? WHERE id = ?',
           [novoNumOs, statusInicial, dataHojeIso, tipoOpInicial, agora, propId],
@@ -43626,7 +43665,7 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
   }
 });
 
-// PATCH /api/propostas/:id/os-comercial - Atualiza Status da OS e informações na tela de OS do Comercial
+// PATCH /api/propostas/:id/os-comercial - Atualiza Tipo da OS, Status da OS e informações na tela de OS do Comercial
 app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res) => {
   try {
     const propId = Number(req.params.id);
@@ -43641,6 +43680,7 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       if (!prop) return res.status(404).json({ error: 'OS não encontrada.' });
 
       const novoStatusOs = b.status_os !== undefined ? String(b.status_os || 'LIBERADO').trim() : (prop.status_os || 'LIBERADO');
+      const novoTipoOpOs = b.os_tipo_operacao !== undefined ? String(b.os_tipo_operacao || prop.os_tipo_operacao || 'Envio').trim() : (prop.os_tipo_operacao || 'Envio');
       const novaDataOs = b.os_criada_em !== undefined ? String(b.os_criada_em || '').trim() : (prop.os_criada_em || agora.substring(0, 10));
       const novoTitulo = b.titulo_contrato !== undefined ? String(b.titulo_contrato || '').trim() : (prop.titulo_contrato || '');
       const novasObs = b.observacoes !== undefined ? String(b.observacoes || '') : (prop.observacoes || '');
@@ -43655,6 +43695,7 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       db.run(
         `UPDATE propostas SET
           status_os = ?,
+          os_tipo_operacao = ?,
           os_criada_em = ?,
           titulo_contrato = ?,
           observacoes = ?,
@@ -43665,13 +43706,14 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
           datas_retirada_equipamentos = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [novoStatusOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, agora, propId],
+        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, agora, propId],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (String(prop.status_os || 'LIBERADO') !== novoStatusOs) {
             const snap = JSON.stringify(Object.assign({}, prop, {
               _origem_log: 'os_comercial',
-              status_os: novoStatusOs
+              status_os: novoStatusOs,
+              os_tipo_operacao: novoTipoOpOs
             }));
             db.run(
               `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
@@ -43679,9 +43721,22 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
               [autor, propId, String(prop.status_os || 'LIBERADO'), novoStatusOs, snap]
             );
           }
+          if (String(prop.os_tipo_operacao || '') !== novoTipoOpOs) {
+            const snap = JSON.stringify(Object.assign({}, prop, {
+              _origem_log: 'os_comercial',
+              status_os: novoStatusOs,
+              os_tipo_operacao: novoTipoOpOs
+            }));
+            db.run(
+              `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+               VALUES (?, 'Proposta', ?, 'Tipo da OS', ?, ?, ?)`,
+              [autor, propId, String(prop.os_tipo_operacao || '—'), novoTipoOpOs, snap]
+            );
+          }
           res.json({
             success: true,
             status_os: novoStatusOs,
+            os_tipo_operacao: novoTipoOpOs,
             os_criada_em: novaDataOs
           });
         }
@@ -43690,6 +43745,158 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao salvar OS.' });
   }
+});
+
+// ── ANEXOS EXCLUSIVOS DA OS DO COMERCIAL (Os anexos do contrato não são copiados automaticamente para a OS) ──
+db.run(`CREATE TABLE IF NOT EXISTS comercial_os_anexos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposta_id INTEGER NOT NULL,
+  titulo TEXT DEFAULT '',
+  nome_arquivo TEXT NOT NULL,
+  mime_type TEXT DEFAULT 'application/octet-stream',
+  tamanho INTEGER DEFAULT 0,
+  r2_key TEXT,
+  file_path TEXT,
+  criado_por TEXT,
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (errAnxOs) => {
+  if (errAnxOs) console.error('[OS_COMERCIAL_ANEXOS] Erro ao criar tabela comercial_os_anexos:', errAnxOs.message);
+});
+
+app.get('/api/propostas/:id/anexos-os-comercial', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID inválido' });
+  db.all(
+    'SELECT id, proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em FROM comercial_os_anexos WHERE proposta_id = ? ORDER BY id ASC',
+    [propId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(Array.isArray(rows) ? rows : []);
+    }
+  );
+});
+
+app.post('/api/propostas/:id/anexos-os-comercial', authenticateToken, uploadAnexosContratoMem.array('arquivos', 30), async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    if (!propId) return res.status(400).json({ error: 'ID da OS inválido.' });
+    const r2b = require('./utils/r2');
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) return res.status(400).json({ error: 'Selecione ao menos um arquivo para anexar.' });
+    const tituloUnico = req.body && typeof req.body.titulo === 'string' ? req.body.titulo.trim() : '';
+    const agoraBr = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
+    const yyyy = agoraBr.getUTCFullYear();
+    const mm = String(agoraBr.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(agoraBr.getUTCDate()).padStart(2, '0');
+    const agoraSql = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    const inseridos = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (!f || !f.buffer) continue;
+      let nomeOriginal = f.originalname || `anexo_os_${i + 1}`;
+      try {
+        if (/[\xC2\xC3][\x80-\xBF]/.test(nomeOriginal)) {
+          nomeOriginal = Buffer.from(nomeOriginal, 'latin1').toString('utf8');
+        }
+      } catch (_) {}
+      const tituloAnexo = files.length === 1 && tituloUnico ? tituloUnico : (tituloUnico ? `${tituloUnico} (${i + 1})` : '');
+      const extRaw = path.extname(nomeOriginal || '').replace('.', '').toLowerCase() || 'bin';
+      const baseClean = path.basename(nomeOriginal, path.extname(nomeOriginal))
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 50) || 'anexo_os';
+      const hash = require('crypto').randomBytes(4).toString('hex');
+      const r2Key = `Comercial/OS/${propId}/Anexos/${yyyy}/${mm}/${dd}_${Date.now()}_${hash}_${baseClean}.${extRaw}`;
+      const mimeType = f.mimetype || 'application/octet-stream';
+      const tamanho = Number(f.size || f.buffer.length || 0);
+
+      let savedR2Key = null;
+      let savedLocalPath = null;
+      if (r2b && typeof r2b.isReady === 'function' && r2b.isReady()) {
+        await r2b.uploadToR2(r2Key, f.buffer, mimeType);
+        savedR2Key = r2Key;
+      } else {
+        const localDir = path.join(__dirname, 'uploads', 'os_comercial_anexos', String(propId));
+        if (!fs.existsSync(localDir)) fs.mkdirSync(localDir, { recursive: true });
+        const localFile = path.join(localDir, `${Date.now()}_${hash}_${baseClean}.${extRaw}`);
+        fs.writeFileSync(localFile, f.buffer);
+        savedLocalPath = localFile;
+      }
+
+      const newId = await new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO comercial_os_anexos (proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [propId, tituloAnexo, nomeOriginal, mimeType, tamanho, savedR2Key, savedLocalPath, autor, agoraSql, agoraSql],
+          function(errIns) {
+            if (errIns) return reject(errIns);
+            resolve(this.lastID);
+          }
+        );
+      });
+      inseridos.push({ id: newId, titulo: tituloAnexo, nome_arquivo: nomeOriginal, mime_type: mimeType, tamanho });
+    }
+
+    const todosAnexos = await new Promise((resolve) => {
+      db.all(
+        'SELECT id, proposta_id, titulo, nome_arquivo, mime_type, tamanho, r2_key, file_path, criado_por, criado_em, atualizado_em FROM comercial_os_anexos WHERE proposta_id = ? ORDER BY id ASC',
+        [propId],
+        (e, r) => resolve(Array.isArray(r) ? r : [])
+      );
+    });
+    res.json({ success: true, anexos: todosAnexos, inseridos });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao anexar documento(s) à OS.' });
+  }
+});
+
+app.get('/api/propostas/:id/anexos-os-comercial/:anexoId/arquivo', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  const anexoId = Number(req.params.anexoId);
+  const dispType = req.query.download === '1' ? 'attachment' : 'inline';
+  db.get(
+    'SELECT * FROM comercial_os_anexos WHERE id = ? AND proposta_id = ?',
+    [anexoId, propId],
+    async (err, row) => {
+      if (err || !row) return res.status(404).send('Anexo não encontrado.');
+      const safeFilename = encodeURIComponent(row.nome_arquivo || 'anexo');
+      try {
+        if (row.r2_key) {
+          const r2b = require('./utils/r2');
+          if (!r2b.isReady()) return res.status(503).send('Armazenamento R2 não configurado.');
+          const { stream, contentType } = await r2b.downloadStreamFromR2(row.r2_key);
+          res.setHeader('Content-Type', contentType || row.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `${dispType}; filename*=UTF-8''${safeFilename}`);
+          stream.pipe(res);
+          return;
+        }
+        if (row.file_path && fs.existsSync(row.file_path)) {
+          res.setHeader('Content-Type', row.mime_type || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `${dispType}; filename*=UTF-8''${safeFilename}`);
+          fs.createReadStream(row.file_path).pipe(res);
+          return;
+        }
+        return res.status(404).send('Arquivo não localizado no armazenamento.');
+      } catch (e) {
+        res.status(500).send('Erro ao abrir o arquivo do anexo.');
+      }
+    }
+  );
+});
+
+app.delete('/api/propostas/:id/anexos-os-comercial/:anexoId', authenticateToken, async (req, res) => {
+  const propId = Number(req.params.id);
+  const anexoId = Number(req.params.anexoId);
+  // REGRA OBRIGATÓRIA GEMINI.md: NUNCA apagar arquivos do Cloudflare R2
+  db.run('DELETE FROM comercial_os_anexos WHERE id = ? AND proposta_id = ?', [anexoId, propId], function(errDel) {
+    if (errDel) return res.status(500).json({ error: errDel.message });
+    res.json({ success: true });
+  });
 });
 
 // ── COMENTÁRIOS DO CONTRATO (Histórico imutável com respostas aninhadas — sem edição e sem exclusão) ──

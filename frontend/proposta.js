@@ -47,7 +47,6 @@ const CONTRATO_TIPOS = [
     'OBRA QUINZENAL',
     'OBRA SEMANAL',
     'LIMPA FOSSA',
-    'ADITIVO',
     'EQUIPAMENTOS',
     'INTERVENIENTE'
 ];
@@ -4806,13 +4805,15 @@ function _renderFormPropostaInt() {
                         <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
                             <label class="prop-lbl">Tipo *</label>
                             <div style="display:flex; gap:0.4rem; align-items:center;">
-                                <select id="prop-tipo" ${(window._modoTelaComercial === 'contrato' && isNovo) ? 'disabled' : ''} onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value); if(typeof window.atualizarVisibilidadeIntervenienteContrato === 'function') window.atualizarVisibilidadeIntervenienteContrato(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                <select id="prop-tipo" ${window._modoTelaComercial === 'contrato' ? 'disabled' : ''} onchange="if(typeof window.onChangeTipoPropostaPrecos === 'function') window.onChangeTipoPropostaPrecos(this.value); if(typeof window.atualizarVisibilidadeIntervenienteContrato === 'function') window.atualizarVisibilidadeIntervenienteContrato(this.value);" style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
                                     <option value="">-- Selecione --</option>
                                     ${(() => {
                                         const baseTipos = window._modoTelaComercial === 'contrato' ? CONTRATO_TIPOS : PROP_TIPOS;
                                         const tipoAtualLimpo = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                                         const listaTipos = [...baseTipos];
-                                        if (tipoAtualLimpo && !listaTipos.includes(tipoAtualLimpo)) listaTipos.push(tipoAtualLimpo);
+                                        if (tipoAtualLimpo && !listaTipos.includes(tipoAtualLimpo) && !(window._modoTelaComercial === 'contrato' && tipoAtualLimpo === 'ADITIVO')) {
+                                            listaTipos.push(tipoAtualLimpo);
+                                        }
                                         return listaTipos.map(t => `<option value="${t}" ${(v('tipo')===t || tipoAtualLimpo===t)?'selected':''}>${t}</option>`).join('');
                                     })()}
                                 </select>
@@ -24422,15 +24423,19 @@ window.atualizarBloqueioPorTipoProposta = function() {
     const wrapEl = document.getElementById('prop-campos-dependentes-tipo');
     const atendenteEl = document.getElementById('prop-atendente');
     if (!tipoEl || !wrapEl) return;
-    const ehContratoSemRegistro = window._modoTelaComercial === 'contrato' && !_propostasEditandoId;
-    if (ehContratoSemRegistro) {
+    const ehModoContrato = window._modoTelaComercial === 'contrato';
+    const ehContratoSemRegistro = ehModoContrato && !_propostasEditandoId;
+    if (ehModoContrato) {
+        // Na tela de Contrato o Tipo * nunca pode ser editado (apenas pela tela de Proposta)
         tipoEl.disabled = true;
         tipoEl.style.pointerEvents = 'none';
-        tipoEl.style.opacity = '0.6';
+        tipoEl.style.opacity = ehContratoSemRegistro ? '0.6' : '0.85';
+        tipoEl.style.background = '#f8fafc';
     } else {
         tipoEl.disabled = false;
         tipoEl.style.pointerEvents = '';
         tipoEl.style.opacity = '1';
+        tipoEl.style.background = '';
     }
     const liberado = !ehContratoSemRegistro && Boolean(String(tipoEl.value || '').trim());
     if (atendenteEl) {
@@ -32863,7 +32868,7 @@ window.renderizarListaOsContrato = function(lista) {
 
                 return `
                     <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:8px; overflow:hidden;">
-                        <div onclick="${os.is_os_comercial ? `window.abrirOsComercialDaProposta(${Number(os.proposta_id)}, 'Entrega de equipamentos')` : `window.toggleDetalheItemOsContrato('${key}', event)`}"
+                        <div onclick="${os.is_os_comercial ? `window.abrirOsComercialDaProposta(${Number(os.proposta_id)})` : `window.toggleDetalheItemOsContrato('${key}', event)`}"
                             style="padding:0.55rem 0.8rem; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:pointer; user-select:none; background:#f8fafc; transition:background 0.15s;"
                             onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#f8fafc'">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
@@ -32871,7 +32876,7 @@ window.renderizarListaOsContrato = function(lista) {
                                     OS Nº ${_escHtmlProp(os.numero_os || os.id)}
                                 </span>
                                 <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:800; font-size:0.73rem; padding:2px 8px; border-radius:6px;">
-                                    ${_escHtmlProp(os.is_os_comercial ? 'Entrega de equipamentos' : tServ)}
+                                    ${_escHtmlProp(os.is_os_comercial ? (os.tipo_servico || 'Envio') : tServ)}
                                 </span>
                                 ${os.status_os ? `<span style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:800; font-size:0.71rem; padding:2px 8px; border-radius:999px;">${_escHtmlProp(os.status_os)}</span>` : ''}
                                 <span style="font-size:0.78rem; font-weight:700; color:#334155;">
@@ -32892,7 +32897,7 @@ window.renderizarListaOsContrato = function(lista) {
                         <div id="prop-os-contrato-det-${key}" style="display:${estaAberto ? 'block' : 'none'}; padding:0.75rem 0.9rem; border-top:1px solid #e2e8f0; background:#ffffff; font-size:0.8rem; color:#1e293b;">
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:0.55rem 0.9rem; margin-bottom:0.6rem;">
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Número da OS / Contrato</strong>OS ${_escHtmlProp(os.numero_os || '—')} • Contrato ${_escHtmlProp(os.contrato || '—')}</div>
-                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Tipo de Serviço</strong>${_escHtmlProp(os.is_os_comercial ? 'Entrega de equipamentos' : tServ)}</div>
+                                <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Tipo de Serviço</strong>${_escHtmlProp(os.is_os_comercial ? (os.tipo_servico || 'Envio') : tServ)}</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Data / Horário / Turno</strong>${_escHtmlProp(fmtDataBr(os.data_os))} (${_escHtmlProp(horarioTurno)})</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Dias da Semana</strong>${_escHtmlProp(diasStr)}</div>
                                 <div><strong style="color:#64748b; font-size:0.73rem; display:block;">Responsável / Contato</strong>${_escHtmlProp([os.responsavel, os.telefone, os.email].filter(Boolean).join(' • ') || '—')}</div>
@@ -32934,7 +32939,7 @@ window.gerarOsComercialDoContrato = async function(propIdOpcional) {
                 _propostasData[idx].numero_os = res.numero_os;
                 _propostasData[idx].status_os = res.status_os || 'LIBERADO';
                 _propostasData[idx].os_criada_em = res.os_criada_em;
-                _propostasData[idx].os_tipo_operacao = res.os_tipo_operacao || 'Entrega de equipamentos';
+                _propostasData[idx].os_tipo_operacao = res.os_tipo_operacao || 'Envio';
             }
         }
         if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
@@ -32944,25 +32949,25 @@ window.gerarOsComercialDoContrato = async function(propIdOpcional) {
             window.carregarOsContratoAtivo(propId);
         }
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso(`OS Nº ${res.numero_os} gerada com sucesso (Status: LIBERADO)!`);
+            mostrarToastSucesso(`OS Nº ${res.numero_os} gerada com sucesso (Tipo: ${res.os_tipo_operacao || 'Envio'} · Status: LIBERADO)!`);
         }
-        window.abrirOsComercialDaProposta(propId, 'Entrega de equipamentos');
+        window.abrirOsComercialDaProposta(propId, res.os_tipo_operacao || '');
     } catch (e) {
         Swal.fire('Aviso', e.message || 'Erro ao gerar a OS.', 'warning');
     }
 };
 
-window.abrirOsComercialDaProposta = function(propId, tipoOperacaoForcado = 'Entrega de equipamentos') {
+window.abrirOsComercialDaProposta = function(propId, tipoOperacaoForcado = '') {
     const idNum = Number(propId);
     if (!idNum) return;
     window._comercialOsAbrirPropostaId = idNum;
-    window._comercialOsTipoOperacaoForcado = tipoOperacaoForcado || 'Entrega de equipamentos';
+    window._comercialOsTipoOperacaoForcado = tipoOperacaoForcado || '';
     if (typeof navigateTo === 'function') {
         navigateTo('comercial-os');
     }
     setTimeout(() => {
         if (window._comercialOS && typeof window._comercialOS.carregarOsPorPropostaId === 'function') {
-            window._comercialOS.carregarOsPorPropostaId(idNum, tipoOperacaoForcado || 'Entrega de equipamentos');
+            window._comercialOS.carregarOsPorPropostaId(idNum, tipoOperacaoForcado || '');
         }
     }, 90);
 };
