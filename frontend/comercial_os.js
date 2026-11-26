@@ -4,46 +4,57 @@
  * Tela de OS do Comercial (independente da tela de OS da Logística).
  *
  * Regras implementadas:
- *   - O campo Tipo * é preenchido com o Tipo de OS do Comercial:
- *       1. Envio
- *       2. Visita técnica
- *       3. Limpa fossa
- *       4. Compras
- *       5. Equipamentos
- *   - Regra automática de tipo ao gerar pelo contrato:
- *       * Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum
- *         equipamento da tela de OS da Logística → OS do tipo "Equipamentos".
- *       * Quando tiver algum equipamento da tela de OS da Logística → OS do
- *         tipo "Envio" (entrega: obra, evento, equipamentos, interveniente).
- *   - É possível editar o Status da OS e o Tipo da OS.
- *   - Oculta o quadro "Informações do Contrato / OS".
- *   - Oculta o campo "Condição de Pagamento".
- *   - Oculta o campo e o quadro de "Interveniente" (tanto a checkbox ao lado
- *     do título quanto o quadro de dados do interveniente).
- *   - Na aba superior de OS do Comercial:
- *       * Mostra o número da OS carregada na tela como no contrato: "05 - OS".
- *       * Se tiver uma OS carregada na tela e abrir uma nova pelo menu, deixa
- *         a aba da OS que está aberta com o número e abre uma nova aba sem
- *         número nenhum ("OS").
- *       * Se clicar no botão "Novo", abre na mesma aba uma nova OS para
- *         preenchimento, e com a aba sem número ("OS").
- *   - Os anexos do contrato NÃO são anexados automaticamente no quadro de
- *     Anexos da OS do Comercial quando uma OS é criada pelo contrato (a OS
- *     possui sua própria tabela de anexos comercial_os_anexos no Cloudflare R2).
+ *   1. Tipos de OS com ícone na frente (somente leitura na OS criada — vem
+ *      direto da tela de Contrato de acordo com as regras de criação da OS):
+ *        - 🚚 Envio
+ *        - 🔧 Visita técnica
+ *        - 💧 Limpa fossa
+ *        - 🛒 Compras
+ *        - 📦 Equipamentos
+ *   2. Uma nova OS nasce com a situação "EM ELABORAÇÃO" (e só passa para
+ *      "LIBERADO" quando enviada para a Logística após preencher todos os
+ *      campos obrigatórios).
+ *   3. Campos somente leitura: Nº da OS (exceto pesquisa), Tipo *, Atendente,
+ *      Título *, Data Cadastro *, Dados do Cliente (Cliente com pesquisa, Contato).
+ *   4. Quadro "Período e Locação" renomeado para "Entrega, Manutenções e Retiradas"
+ *      (sem o campo Dias Contrato):
+ *        - Data de Entrega * + Horário da Entrega (ou checkbox "Horário comercial",
+ *          pré-selecionado automaticamente apenas quando for contrato do tipo OBRA).
+ *        - Data de Retirada * + Horário da Retirada (ou checkbox "Horário comercial",
+ *          pré-selecionado automaticamente apenas quando for contrato do tipo OBRA).
+ *        - Quando for OBRA: Quantidade de Manutenções selecionada na proposta
+ *          (preenchimento automático) e Horário da Manutenção automático como
+ *          Horário Comercial.
+ *        - Quando for EVENTO: campo para selecionar / definir os dias e horas
+ *          do evento (Horário de Início e Horário de Fim de cada dia do evento,
+ *          sem opção de horário comercial).
+ *   5. Botão "Enviar OS para a Logística" aparece somente quando todos os
+ *      campos obrigatórios da OS do Comercial estiverem preenchidos.
+ *   6. Quadro "Produtos *":
+ *        - Quando for produto com fonte de fornecimento "PRÓPRIO AVULSO" ou
+ *          "PACOTE OBRA", associa e exibe o nome padronizado da tela de OS da
+ *          Logística com o ícone correto na frente (separando ícones de OBRA e
+ *          EVENTO e modelo do equipamento, removendo códigos como
+ *          "BANHEIRO QUÍMICO EXTRA LUXO O05XZC" → "🔵 EXL OBRA").
+ *   7. Quadro "Serviços" ocultado.
+ *   8. Caso o frete seja do tipo FOB (servico_frete_fob === 1 ou tipo_frete === 'FOB'),
+ *      exibe o quadro "FOB *" com: Data da Entrega, Data da Retirada, Modelo do
+ *      Veículo que fará a retirada/entrega, Placa do Veículo e Nome do Motorista.
  * ============================================================================
  */
 (function () {
     'use strict';
 
-    const OS_COMERCIAL_TIPOS = [
-        'Envio',
-        'Visita técnica',
-        'Limpa fossa',
-        'Compras',
-        'Equipamentos'
+    const OS_COMERCIAL_TIPOS_CONFIG = [
+        { nome: 'Envio',          icone: '🚚', label: '🚚 Envio' },
+        { nome: 'Visita técnica', icone: '🔧', label: '🔧 Visita técnica' },
+        { nome: 'Limpa fossa',    icone: '💧', label: '💧 Limpa fossa' },
+        { nome: 'Compras',        icone: '🛒', label: '🛒 Compras' },
+        { nome: 'Equipamentos',   icone: '📦', label: '📦 Equipamentos' }
     ];
 
     const OS_COMERCIAL_STATUS_CONFIG = [
+        { nome: 'EM ELABORAÇÃO',                bg: '#fef3c7', text: '#b45309', border: '#fcd34d', icon: 'ph-pencil-simple-line' },
         { nome: 'LIBERADO',                      bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'ph-check-circle' },
         { nome: 'ENTREGA AGENDADA',              bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'ph-calendar-check' },
         { nome: 'ENTREGUE - ACOMPANHAMENTO OS',  bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc', icon: 'ph-truck' },
@@ -52,7 +63,7 @@
         { nome: 'RETIRADA TOTAL REALIZADA',      bg: '#f1f5f9', text: '#334155', border: '#cbd5e1', icon: 'ph-seal-check' }
     ];
 
-    window.OS_COMERCIAL_TIPOS = OS_COMERCIAL_TIPOS;
+    window.OS_COMERCIAL_TIPOS_CONFIG = OS_COMERCIAL_TIPOS_CONFIG;
     window.OS_COMERCIAL_STATUS_CONFIG = OS_COMERCIAL_STATUS_CONFIG;
     window._snapshotsOsComercial = window._snapshotsOsComercial || {};
     window._activeOsComercialTabId = window._activeOsComercialTabId || 'comercial-os';
@@ -60,13 +71,13 @@
     const state = {
         propostaIdAtiva: null,
         osAtual: null,
+        dadosOs: null,
         editadoNaoSalvo: false,
-        statusNovoDraft: 'LIBERADO',
-        tipoNovoDraft: '',
+        statusNovoDraft: 'EM ELABORAÇÃO',
         secoesAbertas: {
-            periodo: false,
-            produtos: false,
-            servicos: false,
+            periodo: true,
+            produtos: true,
+            fob: true,
             anexos: false
         },
         anexosAtuais: []
@@ -97,24 +108,64 @@
         return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().substring(0, 10);
     }
 
+    function fmtDataBr(iso) {
+        const s = String(iso || '').trim().substring(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '—';
+        const [y, m, d] = s.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
     function obterConfigStatusOs(statusRaw) {
         const sNorm = normStr(statusRaw).toUpperCase();
         return OS_COMERCIAL_STATUS_CONFIG.find(c => normStr(c.nome).toUpperCase() === sNorm)
             || OS_COMERCIAL_STATUS_CONFIG[0];
     }
 
+    function obterConfigTipoOs(tipoRaw) {
+        const tNorm = normStr(tipoRaw);
+        return OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === tNorm || normStr(t.label) === tNorm)
+            || OS_COMERCIAL_TIPOS_CONFIG[0];
+    }
+
     window.renderBadgeStatusOsComercialHtml = function (statusRaw) {
         const cfg = obterConfigStatusOs(statusRaw);
         return `<span style="display:inline-flex; align-items:center; gap:5px;">
-            <span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:2px 10px; border-radius:999px; font-size:0.73rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
-                <i class="ph ${cfg.icon}" style="font-size:0.85rem;"></i> ${esc(cfg.nome)}
+            <span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:1px 9px; border-radius:999px; font-size:0.71rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
+                <i class="ph ${cfg.icon}" style="font-size:0.82rem;"></i> ${esc(cfg.nome)}
             </span>
         </span>`;
     };
 
     /**
-     * Verifica se um produto pertence à lista de equipamentos da tela de OS da Logística:
-     * (STD, LX, EXL, PCD, CHUVEIRO, HIDRÁULICO, MICTÓRIO, PBII, PBIII, GUARITA, LIMPA FOSSA, CARRINHO, CAIXA D'ÁGUA)
+     * Verifica se um item da proposta possui fonte de fornecimento "PRÓPRIO AVULSO" ou "PACOTE OBRA".
+     */
+    function itemEhProprioAvulsoOuPacoteObra(it, prop) {
+        if (!it) return false;
+        let fonte = normStr(it.fonte_fornecimento || '');
+        if (!fonte && typeof window.obterFonteFornecimentoEquipamento === 'function') {
+            try {
+                fonte = normStr(window.obterFonteFornecimentoEquipamento({
+                    codigo: it.codigo || '',
+                    produto: it.produto || it.descricao || it.nome || ''
+                }) || '');
+            } catch (_) {}
+        }
+        if (fonte) {
+            return fonte.includes('proprio avulso') || fonte.includes('pacote obra');
+        }
+        // Fallback para itens antigos gravados antes do campo fonte_fornecimento existir no JSON:
+        const nome = String(it.produto || it.descricao || it.nome || '');
+        const cod = String(it.codigo || '');
+        if (/\bO0\d[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i.test(nome) || /\bO0\d[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i.test(cod)) {
+            return true; // Código típico de Pacote Obra
+        }
+        const tipoCtr = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (tipoCtr.includes('OBRA')) return true;
+        return itemEhEquipamentoLogistica(nome);
+    }
+
+    /**
+     * Verifica se o nome do produto corresponde a um dos equipamentos existentes na tela de OS da Logística.
      */
     function itemEhEquipamentoLogistica(nomeProd) {
         const n = normStr(nomeProd);
@@ -137,30 +188,98 @@
     }
 
     /**
+     * Associa o produto da proposta (quando PRÓPRIO AVULSO ou PACOTE OBRA) ao nome e ícone
+     * padronizados da tela de OS da Logística, separando OBRA e EVENTO e modelo do equipamento.
+     * Ex: "BANHEIRO QUÍMICO EXTRA LUXO O05XZC" → { associado: true, icone: '🔵', nome: 'EXL OBRA', label: '🔵 EXL OBRA' }
+     */
+    function associarProdutoComEquipamentoOsLogistica(it, prop) {
+        const nomeOriginal = String(it?.produto || it?.descricao || it?.nome || '—').trim();
+        if (!itemEhProprioAvulsoOuPacoteObra(it, prop)) {
+            return { associado: false, icone: '', nome: nomeOriginal, label: nomeOriginal };
+        }
+
+        const n = normStr(nomeOriginal);
+        const tipoCtr = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const fonteNorm = normStr(it?.fonte_fornecimento || '');
+        const temCodObra = /\bO0\d[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i.test(nomeOriginal) || /\bO0\d/i.test(String(it?.codigo || ''));
+        const ehContextoObra = tipoCtr.includes('OBRA') || fonteNorm.includes('pacote obra') || temCodObra || n.includes('obra');
+        const sufixo = ehContextoObra ? 'OBRA' : 'EVENTO';
+
+        if (n.includes('carrinho')) {
+            return { associado: true, icone: '🛤', nome: 'CARRINHO', label: '🛤 CARRINHO' };
+        }
+        if (n.includes('caixa') && n.includes('agua')) {
+            return { associado: true, icone: '🧊', nome: 'CAIXA DAGUA', label: '🧊 CAIXA DAGUA' };
+        }
+        if (n.includes('fossa') || n.includes('succao') || n.includes('caminhao')) {
+            const nm = `LIMPA FOSSA ${sufixo}`;
+            return { associado: true, icone: '💧', nome: nm, label: `💧 ${nm}` };
+        }
+        if (n.includes('extra lux') || /\b(exl|elx)\b/.test(n)) {
+            const ic = sufixo === 'OBRA' ? '🔵' : '🟣';
+            const nm = `EXL ${sufixo}`;
+            return { associado: true, icone: ic, nome: nm, label: `${ic} ${nm}` };
+        }
+        if (n.includes('luxo') || n.includes('luxury') || /\blx\b/.test(n)) {
+            const ic = sufixo === 'OBRA' ? '🟦' : '🟣';
+            const nm = `LX ${sufixo}`;
+            return { associado: true, icone: ic, nome: nm, label: `${ic} ${nm}` };
+        }
+        if (n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel')) {
+            const nm = `PCD ${sufixo}`;
+            return { associado: true, icone: '♿', nome: nm, label: `♿ ${nm}` };
+        }
+        if (n.includes('chuveiro')) {
+            const nm = `CHUVEIRO ${sufixo}`;
+            return { associado: true, icone: '🚿', nome: nm, label: `🚿 ${nm}` };
+        }
+        if (n.includes('hidraulic')) {
+            const nm = `HIDRÁULICO ${sufixo}`;
+            return { associado: true, icone: '🚽', nome: nm, label: `🚽 ${nm}` };
+        }
+        if (n.includes('mictorio') || n.includes('kros')) {
+            const nm = `MICTÓRIO ${sufixo}`;
+            return { associado: true, icone: '💦', nome: nm, label: `💦 ${nm}` };
+        }
+        if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3') || n.includes('3 torneiras')) {
+            const nm = `PBIII ${sufixo}`;
+            return { associado: true, icone: '🧼', nome: nm, label: `🧼 ${nm}` };
+        }
+        if (n.includes('pia') || n.includes('pbii') || n.includes('lavatorio') || n.includes('2 torneiras')) {
+            const nm = `PBII ${sufixo}`;
+            return { associado: true, icone: '🧼', nome: nm, label: `🧼 ${nm}` };
+        }
+        if (n.includes('guarita') && n.includes('dupla')) {
+            const nm = `GUARITA DUPLA ${sufixo}`;
+            return { associado: true, icone: '⚪', nome: nm, label: `⚪ ${nm}` };
+        }
+        if (n.includes('guarita')) {
+            const nm = `GUARITA INDIVIDUAL ${sufixo}`;
+            return { associado: true, icone: '⬜', nome: nm, label: `⬜ ${nm}` };
+        }
+        if (n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n) || n.includes('banheiro') || n.includes('cabine')) {
+            const ic = sufixo === 'OBRA' ? '💙' : '💜';
+            const nm = `STD ${sufixo}`;
+            return { associado: true, icone: ic, nome: nm, label: `${ic} ${nm}` };
+        }
+
+        // Se for obra e tiver código final tipo O05XZC mas não caiu nos modelos acima, limpa o código
+        if (ehContextoObra) {
+            const limpo = nomeOriginal.replace(/\s+\bO0\d[A-Z0-9]*\b/gi, '').replace(/\s+\b(?:ZC|ZA|ZV|VZ)\b$/gi, '').trim();
+            return { associado: false, icone: '', nome: limpo, label: limpo };
+        }
+        return { associado: false, icone: '', nome: nomeOriginal, label: nomeOriginal };
+    }
+
+    /**
      * Resolve o Tipo de OS Comercial (Envio, Visita técnica, Limpa fossa, Compras, Equipamentos)
-     * seguindo a regra:
-     * - Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum equipamento da OS da Logística → "Equipamentos"
-     * - Quando tiver algum equipamento da tela de OS da Logística → "Envio" (entrega: obra, evento, equipamentos, interveniente)
-     * - Quando for contrato de LIMPA FOSSA → "Limpa fossa"
+     * direto do contrato:
+     * - Contrato do tipo EQUIPAMENTOS sem nenhum equipamento da tela de OS da Logística → "Equipamentos"
+     * - Quando tiver algum equipamento da tela de OS da Logística → "Envio"
+     * - Contrato LIMPA FOSSA → "Limpa fossa"
      */
     function resolverTipoOsComercial(prop) {
         if (!prop) return '';
-        const salvo = String(prop.os_tipo_operacao || '').trim();
-        const matchSalvo = OS_COMERCIAL_TIPOS.find(t => normStr(t) === normStr(salvo));
-        if (matchSalvo) {
-            // Se era contrato de EQUIPAMENTOS sem equipamento da logística, garante 'Equipamentos'
-            const tipoCtrUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-            if (tipoCtrUp === 'EQUIPAMENTOS') {
-                let itens = [];
-                try {
-                    itens = typeof prop.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop.itens) ? prop.itens : []);
-                } catch (_) { itens = []; }
-                const temEqLog = (Array.isArray(itens) ? itens : []).some(it => it && !it._substituido_por_aditivo && itemEhEquipamentoLogistica(it.produto || it.descricao || it.nome || ''));
-                if (!temEqLog) return 'Equipamentos';
-            }
-            return matchSalvo;
-        }
-
         const tipoCtr = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
 
@@ -180,7 +299,199 @@
         if (temEquipLogistica) {
             return 'Envio';
         }
+        const salvo = String(prop.os_tipo_operacao || '').trim();
+        const matchSalvo = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(salvo));
+        if (matchSalvo) return matchSalvo.nome;
         return tipoCtr === 'EQUIPAMENTOS' ? 'Equipamentos' : 'Envio';
+    }
+
+    function propostaTemFreteFob(prop) {
+        if (!prop) return false;
+        if (Number(prop.servico_frete_fob) === 1 || prop.servico_frete_fob === true) return true;
+        if (String(prop.tipo_frete || '').trim().toUpperCase() === 'FOB') return true;
+        let servs = [];
+        try {
+            servs = typeof prop.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop.itens_servicos) ? prop.itens_servicos : []);
+        } catch (_) { servs = []; }
+        return (Array.isArray(servs) ? servs : []).some(s => normStr(s?.servico || s?.produto || s?.descricao || '').includes('fob'));
+    }
+
+    function extrairQuantidadeManutencoesProposta(prop) {
+        if (!prop) return '';
+        let itens = [];
+        try {
+            itens = typeof prop.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop.itens) ? prop.itens : []);
+        } catch (_) { itens = []; }
+        for (const it of (Array.isArray(itens) ? itens : [])) {
+            if (!it || it._substituido_por_aditivo) continue;
+            const m = parseInt(it.manut_semana, 10);
+            if (m > 0) return `${m}x por semana`;
+            const nome = String(it.produto || it.descricao || it.nome || '');
+            const matchCod = nome.match(/\bO0(\d)[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i);
+            if (matchCod && parseInt(matchCod[1], 10) > 0) {
+                return `${parseInt(matchCod[1], 10)}x por semana`;
+            }
+        }
+        return '1x por semana';
+    }
+
+    function extrairDiasEventoInicialDaProposta(prop) {
+        if (!prop) return [];
+        const mapDias = new Map();
+        let itens = [];
+        try {
+            itens = typeof prop.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop.itens) ? prop.itens : []);
+        } catch (_) { itens = []; }
+        const hIniPad = String(prop.hora_inicio || '08:00').trim() || '08:00';
+        const hFimPad = String(prop.hora_fim || '18:00').trim() || '18:00';
+
+        (Array.isArray(itens) ? itens : []).forEach(it => {
+            if (!it || it._substituido_por_aditivo) return;
+            const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento : [];
+            const horariosObj = (it.dias_evento_horarios && typeof it.dias_evento_horarios === 'object') ? it.dias_evento_horarios : {};
+            diasArr.forEach(dRaw => {
+                const dIso = String(dRaw || '').trim().substring(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dIso)) return;
+                if (!mapDias.has(dIso)) {
+                    const hDia = horariosObj[dIso] || {};
+                    mapDias.set(dIso, {
+                        data: dIso,
+                        hora_inicio: String(hDia.inicio || hDia.hora_inicio || hIniPad).trim() || '08:00',
+                        hora_fim: String(hDia.fim || hDia.hora_fim || hFimPad).trim() || '18:00'
+                    });
+                }
+            });
+        });
+
+        if (mapDias.size === 0 && prop.periodo_inicio) {
+            const dIni = String(prop.periodo_inicio || '').trim().substring(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dIni)) {
+                mapDias.set(dIni, { data: dIni, hora_inicio: hIniPad, hora_fim: hFimPad });
+            }
+        }
+
+        return Array.from(mapDias.values()).sort((a, b) => a.data.localeCompare(b.data));
+    }
+
+    function inicializarDadosOsComercial(prop) {
+        if (!prop) return null;
+        let salvo = {};
+        if (prop.os_comercial_dados_json) {
+            try {
+                salvo = typeof prop.os_comercial_dados_json === 'string'
+                    ? JSON.parse(prop.os_comercial_dados_json || '{}')
+                    : (prop.os_comercial_dados_json || {});
+            } catch (_) { salvo = {}; }
+        }
+
+        const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ehObra = tipoLimpoUp.includes('OBRA');
+        const ehEvento = tipoLimpoUp === 'EVENTO';
+
+        // Datas de entrega/retirada do contrato (quando houver) ou período início/fim
+        let dtEntPad = String(prop.periodo_inicio || '').trim().substring(0, 10);
+        let dtRetPad = String(prop.periodo_fim || '').trim().substring(0, 10);
+        try {
+            const arrE = JSON.parse(prop.datas_entrega_equipamentos || '[]');
+            if (Array.isArray(arrE) && arrE[0]) dtEntPad = String(arrE[0]).trim().substring(0, 10);
+        } catch (_) {}
+        try {
+            const arrR = JSON.parse(prop.datas_retirada_equipamentos || '[]');
+            if (Array.isArray(arrR) && arrR[0]) dtRetPad = String(arrR[0]).trim().substring(0, 10);
+        } catch (_) {}
+
+        // Regra solicitada:
+        // - Quando for um contrato do tipo OBRA: selecionar automaticamente o Horário Comercial (entrega, retirada e manutenção).
+        // - Quando for outro tipo de contrato: o checkbox do horário comercial NÃO deve estar pré-selecionado.
+        // - Quando for EVENTO: não tem a opção de horário comercial.
+        const horarioComercialPadrao = ehObra ? true : false;
+
+        return {
+            data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : dtEntPad,
+            hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : (ehObra ? '08:00 às 18:00' : (String(prop.hora_inicio || '').trim() || '')),
+            entrega_horario_comercial: ehEvento ? false : (salvo.entrega_horario_comercial !== undefined ? Boolean(salvo.entrega_horario_comercial) : horarioComercialPadrao),
+
+            data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : dtRetPad,
+            hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : (ehObra ? '08:00 às 18:00' : (String(prop.hora_fim || '').trim() || '')),
+            retirada_horario_comercial: ehEvento ? false : (salvo.retirada_horario_comercial !== undefined ? Boolean(salvo.retirada_horario_comercial) : horarioComercialPadrao),
+
+            qtd_manutencoes: salvo.qtd_manutencoes || extrairQuantidadeManutencoesProposta(prop),
+            horario_manutencao: salvo.horario_manutencao || (ehObra ? 'Horário Comercial (08:00 às 18:00)' : ''),
+            manutencao_horario_comercial: ehObra ? true : Boolean(salvo.manutencao_horario_comercial),
+
+            dias_evento: Array.isArray(salvo.dias_evento) && salvo.dias_evento.length > 0
+                ? salvo.dias_evento
+                : extrairDiasEventoInicialDaProposta(prop),
+
+            fob_data_entrega: salvo.fob_data_entrega !== undefined ? salvo.fob_data_entrega : dtEntPad,
+            fob_data_retirada: salvo.fob_data_retirada !== undefined ? salvo.fob_data_retirada : dtRetPad,
+            fob_modelo_veiculo: salvo.fob_modelo_veiculo || '',
+            fob_placa_veiculo: salvo.fob_placa_veiculo || '',
+            fob_nome_motorista: salvo.fob_nome_motorista || '',
+
+            enviada_logistica: Boolean(salvo.enviada_logistica)
+        };
+    }
+
+    /**
+     * Verifica se todos os campos obrigatórios da OS do Comercial estão preenchidos
+     * para liberar o botão "Enviar OS para a Logística".
+     */
+    function verificarCamposObrigatoriosOsPreenchidos() {
+        const prop = state.osAtual;
+        const d = state.dadosOs;
+        if (!prop || !prop.id || !d) return { ok: false, pendencias: ['Carregue uma OS válida'] };
+
+        const pendencias = [];
+        const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ehEvento = tipoLimpoUp === 'EVENTO';
+        const temFob = propostaTemFreteFob(prop);
+
+        if (!String(d.data_entrega || '').trim()) pendencias.push('Data de Entrega');
+        if (!d.entrega_horario_comercial && !String(d.hora_entrega || '').trim()) {
+            pendencias.push('Horário da Entrega');
+        }
+
+        if (!String(d.data_retirada || '').trim()) pendencias.push('Data de Retirada');
+        if (!d.retirada_horario_comercial && !String(d.hora_retirada || '').trim()) {
+            pendencias.push('Horário da Retirada');
+        }
+
+        if (!String(prop.endereco_instalacao || '').trim()) {
+            pendencias.push('Endereço de Instalação');
+        }
+
+        if (ehEvento) {
+            const dias = Array.isArray(d.dias_evento) ? d.dias_evento : [];
+            if (dias.length === 0) {
+                pendencias.push('Dias e Horários do Evento');
+            } else {
+                const algumIncompleto = dias.some(x => !String(x.data || '').trim() || !String(x.hora_inicio || '').trim() || !String(x.hora_fim || '').trim());
+                if (algumIncompleto) pendencias.push('Data / Horário de Início e Fim do Evento');
+            }
+        }
+
+        if (temFob) {
+            if (!String(d.fob_data_entrega || '').trim()) pendencias.push('FOB: Data da Entrega');
+            if (!String(d.fob_data_retirada || '').trim()) pendencias.push('FOB: Data da Retirada');
+            if (!String(d.fob_modelo_veiculo || '').trim()) pendencias.push('FOB: Modelo do Veículo');
+            if (!String(d.fob_placa_veiculo || '').trim()) pendencias.push('FOB: Placa do Veículo');
+            if (!String(d.fob_nome_motorista || '').trim()) pendencias.push('FOB: Nome do Motorista');
+        }
+
+        return { ok: pendencias.length === 0, pendencias };
+    }
+
+    function atualizarVisibilidadeBotaoEnviarLogistica() {
+        const btn = document.getElementById('btn-cos-enviar-logistica');
+        if (!btn) return;
+        const prop = state.osAtual;
+        if (!prop || !prop.id) {
+            btn.style.display = 'none';
+            return;
+        }
+        const check = verificarCamposObrigatoriosOsPreenchidos();
+        btn.style.display = check.ok ? 'inline-flex' : 'none';
     }
 
     function contratoEstaAssinado(p) {
@@ -267,14 +578,14 @@
         }
 
         if (itens.length === 0) {
-            return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.25rem; font-size:0.84rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
+            return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
         }
 
         const tipoUp = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehEv = ['EVENTO', 'EQUIPAMENTOS', 'EQUIPAMENTO'].includes(tipoUp);
 
         return itens.map(it => {
-            const nomeRaw = String(it.produto || it.descricao || it.nome || '—');
+            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
             const obs = String(it.observacao || '').trim();
             const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
             const vUnit = parseFloat(it.valor ?? it.valor_unitario ?? 0) || 0;
@@ -289,46 +600,53 @@
 
             return `
                 <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:9px 10px; font-weight:700; color:#1e293b;">${esc(nomeRaw)}</td>
-                    <td style="padding:9px 10px; color:#475569;">${esc(obs || '—')}</td>
-                    <td style="padding:9px 6px; text-align:center; font-weight:800; color:#0f172a;">${qtd}</td>
-                    <td style="padding:9px 6px; text-align:center; color:#475569; font-weight:600;">${esc(manutStr)}</td>
-                    <td style="padding:9px 6px; text-align:center; color:#b45309; font-weight:600;">${esc(descStr)}</td>
-                    <td style="padding:9px 8px; text-align:right; font-weight:700; color:#0f172a;">R$ ${fmtMoeda(vUnit)}</td>
-                    <td style="padding:9px 8px; text-align:right; font-weight:800; color:#15803d;">R$ ${fmtMoeda(totFinal)}</td>
+                    <td style="padding:6px 8px; font-weight:700; color:#1e293b;">
+                        ${assoc.icone ? `<span style="font-size:0.92rem; margin-right:4px;">${assoc.icone}</span>` : ''}<span>${esc(assoc.nome)}</span>
+                    </td>
+                    <td style="padding:6px 8px; color:#475569;">${esc(obs || '—')}</td>
+                    <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a;">${qtd}</td>
+                    <td style="padding:6px 6px; text-align:center; color:#475569; font-weight:600;">${esc(manutStr)}</td>
+                    <td style="padding:6px 6px; text-align:center; color:#b45309; font-weight:600;">${esc(descStr)}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:700; color:#0f172a;">R$ ${fmtMoeda(vUnit)}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:800; color:#15803d;">R$ ${fmtMoeda(totFinal)}</td>
                 </tr>
             `;
         }).join('');
     }
 
-    function renderServicosGridHtml(prop) {
-        let servs = [];
-        try {
-            servs = typeof prop?.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop?.itens_servicos) ? prop.itens_servicos : []);
-        } catch (_) { servs = []; }
-        servs = (Array.isArray(servs) ? servs : []).filter(s => s && !s._substituido_por_aditivo);
-
-        if (servs.length === 0) {
-            const temFob = Number(prop?.servico_frete_fob) === 1;
-            return `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.83rem; font-style:italic;">${temFob ? 'Frete FOB (Retirada pelo cliente)' : 'Nenhum serviço adicional registrado.'}</td></tr>`;
+    function renderDiasEventoRowsHtml() {
+        const d = state.dadosOs;
+        const dias = (d && Array.isArray(d.dias_evento)) ? d.dias_evento : [];
+        if (dias.length === 0) {
+            return `<div style="color:#94a3b8; font-size:0.74rem; font-style:italic; padding:4px 0;">Nenhum dia do evento selecionado. Clique em "+ Adicionar Dia do Evento" ao lado.</div>`;
         }
-
-        return servs.map(s => {
-            const nome = String(s.servico || s.produto || s.descricao || '—');
-            const obs = String(s.observacao || '').trim();
-            const qtd = Math.max(1, parseInt(s.quantidade ?? s.qtde ?? 1, 10) || 1);
-            const vUnit = parseFloat(s.valor ?? s.valor_unitario ?? 0) || 0;
-            const vTot = (s.valor_total !== undefined && !isNaN(parseFloat(s.valor_total))) ? parseFloat(s.valor_total) : (qtd * vUnit);
-            return `
-                <tr style="border-bottom:1px solid #e2e8f0;">
-                    <td style="padding:8px 10px; font-weight:700; color:#1e293b;">${esc(nome)}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(obs || '—')}</td>
-                    <td style="padding:8px 6px; text-align:center; font-weight:700;">${qtd}</td>
-                    <td style="padding:8px 8px; text-align:right; font-weight:700;">R$ ${fmtMoeda(vUnit)}</td>
-                    <td style="padding:8px 8px; text-align:right; font-weight:800; color:#15803d;">R$ ${fmtMoeda(vTot)}</td>
-                </tr>
-            `;
-        }).join('');
+        return `<div style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+            ${dias.map((item, idx) => `
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:0.5rem; align-items:center; background:#fff; padding:4px 8px; border:1px solid #bbf7d0; border-radius:6px;">
+                    <div>
+                        <label class="prop-lbl">Dia do Evento #${idx + 1} *</label>
+                        <input type="date" value="${esc(item.data || '')}"
+                            onchange="window._comercialOS.atualizarDiaEvento(${idx}, 'data', this.value)">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Horário Início do Evento *</label>
+                        <input type="time" value="${esc(item.hora_inicio || '08:00')}"
+                            onchange="window._comercialOS.atualizarDiaEvento(${idx}, 'hora_inicio', this.value)">
+                    </div>
+                    <div>
+                        <label class="prop-lbl">Horário Fim do Evento *</label>
+                        <input type="time" value="${esc(item.hora_fim || '18:00')}"
+                            onchange="window._comercialOS.atualizarDiaEvento(${idx}, 'hora_fim', this.value)">
+                    </div>
+                    <div style="padding-top:14px;">
+                        <button type="button" onclick="window._comercialOS.removerDiaEvento(${idx})" title="Remover este dia do evento"
+                            style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:26px; padding:0;">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
     }
 
     function renderFormOS() {
@@ -337,16 +655,37 @@
 
         const prop = state.osAtual;
         const isNovo = !prop || !prop.id;
-        const v = (campo) => prop ? (prop[campo] || '') : '';
-        const vn = (campo, def = '0') => prop ? (prop[campo] ?? def) : def;
+        if (!isNovo && !state.dadosOs) {
+            state.dadosOs = inicializarDadosOsComercial(prop);
+        }
+        const d = state.dadosOs || {
+            data_entrega: '',
+            hora_entrega: '',
+            entrega_horario_comercial: false,
+            data_retirada: '',
+            hora_retirada: '',
+            retirada_horario_comercial: false,
+            qtd_manutencoes: '',
+            horario_manutencao: '',
+            manutencao_horario_comercial: false,
+            dias_evento: [],
+            fob_data_entrega: '',
+            fob_data_retirada: '',
+            fob_modelo_veiculo: '',
+            fob_placa_veiculo: '',
+            fob_nome_motorista: ''
+        };
 
-        // Data de cadastro deve ser a data de criação da OS (os_criada_em), e não do contrato nem da proposta
+        const v = (campo) => prop ? (prop[campo] || '') : '';
+
+        // Data de cadastro = data de criação da OS (os_criada_em), somente leitura
         const dataCadastroOs = isNovo
             ? hojeIso()
             : (String(v('os_criada_em') || '').trim().substring(0, 10) || hojeIso());
 
-        const statusOsAtual = obterConfigStatusOs(isNovo ? (state.statusNovoDraft || 'LIBERADO') : (v('status_os') || 'LIBERADO')).nome;
-        const tipoOsAtual = isNovo ? (state.tipoNovoDraft || '') : resolverTipoOsComercial(prop);
+        // Uma nova OS nasce com a situação de EM ELABORAÇÃO
+        const statusOsAtual = obterConfigStatusOs(isNovo ? 'EM ELABORAÇÃO' : (v('status_os') || 'EM ELABORAÇÃO')).nome;
+        const tipoOsResolvido = isNovo ? '' : resolverTipoOsComercial(prop);
 
         const clienteNomeRaw = v('cliente_nome');
         const clienteNomeFormatado = (!isNovo && clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
@@ -356,6 +695,8 @@
         const tipoLimpoUp = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehObra = tipoLimpoUp.includes('OBRA');
         const ehEvento = tipoLimpoUp === 'EVENTO';
+        const temFob = !isNovo && propostaTemFreteFob(prop);
+        const checkObrig = verificarCamposObrigatoriosOsPreenchidos();
 
         atualizarTituloAbaSuperior(!isNovo ? v('numero_os') : null);
 
@@ -371,6 +712,30 @@
                     white-space: nowrap !important;
                     text-transform: none !important;
                     letter-spacing: normal !important;
+                }
+                #view-comercial-os label.prop-chk-inline-lbl {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 5px !important;
+                    height: 26px !important;
+                    padding: 0 8px !important;
+                    margin-bottom: 0 !important;
+                    border: 1px solid #86efac !important;
+                    border-radius: 4px !important;
+                    background: #dcfce7 !important;
+                    color: #166534 !important;
+                    font-size: 0.72rem !important;
+                    font-weight: 700 !important;
+                    cursor: pointer !important;
+                    white-space: nowrap !important;
+                    user-select: none !important;
+                    box-sizing: border-box !important;
+                }
+                #view-comercial-os label.prop-chk-inline-lbl input[type="checkbox"] {
+                    margin: 0 !important;
+                    width: 13px !important;
+                    height: 13px !important;
+                    accent-color: #16a34a !important;
                 }
                 #view-comercial-os h4 {
                     font-size: 0.8rem !important;
@@ -400,6 +765,16 @@
                     outline: none !important;
                     transition: all 0.2s !important;
                     text-transform: none !important;
+                }
+                #view-comercial-os input[readonly],
+                #view-comercial-os input:disabled,
+                #view-comercial-os select:disabled {
+                    background: #f8fafc !important;
+                    color: #334155 !important;
+                }
+                #view-comercial-os input#cos-codigo,
+                #view-comercial-os input#cos-cliente {
+                    background: #ffffff !important;
                 }
                 #view-comercial-os input:not([type="checkbox"]):not([type="radio"]):focus,
                 #view-comercial-os select:focus {
@@ -468,36 +843,39 @@
                 <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
                     <div style="display:flex; gap:0.45rem; align-items:center; flex-wrap:wrap; flex:1; width:100%;">
                         <button type="button" id="btn-cos-novo" onclick="window._comercialOS.novaOSNaMesmaAba()"
-                            style="background:#3b82f6; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;"
-                            onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                            <i class="ph ph-file-text" style="font-size:1rem;"></i> Novo
+                            style="background:#3b82f6; color:white; border:none;">
+                            <i class="ph ph-file-text"></i> Novo
                         </button>
 
                         <button type="button" id="btn-cos-salvar" onclick="window._comercialOS.salvarAlteracoesOS()" ${(!isNovo && state.editadoNaoSalvo) ? '' : 'disabled'}
-                            style="background:${(!isNovo && state.editadoNaoSalvo) ? '#16a34a' : '#cbd5e1'}; color:${(!isNovo && state.editadoNaoSalvo) ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(!isNovo && state.editadoNaoSalvo) ? 'pointer' : 'not-allowed'}; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;">
-                            <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
+                            style="background:${(!isNovo && state.editadoNaoSalvo) ? '#16a34a' : '#cbd5e1'}; color:${(!isNovo && state.editadoNaoSalvo) ? '#ffffff' : '#64748b'}; border:none; cursor:${(!isNovo && state.editadoNaoSalvo) ? 'pointer' : 'not-allowed'};">
+                            <i class="ph ph-check"></i> Salvar
+                        </button>
+
+                        <!-- Botão Enviar OS para a Logística: só aparece quando todos os campos obrigatórios da OS do Comercial estiverem preenchidos -->
+                        <button type="button" id="btn-cos-enviar-logistica" onclick="window._comercialOS.enviarOsParaLogistica()"
+                            title="Enviar OS preenchida para a Logística"
+                            style="display:${(!isNovo && checkObrig.ok) ? 'inline-flex' : 'none'}; background:#0284c7; color:#ffffff; border:1px solid #0369a1; font-weight:800;">
+                            <i class="ph ph-paper-plane-tilt"></i> Enviar OS para a Logística
                         </button>
 
                         <div style="margin-left:auto; display:inline-flex; align-items:center; gap:0.45rem;">
                             ${!isNovo && v('contrato') ? `
                                 <button type="button" onclick="window.abrirContratoDaProposta(${Number(prop.id)})" title="Abrir o Contrato Nº ${esc(v('contrato'))} vinculado a esta OS"
-                                    style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;"
-                                    onmouseover="this.style.background='#ca8a04'" onmouseout="this.style.background='#eab308'">
-                                    <i class="ph ph-file-text" style="font-size:1rem;"></i> Contrato Nº ${esc(v('contrato'))}
+                                    style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; font-weight:800;">
+                                    <i class="ph ph-file-text"></i> Contrato Nº ${esc(v('contrato'))}
                                 </button>
                             ` : ''}
                             ${!isNovo && v('codigo') ? `
                                 <button type="button" onclick="window.abrirPropostaDiretoId(${Number(prop.id)})" title="Abrir a Proposta Nº ${esc(v('codigo'))} vinculada a esta OS"
-                                    style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;"
-                                    onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">
-                                    <i class="ph ph-file-text" style="font-size:1rem;"></i> Proposta Nº ${esc(v('codigo'))}
+                                    style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; font-weight:700;">
+                                    <i class="ph ph-file-text"></i> Proposta Nº ${esc(v('codigo'))}
                                 </button>
                             ` : ''}
                             ${!isNovo ? `
                                 <button type="button" onclick="if(typeof abrirLogsAlteracao === 'function') abrirLogsAlteracao(${Number(prop.id)})"
-                                    style="background:#7048e8; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; display:inline-flex; align-items:center; gap:5px; transition:background 0.15s;"
-                                    onmouseover="this.style.background='#5f3dc4'" onmouseout="this.style.background='#7048e8'">
-                                    <i class="ph ph-clock-counter-clockwise" style="font-size:1rem;"></i> Histórico
+                                    style="background:#7048e8; color:white; border:none;">
+                                    <i class="ph ph-clock-counter-clockwise"></i> Histórico
                                 </button>
                             ` : ''}
                         </div>
@@ -505,72 +883,67 @@
                 </div>
 
                 <!-- Corpo do Formulário -->
-                <div style="padding:1.5rem;">
+                <div style="padding:1.25rem 1.5rem;">
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
-                        <!-- Linha 1: Nº da OS, Tipo * (Envio, Visita técnica, Limpa fossa, Compras, Equipamentos), Atendente -->
+                        <!-- Linha 1: Nº da OS, Tipo * (com ícone na frente, bloqueado — vem direto do contrato), Atendente (bloqueado) -->
                         <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Nº da OS</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
                                     <input type="text" id="cos-codigo" value="${isNovo ? '' : esc(String(v('numero_os') || '').toUpperCase())}"
+                                        ${!isNovo ? 'readonly' : ''}
                                         placeholder="Nº da OS, cliente, contrato ou proposta..."
-                                        title="Digite o número da OS (ou cliente / contrato / proposta) e pressione Enter ou clique na lupa"
+                                        title="Pressione Enter ou clique na lupa para pesquisar outra OS"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.pesquisarPorCampoOsInput(); }"
-                                        style="flex:1;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1e293b;font-weight:700;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none;">
+                                        style="flex:1; font-weight:700;">
                                     <button type="button" onclick="window._comercialOS.pesquisarPorCampoOsInput()"
-                                        style="background:#2563eb; border:none; border-radius:6px; width:36px; height:36px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; transition:all 0.2s;"
-                                        onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar OS pelo número, cliente, contrato ou proposta">
-                                        <i class="ph ph-magnifying-glass" style="font-size:1.1rem; font-weight:700;"></i>
+                                        style="background:#2563eb; border:none; color:#fff;" title="Pesquisar OS pelo número, cliente, contrato ou proposta">
+                                        <i class="ph ph-magnifying-glass"></i>
                                     </button>
                                 </div>
                             </div>
 
                             <div>
                                 <label class="prop-lbl">Tipo *</label>
-                                <select id="cos-tipo" onchange="window._comercialOS.onChangeTipoOs(this.value)"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;background:#fff;color:#1e293b;text-transform:none;">
+                                <select id="cos-tipo" disabled title="O Tipo de OS vem automaticamente do Contrato e não pode ser editado">
                                     <option value="">-- Selecione --</option>
-                                    ${OS_COMERCIAL_TIPOS.map(t => `<option value="${esc(t)}" ${normStr(tipoOsAtual) === normStr(t) ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+                                    ${OS_COMERCIAL_TIPOS_CONFIG.map(t => `<option value="${esc(t.nome)}" ${(!isNovo && normStr(tipoOsResolvido) === normStr(t.nome)) ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
                                 </select>
                             </div>
 
                             <div>
                                 <label class="prop-lbl">Atendente</label>
                                 <input type="text" id="cos-atendente" value="${esc(typeof window.resolverNomeExibicaoAtendenteComercial === 'function' ? window.resolverNomeExibicaoAtendenteComercial(v('atendente'), false) : (v('atendente_nome') || v('atendente') || ''))}"
-                                    readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;color:#1e293b;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none;">
+                                    readonly disabled style="width:100%;">
                             </div>
                         </div>
 
-                        <!-- Linha 2: Título (sem Interveniente), Data Cadastro (Data de criação da OS), Status da OS (sempre editável) -->
+                        <!-- Linha 2: Título * (bloqueado), Data Cadastro * (bloqueado), Status da OS * (editável; nasce EM ELABORAÇÃO) -->
                         <div style="display:grid; grid-template-columns:1.6fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Título *</label>
-                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" ${isNovo ? 'disabled' : ''}
-                                    placeholder="Título da OS / Contrato..."
-                                    oninput="window._comercialOS.marcarEditado()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;text-transform:none;">
+                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" readonly disabled
+                                    placeholder="Título da OS / Contrato..." style="width:100%;">
                             </div>
 
                             <div>
                                 <label class="prop-lbl">Data Cadastro *</label>
-                                <input type="date" id="cos-data-cadastro" value="${esc(dataCadastroOs)}" ${isNovo ? 'disabled' : ''}
-                                    onchange="window._comercialOS.marcarEditado()"
-                                    style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                                <input type="date" id="cos-data-cadastro" value="${esc(dataCadastroOs)}" readonly disabled style="width:100%;">
                             </div>
 
                             <div>
                                 <label class="prop-lbl">Status da OS *</label>
                                 <div id="cos-status-custom-wrap" style="position:relative; width:100%;">
                                     <button type="button" id="cos-status-custom-btn" onclick="window._comercialOS.toggleMenuStatusOs(event)"
-                                        style="width:100%; height:36px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:space-between; text-align:left; gap:8px; cursor:pointer; box-sizing:border-box;">
+                                        style="border:1px solid #cbd5e1; background:#fff;">
                                         <span id="cos-status-custom-badge">${window.renderBadgeStatusOsComercialHtml(statusOsAtual)}</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.9rem; color:#64748b;"></i>
+                                        <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b;"></i>
                                     </button>
                                     <input type="hidden" id="cos-status-os" value="${esc(statusOsAtual)}">
                                     <div id="cos-status-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
                                         ${OS_COMERCIAL_STATUS_CONFIG.map(cfg => `
                                             <div onclick="window._comercialOS.selecionarStatusOs('${esc(cfg.nome)}', event)"
-                                                style="padding:6px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; transition:background 0.12s;"
+                                                style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; transition:background 0.12s;"
                                                 onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                                                 ${window.renderBadgeStatusOsComercialHtml(cfg.nome)}
                                             </div>
@@ -580,112 +953,233 @@
                             </div>
                         </div>
 
-                        <!-- Seção: Dados do Cliente (Ocultando completamente o quadro de Interveniente conforme solicitado) -->
-                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-                            <h4 style="margin:0 0 0.4rem; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                        <!-- Seção: Dados do Cliente (somente leitura para edição, mantendo a pesquisa por lupa/Enter quando em branco) -->
+                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                            <h4 style="margin:0 0 0.35rem !important;">
                                 <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente <span style="color:#dc2626;">*</span>
                             </h4>
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 0.75rem;">
                                 <div>
                                     <label class="prop-lbl">Cliente <span style="color:#ef4444;">*</span></label>
-                                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                                    <div style="display:flex; gap:0.35rem; align-items:center;">
                                         <input type="text" id="cos-cliente" value="${esc(clienteNomeFormatado)}"
-                                            placeholder="Digite o nome do cliente ou pressione Enter / clique na lupa para pesquisar OS..."
+                                            ${!isNovo ? 'readonly' : ''}
+                                            placeholder="Pressione Enter ou clique na lupa para pesquisar OS por cliente..."
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.pesquisarPorCampoClienteInput(); }"
-                                            style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#fff;text-transform:none;">
+                                            style="width:100%;">
                                         <button type="button" onclick="window._comercialOS.pesquisarPorCampoClienteInput()"
-                                            style="background:#2563eb; color:white; border:none; padding:0 0.7rem; height:36px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;"
-                                            onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'" title="Pesquisar OS por Cliente">
-                                            <i class="ph ph-magnifying-glass" style="font-size:0.95rem;"></i>
+                                            style="background:#2563eb; color:white; border:none; flex-shrink:0;" title="Pesquisar OS por Cliente">
+                                            <i class="ph ph-magnifying-glass"></i>
                                         </button>
                                     </div>
                                 </div>
 
                                 <div>
                                     <label class="prop-lbl">Contato <span style="color:#ef4444;">*</span></label>
-                                    <input type="text" id="cos-contato" value="${esc(v('contato_nome'))}" readonly
-                                        style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;text-transform:none;">
+                                    <input type="text" id="cos-contato" value="${esc(v('contato_nome'))}" readonly disabled style="width:100%;">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Seção: Período e Locação (Ocultando o campo Condição de Pagamento) -->
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <!-- Seção: Entrega, Manutenções e Retiradas (antigo Período e Locação, sem Dias Contrato) -->
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
                             <div onclick="window._comercialOS.toggleSecao('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
-                                <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                    <i class="ph ph-calendar" style="color:#16a34a;"></i> Período e Locação
+                                <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important;">
+                                    <i class="ph ph-truck" style="color:#16a34a;"></i> Entrega, Manutenções e Retiradas <span style="color:#dc2626;">*</span>
                                 </h4>
                                 <button type="button" onclick="window._comercialOS.toggleSecao('periodo', event)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #86efac; background:#dcfce7; color:#166534; cursor:pointer;">
-                                    <i id="cos-caret-periodo" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${state.secoesAbertas.periodo ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                    style="width:24px !important; padding:0 !important; border:1px solid #86efac; background:#dcfce7; color:#166534;">
+                                    <i id="cos-caret-periodo" class="ph ph-caret-down" style="transition:transform 0.2s; transform:${state.secoesAbertas.periodo ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                                 </button>
                             </div>
-                            <div id="cos-secao-periodo-body" style="display:${state.secoesAbertas.periodo ? 'block' : 'none'}; margin-top:0.5rem;">
-                                <div style="display:grid; grid-template-columns:1fr 0.7fr 1fr 0.7fr 0.6fr; gap:0.5rem 0.75rem; margin-bottom:0.5rem;">
-                                    <div>
-                                        <label class="prop-lbl">Período Início *</label>
-                                        <input type="date" value="${esc(v('periodo_inicio'))}" readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
+                            <div id="cos-secao-periodo-body" style="display:${state.secoesAbertas.periodo ? 'block' : 'none'}; margin-top:0.45rem;">
+                                <!-- Linha Entrega e Retirada + Horários + Checkbox Horário Comercial (exceto quando for Evento) -->
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-bottom:0.45rem;">
+                                    <!-- Bloco Entrega -->
+                                    <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
+                                        <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
+                                            <div>
+                                                <label class="prop-lbl">Data de Entrega <span style="color:#dc2626;">*</span></label>
+                                                <input type="date" id="cos-data-entrega" value="${esc(d.data_entrega || '')}" ${isNovo ? 'disabled' : ''}
+                                                    onchange="window._comercialOS.onChangeCampoDadosOs('data_entrega', this.value)" style="width:100%;">
+                                            </div>
+                                            <div>
+                                                <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
+                                                <input type="text" id="cos-hora-entrega" value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
+                                                    placeholder="Ex: 08:00 às 12:00"
+                                                    ${(isNovo || d.entrega_horario_comercial) ? 'disabled' : ''}
+                                                    oninput="window._comercialOS.onChangeCampoDadosOs('hora_entrega', this.value)" style="width:100%;">
+                                            </div>
+                                            ${!ehEvento ? `
+                                                <div>
+                                                    <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a entrega">
+                                                        <input type="checkbox" id="cos-chk-entrega-comercial" ${d.entrega_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                            onchange="window._comercialOS.onToggleHorarioComercial('entrega', this.checked)">
+                                                        <span>Horário comercial</span>
+                                                    </label>
+                                                </div>
+                                            ` : ''}
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label class="prop-lbl">Hora Início</label>
-                                        <input type="time" value="${esc(v('hora_inicio') || '08:00')}" readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
-                                    </div>
-                                    <div>
-                                        <label class="prop-lbl">Até *</label>
-                                        <input type="date" value="${esc(v('periodo_fim'))}" readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
-                                    </div>
-                                    <div>
-                                        <label class="prop-lbl">Hora Fim</label>
-                                        <input type="time" value="${esc(v('hora_fim') || '18:00')}" readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
-                                    </div>
-                                    <div>
-                                        <label class="prop-lbl">Dias Contrato</label>
-                                        <input type="number" value="${esc(vn('dias_contrato', '0'))}" readonly style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;background:#f8fafc;">
+
+                                    <!-- Bloco Retirada -->
+                                    <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
+                                        <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
+                                            <div>
+                                                <label class="prop-lbl">Data de Retirada <span style="color:#dc2626;">*</span></label>
+                                                <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${isNovo ? 'disabled' : ''}
+                                                    onchange="window._comercialOS.onChangeCampoDadosOs('data_retirada', this.value)" style="width:100%;">
+                                            </div>
+                                            <div>
+                                                <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
+                                                <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
+                                                    placeholder="Ex: 14:00 às 18:00"
+                                                    ${(isNovo || d.retirada_horario_comercial) ? 'disabled' : ''}
+                                                    oninput="window._comercialOS.onChangeCampoDadosOs('hora_retirada', this.value)" style="width:100%;">
+                                            </div>
+                                            ${!ehEvento ? `
+                                                <div>
+                                                    <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a retirada">
+                                                        <input type="checkbox" id="cos-chk-retirada-comercial" ${d.retirada_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                            onchange="window._comercialOS.onToggleHorarioComercial('retirada', this.checked)">
+                                                        <span>Horário comercial</span>
+                                                    </label>
+                                                </div>
+                                            ` : ''}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.65); padding:0.45rem 0.65rem; border:1px solid #bbf7d0; border-radius:6px; flex-wrap:wrap;">
+                                <!-- Bloco Manutenções (automático da proposta + horário comercial automático para obras) -->
+                                ${!ehEvento ? `
+                                    <div style="display:grid; grid-template-columns:1fr 1.4fr auto; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem; margin-bottom:0.45rem;">
+                                        <div>
+                                            <label class="prop-lbl">Quantidade de Manutenções (Proposta)</label>
+                                            <input type="text" id="cos-qtd-manutencoes" value="${esc(d.qtd_manutencoes || '—')}" readonly disabled style="width:100%; font-weight:700;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Horário da Manutenção</label>
+                                            <input type="text" id="cos-horario-manutencao" value="${esc(d.manutencao_horario_comercial ? '08:00 às 18:00 (Horário Comercial)' : (d.horario_manutencao || ''))}"
+                                                placeholder="Informe o horário da manutenção..."
+                                                ${(isNovo || d.manutencao_horario_comercial) ? 'disabled' : ''}
+                                                oninput="window._comercialOS.onChangeCampoDadosOs('horario_manutencao', this.value)" style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-chk-inline-lbl">
+                                                <input type="checkbox" id="cos-chk-manut-comercial" ${d.manutencao_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                    onchange="window._comercialOS.onToggleHorarioComercial('manutencao', this.checked)">
+                                                <span>Horário comercial</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Bloco exclusivo de EVENTO: Dias e Horas do Evento (Início e Fim, sem opção de horário comercial) -->
+                                ${ehEvento ? `
+                                    <div style="background:rgba(255,255,255,0.85); border:1px solid #86efac; border-radius:6px; padding:0.5rem 0.65rem; margin-bottom:0.45rem;">
+                                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                                            <span style="font-size:0.75rem; font-weight:800; color:#166534; display:flex; align-items:center; gap:5px;">
+                                                <i class="ph ph-calendar-star"></i> Dias e Horários do Evento (Início e Fim) <span style="color:#dc2626;">*</span>
+                                            </span>
+                                            <button type="button" onclick="window._comercialOS.adicionarDiaEvento()" ${isNovo ? 'disabled' : ''}
+                                                style="background:#16a34a; color:#fff; border:none;">
+                                                <i class="ph ph-plus"></i> Adicionar Dia do Evento
+                                            </button>
+                                        </div>
+                                        <div id="cos-dias-evento-wrap">
+                                            ${renderDiasEventoRowsHtml()}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Endereço de Instalação / Nome do Evento -->
+                                <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.75); padding:0.45rem 0.6rem; border:1px solid #bbf7d0; border-radius:6px; flex-wrap:wrap;">
                                     ${ehEvento ? `
-                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 260px;">
-                                            <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
-                                            <input type="text" value="${esc(v('nome_evento'))}" readonly style="width:100%;padding:0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;background:#f8fafc;">
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
+                                            <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
+                                            <input type="text" value="${esc(v('nome_evento'))}" readonly disabled style="width:100%;">
                                         </div>
                                     ` : ''}
                                     <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
-                                        <span style="font-size:0.82rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação:</span>
-                                        <input type="text" id="cos-endereco-instalacao" value="${esc(v('endereco_instalacao'))}" ${isNovo ? 'disabled' : ''}
-                                            oninput="window._comercialOS.marcarEditado()"
-                                            style="width:100%;padding:0.45rem 0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;background:#fff;text-transform:none;">
-                                        ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.72rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
+                                        <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
+                                        <input type="text" id="cos-endereco-instalacao" value="${esc(v('endereco_instalacao'))}" readonly disabled style="width:100%;">
+                                        ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Seção: Produtos -->
-                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
+                        <!-- Quadro FOB (exibido apenas quando o frete for do tipo FOB) -->
+                        ${temFob ? `
+                            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                                <div onclick="window._comercialOS.toggleSecao('fob', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
+                                    <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important; color:#1e3a8a !important;">
+                                        <i class="ph ph-steering-wheel" style="color:#2563eb;"></i> FOB (Retirada / Entrega pelo Cliente) <span style="color:#dc2626;">*</span>
+                                    </h4>
+                                    <button type="button" onclick="window._comercialOS.toggleSecao('fob', event)"
+                                        style="width:24px !important; padding:0 !important; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af;">
+                                        <i id="cos-caret-fob" class="ph ph-caret-down" style="transition:transform 0.2s; transform:${state.secoesAbertas.fob ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                    </button>
+                                </div>
+                                <div id="cos-secao-fob-body" style="display:${state.secoesAbertas.fob ? 'block' : 'none'}; margin-top:0.45rem;">
+                                    <div style="display:grid; grid-template-columns:1fr 1fr 1.3fr 1fr 1.4fr; gap:0.5rem 0.65rem;">
+                                        <div>
+                                            <label class="prop-lbl">Data da Entrega (FOB) <span style="color:#dc2626;">*</span></label>
+                                            <input type="date" id="cos-fob-data-entrega" value="${esc(d.fob_data_entrega || '')}"
+                                                onchange="window._comercialOS.onChangeCampoDadosOs('fob_data_entrega', this.value)" style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Data da Retirada (FOB) <span style="color:#dc2626;">*</span></label>
+                                            <input type="date" id="cos-fob-data-retirada" value="${esc(d.fob_data_retirada || '')}"
+                                                onchange="window._comercialOS.onChangeCampoDadosOs('fob_data_retirada', this.value)" style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Modelo do Veículo <span style="color:#dc2626;">*</span></label>
+                                            <input type="text" id="cos-fob-modelo-veiculo" value="${esc(d.fob_modelo_veiculo || '')}"
+                                                placeholder="Modelo do veículo..."
+                                                oninput="window._comercialOS.onChangeCampoDadosOs('fob_modelo_veiculo', this.value)" style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Placa do Veículo <span style="color:#dc2626;">*</span></label>
+                                            <input type="text" id="cos-fob-placa-veiculo" value="${esc(d.fob_placa_veiculo || '')}"
+                                                placeholder="Ex: ABC-1D23"
+                                                oninput="window._comercialOS.onChangeCampoDadosOs('fob_placa_veiculo', this.value)" style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Nome do Motorista <span style="color:#dc2626;">*</span></label>
+                                            <input type="text" id="cos-fob-nome-motorista" value="${esc(d.fob_nome_motorista || '')}"
+                                                placeholder="Nome do motorista..."
+                                                oninput="window._comercialOS.onChangeCampoDadosOs('fob_nome_motorista', this.value)" style="width:100%;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Seção: Produtos (Com associação e ícones da OS da Logística para Próprio Avulso e Pacote Obra; Quadro Serviços ocultado) -->
+                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
                             <div onclick="window._comercialOS.toggleSecao('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
-                                <h4 style="margin:0; font-size:0.8rem; color:#475569; font-weight:700; display:flex; align-items:center; gap:6px;">
+                                <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important;">
                                     <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span style="color:#dc2626;">*</span>
-                                    <span id="cos-produtos-count-badge" style="display:none; background:#fef9c3; color:#854d0e; border:1px solid #fde047; font-size:0.7rem; font-weight:800; padding:1px 8px; border-radius:999px;"></span>
+                                    <span id="cos-produtos-count-badge" style="display:none; background:#fef9c3; color:#854d0e; border:1px solid #fde047; font-size:0.68rem; font-weight:800; padding:1px 8px; border-radius:999px;"></span>
                                 </h4>
                                 <button type="button" onclick="window._comercialOS.toggleSecao('produtos', event)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #fcd34d; background:#fef08a; color:#854d0e; cursor:pointer;">
-                                    <i id="cos-caret-produtos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${state.secoesAbertas.produtos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                    style="width:24px !important; padding:0 !important; border:1px solid #fcd34d; background:#fef08a; color:#854d0e;">
+                                    <i id="cos-caret-produtos" class="ph ph-caret-down" style="transition:transform 0.2s; transform:${state.secoesAbertas.produtos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                                 </button>
                             </div>
-                            <div id="cos-secao-produtos-body" style="display:${state.secoesAbertas.produtos ? 'block' : 'none'}; margin-top:0.5rem;">
+                            <div id="cos-secao-produtos-body" style="display:${state.secoesAbertas.produtos ? 'block' : 'none'}; margin-top:0.45rem;">
                                 <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden;">
-                                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                    <table style="width:100%; border-collapse:collapse; text-align:left;">
                                         <thead>
-                                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
-                                                <th style="padding:10px;">Produto</th>
-                                                <th style="padding:10px;">Observação</th>
-                                                <th style="padding:10px 6px; text-align:center;">Qtd.</th>
-                                                <th style="padding:10px 6px; text-align:center;">Diárias / Manut.</th>
-                                                <th style="padding:10px 6px; text-align:center;">Desconto</th>
-                                                <th style="padding:10px 8px; text-align:right;">Valor Unit.</th>
-                                                <th style="padding:10px 8px; text-align:right;">Valor Total</th>
+                                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.7rem; text-transform:uppercase;">
+                                                <th style="padding:8px;">Produto</th>
+                                                <th style="padding:8px;">Observação</th>
+                                                <th style="padding:8px 6px; text-align:center;">Qtd.</th>
+                                                <th style="padding:8px 6px; text-align:center;">Diárias / Manut.</th>
+                                                <th style="padding:8px 6px; text-align:center;">Desconto</th>
+                                                <th style="padding:8px; text-align:right;">Valor Unit.</th>
+                                                <th style="padding:8px; text-align:right;">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody id="cos-produtos-tbody">
@@ -696,68 +1190,34 @@
                             </div>
                         </div>
 
-                        <!-- Seção: Serviços (quando Obra Mensal / Quinzenal / Semanal) -->
-                        ${ehObra ? `
-                            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.6rem 0.9rem; margin-bottom:0.6rem;">
-                                <div onclick="window._comercialOS.toggleSecao('servicos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
-                                    <h4 style="margin:0; font-size:0.8rem; color:#1e3a8a; font-weight:700; display:flex; align-items:center; gap:6px;">
-                                        <i class="ph ph-wrench" style="color:#2563eb;"></i> Serviços <span style="color:#dc2626;">*</span>
-                                    </h4>
-                                    <button type="button" onclick="window._comercialOS.toggleSecao('servicos', event)"
-                                        style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af; cursor:pointer;">
-                                        <i id="cos-caret-servicos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${state.secoesAbertas.servicos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
-                                    </button>
-                                </div>
-                                <div id="cos-secao-servicos-body" style="display:${state.secoesAbertas.servicos ? 'block' : 'none'}; margin-top:0.5rem;">
-                                    <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden;">
-                                        <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
-                                            <thead>
-                                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
-                                                    <th style="padding:9px 10px;">Serviço</th>
-                                                    <th style="padding:9px 10px;">Observação</th>
-                                                    <th style="padding:9px 6px; text-align:center;">Qtd.</th>
-                                                    <th style="padding:9px 8px; text-align:right;">Valor Unit.</th>
-                                                    <th style="padding:9px 8px; text-align:right;">Valor Total</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${renderServicosGridHtml(prop)}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        <!-- Seção: Anexos (Exclusivos da OS do Comercial — anexos do contrato não são anexados automaticamente aqui) -->
-                        <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:9px; padding:0.65rem 0.9rem; margin-bottom:0.65rem;">
+                        <!-- Seção: Anexos (Exclusivos da OS do Comercial) -->
+                        <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
                             <div onclick="window._comercialOS.toggleSecao('anexos', event)" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; user-select:none;">
-                                <h4 style="margin:0; font-size:0.82rem; color:#854d0e; font-weight:800; display:flex; align-items:center; gap:6px; text-transform:uppercase;">
-                                    <i class="ph ph-paperclip" style="font-size:1.05rem; color:#ca8a04;"></i> Anexos
-                                    <span id="cos-anexos-count-badge" style="background:#fef08a; color:#854d0e; border:1px solid #facc15; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800;">${state.anexosAtuais.length} anexo(s)</span>
+                                <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important; color:#854d0e !important;">
+                                    <i class="ph ph-paperclip" style="color:#ca8a04;"></i> Anexos
+                                    <span id="cos-anexos-count-badge" style="background:#fef08a; color:#854d0e; border:1px solid #facc15; padding:1px 8px; border-radius:999px; font-size:0.68rem; font-weight:800;">${state.anexosAtuais.length} anexo(s)</span>
                                 </h4>
                                 <button type="button" onclick="window._comercialOS.toggleSecao('anexos', event)"
-                                    style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:6px; border:1px solid #facc15; background:#fef08a; color:#854d0e; cursor:pointer;">
-                                    <i id="cos-caret-anexos" class="ph ph-caret-down" style="font-size:0.95rem; font-weight:700; transition:transform 0.2s; transform:${state.secoesAbertas.anexos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                    style="width:24px !important; padding:0 !important; border:1px solid #facc15; background:#fef08a; color:#854d0e;">
+                                    <i id="cos-caret-anexos" class="ph ph-caret-down" style="transition:transform 0.2s; transform:${state.secoesAbertas.anexos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
                                 </button>
                             </div>
-                            <div id="cos-secao-anexos-body" style="display:${state.secoesAbertas.anexos ? 'block' : 'none'}; margin-top:0.6rem;">
+                            <div id="cos-secao-anexos-body" style="display:${state.secoesAbertas.anexos ? 'block' : 'none'}; margin-top:0.5rem;">
                                 ${!isNovo ? `
-                                    <div style="display:flex; gap:0.5rem; align-items:flex-end; margin-bottom:0.6rem; flex-wrap:wrap;">
+                                    <div style="display:flex; gap:0.5rem; align-items:flex-end; margin-bottom:0.5rem; flex-wrap:wrap;">
                                         <div style="flex:1; min-width:200px;">
                                             <label class="prop-lbl" style="color:#713f12;">Título do Anexo</label>
-                                            <input type="text" id="cos-anexo-titulo-input" placeholder="Esclareça o título do anexo da OS..."
-                                                style="width:100%; padding:0.45rem 0.65rem; border:1px solid #fde047; border-radius:6px; font-size:0.82rem; background:#fff; text-transform:none; height:34px; box-sizing:border-box;">
+                                            <input type="text" id="cos-anexo-titulo-input" placeholder="Escreva o título do anexo da OS..." style="width:100%;">
                                         </div>
                                         <input type="file" id="cos-anexo-file-input" multiple style="display:none;" onchange="window._comercialOS.enviarAnexosOs(this.files)">
                                         <button type="button" onclick="document.getElementById('cos-anexo-file-input')?.click()"
-                                            style="background:#ca8a04; color:#fff; border:none; padding:0 0.9rem; height:34px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                            style="background:#ca8a04; color:#fff; border:none;">
                                             <i class="ph ph-upload-simple"></i> Incluir Documento(s) Anexo(s)
                                         </button>
                                     </div>
                                 ` : ''}
                                 <div id="cos-anexos-lista-wrap">
-                                    <div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                                    <div style="text-align:center; color:#94a3b8; font-size:0.76rem; padding:0.65rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
                                         ${isNovo ? 'Selecione uma OS para visualizar ou incluir anexos.' : 'Nenhum documento anexado nesta OS.'}
                                     </div>
                                 </div>
@@ -765,10 +1225,10 @@
                         </div>
 
                         <!-- Observações -->
-                        <div style="margin-bottom:0.5rem;">
+                        <div style="margin-bottom:0.25rem;">
                             <label class="prop-lbl">Observações</label>
                             <textarea id="cos-obs" rows="3" ${isNovo ? 'disabled' : ''} oninput="window._comercialOS.marcarEditado()"
-                                style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;resize:vertical;box-sizing:border-box;text-transform:none;"
+                                style="width:100%; resize:vertical;"
                                 placeholder="${isNovo ? 'Pesquise uma OS existente pelo Nº da OS, Nome do Cliente, Nº do Contrato ou Nº da Proposta (toda OS nasce de um contrato assinado).' : 'Informações adicionais sobre a OS...'}">${esc(v('observacoes'))}</textarea>
                         </div>
                     </form>
@@ -777,6 +1237,7 @@
         `;
 
         renderProdutosGridHtml(prop);
+        atualizarVisibilidadeBotaoEnviarLogistica();
         if (!isNovo) {
             carregarAnexosOs(prop.id);
         }
@@ -793,24 +1254,24 @@
             const wrap = document.getElementById('cos-anexos-lista-wrap');
             if (!wrap) return;
             if (!lista.length) {
-                wrap.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:0.82rem; padding:0.85rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">Nenhum documento anexado nesta OS.</div>`;
+                wrap.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:0.76rem; padding:0.65rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">Nenhum documento anexado nesta OS.</div>`;
                 return;
             }
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
-            wrap.innerHTML = `<div style="display:flex; flex-direction:column; gap:8px;">
+            wrap.innerHTML = `<div style="display:flex; flex-direction:column; gap:6px;">
                 ${lista.map((a, idx) => {
                     const urlView = `/api/propostas/${propId}/anexos-os-comercial/${a.id}/arquivo?inline=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
                     const urlDown = `/api/propostas/${propId}/anexos-os-comercial/${a.id}/arquivo?download=1${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-                    return `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    return `<div style="background:#fff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
                         <div style="min-width:0;">
-                            <div style="font-size:0.83rem; font-weight:700; color:#0f172a;">#${idx + 1} — ${esc(a.titulo || a.nome_arquivo || 'Anexo')}</div>
-                            <div style="font-size:0.74rem; color:#64748b;">${esc(a.nome_arquivo || '')}</div>
+                            <div style="font-size:0.76rem; font-weight:700; color:#0f172a;">#${idx + 1} — ${esc(a.titulo || a.nome_arquivo || 'Anexo')}</div>
+                            <div style="font-size:0.7rem; color:#64748b;">${esc(a.nome_arquivo || '')}</div>
                         </div>
                         <div style="display:flex; gap:6px; flex-shrink:0;">
-                            <a href="${urlView}" target="_blank" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; text-decoration:none;"><i class="ph ph-eye"></i> Visualizar</a>
-                            <a href="${urlDown}" target="_blank" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:4px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; text-decoration:none;"><i class="ph ph-download-simple"></i> Baixar</a>
+                            <a href="${urlView}" target="_blank" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 8px; border-radius:4px; font-size:0.72rem; font-weight:700; text-decoration:none;"><i class="ph ph-eye"></i> Visualizar</a>
+                            <a href="${urlDown}" target="_blank" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:3px 8px; border-radius:4px; font-size:0.72rem; font-weight:700; text-decoration:none;"><i class="ph ph-download-simple"></i> Baixar</a>
                             <button type="button" onclick="window._comercialOS.excluirAnexoOs(${Number(a.id)})" title="Remover anexo da OS"
-                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:4px 8px; border-radius:6px; font-size:0.76rem; cursor:pointer;">
+                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:24px; padding:0;">
                                 <i class="ph ph-trash"></i>
                             </button>
                         </div>
@@ -851,12 +1312,13 @@
                 ? window.limparPrefixoGrupoCliente(p.cliente_nome || '')
                 : String(p.cliente_nome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
             const key = nomeLimpo.toLowerCase().trim();
+            const cfgTipo = obterConfigTipoOs(resolverTipoOsComercial(p));
             return {
                 ...p,
                 cliente_nome_limpo: nomeLimpo,
                 cliente_cnpj: clientCnpjMap[key] || '',
                 cliente_icone: clientIconMap[key] || '',
-                tipo_os_resolvido: resolverTipoOsComercial(p)
+                tipo_os_label: cfgTipo.label
             };
         }).sort((a, b) => extrairNum(b.numero_os) - extrairNum(a.numero_os));
 
@@ -869,8 +1331,7 @@
                 const codProp = String(p.codigo || '').trim().padStart(2, '0');
                 const numCtr = String(p.contrato || '').trim().padStart(2, '0');
                 const totalFmt = (Number(p.valor_total) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                const dataIso = String(p.os_criada_em || '').trim().substring(0, 10);
-                const dataFmt = dataIso ? dataIso.split('-').reverse().join('/') : '—';
+                const dataFmt = fmtDataBr(p.os_criada_em);
 
                 const btnOsVerde = `<button type="button" onclick="event.stopPropagation(); Swal.close(); window._comercialOS.carregarOsPorPropostaId(${p.id});" title="Abrir OS Nº ${esc(numOs)}" style="background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">${esc(numOs)}</button>`;
                 const btnPropAzul = codProp
@@ -891,10 +1352,10 @@
                         <td style="padding:10px 12px; font-weight:600; color:#334155;">${esc(p.titulo_contrato || '—')}</td>
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${esc(p.cliente_nome_limpo || '—')}</td>
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${esc(p.cliente_cnpj || '—')}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${esc(p.tipo_os_resolvido || 'Envio')}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${esc(p.tipo_os_label)}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(dataFmt)}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${esc(totalFmt)}</td>
-                        <td style="padding:10px 12px; text-align:center; white-space:nowrap;">${window.renderBadgeStatusOsComercialHtml(p.status_os || 'LIBERADO')}</td>
+                        <td style="padding:10px 12px; text-align:center; white-space:nowrap;">${window.renderBadgeStatusOsComercialHtml(p.status_os || 'EM ELABORAÇÃO')}</td>
                     </tr>
                 `;
             }).join('');
@@ -1010,10 +1471,9 @@
         async init() {
             if (window._comercialOsAbrirPropostaId) {
                 const pid = window._comercialOsAbrirPropostaId;
-                const tOp = window._comercialOsTipoOperacaoForcado || '';
                 window._comercialOsAbrirPropostaId = null;
                 window._comercialOsTipoOperacaoForcado = '';
-                await this.carregarOsPorPropostaId(pid, tOp);
+                await this.carregarOsPorPropostaId(pid);
                 return;
             }
             const tabKey = obterTabIdAtivaOsComercial();
@@ -1021,17 +1481,12 @@
             if (snap) {
                 state.propostaIdAtiva = snap.propostaIdAtiva || null;
                 state.osAtual = snap.osAtual ? JSON.parse(JSON.stringify(snap.osAtual)) : null;
+                state.dadosOs = snap.dadosOs ? JSON.parse(JSON.stringify(snap.dadosOs)) : (state.osAtual ? inicializarDadosOsComercial(state.osAtual) : null);
                 state.editadoNaoSalvo = Boolean(snap.editadoNaoSalvo);
-                state.statusNovoDraft = snap.statusNovoDraft || 'LIBERADO';
-                state.tipoNovoDraft = snap.tipoNovoDraft || '';
+                state.statusNovoDraft = snap.statusNovoDraft || 'EM ELABORAÇÃO';
                 state.anexosAtuais = Array.isArray(snap.anexosAtuais) ? snap.anexosAtuais : [];
             } else {
-                state.propostaIdAtiva = null;
-                state.osAtual = null;
-                state.editadoNaoSalvo = false;
-                state.statusNovoDraft = 'LIBERADO';
-                state.tipoNovoDraft = '';
-                state.anexosAtuais = [];
+                this.resetarParaNovaAba();
             }
             renderFormOS();
         },
@@ -1042,9 +1497,9 @@
             window._snapshotsOsComercial[tabKey] = {
                 propostaIdAtiva: state.propostaIdAtiva || null,
                 osAtual: state.osAtual ? JSON.parse(JSON.stringify(state.osAtual)) : null,
+                dadosOs: state.dadosOs ? JSON.parse(JSON.stringify(state.dadosOs)) : null,
                 editadoNaoSalvo: Boolean(state.editadoNaoSalvo),
-                statusNovoDraft: state.statusNovoDraft || 'LIBERADO',
-                tipoNovoDraft: state.tipoNovoDraft || '',
+                statusNovoDraft: state.statusNovoDraft || 'EM ELABORAÇÃO',
                 anexosAtuais: Array.isArray(state.anexosAtuais) ? JSON.parse(JSON.stringify(state.anexosAtuais)) : []
             };
         },
@@ -1059,9 +1514,9 @@
         resetarParaNovaAba() {
             state.propostaIdAtiva = null;
             state.osAtual = null;
+            state.dadosOs = null;
             state.editadoNaoSalvo = false;
-            state.statusNovoDraft = 'LIBERADO';
-            state.tipoNovoDraft = '';
+            state.statusNovoDraft = 'EM ELABORAÇÃO';
             state.anexosAtuais = [];
         },
 
@@ -1075,7 +1530,7 @@
             renderFormOS();
         },
 
-        async carregarOsPorPropostaId(propId, tipoOperacaoForcado = '') {
+        async carregarOsPorPropostaId(propId) {
             const idNum = Number(propId);
             if (!idNum) return;
             try {
@@ -1085,13 +1540,11 @@
                     Swal.fire('Aviso', 'Uma OS só pode existir para contratos assinados.', 'warning');
                     return;
                 }
-                if (tipoOperacaoForcado && OS_COMERCIAL_TIPOS.some(t => normStr(t) === normStr(tipoOperacaoForcado))) {
-                    p.os_tipo_operacao = tipoOperacaoForcado;
-                } else {
-                    p.os_tipo_operacao = resolverTipoOsComercial(p);
-                }
+                p.os_tipo_operacao = resolverTipoOsComercial(p);
+                if (!p.status_os) p.status_os = 'EM ELABORAÇÃO';
                 state.propostaIdAtiva = p.id;
                 state.osAtual = p;
+                state.dadosOs = inicializarDadosOsComercial(p);
                 state.editadoNaoSalvo = false;
                 state.anexosAtuais = [];
                 this.salvarSnapshotAba();
@@ -1103,7 +1556,7 @@
 
         async pesquisarPorCampoOsInput() {
             const raw = String(document.getElementById('cos-codigo')?.value || '').trim();
-            if (!raw) {
+            if (!raw || (state.osAtual && String(state.osAtual.numero_os || '').trim() === raw)) {
                 await abrirModalPesquisaOS({ foco: 'os' });
                 return;
             }
@@ -1148,6 +1601,10 @@
         },
 
         async pesquisarPorCampoClienteInput() {
+            if (state.osAtual && state.osAtual.id) {
+                await abrirModalPesquisaOS({ foco: 'cliente' });
+                return;
+            }
             const raw = String(document.getElementById('cos-cliente')?.value || '').trim();
             const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(raw)
@@ -1166,14 +1623,78 @@
             if (caret) caret.style.transform = novo ? 'rotate(180deg)' : 'rotate(0deg)';
         },
 
-        onChangeTipoOs(novoTipo) {
-            if (state.osAtual) {
-                state.osAtual.os_tipo_operacao = novoTipo;
-            } else {
-                state.tipoNovoDraft = novoTipo;
+        onChangeCampoDadosOs(campo, valor) {
+            if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs[campo] = valor;
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        onToggleHorarioComercial(qual, checked) {
+            if (!state.dadosOs) state.dadosOs = {};
+            if (qual === 'entrega') {
+                state.dadosOs.entrega_horario_comercial = Boolean(checked);
+                if (checked) state.dadosOs.hora_entrega = '08:00 às 18:00';
+                const inp = document.getElementById('cos-hora-entrega');
+                if (inp) {
+                    inp.disabled = Boolean(checked);
+                    inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_entrega || '');
+                }
+            } else if (qual === 'retirada') {
+                state.dadosOs.retirada_horario_comercial = Boolean(checked);
+                if (checked) state.dadosOs.hora_retirada = '08:00 às 18:00';
+                const inp = document.getElementById('cos-hora-retirada');
+                if (inp) {
+                    inp.disabled = Boolean(checked);
+                    inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_retirada || '');
+                }
+            } else if (qual === 'manutencao') {
+                state.dadosOs.manutencao_horario_comercial = Boolean(checked);
+                if (checked) state.dadosOs.horario_manutencao = 'Horário Comercial (08:00 às 18:00)';
+                const inp = document.getElementById('cos-horario-manutencao');
+                if (inp) {
+                    inp.disabled = Boolean(checked);
+                    inp.value = checked ? '08:00 às 18:00 (Horário Comercial)' : (state.dadosOs.horario_manutencao || '');
+                }
             }
             this.marcarEditado();
             this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        adicionarDiaEvento() {
+            if (!state.dadosOs) state.dadosOs = {};
+            if (!Array.isArray(state.dadosOs.dias_evento)) state.dadosOs.dias_evento = [];
+            const dataSug = state.dadosOs.data_entrega || hojeIso();
+            state.dadosOs.dias_evento.push({
+                data: dataSug,
+                hora_inicio: '08:00',
+                hora_fim: '18:00'
+            });
+            const wrap = document.getElementById('cos-dias-evento-wrap');
+            if (wrap) wrap.innerHTML = renderDiasEventoRowsHtml();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        atualizarDiaEvento(idx, campo, valor) {
+            if (!state.dadosOs || !Array.isArray(state.dadosOs.dias_evento) || !state.dadosOs.dias_evento[idx]) return;
+            state.dadosOs.dias_evento[idx][campo] = valor;
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        removerDiaEvento(idx) {
+            if (!state.dadosOs || !Array.isArray(state.dadosOs.dias_evento)) return;
+            state.dadosOs.dias_evento.splice(idx, 1);
+            const wrap = document.getElementById('cos-dias-evento-wrap');
+            if (wrap) wrap.innerHTML = renderDiasEventoRowsHtml();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
         },
 
         toggleMenuStatusOs(event) {
@@ -1264,15 +1785,14 @@
             } catch (_) {}
         },
 
-        async salvarAlteracoesOS() {
-            if (!state.osAtual || !state.osAtual.id) return;
+        async salvarAlteracoesOS(silencioso = false) {
+            if (!state.osAtual || !state.osAtual.id) return false;
             const payload = {
-                status_os: document.getElementById('cos-status-os')?.value || state.osAtual.status_os || 'LIBERADO',
-                os_tipo_operacao: document.getElementById('cos-tipo')?.value || state.osAtual.os_tipo_operacao || resolverTipoOsComercial(state.osAtual),
-                os_criada_em: document.getElementById('cos-data-cadastro')?.value || state.osAtual.os_criada_em || hojeIso(),
-                titulo_contrato: document.getElementById('cos-titulo-contrato')?.value || state.osAtual.titulo_contrato || '',
-                endereco_instalacao: document.getElementById('cos-endereco-instalacao')?.value || state.osAtual.endereco_instalacao || '',
-                observacoes: document.getElementById('cos-obs')?.value || ''
+                status_os: document.getElementById('cos-status-os')?.value || state.osAtual.status_os || 'EM ELABORAÇÃO',
+                os_tipo_operacao: resolverTipoOsComercial(state.osAtual),
+                os_criada_em: state.osAtual.os_criada_em || hojeIso(),
+                observacoes: document.getElementById('cos-obs')?.value ?? (state.osAtual.observacoes || ''),
+                os_comercial_dados_json: JSON.stringify(state.dadosOs || {})
             };
             try {
                 const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -1286,18 +1806,42 @@
                 });
                 const res = await r.json();
                 if (!r.ok || !res.success) {
-                    Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar a OS.', 'error');
-                    return;
+                    if (!silencioso) Swal.fire('Erro', (res && res.error) || 'Não foi possível salvar a OS.', 'error');
+                    return false;
                 }
                 Object.assign(state.osAtual, payload);
                 state.editadoNaoSalvo = false;
                 this.salvarSnapshotAba();
                 renderFormOS();
-                if (typeof mostrarToastSucesso === 'function') {
+                if (!silencioso && typeof mostrarToastSucesso === 'function') {
                     mostrarToastSucesso('OS salva com sucesso!');
                 }
+                return true;
             } catch (e) {
-                Swal.fire('Erro', e.message || 'Erro ao salvar a OS.', 'error');
+                if (!silencioso) Swal.fire('Erro', e.message || 'Erro ao salvar a OS.', 'error');
+                return false;
+            }
+        },
+
+        async enviarOsParaLogistica() {
+            if (!state.osAtual || !state.osAtual.id) return;
+            const check = verificarCamposObrigatoriosOsPreenchidos();
+            if (!check.ok) {
+                Swal.fire('Campos obrigatórios pendentes', `Preencha antes de enviar para a Logística:\n• ${check.pendencias.join('\n• ')}`, 'warning');
+                return;
+            }
+            if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.enviada_logistica = true;
+            state.osAtual.status_os = 'LIBERADO';
+            const inpSt = document.getElementById('cos-status-os');
+            if (inpSt) inpSt.value = 'LIBERADO';
+            const ok = await this.salvarAlteracoesOS(true);
+            if (ok) {
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso(`OS Nº ${state.osAtual.numero_os} enviada para a Logística (Status: LIBERADO)!`);
+                } else {
+                    Swal.fire('Enviada!', `OS Nº ${state.osAtual.numero_os} enviada para a Logística com status LIBERADO.`, 'success');
+                }
             }
         }
     };

@@ -32937,7 +32937,7 @@ window.gerarOsComercialDoContrato = async function(propIdOpcional) {
             const idx = _propostasData.findIndex(p => Number(p.id) === propId);
             if (idx >= 0) {
                 _propostasData[idx].numero_os = res.numero_os;
-                _propostasData[idx].status_os = res.status_os || 'LIBERADO';
+                _propostasData[idx].status_os = res.status_os || 'EM ELABORAÇÃO';
                 _propostasData[idx].os_criada_em = res.os_criada_em;
                 _propostasData[idx].os_tipo_operacao = res.os_tipo_operacao || 'Envio';
             }
@@ -32949,7 +32949,7 @@ window.gerarOsComercialDoContrato = async function(propIdOpcional) {
             window.carregarOsContratoAtivo(propId);
         }
         if (typeof mostrarToastSucesso === 'function') {
-            mostrarToastSucesso(`OS Nº ${res.numero_os} gerada com sucesso (Tipo: ${res.os_tipo_operacao || 'Envio'} · Status: LIBERADO)!`);
+            mostrarToastSucesso(`OS Nº ${res.numero_os} gerada com sucesso (Tipo: ${res.os_tipo_operacao || 'Envio'} · Status: ${res.status_os || 'EM ELABORAÇÃO'})!`);
         }
         window.abrirOsComercialDaProposta(propId, res.os_tipo_operacao || '');
     } catch (e) {

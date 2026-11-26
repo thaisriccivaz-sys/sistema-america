@@ -42257,6 +42257,7 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN status_os TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN os_criada_em TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN os_tipo_operacao TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN os_comercial_dados_json TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Limpar datas de período de cobrança que foram pré-preenchidas automaticamente a partir do período da proposta
     db.run("UPDATE propostas SET periodo_cobranca_inicio = NULL, periodo_cobranca_fim = NULL WHERE periodo_cobranca_inicio = periodo_inicio AND periodo_cobranca_fim = periodo_fim AND (contatos_responsaveis_contrato_json IS NULL OR TRIM(contatos_responsaveis_contrato_json) IN ('', '{}', '{\"nfe\":[],\"cobranca\":[],\"os\":[],\"instalacao\":\"\"}'))", () => {});
@@ -43572,9 +43573,9 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
           success: true,
           ja_existia: true,
           numero_os: String(prop.numero_os).trim(),
-          status_os: prop.status_os || 'LIBERADO',
+          status_os: prop.status_os || 'EM ELABORAÇÃO',
           os_criada_em: prop.os_criada_em || '',
-          os_tipo_operacao: prop.os_tipo_operacao || 'Entrega de equipamentos',
+          os_tipo_operacao: prop.os_tipo_operacao || 'Envio',
           proposta: prop
         });
       }
@@ -43583,7 +43584,7 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
       const dataHojeIso = agora.substring(0, 10);
 
       gerarCodigoOsComercial((novoNumOs) => {
-        const statusInicial = 'LIBERADO';
+        const statusInicial = 'EM ELABORAÇÃO';
         // Regra do Tipo de OS Comercial ao gerar pelo contrato:
         // - Quando for um contrato do tipo EQUIPAMENTOS que não tenha nenhum equipamento da OS da Logística → tipo 'Equipamentos'
         // - Quando tiver algum equipamento da tela de OS da Logística → tipo 'Envio' (entrega: obra, evento, equipamentos, interveniente)
@@ -43665,7 +43666,7 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
   }
 });
 
-// PATCH /api/propostas/:id/os-comercial - Atualiza Tipo da OS, Status da OS e informações na tela de OS do Comercial
+// PATCH /api/propostas/:id/os-comercial - Atualiza Status da OS, dados de Entrega/Manutenções/Retiradas, FOB e observações na tela de OS do Comercial
 app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res) => {
   try {
     const propId = Number(req.params.id);
@@ -43679,7 +43680,7 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       if (errP) return res.status(500).json({ error: errP.message });
       if (!prop) return res.status(404).json({ error: 'OS não encontrada.' });
 
-      const novoStatusOs = b.status_os !== undefined ? String(b.status_os || 'LIBERADO').trim() : (prop.status_os || 'LIBERADO');
+      const novoStatusOs = b.status_os !== undefined ? String(b.status_os || 'EM ELABORAÇÃO').trim() : (prop.status_os || 'EM ELABORAÇÃO');
       const novoTipoOpOs = b.os_tipo_operacao !== undefined ? String(b.os_tipo_operacao || prop.os_tipo_operacao || 'Envio').trim() : (prop.os_tipo_operacao || 'Envio');
       const novaDataOs = b.os_criada_em !== undefined ? String(b.os_criada_em || '').trim() : (prop.os_criada_em || agora.substring(0, 10));
       const novoTitulo = b.titulo_contrato !== undefined ? String(b.titulo_contrato || '').trim() : (prop.titulo_contrato || '');
@@ -43691,6 +43692,9 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const novoContatoInst = b.contato_instalacao_contrato !== undefined ? String(b.contato_instalacao_contrato || '') : (prop.contato_instalacao_contrato || '');
       const novasDatasEntrega = b.datas_entrega_equipamentos !== undefined ? String(b.datas_entrega_equipamentos || '') : (prop.datas_entrega_equipamentos || '');
       const novasDatasRetirada = b.datas_retirada_equipamentos !== undefined ? String(b.datas_retirada_equipamentos || '') : (prop.datas_retirada_equipamentos || '');
+      const novosDadosOsComercialJson = b.os_comercial_dados_json !== undefined
+        ? (typeof b.os_comercial_dados_json === 'string' ? b.os_comercial_dados_json : JSON.stringify(b.os_comercial_dados_json || {}))
+        : (prop.os_comercial_dados_json || '');
 
       db.run(
         `UPDATE propostas SET
@@ -43704,40 +43708,31 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
           contato_instalacao_contrato = ?,
           datas_entrega_equipamentos = ?,
           datas_retirada_equipamentos = ?,
+          os_comercial_dados_json = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, agora, propId],
+        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, agora, propId],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
-          if (String(prop.status_os || 'LIBERADO') !== novoStatusOs) {
+          if (String(prop.status_os || 'EM ELABORAÇÃO') !== novoStatusOs) {
             const snap = JSON.stringify(Object.assign({}, prop, {
               _origem_log: 'os_comercial',
               status_os: novoStatusOs,
-              os_tipo_operacao: novoTipoOpOs
+              os_tipo_operacao: novoTipoOpOs,
+              os_comercial_dados_json: novosDadosOsComercialJson
             }));
             db.run(
               `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
                VALUES (?, 'Proposta', ?, 'Status da OS', ?, ?, ?)`,
-              [autor, propId, String(prop.status_os || 'LIBERADO'), novoStatusOs, snap]
-            );
-          }
-          if (String(prop.os_tipo_operacao || '') !== novoTipoOpOs) {
-            const snap = JSON.stringify(Object.assign({}, prop, {
-              _origem_log: 'os_comercial',
-              status_os: novoStatusOs,
-              os_tipo_operacao: novoTipoOpOs
-            }));
-            db.run(
-              `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
-               VALUES (?, 'Proposta', ?, 'Tipo da OS', ?, ?, ?)`,
-              [autor, propId, String(prop.os_tipo_operacao || '—'), novoTipoOpOs, snap]
+              [autor, propId, String(prop.status_os || 'EM ELABORAÇÃO'), novoStatusOs, snap]
             );
           }
           res.json({
             success: true,
             status_os: novoStatusOs,
             os_tipo_operacao: novoTipoOpOs,
-            os_criada_em: novaDataOs
+            os_criada_em: novaDataOs,
+            os_comercial_dados_json: novosDadosOsComercialJson
           });
         }
       );
