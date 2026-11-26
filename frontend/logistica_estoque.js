@@ -14,7 +14,8 @@ window._logEstoqueState = {
     filtroContexto: 'INDIFERENTE', // 'INDIFERENTE' | 'OBRA' | 'EVENTO'
     editandoId: null,
     comercialSelecionadosModal: [], // array of ids or names
-    vinculosExpandidosPorItem: {}   // { [itemId]: true/false } — inicia sempre minimizado ({})
+    vinculosExpandidosPorItem: {},  // { [itemId]: true/false } — inicia sempre minimizado ({})
+    quadrosMinimizados: false       // true = oculta os 17 quadros para melhor visualização da lista
 };
 
 // Ordem oficial solicitada dos quadros de estoque (sempre Obra seguido de Evento para os que separam):
@@ -79,14 +80,13 @@ window.renderTelaLogisticaEstoque = async function() {
         root.innerHTML =
             '<div style="display:flex;flex-direction:column;gap:1.15rem;">' +
                 // Header
-                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.03);">' +
+                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;box-shadow:0 1px 3px rgba(15,23,42,0.03);">' +
                     '<div style="display:flex;align-items:center;gap:0.9rem;">' +
-                        '<div style="width:46px;height:46px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">' +
+                        '<div style="width:44px;height:44px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#059669;display:flex;align-items:center;justify-content:center;font-size:1.45rem;flex-shrink:0;">' +
                             '<i class="ph ph-package"></i>' +
                         '</div>' +
                         '<div>' +
                             '<h2 style="margin:0;font-size:1.25rem;font-weight:800;color:#0f172a;letter-spacing:-0.01em;">Estoque da Logística</h2>' +
-                            '<p style="margin:2px 0 0;font-size:0.84rem;color:#64748b;">Controle de equipamentos em estoque, vínculo com pacotes/equipamentos do Comercial e reserva automática por data de entrega de <strong>Contratos</strong>.</p>' +
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">' +
@@ -103,39 +103,9 @@ window.renderTelaLogisticaEstoque = async function() {
                     '</div>' +
                 '</div>' +
 
-                // Barra de Filtros no Topo (filtra os quadros de modelos e as tabelas abaixo)
-                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:0.95rem;box-shadow:0 1px 3px rgba(15,23,42,0.03);">' +
-                    '<div style="display:flex;align-items:flex-end;flex-wrap:wrap;gap:0.9rem;">' +
-                        '<div>' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-calendar-blank"></i> Período — De</label>' +
-                            '<input type="date" id="filtro-log-est-data-de" class="form-control" onchange="window.filtrarTopoQuadrosLogisticaEstoque()" oninput="window.filtrarTopoQuadrosLogisticaEstoque()" style="width:155px;height:38px;">' +
-                        '</div>' +
-                        '<div>' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-calendar-check"></i> Até <span style="font-weight:500;color:#94a3b8;">(opcional)</span></label>' +
-                            '<input type="date" id="filtro-log-est-data-ate" class="form-control" onchange="window.filtrarTopoQuadrosLogisticaEstoque()" oninput="window.filtrarTopoQuadrosLogisticaEstoque()" style="width:155px;height:38px;">' +
-                        '</div>' +
-                        '<div>' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-funnel"></i> Tipo (Obra / Evento)</label>' +
-                            '<div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:10px;border:1px solid #e2e8f0;gap:3px;">' +
-                                '<button type="button" id="btn-ctx-log-est-INDIFERENTE" onclick="window.setFiltroContextoLogisticaEstoque(\'INDIFERENTE\')" style="padding:0.42rem 0.9rem;border-radius:8px;border:none;background:#059669;color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.15s;">Indiferente</button>' +
-                                '<button type="button" id="btn-ctx-log-est-OBRA" onclick="window.setFiltroContextoLogisticaEstoque(\'OBRA\')" style="padding:0.42rem 0.9rem;border-radius:8px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.15s;">💙 Obra</button>' +
-                                '<button type="button" id="btn-ctx-log-est-EVENTO" onclick="window.setFiltroContextoLogisticaEstoque(\'EVENTO\')" style="padding:0.42rem 0.9rem;border-radius:8px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.8rem;cursor:pointer;transition:all 0.15s;">💜 Evento</button>' +
-                            '</div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div style="display:flex;align-items:center;gap:0.6rem;">' +
-                        '<span id="lbl-resumo-filtro-topo-log-est" style="font-size:0.78rem;color:#64748b;font-weight:600;">Exibindo todo o estoque</span>' +
-                        '<button type="button" onclick="window.limparFiltrosTopoLogisticaEstoque()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-weight:600;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">' +
-                            '<i class="ph ph-broom"></i> Limpar Período / Tipo' +
-                        '</button>' +
-                    '</div>' +
-                '</div>' +
-
-                // Cards de Resumo por Modelo
-                '<div id="logistica-estoque-cards-modelos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0.85rem;"></div>' +
-
-                // Barra de Abas + Filtros
-                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.9rem;">' +
+                // Barra Unificada no Topo: Abas (Equipamentos em Estoque / Reservas de Contratos) + Todos os Filtros (Pesquisar, Filtrar Modelo, De/Até, Tipo Obra/Evento) + Seta para Minimizar Quadros
+                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.9rem;box-shadow:0 1px 3px rgba(15,23,42,0.03);">' +
+                    // Linha 1 do Topo: Botões de Abas + Sincronizar Contratos + Seta para Minimizar/Expandir Quadros
                     '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;border-bottom:1px solid #f1f5f9;padding-bottom:0.75rem;">' +
                         '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
                             '<button type="button" id="tab-btn-log-est-estoque" onclick="window.trocarAbaLogisticaEstoque(\'estoque\')" style="padding:0.5rem 1rem;border-radius:9px;border:1px solid #059669;background:#ecfdf5;color:#047857;font-weight:700;font-size:0.84rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">' +
@@ -145,34 +115,59 @@ window.renderTelaLogisticaEstoque = async function() {
                                 '<i class="ph ph-calendar-check"></i> Reservas de Contratos por Data de Entrega <span id="badge-count-log-est-reservas" style="background:#64748b;color:#fff;border-radius:999px;padding:1px 8px;font-size:0.74rem;">0</span>' +
                             '</button>' +
                         '</div>' +
-                        '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+                        '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
                             '<button type="button" onclick="window.recalcularReservasLogisticaEstoque()" title="Recalcular reservas de todos os contratos ativos" style="padding:0.45rem 0.85rem;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-weight:600;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">' +
                                 '<i class="ph ph-arrows-clockwise"></i> Sincronizar Contratos' +
+                            '</button>' +
+                            '<button type="button" id="btn-toggle-quadros-log-est" onclick="window.toggleQuadrosModelosLogisticaEstoque()" title="Diminuir ou mostrar os quadros de resumo de estoque" style="padding:0.45rem 0.85rem;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-weight:700;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">' +
+                                '<span id="txt-toggle-quadros-log-est">Ocultar Quadros</span>' +
+                                '<i id="ico-toggle-quadros-log-est" class="ph ph-caret-up" style="font-size:0.9rem;"></i>' +
                             '</button>' +
                         '</div>' +
                     '</div>' +
 
-                    // Filtros em tempo real
-                    '<div style="display:grid;grid-template-columns:1fr 260px auto;gap:0.75rem;align-items:end;">' +
-                        '<div>' +
+                    // Linha 2 do Topo: Pesquisar + Filtrar Modelo + Período De/Até + Tipo (Obra/Evento/Indiferente) + Limpar
+                    '<div style="display:flex;align-items:flex-end;flex-wrap:wrap;gap:0.75rem;">' +
+                        '<div style="flex:1;min-width:250px;">' +
                             '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar (Série, Modelo, Cor, Equipamento Comercial, Contrato ou Cliente)</label>' +
                             '<div style="position:relative;">' +
                                 '<i class="ph ph-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>' +
-                                '<input type="text" id="filtro-log-est-texto" class="form-control" placeholder="Digite para filtrar em tempo real..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;padding-left:34px;">' +
+                                '<input type="text" id="filtro-log-est-texto" class="form-control" placeholder="Digite para filtrar em tempo real..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;padding-left:34px;height:38px;">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="width:185px;">' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Filtrar Modelo</label>' +
+                            '<input type="text" id="filtro-log-est-modelo" class="form-control" placeholder="Ex: STD, LUXO, PCD..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;height:38px;">' +
+                        '</div>' +
+                        '<div>' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-calendar-blank"></i> Período — De</label>' +
+                            '<input type="date" id="filtro-log-est-data-de" class="form-control" onchange="window.filtrarTopoQuadrosLogisticaEstoque()" oninput="window.filtrarTopoQuadrosLogisticaEstoque()" style="width:142px;height:38px;">' +
+                        '</div>' +
+                        '<div>' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-calendar-check"></i> Até <span style="font-weight:500;color:#94a3b8;">(opcional)</span></label>' +
+                            '<input type="date" id="filtro-log-est-data-ate" class="form-control" onchange="window.filtrarTopoQuadrosLogisticaEstoque()" oninput="window.filtrarTopoQuadrosLogisticaEstoque()" style="width:142px;height:38px;">' +
+                        '</div>' +
+                        '<div>' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-funnel"></i> Tipo (Obra / Evento)</label>' +
+                            '<div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:10px;border:1px solid #e2e8f0;gap:3px;height:38px;box-sizing:border-box;align-items:center;">' +
+                                '<button type="button" id="btn-ctx-log-est-INDIFERENTE" onclick="window.setFiltroContextoLogisticaEstoque(\'INDIFERENTE\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:#059669;color:#fff;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">Indiferente</button>' +
+                                '<button type="button" id="btn-ctx-log-est-OBRA" onclick="window.setFiltroContextoLogisticaEstoque(\'OBRA\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">💙 Obra</button>' +
+                                '<button type="button" id="btn-ctx-log-est-EVENTO" onclick="window.setFiltroContextoLogisticaEstoque(\'EVENTO\')" style="padding:0.35rem 0.75rem;border-radius:7px;border:none;background:transparent;color:#475569;font-weight:700;font-size:0.78rem;cursor:pointer;transition:all 0.15s;">💜 Evento</button>' +
                             '</div>' +
                         '</div>' +
                         '<div>' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Filtrar Modelo</label>' +
-                            '<input type="text" id="filtro-log-est-modelo" class="form-control" placeholder="Ex: STD, LUXO, PCD..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;">' +
-                        '</div>' +
-                        '<div>' +
-                            '<button type="button" onclick="window.limparFiltrosLogisticaEstoque()" style="padding:0.55rem 0.9rem;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-weight:600;font-size:0.82rem;cursor:pointer;white-space:nowrap;">' +
+                            '<button type="button" onclick="window.limparTodosFiltrosLogisticaEstoque()" style="height:38px;padding:0 0.9rem;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#475569;font-weight:600;font-size:0.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">' +
                                 '<i class="ph ph-broom"></i> Limpar' +
                             '</button>' +
                         '</div>' +
                     '</div>' +
+                '</div>' +
 
-                    // Container da tabela ativa
+                // Cards de Resumo por Modelo (com suporte a minimizar/expandir via seta)
+                '<div id="logistica-estoque-cards-modelos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:0.85rem;"></div>' +
+
+                // Container da tabela ativa
+                '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;">' +
                     '<div id="logistica-estoque-tabela-container"></div>' +
                 '</div>' +
             '</div>';
@@ -376,26 +371,45 @@ window.trocarAbaLogisticaEstoque = function(aba) {
     window.renderTabelaAtivaLogisticaEstoque();
 };
 
-window._atualizarResumoFiltroTopoLogEst = function() {
-    const lbl = document.getElementById('lbl-resumo-filtro-topo-log-est');
-    if (!lbl) return;
-    const dtDe = window._logEstoqueState.filtroDataDe || '';
-    const dtAte = window._logEstoqueState.filtroDataAte || '';
-    const ctx = window._logEstoqueState.filtroContexto || 'INDIFERENTE';
-    const partes = [];
-    if (dtDe && dtAte) {
-        partes.push('Período: ' + _formatarDataBrLogEst(dtDe) + ' até ' + _formatarDataBrLogEst(dtAte));
-    } else if (dtDe) {
-        partes.push('Data: ' + _formatarDataBrLogEst(dtDe));
-    } else if (dtAte) {
-        partes.push('Até: ' + _formatarDataBrLogEst(dtAte));
-    } else {
-        partes.push('Todo o estoque');
+window.toggleQuadrosModelosLogisticaEstoque = function() {
+    window._logEstoqueState.quadrosMinimizados = !window._logEstoqueState.quadrosMinimizados;
+    const box = document.getElementById('logistica-estoque-cards-modelos');
+    const txt = document.getElementById('txt-toggle-quadros-log-est');
+    const ico = document.getElementById('ico-toggle-quadros-log-est');
+    const min = Boolean(window._logEstoqueState.quadrosMinimizados);
+    if (box) box.style.display = min ? 'none' : 'grid';
+    if (txt) txt.textContent = min ? 'Mostrar Quadros' : 'Ocultar Quadros';
+    if (ico) ico.className = min ? 'ph ph-caret-down' : 'ph ph-caret-up';
+};
+
+window.limparTodosFiltrosLogisticaEstoque = function() {
+    const elTxt = document.getElementById('filtro-log-est-texto');
+    const elMod = document.getElementById('filtro-log-est-modelo');
+    const elDe = document.getElementById('filtro-log-est-data-de');
+    const elAte = document.getElementById('filtro-log-est-data-ate');
+    if (elTxt) elTxt.value = '';
+    if (elMod) elMod.value = '';
+    if (elDe) elDe.value = '';
+    if (elAte) elAte.value = '';
+    window._logEstoqueState.filtroTexto = '';
+    window._logEstoqueState.filtroModelo = '';
+    window._logEstoqueState.filtroDataDe = '';
+    window._logEstoqueState.filtroDataAte = '';
+    window.setFiltroContextoLogisticaEstoque('INDIFERENTE');
+};
+
+window.abrirContratoPeloEstoqueLogistica = function(propostaId) {
+    const idNum = Number(propostaId);
+    if (!idNum) return;
+    if (typeof window.abrirContratoDaProposta === 'function') {
+        window.abrirContratoDaProposta(idNum);
+    } else if (typeof window.abrirPropostaDiretoId === 'function') {
+        window.abrirPropostaDiretoId(idNum);
     }
-    if (ctx === 'OBRA') partes.push('Tipo: Obra');
-    else if (ctx === 'EVENTO') partes.push('Tipo: Evento');
-    else partes.push('Tipo: Indiferente');
-    lbl.textContent = partes.join(' • ');
+};
+
+window._atualizarResumoFiltroTopoLogEst = function() {
+    // Texto de resumo removido conforme solicitação
 };
 
 window.setFiltroContextoLogisticaEstoque = function(ctx) {
@@ -563,9 +577,6 @@ window.renderCardsModelosLogisticaEstoque = function() {
                 '<span style="' + badgeStyle + 'border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.84rem;display:inline-flex;align-items:center;gap:5px;">' +
                     '' + _escLogEst(_fmtModeloComIconeLogEst(m.modelo)) +
                 '</span>' +
-                '<span style="font-size:0.73rem;color:#64748b;font-weight:600;white-space:nowrap;" title="Equipamentos do Comercial vinculados a este modelo">' +
-                    '<i class="ph ph-link"></i> ' + eqCount + ' vínculo(s)' +
-                '</span>' +
             '</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;background:#f8fafc;border-radius:8px;padding:7px 6px;">' +
                 '<div>' +
@@ -670,26 +681,17 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
               '</div>'
             : '<span style="color:#94a3b8;font-size:0.78rem;">Sem vínculo comercial</span>';
 
-        // Contrato vinculado/reservado para este equipamento considerando a data/período selecionado
+        // Contrato vinculado/reservado para este equipamento considerando a data/período selecionado (apenas Nº do Contrato clicável para abrir o contrato)
         const alocadas = alocacaoMap.get(Number(item.id)) || [];
         let contratoColHtml = '';
         if (alocadas.length > 0) {
-            contratoColHtml = '<div style="display:flex;flex-direction:column;gap:4px;">' +
+            contratoColHtml = '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
                 alocadas.map(a => {
                     const numCtr = a.contrato_numero || a.proposta_id || '—';
-                    const dtEntBr = _formatarDataBrLogEst(a.data_entrega);
-                    const dtRetBr = a.data_retirada ? _formatarDataBrLogEst(a.data_retirada) : '';
-                    const periodoTxt = dtRetBr ? (dtEntBr + ' até ' + dtRetBr) : dtEntBr;
-                    const cliFmt = typeof window.formatarNomeClienteComIcone === 'function' && a.cliente_nome
-                        ? window.formatarNomeClienteComIcone(a.cliente_nome)
-                        : (a.cliente_nome || '');
-                    return '<div style="display:flex;flex-direction:column;gap:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:4px 9px;">' +
-                        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
-                            '<span style="font-weight:800;color:#1d4ed8;font-size:0.8rem;white-space:nowrap;"><i class="ph ph-file-text"></i> Contrato #' + _escLogEst(numCtr) + '</span>' +
-                            '<span style="font-size:0.72rem;color:#475569;font-weight:600;white-space:nowrap;"><i class="ph ph-calendar"></i> ' + _escLogEst(periodoTxt) + '</span>' +
-                        '</div>' +
-                        (cliFmt ? '<div style="font-size:0.73rem;color:#0f172a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;" title="' + _escLogEst(cliFmt) + '">' + _escLogEst(cliFmt) + '</div>' : '') +
-                    '</div>';
+                    const propId = Number(a.proposta_id) || 0;
+                    return '<button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + propId + ')" title="Clique para abrir o Contrato #' + _escLogEst(numCtr) + '" style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:4px 10px;font-weight:800;font-size:0.8rem;cursor:pointer;white-space:nowrap;transition:all 0.15s;" onmouseover="this.style.background=\'#dbeafe\';this.style.borderColor=\'#93c5fd\'" onmouseout="this.style.background=\'#eff6ff\';this.style.borderColor=\'#bfdbfe\'">' +
+                        '<i class="ph ph-file-text"></i> Contrato #' + _escLogEst(numCtr) +
+                    '</button>';
                 }).join('') +
             '</div>';
         } else {
@@ -777,7 +779,7 @@ window._renderTabelaReservasContratosLogEst = function(cont) {
 
         return '<tr>' +
             '<td><span style="background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:7px;padding:3px 9px;font-weight:700;font-size:0.8rem;white-space:nowrap;"><i class="ph ph-calendar"></i> ' + _escLogEst(_formatarDataBrLogEst(r.data_entrega)) + '</span></td>' +
-            '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:3px 9px;font-weight:800;font-size:0.8rem;white-space:nowrap;">Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '</span></td>' +
+            '<td><button type="button" onclick="window.abrirContratoPeloEstoqueLogistica(' + (Number(r.proposta_id) || 0) + ')" title="Clique para abrir o Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:3px 9px;font-weight:800;font-size:0.8rem;white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;gap:5px;"><i class="ph ph-file-text"></i> Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '</button></td>' +
             '<td style="font-weight:700;color:#0f172a;">' + _escLogEst(nomeCliFmt) + '</td>' +
             '<td style="color:#334155;font-weight:600;">' + _escLogEst(r.equipamento_comercial_nome) + '</td>' +
             '<td><span style="background:' + (String(r.modelo_estoque || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(r.modelo_estoque)) + '</span></td>' +
