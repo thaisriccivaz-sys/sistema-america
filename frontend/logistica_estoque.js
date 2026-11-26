@@ -46,10 +46,10 @@ function _fmtModeloComIconeLogEst(mod) {
 }
 
 window.renderTelaLogisticaEstoque = async function() {
-    const root = document.getElementById('logistica-estoque-root');
+    const root = document.getElementById('logistica-estoque-root') || document.getElementById('view-logistica-estoque');
     if (!root) return;
 
-    if (!root.dataset.initialized) {
+    if (!root.dataset.initialized || !document.getElementById('logistica-estoque-tabela-container')) {
         root.dataset.initialized = '1';
         root.innerHTML =
             '<div style="display:flex;flex-direction:column;gap:1.15rem;">' +
@@ -127,6 +127,8 @@ window.renderTelaLogisticaEstoque = async function() {
                     '<div id="logistica-estoque-tabela-container"></div>' +
                 '</div>' +
             '</div>';
+        window.renderCardsModelosLogisticaEstoque();
+        window.renderTabelaAtivaLogisticaEstoque();
     }
 
     await window.carregarLogisticaEstoque();
@@ -134,16 +136,17 @@ window.renderTelaLogisticaEstoque = async function() {
 
 window.carregarLogisticaEstoque = async function() {
     try {
+        const apiBase = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api';
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
         const dataFiltro = document.getElementById('filtro-log-est-data')?.value || '';
         const qs = dataFiltro ? ('?data=' + encodeURIComponent(dataFiltro)) : '';
-        const r = await fetch(API_URL + '/logistica/estoque' + qs, {
+        const r = await fetch(apiBase + '/logistica/estoque' + qs, {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!r.ok) throw new Error('Falha ao carregar estoque da logística');
         const d = await r.json();
         window._logEstoqueState.itens = d.itens || [];
-        window._logEstoqueState.modelos = d.modelos || [];
+        window._logEstoqueState.modelos = d.modelos || d.modelos_resumo || [];
         window._logEstoqueState.reservas = d.reservas || [];
         window._logEstoqueState.equipamentosComercial = d.equipamentos_comercial || [];
 
@@ -151,6 +154,8 @@ window.carregarLogisticaEstoque = async function() {
         window.renderTabelaAtivaLogisticaEstoque();
     } catch (err) {
         console.error('[LogisticaEstoque]', err);
+        window.renderCardsModelosLogisticaEstoque();
+        window.renderTabelaAtivaLogisticaEstoque();
     }
 };
 
@@ -722,7 +727,7 @@ window.salvarItemLogisticaEstoque = async function(event) {
     try {
         if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const url = id ? (API_URL + '/logistica/estoque/' + id) : (API_URL + '/logistica/estoque');
+        const url = id ? (((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/' + id) : (((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque');
         const method = id ? 'PUT' : 'POST';
 
         const r = await fetch(url, {
@@ -772,7 +777,7 @@ window.excluirItemLogisticaEstoque = async function(id) {
 
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const r = await fetch(API_URL + '/logistica/estoque/' + id, {
+        const r = await fetch(((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/' + id, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer ' + token }
         });
@@ -786,7 +791,7 @@ window.excluirItemLogisticaEstoque = async function(id) {
 window.baixarModeloPlanilhaLogisticaEstoque = async function() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const r = await fetch(API_URL + '/logistica/estoque/modelo-xlsx', {
+        const r = await fetch(((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/modelo-xlsx', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!r.ok) throw new Error('Erro ao gerar planilha modelo');
@@ -821,7 +826,7 @@ window.importarPlanilhaLogisticaEstoque = async function(event) {
             });
 
             const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-            const r = await fetch(API_URL + '/logistica/estoque/importar', {
+            const r = await fetch(((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/importar', {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token,
@@ -852,7 +857,7 @@ window.importarPlanilhaLogisticaEstoque = async function(event) {
 window.recalcularReservasLogisticaEstoque = async function() {
     try {
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const r = await fetch(API_URL + '/logistica/estoque/recalcular-reservas', {
+        const r = await fetch(((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/recalcular-reservas', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token }
         });
