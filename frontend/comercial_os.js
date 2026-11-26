@@ -360,6 +360,109 @@
         atualizarTituloAbaSuperior(!isNovo ? v('numero_os') : null);
 
         container.innerHTML = `
+            <style>
+                #view-comercial-os .prop-lbl,
+                #view-comercial-os label:not(.prop-chk-inline-lbl) {
+                    font-weight: 600 !important;
+                    font-size: 0.7rem !important;
+                    color: #475569 !important;
+                    display: block !important;
+                    margin-bottom: 2px !important;
+                    white-space: nowrap !important;
+                    text-transform: none !important;
+                    letter-spacing: normal !important;
+                }
+                #view-comercial-os h4 {
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    color: #475569 !important;
+                    text-transform: uppercase !important;
+                    letter-spacing: 0.04em !important;
+                    border-bottom: 2px solid #e2e8f0 !important;
+                    padding-bottom: 0.25rem !important;
+                    margin: 0.8rem 0 0.5rem 0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 0.4rem !important;
+                }
+                #view-comercial-os input:not([type="checkbox"]):not([type="radio"]),
+                #view-comercial-os select {
+                    height: 26px !important;
+                    padding: 2px 6px !important;
+                    font-size: 0.75rem !important;
+                    border-radius: 4px !important;
+                    border: 1px solid #cbd5e1 !important;
+                    background: white !important;
+                    color: #1e293b !important;
+                    box-sizing: border-box !important;
+                    line-height: normal !important;
+                    font-family: 'Inter', sans-serif !important;
+                    outline: none !important;
+                    transition: all 0.2s !important;
+                    text-transform: none !important;
+                }
+                #view-comercial-os input:not([type="checkbox"]):not([type="radio"]):focus,
+                #view-comercial-os select:focus {
+                    border-color: #3b82f6 !important;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+                }
+                #view-comercial-os textarea {
+                    padding: 4px 6px !important;
+                    font-size: 0.75rem !important;
+                    border-radius: 4px !important;
+                    border: 1px solid #cbd5e1 !important;
+                    background: white !important;
+                    color: #1e293b !important;
+                    box-sizing: border-box !important;
+                    font-family: 'Inter', sans-serif !important;
+                    outline: none !important;
+                    text-transform: none !important;
+                }
+                #view-comercial-os button {
+                    height: 26px !important;
+                    font-size: 0.75rem !important;
+                    padding: 0 10px !important;
+                    border-radius: 4px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 4px !important;
+                    font-weight: 600 !important;
+                    font-family: 'Inter', sans-serif !important;
+                    cursor: pointer !important;
+                }
+                #view-comercial-os button#cos-status-custom-btn {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    text-align: left !important;
+                    padding: 0 8px !important;
+                    width: 100% !important;
+                }
+                #view-comercial-os form button[title*="Pesquisar"] {
+                    width: 26px !important;
+                    padding: 0 !important;
+                }
+                #view-comercial-os form button i {
+                    font-size: 0.85rem !important;
+                }
+                #view-comercial-os div[style*="display:grid"],
+                #view-comercial-os div[style*="display: grid"] {
+                    gap: 0.4rem 0.6rem !important;
+                }
+                #view-comercial-os div[style*="margin-bottom:1rem"],
+                #view-comercial-os div[style*="margin-bottom: 1rem"],
+                #view-comercial-os div[style*="margin-bottom:0.85rem"],
+                #view-comercial-os div[style*="margin-bottom: 0.85rem"] {
+                    margin-bottom: 0.5rem !important;
+                }
+                #view-comercial-os table {
+                    font-size: 0.76rem !important;
+                }
+                #view-comercial-os table th,
+                #view-comercial-os table td {
+                    padding: 0.3rem 0.45rem !important;
+                }
+            </style>
             <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter',sans-serif;">
                 <!-- Toolbar Superior -->
                 <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:0.65rem 1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem; position:sticky; top:0; z-index:997; border-top-left-radius:14px; border-top-right-radius:14px;">
