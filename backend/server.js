@@ -30932,7 +30932,8 @@ const _handleDownloadZip = async (req, res) => {
                                     if (fData && fData.stream) {
                                         const fChunks = [];
                                         for await (const ch of fData.stream) fChunks.push(Buffer.isBuffer(ch) ? ch : Buffer.from(ch));
-                                        archive.append(Buffer.concat(fChunks), { name: `${folderName}/${nomeColabSafe}_Foto.jpg` });
+                                        zip.addFile(`${folderName}/${nomeColabSafe}_Foto.jpg`, Buffer.concat(fChunks));
+                                        hasFiles = true;
                                         addedCats.add('foto_colaborador');
                                     }
                                 }
@@ -31191,7 +31192,7 @@ const _handleDownloadZip = async (req, res) => {
                 // Apurar documentos exigidos que NAO entraram no ZIP para este colaborador
                 {
                     const isMotCred = String(colab.cargo || '').toUpperCase().includes('MOTORISTA');
-                    const docNomesCred = { cnh: 'CNH', cpf: 'CPF', aso: 'ASO', ficha_registro: 'Ficha de Registro', treinamento: 'Carteira de Vacinação', epi: 'Ficha de EPI', contrato_esocial: 'Contrato e-social', nr1: 'NR1 / Ordem de Serviço', foto_colaborador: 'Foto 3x4', ctps: 'Carteira de Trabalho' };
+                    const docNomesCred = { cnh: 'CNH', cpf: 'RG/CPF', aso: 'ASO', ficha_registro: 'Ficha de Registro', treinamento: 'Carteira de Vacinação', epi: 'Ficha de EPI', contrato_esocial: 'Contrato e-social', nr1: 'NR1 / Ordem de Serviço', foto_colaborador: 'Foto 3x4', ctps: 'Carteira de Trabalho' };
                     for (const reqDoc of docsExigidos) {
                         if (!docNomesCred[reqDoc]) continue;
                         if (reqDoc === 'cnh' && (!isMotCred || cnhMensagemFaltanteAdicionada)) continue;
@@ -31228,6 +31229,88 @@ const _handleDownloadZip = async (req, res) => {
 app.get('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
 app.post('/api/logistica/credenciamento/:id/download-zip', authenticateToken, _handleDownloadZip);
 
+db.run("ALTER TABLE credenciamentos ADD COLUMN origem TEXT", (err) => {
+    if (err && !err.message.includes('duplicate column')) console.error('[MIGRATION credenciamentos origem]', err.message);
+});
+
+// POST Autenticado: Registrar/Atualizar solicitação criada pelo botão "Solicitar Documentos" (apenas na tela da Logística)
+app.post('/api/logistica/credenciamento/solicitar-documentos', authenticateToken, (req, res) => {
+    const { id, cliente_nome, os, colaboradores, veiculos, licencas, docs_exigidos } = req.body || {};
+    if (!cliente_nome) return res.status(400).json({ error: 'Nome do cliente é obrigatório.' });
+
+    const colabsArr = Array.isArray(colaboradores) ? colaboradores : [];
+    const veicsArr = Array.isArray(veiculos) ? veiculos : [];
+    const licsArr = Array.isArray(licencas) ? licencas : [];
+    const docsArr = Array.isArray(docs_exigidos) ? docs_exigidos : [];
+
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(16).toString('hex');
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 7);
+    const userId = (req.user && req.user.id) || null;
+
+    if (id) {
+        db.run(
+            `UPDATE credenciamentos
+             SET cliente_nome = ?,
+                 os = ?,
+                 colaboradores_ids = ?,
+                 veiculos_ids = ?,
+                 licencas_ids = ?,
+                 docs_exigidos = ?,
+                 qtd_max_colaboradores = ?,
+                 qtd_max_veiculos = ?,
+                 enviado_em = CURRENT_TIMESTAMP,
+                 enviado_por_id = ?,
+                 origem = 'logistica_solicitar_docs'
+             WHERE id = ?`,
+            [
+                cliente_nome,
+                os || null,
+                JSON.stringify(colabsArr),
+                JSON.stringify(veicsArr),
+                JSON.stringify(licsArr),
+                JSON.stringify(docsArr),
+                colabsArr.length,
+                veicsArr.length,
+                userId,
+                id
+            ],
+            function (errUp) {
+                if (errUp) return res.status(500).json({ error: errUp.message });
+                res.json({ ok: true, id: Number(id) });
+            }
+        );
+    } else {
+        db.run(
+            `INSERT INTO credenciamentos (
+                cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados,
+                endereco_instalacao, os, token, colaboradores_ids, veiculos_ids,
+                docs_exigidos, licencas_ids, qtd_max_colaboradores, qtd_max_veiculos,
+                valid_until, enviado_em, enviado_por_id, status, solicitado_por_id, origem
+             ) VALUES (?, '', '', 'whatsapp', 0, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'enviado', ?, 'logistica_solicitar_docs')`,
+            [
+                cliente_nome,
+                os || null,
+                token,
+                JSON.stringify(colabsArr),
+                JSON.stringify(veicsArr),
+                JSON.stringify(docsArr),
+                JSON.stringify(licsArr),
+                colabsArr.length,
+                veicsArr.length,
+                validUntil.toISOString(),
+                userId,
+                userId
+            ],
+            function (errIns) {
+                if (errIns) return res.status(500).json({ error: errIns.message });
+                res.json({ ok: true, id: this.lastID });
+            }
+        );
+    }
+});
+
 app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
     const { cliente_nome, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, os, colaboradores, veiculos, docs_exigidos, licencas } = req.body;
     if (!cliente_nome) return res.status(400).json({ error: 'Nome é obrigatório.' });
@@ -31252,7 +31335,7 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
         };
 
         const docNamesReadable = {
-            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+            'cnh': 'CNH', 'cpf': 'RG/CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
             'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço',
             'foto_colaborador': 'Foto do Colaborador'
@@ -31501,11 +31584,11 @@ app.post('/api/logistica/credenciamento', authenticateToken, (req, res) => {
 
 // GET Autenticado: Listar todos os credenciamentos
 app.get('/api/logistica/credenciamentos', authenticateToken, (req, res) => {
-    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, c.docs_faltantes, c.docs_baixados_em, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
+    db.all(`SELECT c.id, c.cliente_nome, c.os, c.cliente_email, c.cliente_whatsapp, c.tipo_envio, c.apenas_dados, c.endereco_instalacao, c.token, c.colaboradores_ids, c.veiculos_ids, c.licencas_ids, c.docs_exigidos, c.valid_until, c.acessado_em, c.status, c.data_limite_envio, c.qtd_max_colaboradores, c.qtd_max_veiculos, c.created_at, c.enviado_em, c.observacoes, c.docs_faltantes, c.docs_baixados_em, c.origem, u1.nome as sol_nome_usuario, u1.username as sol_username, col1.foto_path as sol_foto, col1.foto_base64 as sol_foto_b64, u2.nome as env_nome_usuario, u2.username as env_username, col2.foto_path as env_foto, col2.foto_base64 as env_foto_b64
             FROM credenciamentos c LEFT JOIN usuarios u1 ON c.solicitado_por_id = u1.id LEFT JOIN colaboradores col1 ON col1.nome_completo = u1.nome LEFT JOIN usuarios u2 ON c.enviado_por_id = u2.id LEFT JOIN colaboradores col2 ON col2.nome_completo = u2.nome ORDER BY c.created_at DESC`, [], (err, rows) => {
         if (err) {
             // Fallback: try without optional joins, keeping docs_faltantes & docs_baixados_em
-            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status, docs_faltantes, docs_baixados_em
+            db.all(`SELECT id, cliente_nome, os, cliente_email, cliente_whatsapp, tipo_envio, apenas_dados, endereco_instalacao, token, colaboradores_ids, veiculos_ids, licencas_ids, docs_exigidos, valid_until, acessado_em, created_at, qtd_max_colaboradores, qtd_max_veiculos, data_limite_envio, status, docs_faltantes, docs_baixados_em, origem
                     FROM credenciamentos ORDER BY created_at DESC`, [], (err2, rows2) => {
                 if (err2) return res.status(500).json({ error: err2.message });
                 const mapped = (rows2 || []).map(r => ({ ...r, status: r.status || 'enviado' }));

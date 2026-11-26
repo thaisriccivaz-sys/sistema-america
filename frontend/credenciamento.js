@@ -571,7 +571,7 @@ async function validarVencimentosCredenciamento() {
     };
 
     const docNamesReadable = {
-        'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+        'cnh': 'CNH', 'cpf': 'RG/CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
         'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
         'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto do Colaborador', 'ctps': 'Carteira de Trabalho'
     };
@@ -1590,6 +1590,19 @@ window.copiarDadosCredenciamento = function(id) {
 // FUNCIONALIDADE: SOLICITAR DOCUMENTOS
 // ══════════════════════════════════════════════════════════════════════════════
 
+window.docNames = {
+    'cnh': 'CNH',
+    'cpf': 'RG/CPF',
+    'aso': 'ASO',
+    'ficha_registro': 'Ficha de Registro',
+    'treinamento': 'Carteira de Vacinação',
+    'epi': 'Ficha de EPI',
+    'contrato_esocial': 'Contrato e-social',
+    'nr1': 'NR1 / Ordem de Serviço',
+    'foto_colaborador': 'Foto 3×4 do Colaborador',
+    'ctps': 'Carteira de Trabalho'
+};
+
 let _solDocState = {
     colaboradores: [],
     veiculos: [],
@@ -1597,14 +1610,16 @@ let _solDocState = {
     colabsSelecionados: new Set(),
     veiculosSelecionados: new Set(),
     licencasSelecionadas: new Set(),
+    docsSelecionados: new Set(),
+    credenciamentoId: null,
     licEmpresaAtiva: 'América Rental',
     step: 1 // 1=form, 2=selecao, 3=resultado
 };
 
 window.abrirModalSolicitarDocumentos = async function() {
-    // Injeta o modal se não existir (ou se for versão anterior sem aba de licenças)
+    // Injeta o modal se não existir (ou se for versão anterior sem aba de licenças / documentos exigidos)
     const oldModal = document.getElementById('modal-solicitar-docs');
-    if (oldModal && !document.getElementById('sol-tab-lics')) {
+    if (oldModal && (!document.getElementById('sol-tab-lics') || !document.getElementById('sol-docs-exigidos-grid'))) {
         oldModal.remove();
     }
     if (!document.getElementById('modal-solicitar-docs')) {
@@ -1612,7 +1627,7 @@ window.abrirModalSolicitarDocumentos = async function() {
         div.id = 'modal-solicitar-docs';
         div.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:9999; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(3px);';
         div.innerHTML = `
-        <div style="background:#fff; border-radius:16px; width:100%; max-width:680px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+        <div style="background:#fff; border-radius:16px; width:100%; max-width:740px; max-height:92vh; display:flex; flex-direction:column; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
             <!-- Header -->
             <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-shrink:0;">
                 <div style="display:flex; align-items:center; gap:10px;">
@@ -1663,8 +1678,33 @@ window.abrirModalSolicitarDocumentos = async function() {
 
                     <!-- Painel Colaboradores -->
                     <div id="sol-panel-colabs">
+                        <!-- Quadro Documentos Exigidos dos Colaboradores (Anexo 2) -->
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:12px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+                                <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#1e293b; font-size:0.88rem;">
+                                    <i class="ph ph-files" style="font-size:1.05rem; color:#475569;"></i>
+                                    <span>Documentos Exigidos</span>
+                                </div>
+                                <button type="button" onclick="solDocsToggleTodosDocsExigidos()" style="background:#ffffff; border:1px solid #cbd5e1; color:#475569; border-radius:6px; padding:3px 10px; font-size:0.74rem; font-weight:700; cursor:pointer;">
+                                    Marcar/Desmarcar todos
+                                </button>
+                            </div>
+                            <div id="sol-docs-exigidos-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px 12px; font-size:0.82rem; color:#334155;">
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="cnh" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> CNH</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="cpf" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> RG/CPF</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="aso" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> ASO</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="ficha_registro" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Ficha de Registro</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="treinamento" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Carteira de Vacinação</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="epi" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Ficha de EPI</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="contrato_esocial" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Contrato e-social</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="nr1" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> NR1 / Ordem de Serviço</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="foto_colaborador" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Foto 3×4 do Colaborador</label>
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" value="ctps" onchange="solDocsToggleDocExigido(this)" style="accent-color:#7c3aed; width:15px; height:15px; cursor:pointer;"> Carteira de Trabalho</label>
+                            </div>
+                        </div>
+
                         <input type="text" placeholder="🔍 Buscar colaborador..." oninput="solDocsFiltrar('sol-lista-colabs', this.value)" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; margin-bottom:10px; font-size:0.9rem; box-sizing:border-box; outline:none;" onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#e2e8f0'">
-                        <div id="sol-lista-colabs" style="max-height:300px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                        <div id="sol-lista-colabs" style="max-height:240px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
                             <p style="text-align:center; padding:20px; color:#94a3b8;">Carregando...</p>
                         </div>
                     </div>
@@ -1695,7 +1735,7 @@ window.abrirModalSolicitarDocumentos = async function() {
                         <button onclick="solDocsVoltar()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                             <i class="ph ph-arrow-left"></i> Voltar
                         </button>
-                        <button onclick="solDocsGerarResultado()" style="flex:2; background:#7c3aed; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
+                        <button id="btn-sol-gerar" onclick="solDocsGerarResultado()" style="flex:2; background:#7c3aed; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">
                             <i class="ph-bold ph-file-text"></i> Solicitar Documentos
                         </button>
                     </div>
@@ -1703,13 +1743,14 @@ window.abrirModalSolicitarDocumentos = async function() {
 
                 <!-- Step 3: Resultado -->
                 <div id="sol-step-3" style="display:none;">
+                    <div id="sol-pendencias-zip-box" style="display:none; margin-bottom:12px;"></div>
                     <div id="sol-resultado-card" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:20px; font-family:monospace; font-size:0.88rem; white-space:pre-wrap; color:#1e293b; line-height:1.7;"></div>
                     <div style="display:flex; gap:10px; margin-top:16px;">
                         <button onclick="solDocsVoltar2()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">
                             <i class="ph ph-arrow-left"></i> Voltar
                         </button>
                         <button onclick="solDocsBaixar()" id="btn-sol-baixar" style="flex:2; background:#3b82f6; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                            <i class="ph-bold ph-download-simple"></i> Baixar Documentos
+                            <i class="ph-bold ph-download-simple"></i> Baixar Documentos (ZIP)
                         </button>
                         <button onclick="solDocsCopiar()" id="btn-sol-copiar" style="flex:2; background:#16a34a; color:#fff; border:none; padding:12px; border-radius:8px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
                             <i class="ph-bold ph-copy"></i> Copiar Conteúdo
@@ -1725,11 +1766,18 @@ window.abrirModalSolicitarDocumentos = async function() {
     _solDocState.colabsSelecionados = new Set();
     _solDocState.veiculosSelecionados = new Set();
     _solDocState.licencasSelecionadas = new Set();
+    _solDocState.docsSelecionados = new Set();
+    _solDocState.credenciamentoId = null;
     _solDocState.licEmpresaAtiva = 'América Rental';
     _solDocState.step = 1;
 
+    document.querySelectorAll('#sol-docs-exigidos-grid input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+    const pendBox = document.getElementById('sol-pendencias-zip-box');
+    if (pendBox) { pendBox.innerHTML = ''; pendBox.style.display = 'none'; }
+
     document.getElementById('sol-docs-cliente').value = '';
     document.getElementById('sol-docs-os').value = '';
+    document.getElementById('sol-docs-titulo').textContent = 'Solicitar Documentos';
     solDocsMostrarStep(1);
     document.getElementById('modal-solicitar-docs').style.display = 'flex';
     setTimeout(() => document.getElementById('sol-docs-cliente').focus(), 150);
@@ -1738,6 +1786,23 @@ window.abrirModalSolicitarDocumentos = async function() {
 window.fecharModalSolicitarDocumentos = function() {
     const m = document.getElementById('modal-solicitar-docs');
     if (m) m.style.display = 'none';
+};
+
+window.solDocsToggleDocExigido = function(cb) {
+    if (!cb) return;
+    if (cb.checked) _solDocState.docsSelecionados.add(String(cb.value));
+    else _solDocState.docsSelecionados.delete(String(cb.value));
+};
+
+window.solDocsToggleTodosDocsExigidos = function() {
+    const cbs = Array.from(document.querySelectorAll('#sol-docs-exigidos-grid input[type="checkbox"]'));
+    if (!cbs.length) return;
+    const todosMarcados = cbs.every(cb => cb.checked);
+    cbs.forEach(cb => {
+        cb.checked = !todosMarcados;
+        if (cb.checked) _solDocState.docsSelecionados.add(String(cb.value));
+        else _solDocState.docsSelecionados.delete(String(cb.value));
+    });
 };
 
 function _solNormalizarEmpresaLicenca(empRaw) {
@@ -1987,9 +2052,14 @@ window.solDocsFiltrar = function(containerId, termo) {
     });
 };
 
-window.solDocsGerarResultado = function() {
+window.solDocsGerarResultado = async function() {
     const cliente = document.getElementById('sol-docs-cliente').value.trim();
     const os = document.getElementById('sol-docs-os').value.trim();
+
+    // Sincronizar checkboxes de documentos exigidos do DOM
+    const cbsDocs = Array.from(document.querySelectorAll('#sol-docs-exigidos-grid input[type="checkbox"]:checked'));
+    _solDocState.docsSelecionados = new Set(cbsDocs.map(cb => String(cb.value)));
+    const docsExigidos = [..._solDocState.docsSelecionados];
 
     const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
     const veics = [..._solDocState.veiculosSelecionados].map(id => _solDocState.veiculos.find(v => String(v.id) === id)).filter(Boolean);
@@ -2000,11 +2070,80 @@ window.solDocsGerarResultado = function() {
         return;
     }
 
+    if (colabs.length > 0 && docsExigidos.length === 0) {
+        alert('Selecione ao menos um documento no quadro "Documentos Exigidos" para os colaboradores selecionados.');
+        solDocsSwitchTab('colabs');
+        return;
+    }
+
+    const btnGerar = document.getElementById('btn-sol-gerar');
+    const origHtml = btnGerar ? btnGerar.innerHTML : '';
+    if (btnGerar) {
+        btnGerar.disabled = true;
+        btnGerar.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Registrando solicitação...';
+    }
+
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const payload = {
+            id: _solDocState.credenciamentoId || null,
+            cliente_nome: cliente,
+            os: os,
+            colaboradores: colabs.map(c => ({
+                id: Number(c.id),
+                nome: c.nome_completo,
+                cargo: c.cargo || '',
+                cpf: c.cpf || '',
+                cnh: c.cnh_numero || c.cnh || '',
+                isMotorista: !!(c.cargo && c.cargo.toUpperCase().includes('MOTORISTA'))
+            })),
+            veiculos: veics.map(v => ({
+                id: Number(v.id),
+                placa: v.placa || '',
+                modelo: v.marca_modelo_versao || ''
+            })),
+            licencas: lics.map(l => ({
+                id: l.id,
+                nome: l.nome || '',
+                empresa: l.empresa_norm || l.empresa || 'América Rental',
+                validade: l.validade || null
+            })),
+            docs_exigidos: docsExigidos
+        };
+
+        const res = await fetch('/api/logistica/credenciamento/solicitar-documentos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data && data.id) {
+            _solDocState.credenciamentoId = Number(data.id);
+            if (typeof window.carregarHistoricoCredenciamento === 'function') {
+                window.carregarHistoricoCredenciamento();
+            }
+        }
+    } catch (err) {
+        console.error('[SOLICITAR-DOCS] Erro ao registrar solicitação na lista da Logística:', err);
+    } finally {
+        if (btnGerar) {
+            btnGerar.disabled = false;
+            btnGerar.innerHTML = origHtml || '<i class="ph-bold ph-file-text"></i> Solicitar Documentos';
+        }
+    }
+
     const linhas = [];
     linhas.push(`📋 SOLICITAÇÃO DE DOCUMENTOS`);
     linhas.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     linhas.push(`Cliente: ${cliente}`);
     linhas.push(`OS: ${os}`);
+    if (docsExigidos.length > 0) {
+        const nomesDocs = docsExigidos.map(d => (window.docNames && window.docNames[d]) || d).join(', ');
+        linhas.push(`Documentos Exigidos: ${nomesDocs}`);
+    }
     linhas.push(``);
 
     if (colabs.length) {
@@ -2042,6 +2181,8 @@ window.solDocsGerarResultado = function() {
 
     const texto = linhas.join('\n').trim();
     document.getElementById('sol-resultado-card').textContent = texto;
+    const pendBox = document.getElementById('sol-pendencias-zip-box');
+    if (pendBox) { pendBox.innerHTML = ''; pendBox.style.display = 'none'; }
     solDocsMostrarStep(3);
     document.getElementById('sol-docs-titulo').textContent = 'Documentos Necessários';
     document.getElementById('sol-docs-subtitulo').textContent = `${colabs.length} colaborador(es) · ${veics.length} veículo(s) · ${lics.length} licença(s)`;
@@ -2070,39 +2211,154 @@ window.solDocsCopiar = async function() {
     }
 };
 
-window.solDocsBaixar = function() {
+window.solDocsBaixar = async function() {
     const colabs = [..._solDocState.colabsSelecionados].map(id => _solDocState.colaboradores.find(c => String(c.id) === id)).filter(Boolean);
+    const veics = [..._solDocState.veiculosSelecionados].map(id => _solDocState.veiculos.find(v => String(v.id) === id)).filter(Boolean);
     const lics = [...(_solDocState.licencasSelecionadas || [])].map(id => (_solDocState.licencas || []).find(l => String(l.id) === id)).filter(Boolean);
-    
-    if (!colabs.length && !lics.length) {
-        alert('Nenhum colaborador ou licença selecionado para baixar documentos.');
+    const docsExigidos = [...(_solDocState.docsSelecionados || [])];
+
+    if (!colabs.length && !veics.length && !lics.length) {
+        alert('Nenhum colaborador, veículo ou licença selecionado para baixar documentos.');
         return;
     }
 
-    const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-    
-    let tempo = 0;
-    colabs.forEach((c) => {
-        const isMotorista = c.cargo && c.cargo.toUpperCase().includes('MOTORISTA');
-        const url = isMotorista ? `/api/colaboradores/${c.id}/arquivo/cnh?token=${encodeURIComponent(token)}` : `/api/colaboradores/${c.id}/arquivo/cpf_rg?token=${encodeURIComponent(token)}`;
-        
-        setTimeout(() => {
-            window.open(url, '_blank');
-        }, tempo);
-        tempo += 500;
-    });
+    const btnBaixar = document.getElementById('btn-sol-baixar');
+    const origHtml = btnBaixar ? btnBaixar.innerHTML : '';
+    if (btnBaixar) {
+        btnBaixar.disabled = true;
+        btnBaixar.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Gerando ZIP...';
+    }
 
-    lics.forEach((l) => {
-        const url = `/api/licencas/${l.id}/view?download=1&token=${encodeURIComponent(token)}`;
-        setTimeout(() => {
-            const a = document.createElement('a');
-            a.href = url;
-            a.target = '_blank';
-            a.rel = 'noopener';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        }, tempo);
-        tempo += 450;
-    });
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        let credId = _solDocState.credenciamentoId;
+
+        if (!credId) {
+            const cliente = document.getElementById('sol-docs-cliente')?.value?.trim() || 'Cliente';
+            const os = document.getElementById('sol-docs-os')?.value?.trim() || '';
+            const regRes = await fetch('/api/logistica/credenciamento/solicitar-documentos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    cliente_nome: cliente,
+                    os: os,
+                    colaboradores: colabs.map(c => ({
+                        id: Number(c.id),
+                        nome: c.nome_completo,
+                        cargo: c.cargo || '',
+                        cpf: c.cpf || '',
+                        cnh: c.cnh_numero || c.cnh || '',
+                        isMotorista: !!(c.cargo && c.cargo.toUpperCase().includes('MOTORISTA'))
+                    })),
+                    veiculos: veics.map(v => ({
+                        id: Number(v.id),
+                        placa: v.placa || '',
+                        modelo: v.marca_modelo_versao || ''
+                    })),
+                    licencas: lics.map(l => ({
+                        id: l.id,
+                        nome: l.nome || '',
+                        empresa: l.empresa_norm || l.empresa || 'América Rental',
+                        validade: l.validade || null
+                    })),
+                    docs_exigidos: docsExigidos
+                })
+            });
+            const regData = await regRes.json().catch(() => ({}));
+            if (regRes.ok && regData && regData.id) {
+                credId = Number(regData.id);
+                _solDocState.credenciamentoId = credId;
+            }
+        }
+
+        if (!credId) {
+            throw new Error('Não foi possível identificar a solicitação para gerar o ZIP.');
+        }
+
+        const zipRes = await fetch(`/api/logistica/credenciamento/${credId}/download-zip`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                licencas: lics.map(l => ({
+                    id: l.id,
+                    nome: l.nome || '',
+                    empresa: l.empresa_norm || l.empresa || 'América Rental',
+                    validade: l.validade || null
+                })),
+                docs_exigidos: docsExigidos
+            })
+        });
+
+        if (!zipRes.ok) {
+            throw new Error('Falha ao gerar o arquivo ZIP dos documentos.');
+        }
+
+        const rawFaltantes = zipRes.headers.get('X-Docs-Faltantes');
+        const rawBaixadosEm = zipRes.headers.get('X-Docs-Baixados-Em') || new Date().toISOString();
+        const pendBox = document.getElementById('sol-pendencias-zip-box');
+
+        if (rawFaltantes) {
+            try {
+                const docsFaltantesStr = decodeURIComponent(rawFaltantes);
+                localStorage.setItem(`cred_pendencias_${credId}`, JSON.stringify({
+                    docs_faltantes: docsFaltantesStr,
+                    docs_baixados_em: rawBaixadosEm
+                }));
+                const listaFalt = JSON.parse(docsFaltantesStr || '[]');
+                if (pendBox) {
+                    if (Array.isArray(listaFalt) && listaFalt.length > 0) {
+                        pendBox.innerHTML = `<div style="background:#fff1f2; border:1.5px solid #fecaca; border-radius:8px; padding:10px 12px; text-align:left;">
+                            <div style="display:flex; align-items:center; gap:6px; color:#991b1b; font-weight:700; font-size:0.82rem; margin-bottom:6px;">
+                                <i class="ph ph-warning-circle" style="font-size:1.1rem; color:#dc2626;"></i>
+                                <span>Documentos NÃO baixados no ZIP (${listaFalt.length}):</span>
+                            </div>
+                            <ul style="margin:0; padding-left:20px; font-size:0.78rem; color:#b91c1c; line-height:1.5;">
+                                ${listaFalt.map(p => `<li>${p}</li>`).join('')}
+                            </ul>
+                        </div>`;
+                    } else {
+                        pendBox.innerHTML = `<div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:9px 12px; text-align:left; color:#166534; font-size:0.82rem; font-weight:600; display:flex; align-items:center; gap:6px;">
+                            <i class="ph ph-check-circle" style="font-size:1.1rem; color:#16a34a;"></i>
+                            <span>Todos os documentos exigidos foram baixados no ZIP com sucesso!</span>
+                        </div>`;
+                    }
+                    pendBox.style.display = 'block';
+                }
+            } catch (_) {}
+        }
+
+        const blob = await zipRes.blob();
+        const urlBlob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = urlBlob;
+        const disposition = zipRes.headers.get('Content-Disposition');
+        const osVal = document.getElementById('sol-docs-os')?.value?.trim() || credId;
+        let filename = `Credenciamento_${osVal}.zip`;
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+            filename = disposition.split('filename=')[1].replace(/["']/g, '');
+        }
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(urlBlob);
+        a.remove();
+
+        if (typeof window.carregarHistoricoCredenciamento === 'function') {
+            window.carregarHistoricoCredenciamento();
+        }
+    } catch (e) {
+        alert('Erro ao baixar documentos em ZIP: ' + (e.message || e));
+    } finally {
+        if (btnBaixar) {
+            btnBaixar.disabled = false;
+            btnBaixar.innerHTML = origHtml || '<i class="ph-bold ph-download-simple"></i> Baixar Documentos (ZIP)';
+        }
+    }
 };

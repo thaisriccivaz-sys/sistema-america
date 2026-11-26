@@ -303,7 +303,7 @@ window.carregarHistoricoComCred = async function() {
         }
         const data = await res.json();
         
-        window._historicoComCredDados = Array.isArray(data) ? data : [];
+        window._historicoComCredDados = (Array.isArray(data) ? data : []).filter(c => c.origem !== 'logistica_solicitar_docs');
         window.ordenarHistoricoComCred('data', 'desc');
     } catch(e) {
         console.error(e);
@@ -441,9 +441,9 @@ window.ordenarHistoricoComCred = function(coluna, forceDir = null) {
         const lics = cred.licencas_ids ? JSON.parse(cred.licencas_ids) : [];
         
         const docNamesMap = {
-            'cnh': 'CNH', 'cpf': 'CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
+            'cnh': 'CNH', 'cpf': 'RG/CPF', 'aso': 'ASO', 'ficha_registro': 'Ficha de Registro',
             'treinamento': 'Carteira de Vacinação', 'epi': 'Ficha de EPI',
-            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço'
+            'contrato_esocial': 'Contrato e-social', 'nr1': 'NR1 / Ordem de Serviço', 'foto_colaborador': 'Foto 3×4 do Colaborador', 'ctps': 'Carteira de Trabalho'
         };
         const docsArr = docs.map(d => docNamesMap[d] || d);
         const docsFormatted = docsArr.length > 0 ? docsArr.join(' - ') : 'Nenhum';
