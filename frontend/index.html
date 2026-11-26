@@ -39,7 +39,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261118v2" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261126v2" defer></script>
+    <script src="estoque.js?v=20261126v3" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
@@ -4305,11 +4305,11 @@
                                         <i class="ph ph-package" style="color:#16a34a;font-size:0.95rem;"></i> Vínculo Estoque da Logística (Modelo)
                                     </label>
                                     <div style="position:relative; display:flex; align-items:center;">
-                                        <input type="text" id="equipamento-est-logistica-modelo" class="form-control" style="width:100%; padding-right:32px; text-transform:none;" placeholder="Ex: STD, LUXO, EXTRA LUXO, PCD..." autocomplete="off"
-                                            onfocus="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(false)"
-                                            oninput="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(true)"
-                                            onblur="setTimeout(function(){ var d = document.getElementById('combo-list-modal-logistica-modelo'); if(d) d.style.display='none'; }, 180)">
-                                        <button type="button" tabindex="-1" onclick="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(false)" title="Selecionar Modelo do Estoque da Logística" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
+                                        <input type="text" id="equipamento-est-logistica-modelo" class="form-control" style="width:100%; padding-right:32px; text-transform:none;" placeholder="Ex: 💙 STD OBRA, 💜 STD EVENTO, 🟦 LX OBRA..." autocomplete="off"
+                                            onfocus="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal('')"
+                                            onclick="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal('')"
+                                            oninput="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(this.value)">
+                                        <button type="button" tabindex="-1" onclick="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal('')" title="Selecionar Produto da OS da Logística" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
                                             <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
                                         </button>
                                     </div>
@@ -6998,7 +6998,7 @@
     <script src="comercial_aprovacao.js?v=20261126v7"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>
-    <script src="logistica_estoque.js?v=20261126v1"></script>
+    <script src="logistica_estoque.js?v=20261126v2"></script>
     <script src="rh_logistica.js?v=1791923000000"></script>
     <script src="licencas.js?v=1791577700000"></script>
     <script src="celulares.js?v=20261030v1"></script>

@@ -17,6 +17,56 @@ function normStr(s) {
         .trim();
 }
 
+const EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
+    // OBRA
+    { codigo: 'STD OBRA',                icone: '💙', label: '💙 STD OBRA',                categoria: 'OBRA' },
+    { codigo: 'LX OBRA',                 icone: '🟦', label: '🟦 LX OBRA',                 categoria: 'OBRA' },
+    { codigo: 'EXL OBRA',                icone: '🔵', label: '🔵 EXL OBRA',                categoria: 'OBRA' },
+    { codigo: 'PCD OBRA',                icone: '♿', label: '♿ PCD OBRA',                categoria: 'OBRA' },
+    { codigo: 'CHUVEIRO OBRA',           icone: '🚿', label: '🚿 CHUVEIRO OBRA',           categoria: 'OBRA' },
+    { codigo: 'HIDRÁULICO OBRA',         icone: '🚽', label: '🚽 HIDRÁULICO OBRA',         categoria: 'OBRA' },
+    { codigo: 'MICTÓRIO OBRA',           icone: '💦', label: '💦 MICTÓRIO OBRA',           categoria: 'OBRA' },
+    { codigo: 'PBII OBRA',               icone: '🧼', label: '🧼 PBII OBRA',               categoria: 'OBRA' },
+    { codigo: 'PBIII OBRA',              icone: '🧼', label: '🧼 PBIII OBRA',              categoria: 'OBRA' },
+    { codigo: 'GUARITA INDIVIDUAL OBRA', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL OBRA', categoria: 'OBRA' },
+    { codigo: 'GUARITA DUPLA OBRA',      icone: '⚪', label: '⚪ GUARITA DUPLA OBRA',      categoria: 'OBRA' },
+    { codigo: 'LIMPA FOSSA OBRA',        icone: '💧', label: '💧 LIMPA FOSSA OBRA',        categoria: 'OBRA' },
+    // EVENTO
+    { codigo: 'STD EVENTO',                icone: '💜', label: '💜 STD EVENTO',                categoria: 'EVENTO' },
+    { codigo: 'LX EVENTO',                 icone: '🟣', label: '🟣 LX EVENTO',                 categoria: 'EVENTO' },
+    { codigo: 'EXL EVENTO',                icone: '🟣', label: '🟣 EXL EVENTO',                categoria: 'EVENTO' },
+    { codigo: 'PCD EVENTO',                icone: '♿', label: '♿ PCD EVENTO',                categoria: 'EVENTO' },
+    { codigo: 'CHUVEIRO EVENTO',           icone: '🚿', label: '🚿 CHUVEIRO EVENTO',           categoria: 'EVENTO' },
+    { codigo: 'HIDRÁULICO EVENTO',         icone: '🚽', label: '🚽 HIDRÁULICO EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'MICTÓRIO EVENTO',           icone: '💦', label: '💦 MICTÓRIO EVENTO',           categoria: 'EVENTO' },
+    { codigo: 'PBII EVENTO',               icone: '🧼', label: '🧼 PBII EVENTO',               categoria: 'EVENTO' },
+    { codigo: 'PBIII EVENTO',              icone: '🧼', label: '🧼 PBIII EVENTO',              categoria: 'EVENTO' },
+    { codigo: 'GUARITA INDIVIDUAL EVENTO', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL EVENTO', categoria: 'EVENTO' },
+    { codigo: 'GUARITA DUPLA EVENTO',      icone: '⚪', label: '⚪ GUARITA DUPLA EVENTO',      categoria: 'EVENTO' },
+    { codigo: 'LIMPA FOSSA EVENTO',        icone: '💧', label: '💧 LIMPA FOSSA EVENTO',        categoria: 'EVENTO' },
+    // GERAL
+    { codigo: 'CARRINHO',                  icone: '🛤', label: '🛤 CARRINHO',                  categoria: 'GERAL' },
+    { codigo: 'CAIXA DAGUA',               icone: '🧊', label: '🧊 CAIXA DAGUA',               categoria: 'GERAL' }
+];
+
+function limparEmojiModeloOs(s) {
+    return String(s || '')
+        .replace(/^[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF\uFE0F\s]+/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizarCodigoModeloOs(raw) {
+    const semEmoji = limparEmojiModeloOs(raw);
+    if (!semEmoji) return '';
+    const alvo = normStr(semEmoji);
+    const achado = EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.find(item =>
+        normStr(item.codigo) === alvo || normStr(item.label) === normStr(raw)
+    );
+    return achado ? achado.codigo : semEmoji.toUpperCase();
+}
+
+
 function classificarContratoAtivoParaReserva(p) {
     if (!p) return false;
     const tipoNorm = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -117,7 +167,7 @@ function sincronizarReservasEstoqueDoContrato(db, propostaId, cb) {
                 const mapByCodigoNorm = new Map();
 
                 (equipsCom || []).forEach(eq => {
-                    const mod = String(eq.logistica_estoque_modelo || '').trim();
+                    const mod = normalizarCodigoModeloOs(eq.logistica_estoque_modelo);
                     const nNorm = normStr(eq.nome);
                     const cNorm = normStr(eq.codigo);
                     if (nNorm) mapByNomeNorm.set(nNorm, { eq, modelo: mod });
@@ -127,7 +177,7 @@ function sincronizarReservasEstoqueDoContrato(db, propostaId, cb) {
 
                 // Complementa com vínculos salvos em logistica_estoque_equipamentos.equipamentos_comercial_json
                 (itensEst || []).forEach(st => {
-                    const mod = String(st.modelo || '').trim();
+                    const mod = normalizarCodigoModeloOs(st.modelo);
                     if (!mod) return;
                     let vincs = [];
                     try { vincs = JSON.parse(st.equipamentos_comercial_json || '[]'); } catch (_) { vincs = []; }
@@ -315,20 +365,37 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                 db.all('SELECT * FROM logistica_estoque_reservas ORDER BY data_entrega ASC, id DESC', [], (errRes, reservas) => {
                     if (errRes) return res.status(500).json({ error: errRes.message });
 
-                    const listaItens = itens || [];
-                    const listaCom = equipsCom || [];
-                    const listaRes = reservas || [];
+                    const dataFiltro = String(req.query.data || '').trim();
+                    const listaItens = (itens || []).map(it => {
+                        let vincs = [];
+                        try { vincs = JSON.parse(it.equipamentos_comercial_json || '[]'); } catch (_) { vincs = []; }
+                        return Object.assign({}, it, {
+                            modelo: normalizarCodigoModeloOs(it.modelo) || it.modelo,
+                            equipamentos_comercial: Array.isArray(vincs) ? vincs : []
+                        });
+                    });
+                    const listaCom = (equipsCom || []).map(c => Object.assign({}, c, {
+                        logistica_estoque_modelo: normalizarCodigoModeloOs(c.logistica_estoque_modelo) || c.logistica_estoque_modelo || ''
+                    }));
+                    const listaRes = (reservas || []).map(r => Object.assign({}, r, {
+                        modelo_estoque: normalizarCodigoModeloOs(r.modelo_estoque) || r.modelo_estoque,
+                        contrato_numero: r.numero_contrato || '',
+                        quantidade: Number(r.quantidade_reservada ?? 0) || 0
+                    }));
 
                     // Agrupar resumo por modelo
                     const mapModelos = new Map();
                     const garantirModelo = (modName) => {
-                        const key = String(modName || '').trim().toUpperCase();
+                        const codNorm = normalizarCodigoModeloOs(modName);
+                        const key = String(codNorm || modName || '').trim().toUpperCase();
                         if (!key) return null;
                         if (!mapModelos.has(key)) {
                             mapModelos.set(key, {
-                                modelo: String(modName || '').trim(),
+                                modelo: key,
                                 quantidade_total: 0,
                                 quantidade_reservada: 0,
+                                reservado_total: 0,
+                                reservado_na_data: 0,
                                 quantidade_disponivel: 0,
                                 registros_count: 0,
                                 cores: new Set(),
@@ -344,21 +411,17 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         m.quantidade_total += Math.max(0, parseInt(it.quantidade ?? 0, 10) || 0);
                         m.registros_count += 1;
                         if (it.cor && String(it.cor).trim()) m.cores.add(String(it.cor).trim());
-                        let vincs = [];
-                        try { vincs = JSON.parse(it.equipamentos_comercial_json || '[]'); } catch (_) { vincs = []; }
-                        if (Array.isArray(vincs)) {
-                            vincs.forEach(v => {
-                                const vid = Number(typeof v === 'object' ? v.id : v);
-                                const eqObj = listaCom.find(c => Number(c.id) === vid) || (typeof v === 'object' ? v : null);
-                                if (eqObj && eqObj.nome) {
-                                    m.equipamentos_comercial.set(Number(eqObj.id || vid), {
-                                        id: Number(eqObj.id || vid),
-                                        codigo: eqObj.codigo || '',
-                                        nome: eqObj.nome
-                                    });
-                                }
-                            });
-                        }
+                        (it.equipamentos_comercial || []).forEach(v => {
+                            const vid = Number(typeof v === 'object' ? v.id : v);
+                            const eqObj = listaCom.find(c => Number(c.id) === vid) || (typeof v === 'object' ? v : null);
+                            if (eqObj && eqObj.nome) {
+                                m.equipamentos_comercial.set(Number(eqObj.id || vid), {
+                                    id: Number(eqObj.id || vid),
+                                    codigo: eqObj.codigo || '',
+                                    nome: eqObj.nome
+                                });
+                            }
+                        });
                     });
 
                     listaCom.forEach(c => {
@@ -377,23 +440,32 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                     listaRes.forEach(r => {
                         const m = garantirModelo(r.modelo_estoque);
                         if (!m) return;
-                        m.quantidade_reservada += Math.max(0, parseInt(r.quantidade_reservada ?? 0, 10) || 0);
+                        const qRes = Math.max(0, parseInt(r.quantidade_reservada ?? 0, 10) || 0);
+                        m.quantidade_reservada += qRes;
+                        m.reservado_total += qRes;
+                        if (dataFiltro && String(r.data_entrega || '') === dataFiltro) {
+                            m.reservado_na_data += qRes;
+                        }
                     });
 
                     const modelosResumo = Array.from(mapModelos.values()).map(m => ({
                         modelo: m.modelo,
                         quantidade_total: m.quantidade_total,
                         quantidade_reservada: m.quantidade_reservada,
-                        quantidade_disponivel: m.quantidade_total - m.quantidade_reservada,
+                        reservado_total: m.reservado_total,
+                        reservado_na_data: m.reservado_na_data,
+                        quantidade_disponivel: m.quantidade_total - (dataFiltro ? m.reservado_na_data : m.reservado_total),
                         registros_count: m.registros_count,
                         cores: Array.from(m.cores),
                         equipamentos_comercial: Array.from(m.equipamentos_comercial.values())
                     })).sort((a, b) => a.modelo.localeCompare(b.modelo, 'pt-BR'));
 
                     res.json({
+                        catalogo_os_logistica: EQUIPAMENTOS_OS_LOGISTICA_CATALOGO,
                         itens: listaItens,
                         equipamentos_comercial: listaCom,
                         reservas: listaRes,
+                        modelos: modelosResumo,
                         modelos_resumo: modelosResumo
                     });
                 });
@@ -404,7 +476,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
     // POST /api/logistica/estoque — Adicionar equipamento manualmente no estoque da logística
     app.post('/api/logistica/estoque', authenticateToken, (req, res) => {
         const d = req.body || {};
-        const modelo = String(d.modelo || '').trim();
+        const modelo = normalizarCodigoModeloOs(d.modelo);
         if (!modelo) return res.status(400).json({ error: 'Informe o Modelo do equipamento de estoque.' });
 
         const quantidade = Math.max(1, parseInt(d.quantidade ?? 1, 10) || 1);
@@ -443,7 +515,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
         if (!id) return res.status(400).json({ error: 'ID inválido.' });
 
         const d = req.body || {};
-        const modelo = String(d.modelo || '').trim();
+        const modelo = normalizarCodigoModeloOs(d.modelo);
         if (!modelo) return res.status(400).json({ error: 'Informe o Modelo do equipamento de estoque.' });
 
         const quantidade = Math.max(1, parseInt(d.quantidade ?? 1, 10) || 1);
@@ -489,7 +561,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
     app.patch('/api/estoque-equipamentos/:id/vincular-logistica', authenticateToken, (req, res) => {
         const id = Number(req.params.id);
         if (!id) return res.status(400).json({ error: 'ID inválido.' });
-        const modelo = String((req.body && req.body.logistica_estoque_modelo) || '').trim();
+        const modelo = normalizarCodigoModeloOs(req.body && req.body.logistica_estoque_modelo);
 
         db.get('SELECT id, codigo, nome FROM estoque_equipamentos WHERE id = ?', [id], (errEq, rowEq) => {
             if (errEq) return res.status(500).json({ error: errEq.message });
@@ -559,7 +631,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                     })
                     : [
                         {
-                            'Modelo': 'STD',
+                            'Modelo': '💙 STD OBRA',
                             'Quantidade': 50,
                             'Cor': 'Azul',
                             'Número de Série': 'STD-001 a STD-050',
@@ -567,12 +639,12 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                             'Vínculo com Equipamento do Comercial': 'BANHEIRO QUÍMICO STANDARD O04XZA | BANHEIRO QUÍMICO STANDARD O05XZA'
                         },
                         {
-                            'Modelo': 'LUXO',
+                            'Modelo': '💜 STD EVENTO',
                             'Quantidade': 30,
-                            'Cor': 'Azul',
-                            'Número de Série': 'LUX-001 a LUX-030',
+                            'Cor': 'Roxo',
+                            'Número de Série': 'STDE-001 a STDE-030',
                             'Medidas': '2,20m x 1,10m x 1,20m',
-                            'Vínculo com Equipamento do Comercial': 'BANHEIRO QUÍMICO LUXO O04XZC'
+                            'Vínculo com Equipamento do Comercial': 'BANHEIRO QUÍMICO STANDARD'
                         }
                     ];
 
@@ -600,11 +672,16 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
     // POST /api/logistica/estoque/importar — Importação em massa via planilha .xlsx
     app.post('/api/logistica/estoque/importar', authenticateToken, uploadEstoqueLogistica.single('arquivo'), (req, res) => {
         try {
-            if (!req.file || !req.file.buffer) {
+            let fileBuffer = req.file && req.file.buffer ? req.file.buffer : null;
+            if (!fileBuffer && req.body && req.body.file_base64) {
+                const b64Clean = String(req.body.file_base64).replace(/^data:[^;]+;base64,/, '');
+                fileBuffer = Buffer.from(b64Clean, 'base64');
+            }
+            if (!fileBuffer) {
                 return res.status(400).json({ error: 'Selecione um arquivo Excel (.xlsx) válido para importar.' });
             }
 
-            const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+            const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
             const sheetName = workbook.SheetNames[0];
             if (!sheetName) return res.status(400).json({ error: 'A planilha enviada não possui abas.' });
 
@@ -646,7 +723,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
 
                 const registrosParaInserir = [];
                 rawRows.forEach(row => {
-                    const modelo = String(lerCol(row, ['modelo', 'equipamento', 'tipo', 'nome']) || '').trim();
+                    const modelo = normalizarCodigoModeloOs(lerCol(row, ['modelo', 'equipamento', 'tipo', 'nome']));
                     if (!modelo) return;
                     const qtdRaw = lerCol(row, ['quantidade', 'qtd', 'qtde', 'quantidade de cada']);
                     const quantidade = Math.max(1, parseInt(qtdRaw || '1', 10) || 1);
@@ -690,7 +767,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                 const inserirProx = () => {
                     if (idx >= registrosParaInserir.length) {
                         return recalcularTodasReservasContratosAtivos(db, () => {
-                            res.json({ success: true, importados });
+                            res.json({ success: true, importados, inseridos: importados });
                         });
                     }
                     const item = registrosParaInserir[idx++];

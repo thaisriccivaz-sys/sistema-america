@@ -38,6 +38,13 @@ function _formatarDataBrLogEst(ymd) {
     return s;
 }
 
+function _fmtModeloComIconeLogEst(mod) {
+    if (typeof window.formatarModeloEstoqueLogisticaComIcone === 'function') {
+        return window.formatarModeloEstoqueLogisticaComIcone(mod);
+    }
+    return String(mod || '').trim();
+}
+
 window.renderTelaLogisticaEstoque = async function() {
     const root = document.getElementById('logistica-estoque-root');
     if (!root) return;
@@ -243,7 +250,7 @@ window.renderCardsModelosLogisticaEstoque = function() {
         return '<div onclick="window.filtrarPorModeloCardLogisticaEstoque(\'' + _escLogEst(m.modelo) + '\')" style="background:#fff;border:2px solid ' + (isSel ? '#059669' : '#e2e8f0') + ';border-radius:12px;padding:0.95rem 1.1rem;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 2px rgba(15,23,42,0.03);">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">' +
                 '<span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.86rem;display:inline-flex;align-items:center;gap:5px;">' +
-                    '<i class="ph ph-package"></i> ' + _escLogEst(m.modelo) +
+                    '' + _escLogEst(_fmtModeloComIconeLogEst(m.modelo)) +
                 '</span>' +
                 '<span style="font-size:0.73rem;color:#64748b;font-weight:600;" title="Equipamentos do Comercial vinculados a este modelo">' +
                     '<i class="ph ph-link"></i> ' + eqCount + ' vínculo(s)' +
@@ -336,7 +343,7 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
             : '<span style="color:#94a3b8;font-size:0.78rem;">Sem vínculo comercial</span>';
 
         return '<tr>' +
-            '<td><span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(item.modelo) + '</span></td>' +
+            '<td><span style="background:' + (String(item.modelo || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(item.modelo)) + '</span></td>' +
             '<td style="font-weight:800;color:#0f172a;font-size:0.95rem;">' + (Number(item.quantidade) || 0) + '</td>' +
             '<td style="color:#334155;font-weight:600;">' + (_escLogEst(item.cor) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
             '<td style="color:#334155;font-family:monospace;font-size:0.84rem;">' + (_escLogEst(item.numero_serie) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
@@ -413,7 +420,7 @@ window._renderTabelaReservasContratosLogEst = function(cont) {
             '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:7px;padding:3px 9px;font-weight:800;font-size:0.8rem;white-space:nowrap;">Contrato #' + _escLogEst(r.contrato_numero || r.proposta_id) + '</span></td>' +
             '<td style="font-weight:700;color:#0f172a;">' + _escLogEst(nomeCliFmt) + '</td>' +
             '<td style="color:#334155;font-weight:600;">' + _escLogEst(r.equipamento_comercial_nome) + '</td>' +
-            '<td><span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.8rem;">' + _escLogEst(r.modelo_estoque) + '</span></td>' +
+            '<td><span style="background:' + (String(r.modelo_estoque || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.8rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(r.modelo_estoque)) + '</span></td>' +
             '<td style="font-weight:800;color:#1d4ed8;font-size:0.95rem;">' + (Number(r.quantidade) || 0) + '</td>' +
         '</tr>';
     }).join('');
@@ -469,9 +476,13 @@ window._garantirModalItemLogisticaEstoque = function() {
                 '<input type="hidden" id="log-est-inp-id" value="">' +
 
                 '<div style="display:grid;grid-template-columns:1fr 160px;gap:0.85rem;">' +
-                    '<div>' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Modelo do Estoque *</label>' +
-                        '<input type="text" id="log-est-inp-modelo" required class="form-control" placeholder="Ex: STD, LUXO, EXTRA LUXO, PCD..." style="width:100%;">' +
+                    '<div style="position:relative;" id="wrap-log-est-inp-modelo">' +
+                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Produto da OS da Logística (Modelo) *</label>' +
+                        '<div style="position:relative;display:flex;align-items:center;">' +
+                            '<input type="text" id="log-est-inp-modelo" required class="form-control" placeholder="Clique ou digite: 💙 STD OBRA, 💜 STD EVENTO..." autocomplete="off" onfocus="window.abrirComboModeloModalLogEst(\'\')" onclick="window.abrirComboModeloModalLogEst(\'\')" oninput="window.abrirComboModeloModalLogEst(this.value)" style="width:100%;padding-right:32px;">' +
+                            '<button type="button" tabindex="-1" onclick="window.abrirComboModeloModalLogEst(\'\')" style="position:absolute;right:4px;background:none;border:none;color:#64748b;cursor:pointer;padding:4px 6px;"><i class="ph ph-caret-down"></i></button>' +
+                        '</div>' +
+                        '<div id="combo-list-log-est-modelo" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10080;background:#fff;border:1px solid #cbd5e1;border-radius:8px;max-height:230px;overflow-y:auto;box-shadow:0 10px 25px -5px rgba(0,0,0,0.2);margin-top:3px;"></div>' +
                     '</div>' +
                     '<div>' +
                         '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Quantidade *</label>' +
@@ -535,7 +546,7 @@ window.abrirModalItemLogisticaEstoque = function(id) {
         if (!item) return;
         if (tituloEl) tituloEl.textContent = 'Editar Equipamento de Estoque';
         document.getElementById('log-est-inp-id').value = item.id;
-        document.getElementById('log-est-inp-modelo').value = item.modelo || '';
+        document.getElementById('log-est-inp-modelo').value = _fmtModeloComIconeLogEst(item.modelo || '');
         document.getElementById('log-est-inp-quantidade').value = Number(item.quantidade) || 0;
         document.getElementById('log-est-inp-cor').value = item.cor || '';
         document.getElementById('log-est-inp-serie').value = item.numero_serie || '';
@@ -576,7 +587,50 @@ window.abrirModalItemLogisticaEstoque = function(id) {
 window.fecharModalItemLogisticaEstoque = function() {
     const modal = document.getElementById('modal-item-logistica-estoque');
     if (modal) modal.style.display = 'none';
+    const dd = document.getElementById('combo-list-log-est-modelo');
+    if (dd) dd.style.display = 'none';
 };
+
+window.selecionarModeloModalLogEst = function(codigo) {
+    const inp = document.getElementById('log-est-inp-modelo');
+    const dd = document.getElementById('combo-list-log-est-modelo');
+    if (inp) inp.value = _fmtModeloComIconeLogEst(codigo);
+    if (dd) dd.style.display = 'none';
+};
+
+window.abrirComboModeloModalLogEst = function(termo) {
+    const dd = document.getElementById('combo-list-log-est-modelo');
+    if (!dd) return;
+    const catalogo = window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO || [];
+    const q = _normLogEst(termo);
+    const filtrados = catalogo.filter(it => !q || _normLogEst(it.codigo).includes(q) || _normLogEst(it.categoria).includes(q));
+    const grupos = [
+        { key: 'OBRA',   titulo: 'OBRA (OS Logística / Comercial)',   cor: '#1d4ed8', bg: '#eff6ff' },
+        { key: 'EVENTO', titulo: 'EVENTO (OS Logística / Comercial)', cor: '#7e22ce', bg: '#faf5ff' },
+        { key: 'GERAL',  titulo: 'GERAL (Obra / Evento)',             cor: '#334155', bg: '#f8fafc' }
+    ];
+    let html = '';
+    grupos.forEach(g => {
+        const itensG = filtrados.filter(x => x.categoria === g.key);
+        if (!itensG.length) return;
+        html += '<div style="padding:5px 12px;font-size:0.71rem;font-weight:800;color:' + g.cor + ';background:' + g.bg + ';border-bottom:1px solid #e2e8f0;">' + _escLogEst(g.titulo) + '</div>';
+        itensG.forEach(it => {
+            html += '<div onmousedown="event.preventDefault(); window.selecionarModeloModalLogEst(\'' + _escLogEst(it.codigo) + '\');" style="padding:8px 12px;cursor:pointer;font-size:0.84rem;font-weight:700;color:#0f172a;border-bottom:1px solid #f8fafc;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#fff\'">' +
+                _escLogEst(it.label) +
+            '</div>';
+        });
+    });
+    dd.innerHTML = html || '<div style="padding:8px 12px;font-size:0.8rem;color:#64748b;">Digite ou selecione um modelo</div>';
+    dd.style.display = 'block';
+};
+
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('combo-list-log-est-modelo');
+    const wrap = document.getElementById('wrap-log-est-inp-modelo');
+    if (dd && dd.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+        dd.style.display = 'none';
+    }
+});
 
 window.toggleEquipamentoComercialModalLogEst = function(eqId) {
     const numId = Number(eqId);
@@ -642,7 +696,10 @@ window.renderListaEquipamentosComercialModalLogEst = function() {
 window.salvarItemLogisticaEstoque = async function(event) {
     if (event) event.preventDefault();
     const id = (document.getElementById('log-est-inp-id')?.value || '').trim();
-    const modelo = (document.getElementById('log-est-inp-modelo')?.value || '').trim();
+    const modeloRaw = (document.getElementById('log-est-inp-modelo')?.value || '').trim();
+    const modelo = typeof window.normalizarCodigoModeloEstoqueLogistica === 'function'
+        ? window.normalizarCodigoModeloEstoqueLogistica(modeloRaw)
+        : modeloRaw;
     const quantidade = Number(document.getElementById('log-est-inp-quantidade')?.value) || 0;
     const cor = (document.getElementById('log-est-inp-cor')?.value || '').trim();
     const numero_serie = (document.getElementById('log-est-inp-serie')?.value || '').trim();
