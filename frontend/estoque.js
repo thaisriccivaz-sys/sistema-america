@@ -3451,37 +3451,29 @@ window.fecharModalEquipamentoEstoque = function() {
     if (listEl) listEl.style.display = 'none';
 };
 
-// Catálogo oficial de produtos da OS da Logística / OS do Comercial (diferenciando OBRA e EVENTO com seus ícones)
+// Catálogo oficial de produtos para vínculo de Estoque da Logística:
+// - Apenas Banheiros (STD, LX, EXL, PCD) têm diferenciação entre OBRA e EVENTO.
+// - Chuveiro, Hidráulico, Mictório, PBII, PBIII, Guarita Individual e Guarita Dupla têm estoque único (sem separação Obra/Evento).
+// - Limpa Fossa, Carrinho e Caixa D'água NÃO aparecem na vinculação do Controle de Equipamentos.
 window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
     // OBRA
-    { codigo: 'STD OBRA',                icone: '💙', label: '💙 STD OBRA',                categoria: 'OBRA' },
-    { codigo: 'LX OBRA',                 icone: '🟦', label: '🟦 LX OBRA',                 categoria: 'OBRA' },
-    { codigo: 'EXL OBRA',                icone: '🔵', label: '🔵 EXL OBRA',                categoria: 'OBRA' },
-    { codigo: 'PCD OBRA',                icone: '♿', label: '♿ PCD OBRA',                categoria: 'OBRA' },
-    { codigo: 'CHUVEIRO OBRA',           icone: '🚿', label: '🚿 CHUVEIRO OBRA',           categoria: 'OBRA' },
-    { codigo: 'HIDRÁULICO OBRA',         icone: '🚽', label: '🚽 HIDRÁULICO OBRA',         categoria: 'OBRA' },
-    { codigo: 'MICTÓRIO OBRA',           icone: '💦', label: '💦 MICTÓRIO OBRA',           categoria: 'OBRA' },
-    { codigo: 'PBII OBRA',               icone: '🧼', label: '🧼 PBII OBRA',               categoria: 'OBRA' },
-    { codigo: 'PBIII OBRA',              icone: '🧼', label: '🧼 PBIII OBRA',              categoria: 'OBRA' },
-    { codigo: 'GUARITA INDIVIDUAL OBRA', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL OBRA', categoria: 'OBRA' },
-    { codigo: 'GUARITA DUPLA OBRA',      icone: '⚪', label: '⚪ GUARITA DUPLA OBRA',      categoria: 'OBRA' },
-    { codigo: 'LIMPA FOSSA OBRA',        icone: '💧', label: '💧 LIMPA FOSSA OBRA',        categoria: 'OBRA' },
+    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA' },
+    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
+    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
+    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
     // EVENTO
-    { codigo: 'STD EVENTO',                icone: '💜', label: '💜 STD EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'LX EVENTO',                 icone: '🟣', label: '🟣 LX EVENTO',                 categoria: 'EVENTO' },
-    { codigo: 'EXL EVENTO',                icone: '🟣', label: '🟣 EXL EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'PCD EVENTO',                icone: '♿', label: '♿ PCD EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'CHUVEIRO EVENTO',           icone: '🚿', label: '🚿 CHUVEIRO EVENTO',           categoria: 'EVENTO' },
-    { codigo: 'HIDRÁULICO EVENTO',         icone: '🚽', label: '🚽 HIDRÁULICO EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'MICTÓRIO EVENTO',           icone: '💦', label: '💦 MICTÓRIO EVENTO',           categoria: 'EVENTO' },
-    { codigo: 'PBII EVENTO',               icone: '🧼', label: '🧼 PBII EVENTO',               categoria: 'EVENTO' },
-    { codigo: 'PBIII EVENTO',              icone: '🧼', label: '🧼 PBIII EVENTO',              categoria: 'EVENTO' },
-    { codigo: 'GUARITA INDIVIDUAL EVENTO', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL EVENTO', categoria: 'EVENTO' },
-    { codigo: 'GUARITA DUPLA EVENTO',      icone: '⚪', label: '⚪ GUARITA DUPLA EVENTO',      categoria: 'EVENTO' },
-    { codigo: 'LIMPA FOSSA EVENTO',        icone: '💧', label: '💧 LIMPA FOSSA EVENTO',        categoria: 'EVENTO' },
-    // GERAL
-    { codigo: 'CARRINHO',                  icone: '🛤', label: '🛤 CARRINHO',                  categoria: 'GERAL' },
-    { codigo: 'CAIXA DAGUA',               icone: '🧊', label: '🧊 CAIXA DAGUA',               categoria: 'GERAL' }
+    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
+    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
+    // ESTOQUE ÚNICO (Obra e Evento retiram do mesmo estoque)
+    { codigo: 'CHUVEIRO',           icone: '🚿', label: '🚿 CHUVEIRO',           categoria: 'UNICO' },
+    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
+    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
+    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
+    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO' },
+    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO' },
+    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO' }
 ];
 
 window._normModeloOsLog = function(s) {
@@ -3497,7 +3489,21 @@ window._normModeloOsLog = function(s) {
 window.resolverInfoModeloEstoqueLogistica = function(raw) {
     const s = String(raw || '').trim();
     if (!s) return null;
-    const alvo = window._normModeloOsLog(s);
+    const n = window._normModeloOsLog(s);
+    if (!n || n.includes('limpa fossa') || n === 'carrinho' || (n.includes('caixa') && n.includes('agua'))) {
+        return null;
+    }
+
+    // Normaliza produtos de estoque único mesmo se vierem com sufixo legado OBRA / EVENTO
+    let alvo = n;
+    if (n.includes('chuveiro')) alvo = 'chuveiro';
+    else if (n.includes('hidraulic')) alvo = 'hidraulico';
+    else if (n.includes('mictorio') || n.includes('kros')) alvo = 'mictorio';
+    else if (n.includes('pbiii') || n.includes('pia iii')) alvo = 'pbiii';
+    else if (n.includes('pbii') || n.includes('pia ii') || n === 'pia' || n.includes('lavatorio')) alvo = 'pbii';
+    else if (n.includes('guarita') && n.includes('dupla')) alvo = 'guarita dupla';
+    else if (n.includes('guarita')) alvo = 'guarita individual';
+
     const achado = (window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO || []).find(it =>
         window._normModeloOsLog(it.codigo) === alvo || window._normModeloOsLog(it.label) === alvo
     );
@@ -3507,7 +3513,7 @@ window.resolverInfoModeloEstoqueLogistica = function(raw) {
         codigo: limpo,
         icone: '📦',
         label: '📦 ' + limpo,
-        categoria: limpo.includes('EVENTO') ? 'EVENTO' : (limpo.includes('OBRA') ? 'OBRA' : 'GERAL')
+        categoria: limpo.includes('EVENTO') ? 'EVENTO' : (limpo.includes('OBRA') ? 'OBRA' : 'UNICO')
     };
 };
 
@@ -3518,13 +3524,14 @@ window.normalizarCodigoModeloEstoqueLogistica = function(raw) {
 
 window.formatarModeloEstoqueLogisticaComIcone = function(raw) {
     const info = window.resolverInfoModeloEstoqueLogistica(raw);
-    return info ? info.label : String(raw || '').trim();
+    return info ? info.label : '';
 };
 
 window._carregarModelosEstoqueLogisticaCache = async function() {
     try {
+        const apiBase = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api';
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const r = await fetch(API_URL + '/logistica/estoque', { headers: { 'Authorization': 'Bearer ' + token } });
+        const r = await fetch(apiBase + '/logistica/estoque', { headers: { 'Authorization': 'Bearer ' + token } });
         if (r.ok) {
             const d = await r.json();
             window._resumoModelosEstoqueLogistica = d.modelos || d.modelos_resumo || [];
@@ -3554,9 +3561,9 @@ window.abrirComboModeloEstoqueLogisticaModal = async function(termo) {
     let html = '<div onmousedown="event.preventDefault(); window.selecionarModeloEstoqueLogisticaModalInput(\'\');" style="padding:8px 12px;cursor:pointer;font-size:0.82rem;color:#64748b;border-bottom:1px solid #f1f5f9;">— Sem vínculo com estoque —</div>';
 
     const grupos = [
-        { key: 'OBRA',   titulo: 'OBRA (OS Logística / Comercial)',   cor: '#1d4ed8', bg: '#eff6ff' },
-        { key: 'EVENTO', titulo: 'EVENTO (OS Logística / Comercial)', cor: '#7e22ce', bg: '#faf5ff' },
-        { key: 'GERAL',  titulo: 'GERAL (Obra / Evento)',             cor: '#334155', bg: '#f8fafc' }
+        { key: 'OBRA',   titulo: 'BANHEIROS — OBRA',                          cor: '#1d4ed8', bg: '#eff6ff' },
+        { key: 'EVENTO', titulo: 'BANHEIROS — EVENTO',                        cor: '#7e22ce', bg: '#faf5ff' },
+        { key: 'UNICO',  titulo: 'ESTOQUE ÚNICO (OBRA E EVENTO)',             cor: '#047857', bg: '#ecfdf5' }
     ];
 
     grupos.forEach(g => {
@@ -3607,29 +3614,29 @@ window.abrirModalVincularEquipamentoLogisticaRapido = async function(equipamento
 
     const { isConfirmed, value } = await Swal.fire({
         title: 'Vincular ao Produto da OS da Logística',
-        width: 680,
+        width: 660,
         html:
             '<div style="text-align:left;font-size:0.86rem;color:#334155;">' +
                 '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
                     '<div style="font-size:0.74rem;color:#64748b;font-weight:600;">Equipamento do Comercial (Proposta / Contrato)</div>' +
                     '<div style="font-weight:700;color:#0f172a;margin-top:2px;">[' + esc(item.codigo) + '] ' + esc(item.nome) + '</div>' +
                 '</div>' +
-                '<label style="display:block;font-weight:700;font-size:0.82rem;color:#475569;margin-bottom:4px;">Produto selecionado na OS da Logística / Estoque:</label>' +
+                '<label style="display:block;font-weight:700;font-size:0.82rem;color:#475569;margin-bottom:4px;">Produto selecionado no Estoque da Logística:</label>' +
                 '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
                     '<input id="swal-inp-modelo-logistica" class="form-control" style="flex:1;font-size:0.92rem;font-weight:700;" value="' + esc(atualFmt) + '" placeholder="Clique em um produto abaixo ou digite...">' +
                     '<button type="button" onclick="document.getElementById(\'swal-inp-modelo-logistica\').value=\'\'" style="padding:6px 12px;border-radius:8px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;">Limpar vínculo</button>' +
                 '</div>' +
                 '<div style="margin-bottom:10px;">' +
-                    '<div style="font-size:0.74rem;font-weight:800;color:#1d4ed8;margin-bottom:5px;">💙 PRODUTOS DE OBRA (OS LOGÍSTICA / COMERCIAL):</div>' +
+                    '<div style="font-size:0.74rem;font-weight:800;color:#1d4ed8;margin-bottom:5px;">💙 BANHEIROS — OBRA:</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('OBRA', '#1d4ed8', '#eff6ff') + '</div>' +
                 '</div>' +
                 '<div style="margin-bottom:10px;">' +
-                    '<div style="font-size:0.74rem;font-weight:800;color:#7e22ce;margin-bottom:5px;">💜 PRODUTOS DE EVENTO (OS LOGÍSTICA / COMERCIAL):</div>' +
+                    '<div style="font-size:0.74rem;font-weight:800;color:#7e22ce;margin-bottom:5px;">💜 BANHEIROS — EVENTO:</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('EVENTO', '#7e22ce', '#faf5ff') + '</div>' +
                 '</div>' +
                 '<div style="margin-bottom:8px;">' +
-                    '<div style="font-size:0.74rem;font-weight:800;color:#334155;margin-bottom:5px;">📦 GERAL (OBRA / EVENTO):</div>' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('GERAL', '#0f172a', '#f1f5f9') + '</div>' +
+                    '<div style="font-size:0.74rem;font-weight:800;color:#047857;margin-bottom:5px;">📦 ESTOQUE ÚNICO (OBRA E EVENTO):</div>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('UNICO', '#047857', '#ecfdf5') + '</div>' +
                 '</div>' +
                 '<div style="font-size:0.76rem;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:8px 10px;margin-top:10px;">' +
                     '<i class="ph ph-info"></i> Quando um <strong>Contrato</strong> tiver este equipamento, o sistema reservará automaticamente a mesma quantidade desse produto no Estoque da Logística para a data de entrega.' +

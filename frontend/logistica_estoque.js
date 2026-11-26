@@ -347,13 +347,20 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
               '</div>'
             : '<span style="color:#94a3b8;font-size:0.78rem;">Sem vínculo comercial</span>';
 
+        const serieStr = String(item.numero_serie || '').trim();
+        const serieBadge = serieStr
+            ? '<span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 9px;font-weight:800;font-size:0.8rem;font-family:monospace;white-space:nowrap;">' + _escLogEst(serieStr) + '</span>'
+            : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
+        const modStyle = String(item.modelo || '').toUpperCase().includes('EVENTO')
+            ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff'
+            : (String(item.modelo || '').toUpperCase().includes('OBRA') ? '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe' : '#ecfdf5;color:#047857;border:1px solid #a7f3d0');
+
         return '<tr>' +
-            '<td><span style="background:' + (String(item.modelo || '').toUpperCase().includes('EVENTO') ? '#faf5ff;color:#7e22ce;border:1px solid #e9d5ff' : '#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe') + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(item.modelo)) + '</span></td>' +
-            '<td style="font-weight:800;color:#0f172a;font-size:0.95rem;">' + (Number(item.quantidade) || 0) + '</td>' +
+            '<td>' + serieBadge + '</td>' +
+            '<td><span style="background:' + modStyle + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(item.modelo)) + '</span></td>' +
             '<td style="color:#334155;font-weight:600;">' + (_escLogEst(item.cor) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
-            '<td style="color:#334155;font-family:monospace;font-size:0.84rem;">' + (_escLogEst(item.numero_serie) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
-            '<td style="color:#334155;font-size:0.84rem;">' + (_escLogEst(item.medidas) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
             '<td>' + vinculosHtml + '</td>' +
+            '<td style="color:#334155;font-size:0.84rem;">' + (_escLogEst(item.medidas) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;">' +
                     '<button type="button" class="btn btn-sm" onclick="window.abrirModalItemLogisticaEstoque(' + item.id + ')" title="Editar" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;padding:4px 9px;border-radius:7px;cursor:pointer;">' +
@@ -372,12 +379,11 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
             '<table class="data-table" style="width:100%;">' +
                 '<thead>' +
                     '<tr>' +
+                        '<th style="width:110px;">Série</th>' +
                         '<th>Modelo</th>' +
-                        '<th>Quantidade</th>' +
                         '<th>Cor</th>' +
-                        '<th>Número de Série</th>' +
+                        '<th>Vínculo com Equipamentos</th>' +
                         '<th>Medidas</th>' +
-                        '<th>Vínculo com Equipamento do Comercial</th>' +
                         '<th style="text-align:right;">Ações</th>' +
                     '</tr>' +
                 '</thead>' +
@@ -480,29 +486,26 @@ window._garantirModalItemLogisticaEstoque = function() {
             '<form id="form-item-logistica-estoque" onsubmit="window.salvarItemLogisticaEstoque(event)" style="padding:1.25rem 1.4rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.95rem;">' +
                 '<input type="hidden" id="log-est-inp-id" value="">' +
 
-                '<div style="display:grid;grid-template-columns:1fr 160px;gap:0.85rem;">' +
+                '<input type="hidden" id="log-est-inp-quantidade" value="1">' +
+                '<div style="display:grid;grid-template-columns:180px 1fr;gap:0.85rem;">' +
+                    '<div>' +
+                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Série (Nº de Série) *</label>' +
+                        '<input type="text" id="log-est-inp-serie" required class="form-control" placeholder="Ex: 1 (ou 1, 2, 3)" style="width:100%;">' +
+                    '</div>' +
                     '<div style="position:relative;" id="wrap-log-est-inp-modelo">' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Produto da OS da Logística (Modelo) *</label>' +
+                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Modelo (Produto da OS da Logística) *</label>' +
                         '<div style="position:relative;display:flex;align-items:center;">' +
-                            '<input type="text" id="log-est-inp-modelo" required class="form-control" placeholder="Clique ou digite: 💙 STD OBRA, 💜 STD EVENTO..." autocomplete="off" onfocus="window.abrirComboModeloModalLogEst(\'\')" onclick="window.abrirComboModeloModalLogEst(\'\')" oninput="window.abrirComboModeloModalLogEst(this.value)" style="width:100%;padding-right:32px;">' +
+                            '<input type="text" id="log-est-inp-modelo" required class="form-control" placeholder="Clique ou digite: 💙 STD OBRA, 💜 STD EVENTO, 🚿 CHUVEIRO..." autocomplete="off" onfocus="window.abrirComboModeloModalLogEst(\'\')" onclick="window.abrirComboModeloModalLogEst(\'\')" oninput="window.abrirComboModeloModalLogEst(this.value)" style="width:100%;padding-right:32px;">' +
                             '<button type="button" tabindex="-1" onclick="window.abrirComboModeloModalLogEst(\'\')" style="position:absolute;right:4px;background:none;border:none;color:#64748b;cursor:pointer;padding:4px 6px;"><i class="ph ph-caret-down"></i></button>' +
                         '</div>' +
                         '<div id="combo-list-log-est-modelo" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10080;background:#fff;border:1px solid #cbd5e1;border-radius:8px;max-height:230px;overflow-y:auto;box-shadow:0 10px 25px -5px rgba(0,0,0,0.2);margin-top:3px;"></div>' +
                     '</div>' +
-                    '<div>' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Quantidade *</label>' +
-                        '<input type="number" id="log-est-inp-quantidade" required min="0" step="1" class="form-control" value="1" style="width:100%;">' +
-                    '</div>' +
                 '</div>' +
 
-                '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.85rem;">' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;">' +
                     '<div>' +
                         '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Cor</label>' +
-                        '<input type="text" id="log-est-inp-cor" class="form-control" placeholder="Ex: Azul, Verde, Cinza..." style="width:100%;">' +
-                    '</div>' +
-                    '<div>' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Número de Série</label>' +
-                        '<input type="text" id="log-est-inp-serie" class="form-control" placeholder="Ex: SN-00125..." style="width:100%;">' +
+                        '<input type="text" id="log-est-inp-cor" class="form-control" placeholder="Ex: Roxo, Azul, Verde..." style="width:100%;">' +
                     '</div>' +
                     '<div>' +
                         '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Medidas</label>' +
@@ -610,9 +613,9 @@ window.abrirComboModeloModalLogEst = function(termo) {
     const q = _normLogEst(termo);
     const filtrados = catalogo.filter(it => !q || _normLogEst(it.codigo).includes(q) || _normLogEst(it.categoria).includes(q));
     const grupos = [
-        { key: 'OBRA',   titulo: 'OBRA (OS Logística / Comercial)',   cor: '#1d4ed8', bg: '#eff6ff' },
-        { key: 'EVENTO', titulo: 'EVENTO (OS Logística / Comercial)', cor: '#7e22ce', bg: '#faf5ff' },
-        { key: 'GERAL',  titulo: 'GERAL (Obra / Evento)',             cor: '#334155', bg: '#f8fafc' }
+        { key: 'OBRA',   titulo: 'BANHEIROS — OBRA',              cor: '#1d4ed8', bg: '#eff6ff' },
+        { key: 'EVENTO', titulo: 'BANHEIROS — EVENTO',            cor: '#7e22ce', bg: '#faf5ff' },
+        { key: 'UNICO',  titulo: 'ESTOQUE ÚNICO (OBRA E EVENTO)', cor: '#047857', bg: '#ecfdf5' }
     ];
     let html = '';
     grupos.forEach(g => {
@@ -727,26 +730,34 @@ window.salvarItemLogisticaEstoque = async function(event) {
     try {
         if (btn) { btn.disabled = true; btn.innerHTML = 'Salvando...'; }
         const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
-        const url = id ? (((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque/' + id) : (((typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api') + '/logistica/estoque');
-        const method = id ? 'PUT' : 'POST';
+        const apiBase = (typeof API_URL !== 'undefined' && API_URL) ? API_URL : '/api';
 
-        const r = await fetch(url, {
-            method,
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                modelo,
-                quantidade,
-                cor,
-                numero_serie,
-                medidas,
-                equipamentos_comercial
-            })
-        });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || 'Erro ao salvar equipamento de estoque');
+        // Quando estiver adicionando novo item, permite cadastrar cada número de série 1 por 1
+        const seriesList = (!id && numero_serie.includes(','))
+            ? numero_serie.split(',').map(s => s.trim()).filter(Boolean)
+            : [numero_serie];
+
+        for (const serieUnit of seriesList) {
+            const url = id ? (apiBase + '/logistica/estoque/' + id) : (apiBase + '/logistica/estoque');
+            const method = id ? 'PUT' : 'POST';
+            const r = await fetch(url, {
+                method,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    modelo,
+                    quantidade: 1,
+                    cor,
+                    numero_serie: serieUnit,
+                    medidas,
+                    equipamentos_comercial
+                })
+            });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || 'Erro ao salvar equipamento de estoque');
+        }
 
         window.fecharModalItemLogisticaEstoque();
         await window.carregarLogisticaEstoque();

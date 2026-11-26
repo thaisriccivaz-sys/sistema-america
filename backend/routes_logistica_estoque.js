@@ -18,35 +18,24 @@ function normStr(s) {
 }
 
 const EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
-    // OBRA
-    { codigo: 'STD OBRA',                icone: '💙', label: '💙 STD OBRA',                categoria: 'OBRA' },
-    { codigo: 'LX OBRA',                 icone: '🟦', label: '🟦 LX OBRA',                 categoria: 'OBRA' },
-    { codigo: 'EXL OBRA',                icone: '🔵', label: '🔵 EXL OBRA',                categoria: 'OBRA' },
-    { codigo: 'PCD OBRA',                icone: '♿', label: '♿ PCD OBRA',                categoria: 'OBRA' },
-    { codigo: 'CHUVEIRO OBRA',           icone: '🚿', label: '🚿 CHUVEIRO OBRA',           categoria: 'OBRA' },
-    { codigo: 'HIDRÁULICO OBRA',         icone: '🚽', label: '🚽 HIDRÁULICO OBRA',         categoria: 'OBRA' },
-    { codigo: 'MICTÓRIO OBRA',           icone: '💦', label: '💦 MICTÓRIO OBRA',           categoria: 'OBRA' },
-    { codigo: 'PBII OBRA',               icone: '🧼', label: '🧼 PBII OBRA',               categoria: 'OBRA' },
-    { codigo: 'PBIII OBRA',              icone: '🧼', label: '🧼 PBIII OBRA',              categoria: 'OBRA' },
-    { codigo: 'GUARITA INDIVIDUAL OBRA', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL OBRA', categoria: 'OBRA' },
-    { codigo: 'GUARITA DUPLA OBRA',      icone: '⚪', label: '⚪ GUARITA DUPLA OBRA',      categoria: 'OBRA' },
-    { codigo: 'LIMPA FOSSA OBRA',        icone: '💧', label: '💧 LIMPA FOSSA OBRA',        categoria: 'OBRA' },
-    // EVENTO
-    { codigo: 'STD EVENTO',                icone: '💜', label: '💜 STD EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'LX EVENTO',                 icone: '🟣', label: '🟣 LX EVENTO',                 categoria: 'EVENTO' },
-    { codigo: 'EXL EVENTO',                icone: '🟣', label: '🟣 EXL EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'PCD EVENTO',                icone: '♿', label: '♿ PCD EVENTO',                categoria: 'EVENTO' },
-    { codigo: 'CHUVEIRO EVENTO',           icone: '🚿', label: '🚿 CHUVEIRO EVENTO',           categoria: 'EVENTO' },
-    { codigo: 'HIDRÁULICO EVENTO',         icone: '🚽', label: '🚽 HIDRÁULICO EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'MICTÓRIO EVENTO',           icone: '💦', label: '💦 MICTÓRIO EVENTO',           categoria: 'EVENTO' },
-    { codigo: 'PBII EVENTO',               icone: '🧼', label: '🧼 PBII EVENTO',               categoria: 'EVENTO' },
-    { codigo: 'PBIII EVENTO',              icone: '🧼', label: '🧼 PBIII EVENTO',              categoria: 'EVENTO' },
-    { codigo: 'GUARITA INDIVIDUAL EVENTO', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL EVENTO', categoria: 'EVENTO' },
-    { codigo: 'GUARITA DUPLA EVENTO',      icone: '⚪', label: '⚪ GUARITA DUPLA EVENTO',      categoria: 'EVENTO' },
-    { codigo: 'LIMPA FOSSA EVENTO',        icone: '💧', label: '💧 LIMPA FOSSA EVENTO',        categoria: 'EVENTO' },
-    // GERAL
-    { codigo: 'CARRINHO',                  icone: '🛤', label: '🛤 CARRINHO',                  categoria: 'GERAL' },
-    { codigo: 'CAIXA DAGUA',               icone: '🧊', label: '🧊 CAIXA DAGUA',               categoria: 'GERAL' }
+    // OBRA (apenas Banheiros têm diferenciação Obra / Evento)
+    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA' },
+    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
+    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
+    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
+    // EVENTO (apenas Banheiros têm diferenciação Obra / Evento)
+    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
+    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
+    // ESTOQUE ÚNICO (sem diferenciação de Obra e Evento — retira sempre do mesmo estoque)
+    { codigo: 'CHUVEIRO',           icone: '🚿', label: '🚿 CHUVEIRO',           categoria: 'UNICO' },
+    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
+    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
+    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
+    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO' },
+    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO' },
+    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO' }
 ];
 
 function limparEmojiModeloOs(s) {
@@ -56,16 +45,48 @@ function limparEmojiModeloOs(s) {
         .trim();
 }
 
-function normalizarCodigoModeloOs(raw) {
+function normalizarCodigoModeloOs(raw, corOpcional, vinculoOpcional) {
     const semEmoji = limparEmojiModeloOs(raw);
     if (!semEmoji) return '';
-    const alvo = normStr(semEmoji);
-    const achado = EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.find(item =>
-        normStr(item.codigo) === alvo || normStr(item.label) === normStr(raw)
-    );
-    return achado ? achado.codigo : semEmoji.toUpperCase();
-}
+    const n = normStr(semEmoji);
 
+    // 1. Produtos excluídos da vinculação (Limpa Fossa, Carrinho, Caixa D'água)
+    if (n.includes('limpa fossa') || n === 'carrinho' || (n.includes('caixa') && n.includes('agua'))) {
+        return '';
+    }
+
+    // 2. Produtos de Estoque Único (sem separação Obra / Evento)
+    if (n.includes('chuveiro')) return 'CHUVEIRO';
+    if (n.includes('hidraulic')) return 'HIDRÁULICO';
+    if (n.includes('mictorio') || n.includes('kros')) return 'MICTÓRIO';
+    if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3')) return 'PBIII';
+    if (n.includes('pbii') || n.includes('pia ii') || n.includes('pia 2') || n === 'pia' || n.includes('lavatorio')) return 'PBII';
+    if (n.includes('guarita') && n.includes('dupla')) return 'GUARITA DUPLA';
+    if (n.includes('guarita')) return 'GUARITA INDIVIDUAL';
+
+    // 3. Match direto no catálogo
+    const achado = EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.find(item =>
+        normStr(item.codigo) === n || normStr(item.label) === normStr(raw)
+    );
+    if (achado) return achado.codigo;
+
+    // 4. Banheiros com diferenciação Obra / Evento (ex: "Banheiro Standard - STD", "STD", "LUXO", "EXTRA LUXO", "PCD")
+    const vincNorm = normStr(vinculoOpcional || '');
+    const corNorm = normStr(corOpcional || '');
+    let sufixo = '';
+    if (n.includes('evento')) sufixo = 'EVENTO';
+    else if (n.includes('obra')) sufixo = 'OBRA';
+    else if (/\bo0\d/i.test(vincNorm) || vincNorm.includes('obra')) sufixo = 'OBRA';
+    else if (corNorm.includes('roxo') || corNorm.includes('lilas')) sufixo = 'EVENTO';
+    else sufixo = 'OBRA';
+
+    if (n.includes('extra lux') || /\b(exl|elx)\b/.test(n)) return 'EXL ' + sufixo;
+    if (n.includes('luxo') || /\blx\b/.test(n)) return 'LX ' + sufixo;
+    if (n.includes('pcd') || n.includes('pne')) return 'PCD ' + sufixo;
+    if (n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n)) return 'STD ' + sufixo;
+
+    return semEmoji.toUpperCase();
+}
 
 function classificarContratoAtivoParaReserva(p) {
     if (!p) return false;
@@ -608,9 +629,9 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
         });
     });
 
-    // GET /api/logistica/estoque/modelo-xlsx — Planilha modelo para importação em massa do estoque da logística
+    // GET /api/logistica/estoque/modelo-xlsx — Planilha modelo para importação em massa do estoque da logística (1 por 1 por Série, sem ícone)
     app.get('/api/logistica/estoque/modelo-xlsx', authenticateToken, (req, res) => {
-        db.all('SELECT * FROM logistica_estoque_equipamentos ORDER BY modelo ASC, id ASC', [], (err, rows) => {
+        db.all('SELECT * FROM logistica_estoque_equipamentos ORDER BY modelo ASC, CAST(numero_serie AS INTEGER) ASC, id ASC', [], (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
             try {
                 const lista = Array.isArray(rows) && rows.length > 0
@@ -621,42 +642,45 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                             ? vincs.map(v => (typeof v === 'object' && v ? (v.nome || v.codigo || '') : String(v))).filter(Boolean).join(' | ')
                             : '';
                         return {
-                            'Modelo': r.modelo || '',
-                            'Quantidade': Number(r.quantidade || 1),
+                            'Série': r.numero_serie || '',
+                            'Modelo': limparEmojiModeloOs(r.modelo || ''),
                             'Cor': r.cor || '',
-                            'Número de Série': r.numero_serie || '',
-                            'Medidas': r.medidas || '',
-                            'Vínculo com Equipamento do Comercial': nomesCom
+                            'Vinculo com equipamentos': nomesCom,
+                            'Medidas': r.medidas || ''
                         };
                     })
                     : [
                         {
-                            'Modelo': '💙 STD OBRA',
-                            'Quantidade': 50,
+                            'Série': 1,
+                            'Modelo': 'STD OBRA',
                             'Cor': 'Azul',
-                            'Número de Série': 'STD-001 a STD-050',
-                            'Medidas': '2,20m x 1,10m x 1,20m',
-                            'Vínculo com Equipamento do Comercial': 'BANHEIRO QUÍMICO STANDARD O04XZA | BANHEIRO QUÍMICO STANDARD O05XZA'
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
+                            'Medidas': ''
                         },
                         {
-                            'Modelo': '💜 STD EVENTO',
-                            'Quantidade': 30,
-                            'Cor': 'Roxo',
-                            'Número de Série': 'STDE-001 a STDE-030',
-                            'Medidas': '2,20m x 1,10m x 1,20m',
-                            'Vínculo com Equipamento do Comercial': 'BANHEIRO QUÍMICO STANDARD'
+                            'Série': 2,
+                            'Modelo': 'STD OBRA',
+                            'Cor': 'Azul',
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
+                            'Medidas': ''
+                        },
+                        {
+                            'Série': 3,
+                            'Modelo': 'STD OBRA',
+                            'Cor': 'Azul',
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
+                            'Medidas': ''
                         }
                     ];
 
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.json_to_sheet(lista);
                 ws['!cols'] = [
-                    { wch: 18 },
-                    { wch: 14 },
+                    { wch: 12 },
+                    { wch: 26 },
                     { wch: 16 },
-                    { wch: 24 },
-                    { wch: 24 },
-                    { wch: 55 }
+                    { wch: 85 },
+                    { wch: 22 }
                 ];
                 XLSX.utils.book_append_sheet(wb, ws, 'Estoque_Logistica');
                 const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -669,7 +693,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
         });
     });
 
-    // POST /api/logistica/estoque/importar — Importação em massa via planilha .xlsx
+    // POST /api/logistica/estoque/importar — Importação em massa via planilha .xlsx (cadastrado 1 por 1 por Série)
     app.post('/api/logistica/estoque/importar', authenticateToken, uploadEstoqueLogistica.single('arquivo'), (req, res) => {
         try {
             let fileBuffer = req.file && req.file.buffer ? req.file.buffer : null;
@@ -723,14 +747,16 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
 
                 const registrosParaInserir = [];
                 rawRows.forEach(row => {
-                    const modelo = normalizarCodigoModeloOs(lerCol(row, ['modelo', 'equipamento', 'tipo', 'nome']));
-                    if (!modelo) return;
-                    const qtdRaw = lerCol(row, ['quantidade', 'qtd', 'qtde', 'quantidade de cada']);
-                    const quantidade = Math.max(1, parseInt(qtdRaw || '1', 10) || 1);
                     const cor = String(lerCol(row, ['cor', 'cores']) || '').trim();
-                    const numero_serie = String(lerCol(row, ['numero de serie', 'n de serie', 'serie', 'num serie', 'serial']) || '').trim();
+                    const numero_serie = String(lerCol(row, ['serie', 'numero de serie', 'n de serie', 'num serie', 'serial']) || '').trim();
                     const medidas = String(lerCol(row, ['medidas', 'medida', 'dimensoes', 'tamanho']) || '').trim();
-                    const vincRaw = String(lerCol(row, ['vinculo com equipamento do comercial', 'vinculo comercial', 'equipamento comercial', 'vinculo', 'produto comercial']) || '').trim();
+                    const vincRaw = String(lerCol(row, ['vinculo com equipamentos', 'vinculo com equipamento do comercial', 'vinculo comercial', 'equipamento comercial', 'vinculo', 'produto comercial']) || '').trim();
+                    const modeloRaw = String(lerCol(row, ['modelo', 'equipamento', 'tipo', 'nome', 'produto']) || '').trim();
+                    const modelo = normalizarCodigoModeloOs(modeloRaw, cor, vincRaw);
+                    if (!modelo) return;
+
+                    // Cada linha da planilha representa 1 unidade individual com seu Número de Série
+                    const quantidade = 1;
 
                     const equipsVinc = [];
                     if (vincRaw) {
@@ -741,7 +767,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                             const found = mapComPorNome.get(tNorm) ||
                                           mapComPorCod.get(tNorm) ||
                                           (codPad ? mapComPorCod.get(codPad) : null) ||
-                                          listaCom.find(c => normStr(c.nome).includes(tNorm));
+                                          listaCom.find(c => normStr(c.nome) === tNorm);
                             if (found && !equipsVinc.some(x => Number(x.id) === Number(found.id))) {
                                 equipsVinc.push({ id: found.id, codigo: found.codigo || '', nome: found.nome });
                             }
@@ -759,7 +785,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                 });
 
                 if (!registrosParaInserir.length) {
-                    return res.status(400).json({ error: 'Nenhum registro válido encontrado na planilha. Preencha a coluna "Modelo".' });
+                    return res.status(400).json({ error: 'Nenhum registro válido encontrado na planilha. Preencha as colunas "Série" e "Modelo".' });
                 }
 
                 let idx = 0;
@@ -771,20 +797,57 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         });
                     }
                     const item = registrosParaInserir[idx++];
-                    db.run(
-                        `INSERT INTO logistica_estoque_equipamentos (
-                            modelo, quantidade, cor, numero_serie, medidas,
-                            equipamentos_comercial_json, observacoes, criado_por, criado_em, atualizado_em
-                        ) VALUES (?, ?, ?, ?, ?, ?, '', ?, ?, ?)`,
-                        [
-                            item.modelo, item.quantidade, item.cor, item.numero_serie, item.medidas,
-                            JSON.stringify(item.equipsVinc), criado_por, agora, agora
-                        ],
-                        function (errIns) {
-                            if (!errIns) importados++;
-                            sincronizarVinculosComercialParaModelo(item.modelo, item.equipsVinc, () => inserirProx());
-                        }
-                    );
+                    // Se já existir o mesmo Modelo + Número de Série (quando Série foi informada), atualiza em vez de duplicar
+                    if (item.numero_serie) {
+                        db.get(
+                            'SELECT id FROM logistica_estoque_equipamentos WHERE UPPER(TRIM(modelo)) = UPPER(TRIM(?)) AND TRIM(numero_serie) = TRIM(?)',
+                            [item.modelo, item.numero_serie],
+                            (errExist, rowExist) => {
+                                if (!errExist && rowExist && rowExist.id) {
+                                    db.run(
+                                        `UPDATE logistica_estoque_equipamentos
+                                         SET quantidade = 1, cor = ?, medidas = ?, equipamentos_comercial_json = ?, atualizado_em = ?
+                                         WHERE id = ?`,
+                                        [item.cor, item.medidas, JSON.stringify(item.equipsVinc), agora, rowExist.id],
+                                        () => {
+                                            importados++;
+                                            sincronizarVinculosComercialParaModelo(item.modelo, item.equipsVinc, () => inserirProx());
+                                        }
+                                    );
+                                } else {
+                                    db.run(
+                                        `INSERT INTO logistica_estoque_equipamentos (
+                                            modelo, quantidade, cor, numero_serie, medidas,
+                                            equipamentos_comercial_json, observacoes, criado_por, criado_em, atualizado_em
+                                        ) VALUES (?, 1, ?, ?, ?, ?, '', ?, ?, ?)`,
+                                        [
+                                            item.modelo, item.cor, item.numero_serie, item.medidas,
+                                            JSON.stringify(item.equipsVinc), criado_por, agora, agora
+                                        ],
+                                        function (errIns) {
+                                            if (!errIns) importados++;
+                                            sincronizarVinculosComercialParaModelo(item.modelo, item.equipsVinc, () => inserirProx());
+                                        }
+                                    );
+                                }
+                            }
+                        );
+                    } else {
+                        db.run(
+                            `INSERT INTO logistica_estoque_equipamentos (
+                                modelo, quantidade, cor, numero_serie, medidas,
+                                equipamentos_comercial_json, observacoes, criado_por, criado_em, atualizado_em
+                            ) VALUES (?, 1, ?, ?, ?, ?, '', ?, ?, ?)`,
+                            [
+                                item.modelo, item.cor, item.numero_serie, item.medidas,
+                                JSON.stringify(item.equipsVinc), criado_por, agora, agora
+                            ],
+                            function (errIns) {
+                                if (!errIns) importados++;
+                                sincronizarVinculosComercialParaModelo(item.modelo, item.equipsVinc, () => inserirProx());
+                            }
+                        );
+                    }
                 };
                 inserirProx();
             });
