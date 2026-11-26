@@ -3159,7 +3159,7 @@ window.renderEquipamentosEstoqueTable = function() {
     });
 
     if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
         return;
     }
 
@@ -3167,9 +3167,9 @@ window.renderEquipamentosEstoqueTable = function() {
 
     tbody.innerHTML = lista.map(item => {
         const especTexto = String(item.especificacao_tecnica || '').trim();
-        const especPreview = especTexto
-            ? '<div style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
-            : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
+        const especAbaixoTituloHtml = especTexto
+            ? '<div style="margin-top:3px;color:#64748b;font-size:0.76rem;font-weight:500;line-height:1.3;max-width:440px;white-space:normal;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
+            : '';
 
         const fotoThumb = item.foto_url
             ? '<img src="' + esc(item.foto_url) + '" alt="" onclick="event.stopPropagation(); window.ampliarFotoEquipamentoId(' + item.id + ')" title="Clique para ampliar foto" style="width:40px;height:40px;object-fit:contain;border-radius:6px;border:1px solid #cbd5e1;background:#fff;padding:2px;cursor:zoom-in;flex-shrink:0;">'
@@ -3188,13 +3188,19 @@ window.renderEquipamentosEstoqueTable = function() {
             : '<button type="button" onclick="window.abrirModalVincularEquipamentoLogisticaRapido(' + item.id + ')" title="Vincular a um produto da OS da Logística" style="background:#f8fafc;color:#64748b;border:1px dashed #cbd5e1;border-radius:6px;padding:3px 9px;font-size:0.75rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-link"></i> Vincular</button>';
 
         return '<tr>' +
-            '<td><span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-weight:700;font-size:0.78rem;white-space:nowrap;">' + esc(item.codigo) + '</span></td>' +
-            '<td style="font-weight:600;color:#1e293b;"><div style="display:flex;align-items:center;gap:10px;">' + fotoThumb + '<span>' + esc(item.nome) + '</span></div></td>' +
+            '<td style="font-weight:600;color:#1e293b;">' +
+                '<div style="display:flex;align-items:center;gap:10px;">' +
+                    fotoThumb +
+                    '<div style="display:flex;flex-direction:column;">' +
+                        '<span style="font-weight:700;color:#0f172a;font-size:0.86rem;">' + esc(item.nome) + '</span>' +
+                        especAbaixoTituloHtml +
+                    '</div>' +
+                '</div>' +
+            '</td>' +
             '<td><span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:600;white-space:nowrap;">' + esc(item.unidade_medida) + '</span></td>' +
             '<td style="color:#334155;font-size:0.84rem;font-weight:600;text-transform:uppercase;">' + esc(String(item.fonte_fornecimento || '').toUpperCase()) + '</td>' +
             '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(String(item.grupo_produto || '').toUpperCase()) + '</span></td>' +
             '<td>' + vinculoLogHtml + '</td>' +
-            '<td>' + especPreview + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;align-items:center;">' +
                     '<button type="button" class="btn btn-sm" onclick="window.duplicarEquipamentoEstoque(' + item.id + ')" title="Duplicar equipamento para editar e salvar" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:0.76rem;padding:4px 9px;">' +
@@ -3222,7 +3228,7 @@ window.sincronizarTopScrollEquipamentosEstoque = function() {
     const topWrap = document.getElementById('top-scroll-estoque-equipamentos');
     const bodyWrap = document.getElementById('body-scroll-estoque-equipamentos');
     if (!tbl || !topInner || !topWrap || !bodyWrap) return;
-    const sw = Math.max(tbl.scrollWidth || 0, 1280);
+    const sw = Math.max(tbl.scrollWidth || 0, 960);
     topInner.style.width = sw + 'px';
 };
 window.addEventListener('resize', function() {

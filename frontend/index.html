@@ -410,9 +410,6 @@
                     </div>
                     <a href="#" class="nav-item" data-target="comercial-proposta"><i
                             class="ph ph-file-text"></i> Proposta</a>
-                    <a href="#" class="nav-item" data-target="comercial-aprovacao" style="color:#dc2626 !important;"
-                        onclick="navigateTo('comercial-aprovacao'); return false;"><i
-                            class="ph ph-seal-check" style="color:#dc2626 !important;"></i> <span style="color:#dc2626 !important;">Aprovação</span></a>
                     <a href="#" class="nav-item" data-target="comercial-contratos"><i
                             class="ph ph-files"></i> Contratos</a>
                     <a href="#" class="nav-item" data-target="comercial-os"
@@ -450,6 +447,9 @@
                             class="ph ph-currency-circle-dollar"></i> Comissão</a>
                     <a href="#" class="nav-item" data-target="comercial-credenciamento"><i
                             class="ph ph-identification-card"></i> Solicitar Credencial</a>
+                    <a href="#" class="nav-item" data-target="comercial-aprovacao" style="color:#dc2626 !important;"
+                        onclick="navigateTo('comercial-aprovacao'); return false;"><i
+                            class="ph ph-seal-check" style="color:#dc2626 !important;"></i> <span style="color:#dc2626 !important;">Aprovação</span></a>
                 </div>
             </div>
 
@@ -4049,24 +4049,22 @@
                         </div>
 
                         <div id="top-scroll-estoque-equipamentos" onscroll="var b=document.getElementById('body-scroll-estoque-equipamentos'); if(b && b.scrollLeft!==this.scrollLeft) b.scrollLeft=this.scrollLeft;" style="overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:4px; border-radius:6px;">
-                            <div id="top-scroll-inner-estoque-equipamentos" style="height:1px; width:1350px;"></div>
+                            <div id="top-scroll-inner-estoque-equipamentos" style="height:1px; width:1000px;"></div>
                         </div>
                         <div id="body-scroll-estoque-equipamentos" class="table-responsive" onscroll="var t=document.getElementById('top-scroll-estoque-equipamentos'); if(t && t.scrollLeft!==this.scrollLeft) t.scrollLeft=this.scrollLeft;">
-                            <table id="tbl-controle-equipamentos" class="table" style="min-width:1280px;">
+                            <table id="tbl-controle-equipamentos" class="table" style="min-width:960px;">
                                 <thead>
                                     <tr style="font-size:0.78rem;">
-                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('codigo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Código <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('nome')" style="cursor:pointer;white-space:nowrap;user-select:none;">Equipamento / Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('unidade_medida')" style="cursor:pointer;white-space:nowrap;user-select:none;">Unid. Medida <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('fonte_fornecimento')" style="cursor:pointer;white-space:nowrap;user-select:none;">Fonte de Fornecimento <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('grupo_produto')" style="cursor:pointer;white-space:nowrap;user-select:none;">Grupo de Produto <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('logistica_estoque_modelo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Estoque Logística <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
-                                        <th style="white-space:nowrap;">Especificação Técnica</th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-equipamentos">
-                                    <tr><td colspan="8" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
+                                    <tr><td colspan="6" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
                                 </tbody>
                             </table>
                         </div>
