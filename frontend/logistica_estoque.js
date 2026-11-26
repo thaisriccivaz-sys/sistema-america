@@ -102,7 +102,7 @@ window.renderTelaLogisticaEstoque = async function() {
                     // Filtros em tempo real
                     '<div style="display:grid;grid-template-columns:1fr 220px 210px auto;gap:0.75rem;align-items:end;">' +
                         '<div>' +
-                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar (Modelo, Cor, Nº de Série, Medidas, Equipamento Comercial, Contrato ou Cliente)</label>' +
+                            '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Pesquisar (Série, Modelo, Cor, Equipamento Comercial, Contrato ou Cliente)</label>' +
                             '<div style="position:relative;">' +
                                 '<i class="ph ph-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:1rem;"></i>' +
                                 '<input type="text" id="filtro-log-est-texto" class="form-control" placeholder="Digite para filtrar em tempo real..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;padding-left:34px;">' +
@@ -360,7 +360,6 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
             '<td><span style="background:' + modStyle + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(item.modelo)) + '</span></td>' +
             '<td style="color:#334155;font-weight:600;">' + (_escLogEst(item.cor) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
             '<td>' + vinculosHtml + '</td>' +
-            '<td style="color:#334155;font-size:0.84rem;">' + (_escLogEst(item.medidas) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;">' +
                     '<button type="button" class="btn btn-sm" onclick="window.abrirModalItemLogisticaEstoque(' + item.id + ')" title="Editar" style="background:#f8fafc;color:#334155;border:1px solid #cbd5e1;padding:4px 9px;border-radius:7px;cursor:pointer;">' +
@@ -383,7 +382,6 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
                         '<th>Modelo</th>' +
                         '<th>Cor</th>' +
                         '<th>Vínculo com Equipamentos</th>' +
-                        '<th>Medidas</th>' +
                         '<th style="text-align:right;">Ações</th>' +
                     '</tr>' +
                 '</thead>' +
@@ -487,29 +485,22 @@ window._garantirModalItemLogisticaEstoque = function() {
                 '<input type="hidden" id="log-est-inp-id" value="">' +
 
                 '<input type="hidden" id="log-est-inp-quantidade" value="1">' +
-                '<div style="display:grid;grid-template-columns:180px 1fr;gap:0.85rem;">' +
+                '<div style="display:grid;grid-template-columns:140px 1fr 180px;gap:0.85rem;">' +
                     '<div>' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Série (Nº de Série) *</label>' +
+                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Série *</label>' +
                         '<input type="text" id="log-est-inp-serie" required class="form-control" placeholder="Ex: 1 (ou 1, 2, 3)" style="width:100%;">' +
                     '</div>' +
                     '<div style="position:relative;" id="wrap-log-est-inp-modelo">' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Modelo (Produto da OS da Logística) *</label>' +
+                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Modelo *</label>' +
                         '<div style="position:relative;display:flex;align-items:center;">' +
                             '<input type="text" id="log-est-inp-modelo" required class="form-control" placeholder="Clique ou digite: 💙 STD OBRA, 💜 STD EVENTO, 🚿 CHUVEIRO..." autocomplete="off" onfocus="window.abrirComboModeloModalLogEst(\'\')" onclick="window.abrirComboModeloModalLogEst(\'\')" oninput="window.abrirComboModeloModalLogEst(this.value)" style="width:100%;padding-right:32px;">' +
                             '<button type="button" tabindex="-1" onclick="window.abrirComboModeloModalLogEst(\'\')" style="position:absolute;right:4px;background:none;border:none;color:#64748b;cursor:pointer;padding:4px 6px;"><i class="ph ph-caret-down"></i></button>' +
                         '</div>' +
                         '<div id="combo-list-log-est-modelo" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:10080;background:#fff;border:1px solid #cbd5e1;border-radius:8px;max-height:230px;overflow-y:auto;box-shadow:0 10px 25px -5px rgba(0,0,0,0.2);margin-top:3px;"></div>' +
                     '</div>' +
-                '</div>' +
-
-                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;">' +
                     '<div>' +
                         '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Cor</label>' +
-                        '<input type="text" id="log-est-inp-cor" class="form-control" placeholder="Ex: Roxo, Azul, Verde..." style="width:100%;">' +
-                    '</div>' +
-                    '<div>' +
-                        '<label style="display:block;font-size:0.82rem;font-weight:700;color:#334155;margin-bottom:4px;">Medidas</label>' +
-                        '<input type="text" id="log-est-inp-medidas" class="form-control" placeholder="Ex: 2,30m x 1,10m x 1,20m" style="width:100%;">' +
+                        '<input type="text" id="log-est-inp-cor" class="form-control" placeholder="Ex: Roxo, Azul..." style="width:100%;">' +
                     '</div>' +
                 '</div>' +
 
@@ -558,7 +549,7 @@ window.abrirModalItemLogisticaEstoque = function(id) {
         document.getElementById('log-est-inp-quantidade').value = Number(item.quantidade) || 0;
         document.getElementById('log-est-inp-cor').value = item.cor || '';
         document.getElementById('log-est-inp-serie').value = item.numero_serie || '';
-        document.getElementById('log-est-inp-medidas').value = item.medidas || '';
+        if (document.getElementById('log-est-inp-medidas')) if (document.getElementById('log-est-inp-medidas')) document.getElementById('log-est-inp-medidas').value = '';
 
         const selSet = new Set();
         (item.equipamentos_comercial || []).forEach(v => {

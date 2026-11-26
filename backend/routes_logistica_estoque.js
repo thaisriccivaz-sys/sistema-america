@@ -645,8 +645,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                             'Série': r.numero_serie || '',
                             'Modelo': limparEmojiModeloOs(r.modelo || ''),
                             'Cor': r.cor || '',
-                            'Vinculo com equipamentos': nomesCom,
-                            'Medidas': r.medidas || ''
+                            'Vinculo com equipamentos': nomesCom
                         };
                     })
                     : [
@@ -654,22 +653,19 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                             'Série': 1,
                             'Modelo': 'STD OBRA',
                             'Cor': 'Azul',
-                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
-                            'Medidas': ''
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV'
                         },
                         {
                             'Série': 2,
                             'Modelo': 'STD OBRA',
                             'Cor': 'Azul',
-                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
-                            'Medidas': ''
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV'
                         },
                         {
                             'Série': 3,
                             'Modelo': 'STD OBRA',
                             'Cor': 'Azul',
-                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV',
-                            'Medidas': ''
+                            'Vinculo com equipamentos': 'BANHEIRO QUÍMICO STANDARD O01XZV | BANHEIRO QUÍMICO STANDARD O02XZV | BANHEIRO QUÍMICO STANDARD O03XZV'
                         }
                     ];
 
@@ -679,8 +675,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                     { wch: 12 },
                     { wch: 26 },
                     { wch: 16 },
-                    { wch: 85 },
-                    { wch: 22 }
+                    { wch: 85 }
                 ];
                 XLSX.utils.book_append_sheet(wb, ws, 'Estoque_Logistica');
                 const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
