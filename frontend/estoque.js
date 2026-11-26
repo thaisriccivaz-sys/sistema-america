@@ -3452,8 +3452,8 @@ window.fecharModalEquipamentoEstoque = function() {
 };
 
 // Catálogo oficial de produtos para vínculo de Estoque da Logística:
-// - Apenas Banheiros (STD, LX, EXL, PCD) têm diferenciação entre OBRA e EVENTO.
-// - Chuveiro, Hidráulico, Mictório, PBII, PBIII, Guarita Individual e Guarita Dupla têm estoque único (sem separação Obra/Evento).
+// - Banheiros (STD, LX, EXL, PCD) e Chuveiro têm diferenciação entre OBRA e EVENTO.
+// - Hidráulico, Mictório, PBII, PBIII, Guarita Individual e Guarita Dupla têm estoque único (sem separação Obra/Evento).
 // - Limpa Fossa, Carrinho e Caixa D'água NÃO aparecem na vinculação do Controle de Equipamentos.
 window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
     // OBRA
@@ -3461,13 +3461,14 @@ window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
     { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
     { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
     { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
+    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA' },
     // EVENTO
     { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
     { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
     { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
     { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO' },
     // ESTOQUE ÚNICO (Obra e Evento retiram do mesmo estoque)
-    { codigo: 'CHUVEIRO',           icone: '🚿', label: '🚿 CHUVEIRO',           categoria: 'UNICO' },
     { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
     { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
     { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
@@ -3496,8 +3497,9 @@ window.resolverInfoModeloEstoqueLogistica = function(raw) {
 
     // Normaliza produtos de estoque único mesmo se vierem com sufixo legado OBRA / EVENTO
     let alvo = n;
-    if (n.includes('chuveiro')) alvo = 'chuveiro';
-    else if (n.includes('hidraulic')) alvo = 'hidraulico';
+    if (n.includes('chuveiro')) {
+        alvo = n.includes('evento') ? 'chuveiro evento' : 'chuveiro obra';
+    } else if (n.includes('hidraulic')) alvo = 'hidraulico';
     else if (n.includes('mictorio') || n.includes('kros')) alvo = 'mictorio';
     else if (n.includes('pbiii') || n.includes('pia iii')) alvo = 'pbiii';
     else if (n.includes('pbii') || n.includes('pia ii') || n === 'pia' || n.includes('lavatorio')) alvo = 'pbii';
@@ -3561,8 +3563,8 @@ window.abrirComboModeloEstoqueLogisticaModal = async function(termo) {
     let html = '<div onmousedown="event.preventDefault(); window.selecionarModeloEstoqueLogisticaModalInput(\'\');" style="padding:8px 12px;cursor:pointer;font-size:0.82rem;color:#64748b;border-bottom:1px solid #f1f5f9;">— Sem vínculo com estoque —</div>';
 
     const grupos = [
-        { key: 'OBRA',   titulo: 'BANHEIROS — OBRA',                          cor: '#1d4ed8', bg: '#eff6ff' },
-        { key: 'EVENTO', titulo: 'BANHEIROS — EVENTO',                        cor: '#7e22ce', bg: '#faf5ff' },
+        { key: 'OBRA',   titulo: 'BANHEIROS E CHUVEIRO — OBRA',               cor: '#1d4ed8', bg: '#eff6ff' },
+        { key: 'EVENTO', titulo: 'BANHEIROS E CHUVEIRO — EVENTO',             cor: '#7e22ce', bg: '#faf5ff' },
         { key: 'UNICO',  titulo: 'ESTOQUE ÚNICO (OBRA E EVENTO)',             cor: '#047857', bg: '#ecfdf5' }
     ];
 
@@ -3627,11 +3629,11 @@ window.abrirModalVincularEquipamentoLogisticaRapido = async function(equipamento
                     '<button type="button" onclick="document.getElementById(\'swal-inp-modelo-logistica\').value=\'\'" style="padding:6px 12px;border-radius:8px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;font-weight:700;font-size:0.78rem;cursor:pointer;white-space:nowrap;">Limpar vínculo</button>' +
                 '</div>' +
                 '<div style="margin-bottom:10px;">' +
-                    '<div style="font-size:0.74rem;font-weight:800;color:#1d4ed8;margin-bottom:5px;">💙 BANHEIROS — OBRA:</div>' +
+                    '<div style="font-size:0.74rem;font-weight:800;color:#1d4ed8;margin-bottom:5px;">💙 BANHEIROS E CHUVEIRO — OBRA:</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('OBRA', '#1d4ed8', '#eff6ff') + '</div>' +
                 '</div>' +
                 '<div style="margin-bottom:10px;">' +
-                    '<div style="font-size:0.74rem;font-weight:800;color:#7e22ce;margin-bottom:5px;">💜 BANHEIROS — EVENTO:</div>' +
+                    '<div style="font-size:0.74rem;font-weight:800;color:#7e22ce;margin-bottom:5px;">💜 BANHEIROS E CHUVEIRO — EVENTO:</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + renderChipsCategoria('EVENTO', '#7e22ce', '#faf5ff') + '</div>' +
                 '</div>' +
                 '<div style="margin-bottom:8px;">' +

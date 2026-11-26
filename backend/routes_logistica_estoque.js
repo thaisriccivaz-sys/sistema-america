@@ -18,18 +18,19 @@ function normStr(s) {
 }
 
 const EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
-    // OBRA (apenas Banheiros têm diferenciação Obra / Evento)
+    // OBRA (Banheiros e Chuveiro têm diferenciação Obra / Evento)
     { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA' },
     { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
     { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
     { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
-    // EVENTO (apenas Banheiros têm diferenciação Obra / Evento)
+    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA' },
+    // EVENTO (Banheiros e Chuveiro têm diferenciação Obra / Evento)
     { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
     { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
     { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
     { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
+    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO' },
     // ESTOQUE ÚNICO (sem diferenciação de Obra e Evento — retira sempre do mesmo estoque)
-    { codigo: 'CHUVEIRO',           icone: '🚿', label: '🚿 CHUVEIRO',           categoria: 'UNICO' },
     { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
     { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
     { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
@@ -56,7 +57,6 @@ function normalizarCodigoModeloOs(raw, corOpcional, vinculoOpcional) {
     }
 
     // 2. Produtos de Estoque Único (sem separação Obra / Evento)
-    if (n.includes('chuveiro')) return 'CHUVEIRO';
     if (n.includes('hidraulic')) return 'HIDRÁULICO';
     if (n.includes('mictorio') || n.includes('kros')) return 'MICTÓRIO';
     if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3')) return 'PBIII';
@@ -70,7 +70,7 @@ function normalizarCodigoModeloOs(raw, corOpcional, vinculoOpcional) {
     );
     if (achado) return achado.codigo;
 
-    // 4. Banheiros com diferenciação Obra / Evento (ex: "Banheiro Standard - STD", "STD", "LUXO", "EXTRA LUXO", "PCD")
+    // 4. Banheiros e Chuveiro com diferenciação Obra / Evento (ex: "Banheiro Standard - STD", "STD", "LUXO", "EXTRA LUXO", "PCD", "CHUVEIRO")
     const vincNorm = normStr(vinculoOpcional || '');
     const corNorm = normStr(corOpcional || '');
     let sufixo = '';
@@ -80,6 +80,7 @@ function normalizarCodigoModeloOs(raw, corOpcional, vinculoOpcional) {
     else if (corNorm.includes('roxo') || corNorm.includes('lilas')) sufixo = 'EVENTO';
     else sufixo = 'OBRA';
 
+    if (n.includes('chuveiro')) return 'CHUVEIRO ' + sufixo;
     if (n.includes('extra lux') || /\b(exl|elx)\b/.test(n)) return 'EXL ' + sufixo;
     if (n.includes('luxo') || /\blx\b/.test(n)) return 'LX ' + sufixo;
     if (n.includes('pcd') || n.includes('pne')) return 'PCD ' + sufixo;

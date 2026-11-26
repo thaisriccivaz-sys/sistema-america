@@ -573,7 +573,7 @@ window.abrirModalItemLogisticaEstoque = function(id) {
         document.getElementById('log-est-inp-quantidade').value = 1;
         document.getElementById('log-est-inp-cor').value = '';
         document.getElementById('log-est-inp-serie').value = '';
-        document.getElementById('log-est-inp-medidas').value = '';
+        if (document.getElementById('log-est-inp-medidas')) document.getElementById('log-est-inp-medidas').value = '';
         window._logEstoqueState.comercialSelecionadosModal = [];
     }
 
@@ -604,8 +604,8 @@ window.abrirComboModeloModalLogEst = function(termo) {
     const q = _normLogEst(termo);
     const filtrados = catalogo.filter(it => !q || _normLogEst(it.codigo).includes(q) || _normLogEst(it.categoria).includes(q));
     const grupos = [
-        { key: 'OBRA',   titulo: 'BANHEIROS — OBRA',              cor: '#1d4ed8', bg: '#eff6ff' },
-        { key: 'EVENTO', titulo: 'BANHEIROS — EVENTO',            cor: '#7e22ce', bg: '#faf5ff' },
+        { key: 'OBRA',   titulo: 'BANHEIROS E CHUVEIRO — OBRA',   cor: '#1d4ed8', bg: '#eff6ff' },
+        { key: 'EVENTO', titulo: 'BANHEIROS E CHUVEIRO — EVENTO', cor: '#7e22ce', bg: '#faf5ff' },
         { key: 'UNICO',  titulo: 'ESTOQUE ÚNICO (OBRA E EVENTO)', cor: '#047857', bg: '#ecfdf5' }
     ];
     let html = '';
