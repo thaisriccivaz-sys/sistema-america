@@ -578,7 +578,7 @@
         }
 
         if (itens.length === 0) {
-            return `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
+            return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
         }
 
         const tipoUp = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -588,15 +588,9 @@
             const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
             const obs = String(it.observacao || '').trim();
             const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
-            const vUnit = parseFloat(it.valor ?? it.valor_unitario ?? 0) || 0;
-            const sub = (it.valor_total !== undefined && !isNaN(parseFloat(it.valor_total))) ? parseFloat(it.valor_total) : (qtd * vUnit);
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
             const nDiarias = ehEv ? (diasArr.length > 0 ? diasArr.length : Math.max(1, parseInt(prop?.dias_contrato || 1, 10) || 1)) : 1;
-            const totFinal = ehEv ? (sub * nDiarias) : sub;
             const manutStr = ehEv ? `${nDiarias} diária(s)` : (it.manut_semana ? `${it.manut_semana}x/sem.` : '—');
-            const descPct = parseFloat(it.desconto_pct) || 0;
-            const descRs = parseFloat(it.desconto_rs) || 0;
-            const descStr = descPct > 0 ? `${descPct.toFixed(2)}%` : (descRs > 0 ? `R$ ${fmtMoeda(descRs)}` : '—');
 
             return `
                 <tr style="border-bottom:1px solid #e2e8f0;">
@@ -606,9 +600,6 @@
                     <td style="padding:6px 8px; color:#475569;">${esc(obs || '—')}</td>
                     <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a;">${qtd}</td>
                     <td style="padding:6px 6px; text-align:center; color:#475569; font-weight:600;">${esc(manutStr)}</td>
-                    <td style="padding:6px 6px; text-align:center; color:#b45309; font-weight:600;">${esc(descStr)}</td>
-                    <td style="padding:6px 8px; text-align:right; font-weight:700; color:#0f172a;">R$ ${fmtMoeda(vUnit)}</td>
-                    <td style="padding:6px 8px; text-align:right; font-weight:800; color:#15803d;">R$ ${fmtMoeda(totFinal)}</td>
                 </tr>
             `;
         }).join('');
@@ -1177,9 +1168,6 @@
                                                 <th style="padding:8px;">Observação</th>
                                                 <th style="padding:8px 6px; text-align:center;">Qtd.</th>
                                                 <th style="padding:8px 6px; text-align:center;">Diárias / Manut.</th>
-                                                <th style="padding:8px 6px; text-align:center;">Desconto</th>
-                                                <th style="padding:8px; text-align:right;">Valor Unit.</th>
-                                                <th style="padding:8px; text-align:right;">Valor Total</th>
                                             </tr>
                                         </thead>
                                         <tbody id="cos-produtos-tbody">
@@ -1324,13 +1312,12 @@
 
         const renderRows = (list) => {
             if (!list.length) {
-                return `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhuma OS encontrada.</td></tr>`;
+                return `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhuma OS encontrada.</td></tr>`;
             }
             return list.map(p => {
                 const numOs = String(p.numero_os || '').trim().padStart(2, '0');
                 const codProp = String(p.codigo || '').trim().padStart(2, '0');
                 const numCtr = String(p.contrato || '').trim().padStart(2, '0');
-                const totalFmt = (Number(p.valor_total) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 const dataFmt = fmtDataBr(p.os_criada_em);
 
                 const btnOsVerde = `<button type="button" onclick="event.stopPropagation(); Swal.close(); window._comercialOS.carregarOsPorPropostaId(${p.id});" title="Abrir OS Nº ${esc(numOs)}" style="background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">${esc(numOs)}</button>`;
@@ -1354,7 +1341,6 @@
                         <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${esc(p.cliente_cnpj || '—')}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${esc(p.tipo_os_label)}</td>
                         <td style="padding:10px 12px; color:#475569; text-align:center; white-space:nowrap;">${esc(dataFmt)}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#16a34a; text-align:right; white-space:nowrap;">${esc(totalFmt)}</td>
                         <td style="padding:10px 12px; text-align:center; white-space:nowrap;">${window.renderBadgeStatusOsComercialHtml(p.status_os || 'EM ELABORAÇÃO')}</td>
                     </tr>
                 `;
@@ -1405,7 +1391,6 @@
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; width:130px;">CNPJ</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:155px;">Tipo OS</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:105px;">Data OS</th>
-                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:right; width:120px;">Valor</th>
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; text-align:center; width:175px;">Status da OS</th>
                                     </tr>
                                 </thead>
