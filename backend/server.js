@@ -42258,6 +42258,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
     db.run("ALTER TABLE propostas ADD COLUMN os_criada_em TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN os_tipo_operacao TEXT", () => {});
     db.run("ALTER TABLE propostas ADD COLUMN os_comercial_dados_json TEXT", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN aprovacao_id INTEGER", () => {});
+    db.run("ALTER TABLE propostas ADD COLUMN numero_aprovacao TEXT", () => {});
     db.run("ALTER TABLE contratos ADD COLUMN titulo_contrato TEXT", () => {});
     // Limpar datas de período de cobrança que foram pré-preenchidas automaticamente a partir do período da proposta
     db.run("UPDATE propostas SET periodo_cobranca_inicio = NULL, periodo_cobranca_fim = NULL WHERE periodo_cobranca_inicio = periodo_inicio AND periodo_cobranca_fim = periodo_fim AND (contatos_responsaveis_contrato_json IS NULL OR TRIM(contatos_responsaveis_contrato_json) IN ('', '{}', '{\"nfe\":[],\"cobranca\":[],\"os\":[],\"instalacao\":\"\"}'))", () => {});
@@ -43891,6 +43893,286 @@ app.delete('/api/propostas/:id/anexos-os-comercial/:anexoId', authenticateToken,
   db.run('DELETE FROM comercial_os_anexos WHERE id = ? AND proposta_id = ?', [anexoId, propId], function(errDel) {
     if (errDel) return res.status(500).json({ error: errDel.message });
     res.json({ success: true });
+  });
+});
+
+// ── APROVAÇÃO COMERCIAL (Kanban: Solicitação, Aguardando setor, Respondida, Aprovado, Reprovado, Finalizado) ──
+db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  numero_aprovacao TEXT NOT NULL,
+  proposta_id INTEGER,
+  proposta_codigo TEXT DEFAULT '',
+  cliente_nome TEXT DEFAULT '',
+  contato_nome TEXT DEFAULT '',
+  endereco_instalacao TEXT DEFAULT '',
+  equipamentos_json TEXT DEFAULT '[]',
+  coluna TEXT DEFAULT 'Solicitação',
+  urgente INTEGER DEFAULT 0,
+  observacoes TEXT DEFAULT '',
+  resposta_setor TEXT DEFAULT '',
+  criado_por TEXT DEFAULT '',
+  criado_em TEXT,
+  atualizado_em TEXT
+)`, (errAprv) => {
+  if (errAprv) console.error('[COMERCIAL_APROVACOES] Erro ao criar tabela comercial_aprovacoes:', errAprv.message);
+});
+
+function gerarCodigoAprovacaoComercial(cb) {
+  db.all("SELECT numero_aprovacao FROM comercial_aprovacoes WHERE numero_aprovacao IS NOT NULL AND TRIM(numero_aprovacao) != ''", [], (err, rows) => {
+    let maxSeq = 0;
+    if (!err && Array.isArray(rows)) {
+      rows.forEach(r => {
+        const str = String(r.numero_aprovacao || '').trim();
+        if (/^\d+$/.test(str)) {
+          const n = parseInt(str, 10);
+          if (n > maxSeq) maxSeq = n;
+        }
+      });
+    }
+    const nextSeq = maxSeq + 1;
+    cb(nextSeq < 10 ? `0${nextSeq}` : `${nextSeq}`);
+  });
+}
+
+// GET /api/comercial/aprovacoes - Lista todas as aprovações do Kanban Comercial
+app.get('/api/comercial/aprovacoes', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT a.*, p.codigo AS prop_codigo_real, p.contrato AS prop_contrato_real, p.fase_negociacao AS prop_fase_real
+     FROM comercial_aprovacoes a
+     LEFT JOIN propostas p ON p.id = a.proposta_id
+     ORDER BY a.urgente DESC, a.id DESC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(Array.isArray(rows) ? rows : []);
+    }
+  );
+});
+
+// POST /api/comercial/aprovacoes - Cria uma nova Aprovação (a partir de uma Proposta ou avulsa na tela de Aprovação)
+app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    const propId = b.proposta_id ? Number(b.proposta_id) : null;
+    const propCodigo = String(b.proposta_codigo || '').trim();
+    const clienteNome = String(b.cliente_nome || '').trim();
+    const contatoNome = String(b.contato_nome || '').trim();
+    const enderecoInstalacao = String(b.endereco_instalacao || '').trim();
+    const equipamentosJson = typeof b.equipamentos_json === 'string'
+      ? b.equipamentos_json
+      : JSON.stringify(Array.isArray(b.equipamentos) ? b.equipamentos : []);
+    const coluna = String(b.coluna || 'Solicitação').trim() || 'Solicitação';
+    const urgente = (Number(b.urgente) === 1 || b.urgente === true) ? 1 : 0;
+    const observacoes = String(b.observacoes || '').trim();
+    const respostaSetor = String(b.resposta_setor || '').trim();
+
+    if (!clienteNome) {
+      return res.status(400).json({ error: 'O Nome do Cliente é obrigatório para criar uma aprovação.' });
+    }
+
+    gerarCodigoAprovacaoComercial((novoNumAprov) => {
+      db.run(
+        `INSERT INTO comercial_aprovacoes (
+          numero_aprovacao, proposta_id, proposta_codigo, cliente_nome, contato_nome,
+          endereco_instalacao, equipamentos_json, coluna, urgente, observacoes,
+          resposta_setor, criado_por, criado_em, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          novoNumAprov, propId, propCodigo, clienteNome, contatoNome,
+          enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes,
+          respostaSetor, autor, agora, agora
+        ],
+        function(errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          const newId = this.lastID;
+
+          const finalizarResposta = () => {
+            db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [newId], (eG, row) => {
+              res.json({
+                success: true,
+                id: newId,
+                numero_aprovacao: novoNumAprov,
+                aprovacao: row || {
+                  id: newId,
+                  numero_aprovacao: novoNumAprov,
+                  proposta_id: propId,
+                  proposta_codigo: propCodigo,
+                  cliente_nome: clienteNome,
+                  contato_nome: contatoNome,
+                  endereco_instalacao: enderecoInstalacao,
+                  equipamentos_json: equipamentosJson,
+                  coluna,
+                  urgente,
+                  observacoes,
+                  resposta_setor: respostaSetor,
+                  criado_por: autor,
+                  criado_em: agora
+                }
+              });
+            });
+          };
+
+          if (propId) {
+            db.run(
+              'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
+              [newId, novoNumAprov, agora, propId],
+              () => {
+                db.run(
+                  `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+                   VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
+                  [autor, propId, `Aprovação Nº ${novoNumAprov}${urgente ? ' (URGENTE)' : ''}`]
+                );
+                finalizarResposta();
+              }
+            );
+          } else {
+            finalizarResposta();
+          }
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao criar aprovação.' });
+  }
+});
+
+// PUT /api/comercial/aprovacoes/:id - Atualiza dados / coluna / urgência da Aprovação
+app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+    const b = req.body || {};
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
+      if (errG) return res.status(500).json({ error: errG.message });
+      if (!row) return res.status(404).json({ error: 'Aprovação não encontrada.' });
+
+      const clienteNome = b.cliente_nome !== undefined ? String(b.cliente_nome || '').trim() : row.cliente_nome;
+      const contatoNome = b.contato_nome !== undefined ? String(b.contato_nome || '').trim() : row.contato_nome;
+      const enderecoInstalacao = b.endereco_instalacao !== undefined ? String(b.endereco_instalacao || '').trim() : row.endereco_instalacao;
+      const equipamentosJson = b.equipamentos_json !== undefined
+        ? (typeof b.equipamentos_json === 'string' ? b.equipamentos_json : JSON.stringify(b.equipamentos_json || []))
+        : (b.equipamentos !== undefined ? JSON.stringify(b.equipamentos || []) : row.equipamentos_json);
+      const coluna = b.coluna !== undefined ? String(b.coluna || row.coluna || 'Solicitação').trim() : row.coluna;
+      const urgente = b.urgente !== undefined ? ((Number(b.urgente) === 1 || b.urgente === true) ? 1 : 0) : row.urgente;
+      const observacoes = b.observacoes !== undefined ? String(b.observacoes || '') : row.observacoes;
+      const respostaSetor = b.resposta_setor !== undefined ? String(b.resposta_setor || '') : row.resposta_setor;
+      const propId = b.proposta_id !== undefined ? (b.proposta_id ? Number(b.proposta_id) : null) : row.proposta_id;
+      const propCodigo = b.proposta_codigo !== undefined ? String(b.proposta_codigo || '').trim() : row.proposta_codigo;
+
+      db.run(
+        `UPDATE comercial_aprovacoes SET
+          proposta_id = ?,
+          proposta_codigo = ?,
+          cliente_nome = ?,
+          contato_nome = ?,
+          endereco_instalacao = ?,
+          equipamentos_json = ?,
+          coluna = ?,
+          urgente = ?,
+          observacoes = ?,
+          resposta_setor = ?,
+          atualizado_em = ?
+         WHERE id = ?`,
+        [propId, propCodigo, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, agora, id],
+        function(errUp) {
+          if (errUp) return res.status(500).json({ error: errUp.message });
+          if (propId) {
+            db.run('UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ? WHERE id = ?', [id, row.numero_aprovacao, propId]);
+          }
+          db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (e2, updated) => {
+            res.json({ success: true, aprovacao: updated });
+          });
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao atualizar aprovação.' });
+  }
+});
+
+// POST /api/comercial/aprovacoes/:id/vincular-proposta - Vincula uma aprovação existente a uma proposta (atualizando cliente, contato, endereço e equipamentos da proposta se desejado)
+app.post('/api/comercial/aprovacoes/:id/vincular-proposta', authenticateToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const propId = Number(req.body?.proposta_id);
+    if (!id || !propId) return res.status(400).json({ error: 'Informe a aprovação e a proposta para vincular.' });
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errA, aprv) => {
+      if (errA) return res.status(500).json({ error: errA.message });
+      if (!aprv) return res.status(404).json({ error: 'Aprovação não encontrada.' });
+
+      db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+        if (errP) return res.status(500).json({ error: errP.message });
+        if (!prop) return res.status(404).json({ error: 'Proposta não encontrada.' });
+
+        const cliNome = prop.cliente_nome || aprv.cliente_nome || '';
+        const contNome = prop.contato_nome || aprv.contato_nome || '';
+        const endInst = prop.endereco_instalacao || aprv.endereco_instalacao || '';
+        const equipJson = (prop.itens && prop.itens !== '[]') ? prop.itens : (aprv.equipamentos_json || '[]');
+
+        db.run(
+          `UPDATE comercial_aprovacoes SET
+            proposta_id = ?,
+            proposta_codigo = ?,
+            cliente_nome = ?,
+            contato_nome = ?,
+            endereco_instalacao = ?,
+            equipamentos_json = ?,
+            atualizado_em = ?
+           WHERE id = ?`,
+          [prop.id, String(prop.codigo || ''), cliNome, contNome, endInst, equipJson, agora, id],
+          function(errUpA) {
+            if (errUpA) return res.status(500).json({ error: errUpA.message });
+            db.run(
+              'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
+              [id, aprv.numero_aprovacao, agora, prop.id],
+              function(errUpP) {
+                if (errUpP) return res.status(500).json({ error: errUpP.message });
+                db.run(
+                  `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+                   VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
+                  [autor, prop.id, `Aprovação Nº ${aprv.numero_aprovacao}`]
+                );
+                db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (eG, rowAtualizada) => {
+                  res.json({
+                    success: true,
+                    numero_aprovacao: aprv.numero_aprovacao,
+                    aprovacao: rowAtualizada
+                  });
+                });
+              }
+            );
+          }
+        );
+      });
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao vincular aprovação à proposta.' });
+  }
+});
+
+// DELETE /api/comercial/aprovacoes/:id - Remove uma aprovação e limpa vínculo na proposta
+app.delete('/api/comercial/aprovacoes/:id', authenticateToken, (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
+    if (errG) return res.status(500).json({ error: errG.message });
+    if (!row) return res.status(404).json({ error: 'Aprovação não encontrada.' });
+    db.run('UPDATE propostas SET aprovacao_id = NULL, numero_aprovacao = NULL WHERE aprovacao_id = ?', [id], () => {
+      db.run('DELETE FROM comercial_aprovacoes WHERE id = ?', [id], (errD) => {
+        if (errD) return res.status(500).json({ error: errD.message });
+        res.json({ success: true });
+      });
+    });
   });
 });
 

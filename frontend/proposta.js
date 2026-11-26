@@ -4763,6 +4763,9 @@ function _renderFormPropostaInt() {
                             <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}" style="font-size:1rem;"></i>
                             <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
+                        <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Solicitar ou vincular Aprovação desta Proposta'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato') ? 'inline-flex' : 'none'}; background:#7c3aed; color:#ffffff; border:1px solid #6d28d9; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
+                            <i class="ph ph-Stamp" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Aprovação'}</span>
+                        </button>
                         <button type="button" id="btn-prop-gerar-os-contrato" onclick="window.gerarOsComercialDoContrato(${id || 'null'})" title="Gerar OS Comercial vinculada a este contrato assinado" style="display:${(!isNovo && window._modoTelaComercial === 'contrato' && !Boolean(v('numero_os') && String(v('numero_os')).trim()) && (['CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO', 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase()) || Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)))) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                             <i class="ph ph-clipboard-text" style="font-size:1rem;"></i> <span>Gerar OS</span>
                         </button>
@@ -6087,6 +6090,20 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
             btnAbrirOsCom.style.display = 'inline-flex';
         } else {
             btnAbrirOsCom.style.display = 'none';
+        }
+    }
+
+    const btnAprovCom = document.getElementById('btn-prop-aprovacao-comercial');
+    if (btnAprovCom) {
+        if (_propostasEditandoId && window._modoTelaComercial !== 'contrato') {
+            const numAprvAtu = String((prop && prop.numero_aprovacao) || '').trim();
+            const lblAprv = document.getElementById('lbl-btn-prop-aprovacao-comercial');
+            if (lblAprv) lblAprv.textContent = numAprvAtu ? ('Aprovação Nº ' + numAprvAtu) : 'Aprovação';
+            btnAprovCom.title = numAprvAtu ? ('Abrir Aprovação Nº ' + numAprvAtu) : 'Solicitar ou vincular Aprovação desta Proposta';
+            btnAprovCom.setAttribute('onclick', `window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${Number(_propostasEditandoId)})`);
+            btnAprovCom.style.display = 'inline-flex';
+        } else {
+            btnAprovCom.style.display = 'none';
         }
     }
 
@@ -10520,6 +10537,28 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
             if (finalId) {
                 _propostasEditandoId = finalId;
                 await abrirFormProposta(finalId);
+                if (!ehModoContratoSalvar && window._comercialAprovacao && typeof window._comercialAprovacao.verificarAprovacaoCompativelPorClienteEndereco === 'function') {
+                    const pSalva = (_propostasData || []).find(p => Number(p.id) === Number(finalId));
+                    if (pSalva && !pSalva.aprovacao_id && !pSalva.numero_aprovacao) {
+                        const aprvComp = await window._comercialAprovacao.verificarAprovacaoCompativelPorClienteEndereco(pSalva);
+                        if (aprvComp) {
+                            const numComp = String(aprvComp.numero_aprovacao || aprvComp.id).padStart(2, '0');
+                            Swal.fire({
+                                icon: 'question',
+                                title: `Aprovação encontrada (Nº ${numComp})`,
+                                html: `Existe a <strong>Aprovação Nº ${_escHtmlProp(numComp)}</strong> para este cliente no mesmo endereço de instalação.<br><br>Gostaria de vincular esta proposta a essa aprovação?`,
+                                showCancelButton: true,
+                                confirmButtonText: `<i class="ph ph-link"></i> Sim, vincular à Aprovação Nº ${numComp}`,
+                                confirmButtonColor: '#7c3aed',
+                                cancelButtonText: 'Agora não'
+                            }).then(resV => {
+                                if (resV && resV.isConfirmed) {
+                                    window._comercialAprovacao.vincularAprovacaoComProposta(aprvComp.id, finalId);
+                                }
+                            });
+                        }
+                    }
+                }
             }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(ehModoContratoSalvar
@@ -10764,6 +10803,11 @@ window.aprovarPropostaEdicao = async function() {
     if (!_propostasEditandoId || window._propFormEditadoNaoSalvo) {
         Swal.fire('Aviso', 'Salve a proposta antes de aprovar.', 'warning');
         return;
+    }
+    // Regra obrigatória: Uma proposta para ser aprovada tem que estar vinculada a uma aprovação
+    if (window._modoTelaComercial !== 'contrato' && window._comercialAprovacao && typeof window._comercialAprovacao.garantirAprovacaoVinculadaAntesDeAprovarProposta === 'function') {
+        const okAprov = await window._comercialAprovacao.garantirAprovacaoVinculadaAntesDeAprovarProposta(_propostasEditandoId);
+        if (!okAprov) return;
     }
     if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
         await window.carregarCacheDadosQuadroEvento(false);

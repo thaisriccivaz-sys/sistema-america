@@ -837,6 +837,7 @@ const BREADCRUMB_MAP = {
     'comercial-dashboard': { path: 'Comercial → Dashboard', code: 'COM015' },
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
+    'comercial-aprovacao': { path: 'Comercial → Aprovação', code: 'COM017' },
     'comercial-contratos': { path: 'Comercial → Contratos', code: 'COM010' },
     'comercial-os': { path: 'Comercial → OS', code: 'COM016' },
     'comercial-assinaturas': { path: 'Comercial → Assinaturas', code: 'COM011' },
@@ -1042,6 +1043,7 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
             if (mapPerms['comercial-dashboard'] === undefined) mapPerms['comercial-dashboard'] = true;
             if (mapPerms['comercial-os'] === undefined) mapPerms['comercial-os'] = true;
+            if (mapPerms['comercial-aprovacao'] === undefined) mapPerms['comercial-aprovacao'] = true;
         }
         if (mapPerms['app-lideranca-separacao'] || mapPerms['app-lideranca-resumo-rota'] || mapPerms['app-lideranca-entregas'] || mapPerms['app-lideranca-retiradas']) {
             if (mapPerms['app-lideranca-insumos'] === undefined) mapPerms['app-lideranca-insumos'] = true;
@@ -1366,6 +1368,7 @@ const TAB_META = {
     'comercial-dashboard': { color: '#7048e8', icon: 'ph-chart-line-up', title: 'Dashboard Comercial' },
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
+    'comercial-aprovacao': { color: '#7048e8', icon: 'ph-Stamp', title: 'Aprovação' },
     'comercial-contratos': { color: '#7048e8', icon: 'ph-files', title: 'Contratos' },
     'comercial-os': { color: '#7048e8', icon: 'ph-clipboard-text', title: 'OS' },
     'comercial-assinaturas': { color: '#7048e8', icon: 'ph-signature', title: 'Assinaturas' },
@@ -1608,6 +1611,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'comercial-os' && typeof window.renderTelaOSComercial === 'function') {
         setTimeout(() => window.renderTelaOSComercial(), 50);
+    }
+    if (tab.target === 'comercial-aprovacao' && typeof window.renderTelaAprovacaoComercial === 'function') {
+        setTimeout(() => window.renderTelaAprovacaoComercial(), 50);
     }
     if (tab.target === 'estoque-equipamentos' && typeof window.carregarEquipamentosEstoque === 'function') {
         setTimeout(() => window.carregarEquipamentosEstoque(), 50);
@@ -1978,6 +1984,8 @@ function navigateTo(target) {
         if (typeof window.renderDashboardComercial === 'function') setTimeout(() => window.renderDashboardComercial(false), 50);
     } else if (target === 'comercial-os') {
         if (typeof window.renderTelaOSComercial === 'function') setTimeout(() => window.renderTelaOSComercial(), 50);
+    } else if (target === 'comercial-aprovacao') {
+        if (typeof window.renderTelaAprovacaoComercial === 'function') setTimeout(() => window.renderTelaAprovacaoComercial(), 50);
     } else if (target === 'comercial-comissao') {
         if (typeof window._comercialComissao !== 'undefined') setTimeout(() => window._comercialComissao.init(), 80);
     } else if (target === 'administrativo-senhas') {
