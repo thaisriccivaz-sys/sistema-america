@@ -63,7 +63,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-multas',       pagina_nome: 'Multas',         icone: 'ph-receipt' },
     { modulo: 'Logística', pagina_id: 'logistica-credenciamento', pagina_nome: 'Credenciamento', icone: 'ph-identification-card' },
     { modulo: 'Logística', pagina_id: 'logistica-senhas',         pagina_nome: 'Cofre de Senhas', icone: 'ph-lock-key' },
-    { modulo: 'Logística', pagina_id: 'logistica-itinerantes',    pagina_nome: 'Clientes Itinerantes', icone: 'ph-map-pin-line' },
+
     { modulo: 'Logística', pagina_id: 'logistica-sinistros',       pagina_nome: 'Sinistros Logística',  icone: 'ph-warning' },
     { modulo: 'Logística', pagina_id: 'logistica-agenda',         pagina_nome: 'Agenda Logística', icone: 'ph-calendar' },
     { modulo: 'Logística', pagina_id: 'logistica-epi',            pagina_nome: 'Entrega de EPI',   icone: 'ph-shield-check' },
@@ -671,7 +671,7 @@ const MENU_HIERARQUIA = [
                     'logistica-dashboard', 'logistica-agenda', 'logistica-epi', 
                     'logistica-multas', 'logistica-equipes', 'logistica-frota', 'logistica-frota-manutencao', 
                     'logistica-credenciamento', 'logistica-senhas', 
-                    'logistica-itinerantes', 'logistica-sinistros'
+                    'logistica-sinistros'
                 ]
             },
             {

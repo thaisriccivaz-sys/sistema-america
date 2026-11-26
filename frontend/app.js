@@ -816,15 +816,12 @@ const BREADCRUMB_MAP = {
     'logistica-pipeline': { path: 'Logística → Rota Redonda → Pipeline OS', code: 'LOG003' },
     'logistica-resumo-rota': { path: 'Logística → Rota Redonda → Resumo da Rota', code: 'LOG003B' },
     'logistica-videos-os': { path: 'Logística → Rota Redonda → Observações OS', code: 'LOG003V' },
-    'logistica-entregas': { path: 'Logística → Entregas', code: 'LOG014' },
     'logistica-multas': { path: 'Multas', code: 'LOG004' },
     'logistica-multas-monaco': { path: 'Diretoria → Multas Mônaco', code: 'LOG012' },
     'logistica-equipes': { path: 'Equipes', code: 'LOG013' },
     'logistica-frota': { path: 'Gestão de Frota', code: 'LOG005' },
     'logistica-credenciamento': { path: 'Credenciamento', code: 'LOG006' },
     'logistica-senhas': { path: 'Cofre de Senhas', code: 'LOG007' },
-    'logistica-itinerantes': { path: 'Clientes Itinerantes', code: 'LOG009' },
-    'logistica-mtrs': { path: 'Logística → Gestão de MTRs', code: 'LOG015' },
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
     'logistica-agenda': { path: 'Agenda Logística', code: 'LOG011' },
     'logistica-epi': { path: 'Entrega de EPI', code: 'LOG012' },
@@ -956,7 +953,7 @@ window.carregarPermissoesOnline = async function () {
         window.isUniAmericaAdmin = true;
         window.uniAmericaPerms = { isAdmin: true, isUsuario: false };
         document.querySelectorAll('.nav-item').forEach(el => {
-            if (el.getAttribute('data-target') === 'comercial-contatos') {
+            if (['comercial-contatos', 'logistica-entregas', 'logistica-itinerantes', 'logistica-mtrs'].includes(el.getAttribute('data-target'))) {
                 el.style.cssText = 'display: none !important;';
             } else {
                 el.style.display = '';
@@ -1058,7 +1055,7 @@ window.carregarPermissoesOnline = async function () {
         document.querySelectorAll('.nav-item[data-target]').forEach(link => {
             const pathId = link.getAttribute('data-target');
 
-            if (pathId === 'comercial-contatos') {
+            if (['comercial-contatos', 'logistica-entregas', 'logistica-itinerantes', 'logistica-mtrs'].includes(pathId)) {
                 link.style.cssText = 'display: none !important;';
                 return;
             }

@@ -4807,7 +4807,7 @@ function _renderFormPropostaInt() {
                             <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}" style="font-size:1rem;"></i>
                             <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
-                        <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(String(v('numero_aprovacao')).padStart(2, '0'))}` : 'Solicitar ou vincular Aprovação'}" style="display:${!isNovo ? 'inline-flex' : 'none'}; background:#ea580c; color:#ffffff; border:1px solid #c2410c; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#c2410c'" onmouseout="this.style.background='#ea580c'" onfocus="this.blur()">
+                        <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(String(v('numero_aprovacao')).padStart(2, '0'))}` : 'Solicitar ou vincular Aprovação'}" style="display:none !important; background:#ea580c; color:#ffffff; border:1px solid #c2410c; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#c2410c'" onmouseout="this.style.background='#ea580c'" onfocus="this.blur()">
                             <i class="ph ph-seal-check" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(String(v('numero_aprovacao')).padStart(2, '0'))}` : 'Aprovação'}</span>
                         </button>
                         <button type="button" id="btn-prop-gerar-os-contrato" onclick="window.gerarOsComercialDoContrato(${id || 'null'})" title="Gerar OS Comercial vinculada a este contrato assinado" style="display:${(!isNovo && window._modoTelaComercial === 'contrato' && !Boolean(v('numero_os') && String(v('numero_os')).trim()) && (['CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO', 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase()) || Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)))) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
@@ -6139,30 +6139,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnAprovCom = document.getElementById('btn-prop-aprovacao-comercial');
     if (btnAprovCom) {
-        if (_propostasEditandoId) {
-            let numAprvAtu = String((prop && prop.numero_aprovacao) || '').trim();
-            if (!numAprvAtu && Array.isArray(window._comercialAprovacoesCache)) {
-                const apVinc = window._comercialAprovacoesCache.find(a =>
-                    (prop && prop.aprovacao_id && Number(a.id) === Number(prop.aprovacao_id)) ||
-                    Number(a.proposta_id) === Number(_propostasEditandoId)
-                );
-                if (apVinc && apVinc.numero_aprovacao) {
-                    numAprvAtu = String(apVinc.numero_aprovacao).trim();
-                    if (prop) {
-                        prop.aprovacao_id = apVinc.id;
-                        prop.numero_aprovacao = numAprvAtu;
-                    }
-                }
-            }
-            const numFmt = numAprvAtu ? String(numAprvAtu).padStart(2, '0') : '';
-            const lblAprv = document.getElementById('lbl-btn-prop-aprovacao-comercial');
-            if (lblAprv) lblAprv.textContent = numFmt ? ('Aprovação Nº ' + numFmt) : 'Aprovação';
-            btnAprovCom.title = numFmt ? ('Abrir Aprovação Nº ' + numFmt) : 'Solicitar ou vincular Aprovação';
-            btnAprovCom.setAttribute('onclick', `window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${Number(_propostasEditandoId)})`);
-            btnAprovCom.style.display = 'inline-flex';
-        } else {
-            btnAprovCom.style.display = 'none';
-        }
+        btnAprovCom.style.display = 'none';
     }
 
     const tipoFormAtu = document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '';
@@ -23131,7 +23108,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
-        const totalColunasModal = (isModoContratoModal ? 10 : 9) + (exibirColExcluirModal ? 1 : 0);
+        const totalColunasModal = (isModoContratoModal ? 9 : 8) + (exibirColExcluirModal ? 1 : 0);
 
         const renderRows = (list) => {
             if (list.length === 0) {
@@ -23186,7 +23163,6 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnPropAzulHtml}</td>
-                        <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnAprovacaoLaranjaHtml}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnContratoAmareloHtml}</td>
                         ${isModoContratoModal ? `<td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(tituloContratoExib)}</td>` : ''}
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
@@ -23241,7 +23217,6 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Proposta</th>
-                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Aprovação</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Contrato'}</th>
                                         ${isModoContratoModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; min-width:150px;">Título</th>' : ''}
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>

@@ -337,15 +337,18 @@ body {
 /* ── Grupo aninhado no submenu (ex: Rota Redonda) ─────────────── */
 .nav-group { display: flex; flex-direction: column; }
 
-/* Botão de label / toggle */
-.nav-group-label {
+/* Botão de label / toggle (Padronizado com .dept-submenu .nav-item) */
+.nav-group-label,
+.dept-submenu .nav-group-label {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.38rem 1.15rem;
+    font-family: 'Inter', sans-serif;
     font-size: 0.84rem;
     line-height: 1.25;
     font-weight: 500;
+    letter-spacing: normal;
     color: var(--text-main);
     user-select: none;
     background: transparent;
@@ -355,6 +358,13 @@ body {
     text-align: left;
     cursor: pointer;
     transition: var(--transition);
+}
+.nav-group-label span {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: normal;
 }
 .nav-group-label:hover { 
     background: var(--bg-main); 
@@ -391,12 +401,20 @@ body {
     opacity: 1;
 }
 
-/* Item sub-indentado */
+/* Item sub-indentado (Padronizado com a mesma fonte do menu principal) */
 .dept-submenu .nav-item.nav-item-sub {
-    padding: 0.32rem 1.15rem 0.32rem 2.1rem;
-    font-size: 0.81rem;
+    padding: 0.36rem 1.15rem 0.36rem 2.1rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 500;
     line-height: 1.25;
+    letter-spacing: normal;
     border-left: 3px solid transparent;
+}
+.dept-submenu .nav-item[data-target="comercial-aprovacao"],
+.dept-submenu .nav-item[data-target="comercial-aprovacao"] span,
+.dept-submenu .nav-item[data-target="comercial-aprovacao"] i {
+    color: #dc2626 !important;
 }
 
 /* ── Grupos aninhados (Financeiro > Compras > Frota): o grupo interno so abre quando ele proprio estiver .open ── */
