@@ -23080,13 +23080,15 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
     }
 
     try {
-        const [propostasResp, clientesResp] = await Promise.all([
+        const [propostasResp, clientesResp, aprovacoesResp] = await Promise.all([
             apiGet('/propostas').catch(() => _propostasData),
             temClientesEmCache ? Promise.resolve(_clientesData) : apiGet('/clientes'),
+            apiGet('/comercial/aprovacoes').catch(() => (window._comercialAprovacoesCache || [])),
             (async () => { try { await window.carregarContextoUsuarioComercial(); } catch (e) {} })()
         ]);
         if (Array.isArray(propostasResp)) _propostasData = propostasResp;
         if (Array.isArray(clientesResp)) _clientesData = clientesResp;
+        if (Array.isArray(aprovacoesResp)) window._comercialAprovacoesCache = aprovacoesResp;
         if (!temClientesEmCache) Swal.close();
         const clientes = Array.isArray(_clientesData) ? _clientesData : [];
 
@@ -23129,12 +23131,13 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         // Adiciona CNPJ e ícone de grupo localmente a cada proposta
         let propostasComCnpj = mapearPropostasComCnpj(_propostasData);
 
-        const totalColunasModal = (isModoContratoModal ? 9 : 8) + (exibirColExcluirModal ? 1 : 0);
+        const totalColunasModal = (isModoContratoModal ? 10 : 9) + (exibirColExcluirModal ? 1 : 0);
 
         const renderRows = (list) => {
             if (list.length === 0) {
                 return `<tr><td colspan="${totalColunasModal}" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum registro encontrado.</td></tr>`;
             }
+            const listaAprovacoesCache = Array.isArray(window._comercialAprovacoesCache) ? window._comercialAprovacoesCache : [];
             return list.map(p => {
                 const total = p.valor_total || 0;
                 const totalFmt = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -23157,8 +23160,19 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     ? String(numCtBaseAditivo || '').trim()
                     : String(p.contrato || '').trim();
                 const tituloContratoExib = String(p.titulo_contrato || '').trim() || '—';
+
+                const aprvVincRow = listaAprovacoesCache.find(a =>
+                    (p.aprovacao_id && Number(a.id) === Number(p.aprovacao_id)) ||
+                    Number(a.proposta_id) === Number(p.id)
+                );
+                const numAprovProp = String(p.numero_aprovacao || (aprvVincRow && aprvVincRow.numero_aprovacao) || '').trim();
+                const idAprovProp = Number(p.aprovacao_id || (aprvVincRow && aprvVincRow.id) || 0);
+
                 const btnPropAzulHtml = codPropLimpo
                     ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirPropostaDiretoId(${p.id});" title="Clique para abrir a Proposta Nº ${_escHtmlProp(codPropLimpo)}" style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#1d4ed8'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#2563eb'; this.style.transform='scale(1)'">${_escHtmlProp(codPropLimpo)}</button>`
+                    : '—';
+                const btnAprovacaoLaranjaHtml = numAprovProp
+                    ? `<button type="button" onclick="event.stopPropagation(); Swal.close(); if(window._comercialAprovacao && typeof window._comercialAprovacao.abrirModalDetalhesAprovacao === 'function' && ${idAprovProp}){ window._comercialAprovacao.abrirModalDetalhesAprovacao(${idAprovProp}); } else if(window._comercialAprovacao && typeof window._comercialAprovacao.acaoBotaoAprovacaoNaProposta === 'function'){ window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${p.id}); }" title="Clique para abrir a Aprovação Nº ${_escHtmlProp(numAprovProp.padStart(2, '0'))}" style="background:#ea580c; color:#ffffff; border:1px solid #c2410c; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#c2410c'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#ea580c'; this.style.transform='scale(1)'">${_escHtmlProp(numAprovProp.padStart(2, '0'))}</button>`
                     : '—';
                 const btnContratoAmareloHtml = numContratoProp
                     ? ((ehAditivoModalRow && !aditivoEstaAssinadoModal)
@@ -23172,6 +23186,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 return `
                     <tr ondblclick="window.selecionarPropostaBusca(${p.id})" style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                         <td style="padding:10px 12px; font-weight:bold; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnPropAzulHtml}</td>
+                        <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnAprovacaoLaranjaHtml}</td>
                         <td style="padding:10px 12px; font-weight:700; color:#0f172a; text-align:center; white-space:nowrap;" ondblclick="event.stopPropagation();">${btnContratoAmareloHtml}</td>
                         ${isModoContratoModal ? `<td style="padding:10px 12px; font-weight:600; color:#334155;">${_escHtmlProp(tituloContratoExib)}</td>` : ''}
                         <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${p.cliente_icone ? p.cliente_icone + ' ' : ''}${p.cliente_nome || '—'}</td>
@@ -23226,6 +23241,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Proposta</th>
+                                        <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:95px; white-space:nowrap;">Aprovação</th>
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; text-align:center; width:100px; white-space:nowrap;">${isModoContratoModal ? 'Nº Contrato' : 'Contrato'}</th>
                                         ${isModoContratoModal ? '<th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2; min-width:150px;">Título</th>' : ''}
                                         <th style="padding:10px 12px; font-weight:700; position:sticky; top:0; background:#f8fafc; z-index:2;">Razão Social</th>

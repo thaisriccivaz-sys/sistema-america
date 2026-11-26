@@ -177,6 +177,58 @@
         return s;
     }
 
+    function parseListaEnderecosInstalacao(raw) {
+        if (Array.isArray(raw)) {
+            const seenA = new Set();
+            const outA = [];
+            raw.forEach(item => {
+                const s = String(item || '').trim();
+                if (!s) return;
+                s.split('|').forEach(part => {
+                    const p = String(part || '').trim();
+                    if (!p) return;
+                    const k = normStr(p);
+                    if (!seenA.has(k)) {
+                        seenA.add(k);
+                        outA.push(p);
+                    }
+                });
+            });
+            return outA;
+        }
+        const str = String(raw || '').trim();
+        if (!str) return [];
+        const seen = new Set();
+        const out = [];
+        str.split('|').forEach(part => {
+            const p = String(part || '').trim();
+            if (!p) return;
+            const k = normStr(p);
+            if (!seen.has(k)) {
+                seen.add(k);
+                out.push(p);
+            }
+        });
+        return out;
+    }
+
+    function renderChipsEnderecosDraftHtml(enderecosDraft) {
+        if (!Array.isArray(enderecosDraft) || !enderecosDraft.length) {
+            return `<div style="font-size:0.75rem; color:#94a3b8; font-style:italic; padding:4px 2px;">Nenhum endereço de instalação adicionado ainda.</div>`;
+        }
+        return enderecosDraft.map((endStr, idx) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:4px 8px; font-size:0.77rem; color:#0f172a;">
+                <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                    <i class="ph ph-map-pin" style="color:#ea580c; flex-shrink:0;"></i>
+                    <span style="font-weight:700; word-break:break-word;">${enderecosDraft.length > 1 ? `<strong style="color:#ea580c;">${idx + 1}º:</strong> ` : ''}${esc(endStr)}</span>
+                </div>
+                <button type="button" onclick="window._removerEnderecoModalAprov(${idx})"
+                    title="Remover este endereço"
+                    style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; width:22px; height:22px; font-size:0.8rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">&times;</button>
+            </div>
+        `).join('');
+    }
+
     /**
      * Calcula os detalhes da barra de SLA de 15 minutos (padrão SAC) para cards na coluna "Solicitação".
      */
@@ -571,13 +623,21 @@
                     </div>
                 ` : ''}
 
-                <!-- Endereço de Instalação -->
-                ${a.endereco_instalacao ? `
-                    <div style="font-size:0.72rem; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:4px 6px; display:flex; align-items:flex-start; gap:4px;">
-                        <i class="ph ph-map-pin" style="color:#7c3aed; margin-top:2px; flex-shrink:0;"></i>
-                        <span style="line-height:1.25; word-break:break-word;">${esc(a.endereco_instalacao)}</span>
-                    </div>
-                ` : ''}
+                <!-- Endereço(s) de Instalação -->
+                ${(() => {
+                    const endsCard = parseListaEnderecosInstalacao(a.endereco_instalacao);
+                    if (!endsCard.length) return '';
+                    return `
+                        <div style="display:flex; flex-direction:column; gap:3px;">
+                            ${endsCard.map((endItem, idxEnd) => `
+                                <div style="font-size:0.72rem; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:4px 6px; display:flex; align-items:flex-start; gap:4px;">
+                                    <i class="ph ph-map-pin" style="color:#ea580c; margin-top:2px; flex-shrink:0;"></i>
+                                    <span style="line-height:1.25; word-break:break-word;">${endsCard.length > 1 ? `<strong>${idxEnd + 1}º:</strong> ` : ''}${esc(endItem)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                })()}
 
                 <!-- Equipamentos na Proposta -->
                 ${equips.length > 0 ? `
@@ -707,6 +767,12 @@
                 ${htmlInterno}
             </div>
         `;
+        // Fechar o popup ao clicar fora do diálogo
+        overlay.addEventListener('mousedown', (ev) => {
+            if (ev.target === overlay) {
+                fecharOverlayModalAprovacao();
+            }
+        });
         document.body.appendChild(overlay);
         return overlay;
     }
@@ -1434,7 +1500,11 @@
         };
         window._onAprovacaoEnderecoSalvo = async (enderecoCompleto) => {
             if (inpCli) await carregarVinculosDoCliente(inpCli.value);
-            if (inpEnd) inpEnd.value = enderecoCompleto || '';
+            if (enderecoCompleto && typeof window._adicionarEnderecoModalAprov === 'function') {
+                window._adicionarEnderecoModalAprov(enderecoCompleto);
+            } else if (inpEnd) {
+                inpEnd.value = enderecoCompleto || '';
+            }
         };
 
         if (chkNaoCliente) {
@@ -1604,7 +1674,7 @@
                     return;
                 }
                 dropEnd.innerHTML = matches.map(e => `
-                    <div onmousedown="event.preventDefault(); document.getElementById('caprv-inp-endereco').value='${escJsSingle(e.texto_completo)}'; document.getElementById('caprv-drop-endereco').style.display='none';"
+                    <div onmousedown="event.preventDefault(); if(typeof window._adicionarEnderecoModalAprov==='function'){window._adicionarEnderecoModalAprov('${escJsSingle(e.texto_completo)}');}else{document.getElementById('caprv-inp-endereco').value='${escJsSingle(e.texto_completo)}';} document.getElementById('caprv-drop-endereco').style.display='none';"
                         style="padding:7px 10px; font-size:0.78rem; cursor:pointer; border-bottom:1px solid #f1f5f9;"
                         onmouseover="this.style.background='#f5f3ff'" onmouseout="this.style.background='#ffffff'">
                         <div style="font-weight:700; color:#0f172a;">${esc(e.nome_local || 'Endereço')}</div>
@@ -1621,7 +1691,12 @@
                 if (ev.key === 'Enter') {
                     ev.preventDefault();
                     dropEnd.style.display = 'none';
-                    if (chkNaoCliente && chkNaoCliente.checked) return;
+                    if (chkNaoCliente && chkNaoCliente.checked) {
+                        if (typeof window._adicionarEnderecoModalAprov === 'function' && inpEnd.value.trim()) {
+                            window._adicionarEnderecoModalAprov(inpEnd.value.trim());
+                        }
+                        return;
+                    }
                     window._caprvClickLupaEndereco();
                 }
             });
@@ -1631,7 +1706,11 @@
             if (chkNaoCliente && chkNaoCliente.checked) return;
             const cliLimpo = limparIconeCliente(inpCli ? inpCli.value : '');
             abrirModalPesquisaEnderecoAprovacao(cliLimpo, inpEnd ? inpEnd.value : '', (endSel) => {
-                if (inpEnd) inpEnd.value = endSel;
+                if (typeof window._adicionarEnderecoModalAprov === 'function') {
+                    window._adicionarEnderecoModalAprov(endSel);
+                } else if (inpEnd) {
+                    inpEnd.value = endSel;
+                }
             });
         };
         window._caprvClickAddEndereco = async () => {
@@ -1835,6 +1914,7 @@
             const cliIni = limparIconeCliente(dadosIniciais.cliente_nome || '');
             const contIni = String(dadosIniciais.contato_nome || '').trim();
             const endIni = String(dadosIniciais.endereco_instalacao || '').trim();
+            let enderecosDraft = parseListaEnderecosInstalacao(endIni);
             const equipsIni = Array.isArray(dadosIniciais.equipamentos)
                 ? dadosIniciais.equipamentos
                 : parseEquipamentosLista(dadosIniciais.equipamentos_json || '[]');
@@ -1849,6 +1929,30 @@
                     observacao: String(it.observacao || '').trim()
                 };
             }).filter(it => it.produto);
+
+            const atualizarChipsEnderecosDom = () => {
+                const w = document.getElementById('caprv-enderecos-chips-list');
+                if (w) w.innerHTML = renderChipsEnderecosDraftHtml(enderecosDraft);
+            };
+
+            window._adicionarEnderecoModalAprov = (endRawOpcional) => {
+                const inpE = document.getElementById('caprv-inp-endereco');
+                const valRaw = endRawOpcional !== undefined ? String(endRawOpcional || '') : String(inpE?.value || '');
+                const novos = parseListaEnderecosInstalacao(valRaw);
+                if (!novos.length) return;
+                novos.forEach(item => {
+                    if (!enderecosDraft.some(ex => normStr(ex) === normStr(item))) {
+                        enderecosDraft.push(item);
+                    }
+                });
+                if (inpE) inpE.value = '';
+                atualizarChipsEnderecosDom();
+            };
+
+            window._removerEnderecoModalAprov = (idx) => {
+                enderecosDraft.splice(idx, 1);
+                atualizarChipsEnderecosDom();
+            };
 
             const atualizarTabelaEquipsDom = () => {
                 const w = document.getElementById('caprv-equips-list');
@@ -1919,7 +2023,11 @@
                     if (inpCon && pObj.contato_nome) inpCon.value = pObj.contato_nome;
 
                     const inpEnd = document.getElementById('caprv-inp-endereco');
-                    if (inpEnd && pObj.endereco_instalacao) inpEnd.value = pObj.endereco_instalacao;
+                    if (inpEnd) inpEnd.value = '';
+                    if (pObj.endereco_instalacao) {
+                        enderecosDraft = parseListaEnderecosInstalacao(pObj.endereco_instalacao);
+                        atualizarChipsEnderecosDom();
+                    }
 
                     const selTipo = document.getElementById('caprv-sel-tipo-proposta');
                     const tPropUp = String(pObj.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -1984,6 +2092,14 @@
                         Swal.fire('Selecione a Proposta', 'Você marcou que deseja vincular a uma proposta. Selecione a proposta ou mude a opção para "Não vincular a uma proposta agora".', 'warning');
                         return;
                     }
+                    const endDigitado = String(document.getElementById('caprv-inp-endereco')?.value || '').trim();
+                    if (endDigitado) {
+                        parseListaEnderecosInstalacao(endDigitado).forEach(item => {
+                            if (!enderecosDraft.some(ex => normStr(ex) === normStr(item))) {
+                                enderecosDraft.push(item);
+                            }
+                        });
+                    }
                     const payload = {
                         proposta_id: desejarVincularProp ? propIdSelecionada : null,
                         proposta_codigo: desejarVincularProp ? propCodigoSelecionado : '',
@@ -1991,7 +2107,7 @@
                         ainda_nao_e_cliente: Boolean(document.getElementById('caprv-chk-nao-cliente')?.checked),
                         cliente_nome: cliRaw,
                         contato_nome: String(document.getElementById('caprv-inp-contato')?.value || '').trim(),
-                        endereco_instalacao: String(document.getElementById('caprv-inp-endereco')?.value || '').trim(),
+                        endereco_instalacao: enderecosDraft.join(' | '),
                         equipamentos: equipsDraft,
                         coluna: 'Solicitação',
                         urgente: Boolean(document.getElementById('caprv-chk-urgente')?.checked),
@@ -2131,9 +2247,10 @@
                         </div>
 
                         <div style="position:relative;">
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço de Instalação</label>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <input type="text" id="caprv-inp-endereco" value="${esc(endIni)}"
+                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço(s) de Instalação</label>
+                            <div style="display:flex; align-items:center; gap:4px; position:relative;">
+                                <input type="text" id="caprv-inp-endereco" value=""
+                                    placeholder="Selecione na lista, pesquise na lupa ou digite e clique em + Incluir..."
                                     autocomplete="off"
                                     style="flex:1; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
                                 <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickLupaEndereco()"
@@ -2146,8 +2263,16 @@
                                     style="background:#eab308; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
                                     <i class="ph ph-plus" style="font-size:1rem; font-weight:bold;"></i>
                                 </button>
+                                <button type="button" onclick="window._adicionarEnderecoModalAprov()"
+                                    title="Incluir Endereço na Lista"
+                                    style="background:#ea580c; color:#ffffff; border:none; height:34px; padding:0 12px; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+                                    + Incluir
+                                </button>
+                                <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                             </div>
-                            <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
+                            <div id="caprv-enderecos-chips-list" style="margin-top:6px;">
+                                ${renderChipsEnderecosDraftHtml(enderecosDraft)}
+                            </div>
                         </div>
 
                         <div>
@@ -2220,6 +2345,9 @@
          */
         async abrirModalDetalhesAprovacao(id) {
             await garantirCachesClientes();
+            if (!state.aprovacoes || !state.aprovacoes.length || !(state.aprovacoes || []).some(x => Number(x.id) === Number(id))) {
+                await carregarAprovacoesServidor();
+            }
             const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(id));
             if (!aprv) return;
             const numAprv = String(aprv.numero_aprovacao || aprv.id).padStart(2, '0');
@@ -2229,6 +2357,33 @@
             const tipoIni = TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tipoIniRaw) ? tipoIniRaw : 'OBRA MENSAL';
             const naoEhCliIni = Number(aprv.ainda_nao_e_cliente) === 1;
             const podeExcluir = ehUsuarioThaisRicci();
+
+            let enderecosDraft = parseListaEnderecosInstalacao(aprv.endereco_instalacao || '');
+            const snapshotEnderecosInicial = enderecosDraft.join(' | ');
+
+            const atualizarChipsEnderecosDom = () => {
+                const w = document.getElementById('caprv-enderecos-chips-list');
+                if (w) w.innerHTML = renderChipsEnderecosDraftHtml(enderecosDraft);
+            };
+
+            window._adicionarEnderecoModalAprov = (endRawOpcional) => {
+                const inpE = document.getElementById('caprv-inp-endereco');
+                const valRaw = endRawOpcional !== undefined ? String(endRawOpcional || '') : String(inpE?.value || '');
+                const novos = parseListaEnderecosInstalacao(valRaw);
+                if (!novos.length) return;
+                novos.forEach(item => {
+                    if (!enderecosDraft.some(ex => normStr(ex) === normStr(item))) {
+                        enderecosDraft.push(item);
+                    }
+                });
+                if (inpE) inpE.value = '';
+                atualizarChipsEnderecosDom();
+            };
+
+            window._removerEnderecoModalAprov = (idx) => {
+                enderecosDraft.splice(idx, 1);
+                atualizarChipsEnderecosDom();
+            };
 
             let equipsDraft = parseEquipamentosLista(aprv.equipamentos_json).map(it => {
                 const rawNome = String(it.produto || it.descricao || it.nome || '').trim();
@@ -2355,7 +2510,15 @@
                 const novoTipo = document.getElementById('caprv-sel-tipo-proposta')?.value || tipoIni;
                 const novoNaoCli = Boolean(document.getElementById('caprv-chk-nao-cliente')?.checked);
                 const novoContato = String(document.getElementById('caprv-inp-contato')?.value || '').trim();
-                const novoEndereco = String(document.getElementById('caprv-inp-endereco')?.value || '').trim();
+                const endDigitado = String(document.getElementById('caprv-inp-endereco')?.value || '').trim();
+                if (endDigitado) {
+                    parseListaEnderecosInstalacao(endDigitado).forEach(item => {
+                        if (!enderecosDraft.some(ex => normStr(ex) === normStr(item))) {
+                            enderecosDraft.push(item);
+                        }
+                    });
+                }
+                const novoEndereco = enderecosDraft.join(' | ');
                 const novaObs = String(document.getElementById('caprv-inp-obs')?.value || '').trim();
                 const novoUrgente = Boolean(document.getElementById('caprv-chk-urgente')?.checked);
                 const colAtualRecente = normalizarColuna(aprv.coluna);
@@ -2365,7 +2528,7 @@
                     novoNaoCli !== naoEhCliIni ||
                     cliRaw !== limparIconeCliente(aprv.cliente_nome || '') ||
                     novoContato !== String(aprv.contato_nome || '').trim() ||
-                    novoEndereco !== String(aprv.endereco_instalacao || '').trim() ||
+                    novoEndereco !== snapshotEnderecosInicial ||
                     novaObs !== String(aprv.observacoes || '').trim() ||
                     novoUrgente !== (Number(aprv.urgente) === 1) ||
                     JSON.stringify(equipsDraft) !== snapshotEquipsInicial
@@ -2532,11 +2695,12 @@
                         </div>
                     </div>
 
-                    <!-- Linha 2: Endereço de Instalação (Campo Etapa / Coluna do Kanban ocultado conforme solicitado) -->
+                    <!-- Linha 2: Endereço(s) de Instalação (Campo Etapa / Coluna do Kanban ocultado conforme solicitado) -->
                     <div style="position:relative;">
-                        <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço de Instalação</label>
-                        <div style="display:flex; align-items:center; gap:4px;">
-                            <input type="text" id="caprv-inp-endereco" value="${esc(aprv.endereco_instalacao || '')}"
+                        <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço(s) de Instalação</label>
+                        <div style="display:flex; align-items:center; gap:4px; position:relative;">
+                            <input type="text" id="caprv-inp-endereco" value=""
+                                placeholder="Selecione na lista, pesquise na lupa ou digite e clique em + Incluir..."
                                 autocomplete="off"
                                 style="flex:1; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
                             <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickLupaEndereco()"
@@ -2549,8 +2713,16 @@
                                 style="background:#eab308; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
                                 <i class="ph ph-plus" style="font-size:1rem; font-weight:bold;"></i>
                             </button>
+                            <button type="button" onclick="window._adicionarEnderecoModalAprov()"
+                                title="Incluir Endereço na Lista"
+                                style="background:#ea580c; color:#ffffff; border:none; height:34px; padding:0 12px; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; white-space:nowrap; flex-shrink:0;">
+                                + Incluir
+                            </button>
+                            <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                         </div>
-                        <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
+                        <div id="caprv-enderecos-chips-list" style="margin-top:6px;">
+                            ${renderChipsEnderecosDraftHtml(enderecosDraft)}
+                        </div>
                     </div>
 
                     <!-- Linha 3: Equipamentos (3 campos + Tabela com 3 colunas de dados + ação) -->
@@ -2862,7 +3034,17 @@
 
             const clienteNome = limparIconeCliente(obterValDom('prop-cliente') || (pMem && pMem.cliente_nome) || '');
             const contatoNome = String(obterValDom('prop-contato') || (pMem && pMem.contato_nome) || '').trim();
-            const enderecoInst = String(obterValDom('prop-endereco') || (pMem && pMem.endereco_instalacao) || '').trim();
+            const listaEndDom = (typeof window.obterListaEnderecosInstalacao === 'function' && document.getElementById('prop-endereco'))
+                ? window.obterListaEnderecosInstalacao()
+                : parseListaEnderecosInstalacao(obterValDom('prop-endereco'));
+            const listaEndMem = parseListaEnderecosInstalacao((pMem && pMem.endereco_instalacao) || '');
+            const listaEndFinal = [];
+            [...listaEndDom, ...listaEndMem].forEach(item => {
+                if (item && !listaEndFinal.some(ex => normStr(ex) === normStr(item))) {
+                    listaEndFinal.push(item);
+                }
+            });
+            const enderecoInst = listaEndFinal.join(' | ');
             const codigoProp = String(obterValDom('prop-codigo') || (pMem && pMem.codigo) || propId).trim();
             const tipoProp = String(obterValDom('prop-tipo') || (pMem && pMem.tipo) || 'OBRA MENSAL').trim();
             const equipsAtuais = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
@@ -2931,7 +3113,11 @@
                                 ${renderBadgeColuna(a.coluna)}
                             </td>
                             <td style="padding:9px 10px; color:#334155; font-size:0.77rem;">
-                                ${esc(a.endereco_instalacao || '—')}
+                                ${(() => {
+                                    const ends = parseListaEnderecosInstalacao(a.endereco_instalacao);
+                                    if (!ends.length) return '<span style="color:#94a3b8;">—</span>';
+                                    return ends.map((endItem, idxE) => `<div style="padding:2px 0; display:flex; align-items:flex-start; gap:4px;"><i class="ph ph-map-pin" style="color:#ea580c; margin-top:2px; flex-shrink:0;"></i><span>${ends.length > 1 ? `<strong>${idxE + 1}.</strong> ` : ''}${esc(endItem)}</span></div>`).join('');
+                                })()}
                             </td>
                             <td style="padding:9px 10px;">${nomesHtml}</td>
                             <td style="padding:9px 10px; text-align:center;">${qtdProdHtml}</td>
@@ -2958,6 +3144,20 @@
                     fecharOverlayModalAprovacao();
                     const vinc = await this.vincularAprovacaoComProposta(apId, prId);
                     if (vinc) {
+                        const apMem = (state.aprovacoes || []).find(x => Number(x.id) === Number(apId));
+                        if (apMem && listaEndFinal.length > 0) {
+                            const endsAtuais = parseListaEnderecosInstalacao(apMem.endereco_instalacao);
+                            let adicionouNovo = false;
+                            listaEndFinal.forEach(endProp => {
+                                if (endProp && !endsAtuais.some(ex => normStr(ex) === normStr(endProp))) {
+                                    endsAtuais.push(endProp);
+                                    adicionouNovo = true;
+                                }
+                            });
+                            if (adicionouNovo) {
+                                apMem.endereco_instalacao = endsAtuais.join(' | ');
+                            }
+                        }
                         await this.abrirModalDetalhesAprovacao(apId);
                     }
                     resolve(vinc);
