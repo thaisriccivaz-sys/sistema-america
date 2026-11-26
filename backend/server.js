@@ -43697,6 +43697,10 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const novosDadosOsComercialJson = b.os_comercial_dados_json !== undefined
         ? (typeof b.os_comercial_dados_json === 'string' ? b.os_comercial_dados_json : JSON.stringify(b.os_comercial_dados_json || {}))
         : (prop.os_comercial_dados_json || '');
+      const podeEditarAtendente = Boolean(ctxUser && ctxUser.is_gestor_departamento);
+      const novoAtendente = (podeEditarAtendente && b.atendente !== undefined && String(b.atendente || '').trim())
+        ? String(b.atendente).trim()
+        : (prop.atendente || '');
 
       db.run(
         `UPDATE propostas SET
@@ -43711,9 +43715,10 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
           datas_entrega_equipamentos = ?,
           datas_retirada_equipamentos = ?,
           os_comercial_dados_json = ?,
+          atendente = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, agora, propId],
+        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, novoAtendente, agora, propId],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (String(prop.status_os || 'EM ELABORAÇÃO') !== novoStatusOs) {
@@ -44749,6 +44754,13 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       else if (!contratoFinal && oldRow.contrato) contratoFinal = oldRow.contrato;
       const ctxUser = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const nomeAutorAcao = ctxUser.nome_colaborador || usuarioLog;
+      // Regra: O atendente da Proposta, do Contrato e da OS é sempre o mesmo que passa da Proposta
+      // para as outras telas, e apenas pode ser editado pelo gestor do departamento.
+      if (!ctxUser || !ctxUser.is_gestor_departamento) {
+        d.atendente = oldRow.atendente || d.atendente || nomeAutorAcao;
+      } else if (!d.atendente && oldRow.atendente) {
+        d.atendente = oldRow.atendente;
+      }
       // Nota: Mantemos o arquivo antigo de assinatura no R2 (sem deletar) para que o botão de olho
       // no Histórico continue exibindo todos os documentos assinados anteriormente pelo cliente.
       const assinaturaR2Final = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_r2_key || null);
@@ -45122,10 +45134,45 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       res.json({ success: true, contrato: contratoFinal, situacao_contrato: sitContratoFinal });
     });
     };
-    if (needNovoNumContrato) {
-      gerarCodigoContrato(executarUpdateProposta);
+    const prosseguirAposValidarAprovacao = () => {
+      if (needNovoNumContrato) {
+        gerarCodigoContrato(executarUpdateProposta);
+      } else {
+        executarUpdateProposta(oldRow.contrato || null);
+      }
+    };
+
+    const tentandoAprovarParaGerarContrato = !d.modo_contrato
+      && !ehFluxoAssinafyPut
+      && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
+      && oldFaseUpper !== 'APROVADA';
+
+    if (tentandoAprovarParaGerarContrato) {
+      db.get(
+        `SELECT * FROM comercial_aprovacoes
+         WHERE (id = ? AND ? IS NOT NULL) OR proposta_id = ?
+         ORDER BY id DESC LIMIT 1`,
+        [oldRow.aprovacao_id || null, oldRow.aprovacao_id || null, proposalId],
+        (errApr, rowApr) => {
+          if (errApr) return res.status(500).json({ error: errApr.message });
+          if (!rowApr) {
+            return res.status(400).json({
+              error: 'Para aprovar a proposta e gerar um contrato, a proposta precisa estar vinculada a uma Aprovação com status "Aprovado".'
+            });
+          }
+          const colNorm = String(rowApr.coluna || '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase().trim();
+          if (colNorm !== 'APROVADO') {
+            return res.status(400).json({
+              error: `A Aprovação Nº ${rowApr.numero_aprovacao} está como "${rowApr.coluna || 'Solicitação'}". Um contrato apenas pode ser gerado quando a aprovação estiver como "Aprovado".`
+            });
+          }
+          prosseguirAposValidarAprovacao();
+        }
+      );
     } else {
-      executarUpdateProposta(oldRow.contrato || null);
+      prosseguirAposValidarAprovacao();
     }
   });
 });

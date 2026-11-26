@@ -619,11 +619,46 @@ window.resolverNomeExibicaoAtendenteComercial = function(rawVal, usarLogadoSeVaz
     return val;
 };
 
+window.usuarioLogadoPodeEditarAtendenteComercial = function() {
+    if (window.usuarioLogadoEhThais && window.usuarioLogadoEhThais()) return true;
+    const ctx = window._contextoUsuarioComercial;
+    if (ctx && ctx.is_gestor_departamento === true) return true;
+    if (Array.isArray(window._myManagedDeptsGlob) && window._myManagedDeptsGlob.length > 0) return true;
+    return false;
+};
+
+window.aplicarBloqueioAtendentePropostaContratoDOM = function() {
+    const inp = document.getElementById('prop-atendente');
+    const wrap = document.getElementById('prop-atendente-combo-wrap');
+    const btnCaret = wrap ? wrap.querySelector('button') : null;
+    if (!inp) return;
+    const tipoEl = document.getElementById('prop-tipo');
+    const ehModoContrato = window._modoTelaComercial === 'contrato';
+    const ehContratoSemRegistro = ehModoContrato && !_propostasEditandoId;
+    const tipoLiberado = !ehContratoSemRegistro && Boolean(String(tipoEl?.value || '').trim());
+    const podeEditar = tipoLiberado && window.usuarioLogadoPodeEditarAtendenteComercial();
+
+    inp.readOnly = !podeEditar;
+    inp.disabled = !podeEditar;
+    inp.style.pointerEvents = podeEditar ? '' : 'none';
+    inp.style.background = podeEditar ? '#fff' : '#f8fafc';
+    inp.title = podeEditar
+        ? 'Selecionar atendente do departamento Comercial (liberado para o gestor do departamento)'
+        : 'O atendente é definido automaticamente pela Proposta e apenas o gestor do departamento pode editá-lo.';
+    if (btnCaret) {
+        btnCaret.style.display = podeEditar ? 'inline-flex' : 'none';
+        btnCaret.disabled = !podeEditar;
+    }
+};
+
 window.sincronizarExibicaoInputAtendenteDOM = function() {
     const inp = document.getElementById('prop-atendente');
     if (!inp) return;
     const raw = inp.getAttribute('data-atendente-raw') || inp.value || '';
-    if (!raw && window._modoTelaComercial === 'contrato' && !_propostasEditandoId) return;
+    if (!raw && window._modoTelaComercial === 'contrato' && !_propostasEditandoId) {
+        window.aplicarBloqueioAtendentePropostaContratoDOM();
+        return;
+    }
     const obj = window.resolverObjetoAtendenteComercial(raw);
     if (obj && obj.nome) {
         inp.value = obj.nome;
@@ -631,12 +666,13 @@ window.sincronizarExibicaoInputAtendenteDOM = function() {
     } else if (raw) {
         inp.value = window.resolverNomeExibicaoAtendenteComercial(raw, false);
     }
+    window.aplicarBloqueioAtendentePropostaContratoDOM();
 };
 
 window.filtrarDropdownAtendentesComercial = async function(termo = '', abrir = true) {
     const drop = document.getElementById('prop-atendente-dropdown');
     const inp = document.getElementById('prop-atendente');
-    if (!drop || !inp || inp.disabled) return;
+    if (!drop || !inp || inp.disabled || inp.readOnly || !window.usuarioLogadoPodeEditarAtendenteComercial()) return;
     const lista = await window.carregarAtendentesComercial();
     const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const q = norm(termo);
@@ -668,6 +704,7 @@ window.toggleDropdownAtendentesComercial = function(event) {
         event.preventDefault();
         event.stopPropagation();
     }
+    if (!window.usuarioLogadoPodeEditarAtendenteComercial()) return;
     const drop = document.getElementById('prop-atendente-dropdown');
     const inp = document.getElementById('prop-atendente');
     if (!drop || !inp || inp.disabled) return;
@@ -24483,9 +24520,13 @@ window.atualizarBloqueioPorTipoProposta = function() {
     }
     const liberado = !ehContratoSemRegistro && Boolean(String(tipoEl.value || '').trim());
     if (atendenteEl) {
-        atendenteEl.disabled = !liberado;
-        atendenteEl.style.pointerEvents = liberado ? '' : 'none';
-        atendenteEl.style.opacity = liberado ? '1' : '0.6';
+        if (typeof window.aplicarBloqueioAtendentePropostaContratoDOM === 'function') {
+            window.aplicarBloqueioAtendentePropostaContratoDOM();
+        } else {
+            atendenteEl.disabled = !liberado;
+            atendenteEl.style.pointerEvents = liberado ? '' : 'none';
+            atendenteEl.style.opacity = liberado ? '1' : '0.6';
+        }
     }
     wrapEl.style.opacity = liberado ? '1' : '0.55';
     wrapEl.style.cursor = liberado ? '' : 'not-allowed';

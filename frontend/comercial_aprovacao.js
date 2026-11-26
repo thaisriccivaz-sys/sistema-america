@@ -1007,9 +1007,12 @@
 
         /**
          * Chamado antes de aprovar uma proposta (`aprovarPropostaEdicao`):
-         * Garante que uma proposta só possa ser aprovada se estiver vinculada a uma
-         * aprovação; se existir aprovação do mesmo cliente e mesmo endereço, pergunta
-         * se gostaria de vincular na hora.
+         * Regra obrigatória:
+         *   1. Uma proposta só pode ser aprovada para gerar um contrato se estiver
+         *      vinculada a uma aprovação;
+         *   2. E essa aprovação DEVE estar na coluna "Aprovado". Se estiver como
+         *      "Solicitação", "Aguardando setor", "Respondida", "Reprovado" ou
+         *      "Finalizado", não é permitido aprovar a proposta para gerar contrato.
          */
         async garantirAprovacaoVinculadaAntesDeAprovarProposta(propId) {
             const idNum = Number(propId);
@@ -1027,6 +1030,21 @@
                 ? window._propProdutosAdicionados
                 : (pMem ? parseEquipamentosLista(pMem.itens) : []);
 
+            const validarColunaAprovada = (aprvObj) => {
+                if (!aprvObj) return false;
+                const colAtual = normalizarColuna(aprvObj.coluna);
+                if (colAtual !== 'Aprovado') {
+                    const numAp = String(aprvObj.numero_aprovacao || aprvObj.id).padStart(2, '0');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: `Aprovação Nº ${numAp} — Status: ${colAtual}`,
+                        html: `A <strong>Aprovação Nº ${esc(numAp)}</strong> vinculada a esta proposta está na etapa <strong>"${esc(colAtual)}"</strong>.<br><br>Um contrato apenas pode ser gerado quando a aprovação estiver como <strong>"Aprovado"</strong>.`
+                    });
+                    return false;
+                }
+                return true;
+            };
+
             const jaVinculada = (pMem && pMem.aprovacao_id)
                 ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
                 : state.aprovacoes.find(a => Number(a.proposta_id) === idNum);
@@ -1036,7 +1054,7 @@
                     pMem.aprovacao_id = jaVinculada.id;
                     pMem.numero_aprovacao = jaVinculada.numero_aprovacao;
                 }
-                return true;
+                return validarColunaAprovada(jaVinculada);
             }
 
             // Verifica se existe aprovação com o mesmo cliente e mesmo endereço
@@ -1059,7 +1077,8 @@
                 });
                 if (ask.isConfirmed) {
                     const vinc = await this.vincularAprovacaoComProposta(compativel.id, idNum);
-                    return Boolean(vinc);
+                    if (!vinc) return false;
+                    return validarColunaAprovada(vinc);
                 }
                 return false;
             }
@@ -1068,7 +1087,7 @@
             const askGerar = await Swal.fire({
                 icon: 'warning',
                 title: 'Aprovação Obrigatória',
-                html: 'Uma proposta precisa estar vinculada a uma <strong>Aprovação</strong> para poder ser aprovada.<br><br>Deseja gerar ou vincular uma aprovação agora?',
+                html: 'Uma proposta precisa estar vinculada a uma <strong>Aprovação</strong> com status <strong>"Aprovado"</strong> para poder ser aprovada e gerar um contrato.<br><br>Deseja gerar uma aprovação agora?',
                 showCancelButton: true,
                 confirmButtonText: '<i class="ph ph-Stamp"></i> Gerar Aprovação Agora',
                 confirmButtonColor: '#7c3aed',
@@ -1094,7 +1113,8 @@
                 }
             });
 
-            return Boolean(criada && criada.id);
+            if (!criada || !criada.id) return false;
+            return validarColunaAprovada(criada);
         }
     };
 

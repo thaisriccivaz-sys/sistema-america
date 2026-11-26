@@ -904,8 +904,30 @@
 
                             <div>
                                 <label class="prop-lbl">Atendente</label>
-                                <input type="text" id="cos-atendente" value="${esc(typeof window.resolverNomeExibicaoAtendenteComercial === 'function' ? window.resolverNomeExibicaoAtendenteComercial(v('atendente'), false) : (v('atendente_nome') || v('atendente') || ''))}"
-                                    readonly disabled style="width:100%;">
+                                ${(() => {
+                                    const podeEditarAtend = !isNovo && typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+                                    const nomeAtendExib = typeof window.resolverNomeExibicaoAtendenteComercial === 'function'
+                                        ? window.resolverNomeExibicaoAtendenteComercial(v('atendente'), false)
+                                        : (v('atendente_nome') || v('atendente') || '');
+                                    return `
+                                        <div id="cos-atendente-combo-wrap" style="position:relative; width:100%;">
+                                            <input type="text" id="cos-atendente" value="${esc(nomeAtendExib)}"
+                                                ${podeEditarAtend ? '' : 'readonly disabled'}
+                                                title="${podeEditarAtend ? 'Selecionar atendente (liberado para o gestor do departamento)' : 'O atendente vem da Proposta/Contrato e apenas o gestor do departamento pode editá-lo.'}"
+                                                onfocus="if(!this.disabled && window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs('', true);"
+                                                onclick="if(!this.disabled && window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs('', true);"
+                                                oninput="if(window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs(this.value, true);"
+                                                style="width:100%; ${podeEditarAtend ? 'padding-right:1.6rem !important; background:#fff !important;' : ''}">
+                                            ${podeEditarAtend ? `
+                                                <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownAtendenteOs(event)"
+                                                    style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                    <i class="ph ph-caret-down"></i>
+                                                </button>
+                                            ` : ''}
+                                            <div id="cos-atendente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                        </div>
+                                    `;
+                                })()}
                             </div>
                         </div>
 
@@ -1692,6 +1714,60 @@
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         },
 
+        async filtrarDropdownAtendenteOs(termo = '', abrir = true) {
+            if (!(typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial())) return;
+            const drop = document.getElementById('cos-atendente-dropdown');
+            const inp = document.getElementById('cos-atendente');
+            if (!drop || !inp || inp.disabled) return;
+            const lista = (typeof window.carregarAtendentesComercial === 'function')
+                ? await window.carregarAtendentesComercial()
+                : (window._atendentesComercialCache || []);
+            const q = normStr(termo);
+            const filtrados = q
+                ? lista.filter(a => normStr(a.nome).includes(q) || normStr(a.username).includes(q) || normStr(a.email_corporativo).includes(q))
+                : lista;
+            if (!filtrados.length) {
+                drop.innerHTML = `<div style="padding:7px 10px; font-size:0.74rem; color:#94a3b8;">Nenhum colaborador do Comercial encontrado.</div>`;
+            } else {
+                drop.innerHTML = filtrados.map(a => {
+                    const nomeEsc = String(a.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarAtendenteOs('${nomeEsc}')"
+                        style="padding:6px 10px; font-size:0.76rem; color:#1e293b; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                        onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                        <strong>${esc(a.nome)}</strong>
+                    </div>`;
+                }).join('');
+            }
+            if (abrir) drop.style.display = 'block';
+        },
+
+        toggleDropdownAtendenteOs(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (!(typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial())) return;
+            const drop = document.getElementById('cos-atendente-dropdown');
+            const inp = document.getElementById('cos-atendente');
+            if (!drop || !inp || inp.disabled) return;
+            if (drop.style.display === 'block') {
+                drop.style.display = 'none';
+            } else {
+                this.filtrarDropdownAtendenteOs('', true);
+                inp.focus();
+            }
+        },
+
+        selecionarAtendenteOs(nome) {
+            const inp = document.getElementById('cos-atendente');
+            const drop = document.getElementById('cos-atendente-dropdown');
+            if (inp) inp.value = nome;
+            if (drop) drop.style.display = 'none';
+            if (state.osAtual) state.osAtual.atendente = nome;
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
         async selecionarStatusOs(novoStatus, event) {
             if (event) {
                 event.preventDefault();
@@ -1772,12 +1848,17 @@
 
         async salvarAlteracoesOS(silencioso = false) {
             if (!state.osAtual || !state.osAtual.id) return false;
+            const podeEditarAtend = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+            const novoAtendVal = podeEditarAtend
+                ? String(document.getElementById('cos-atendente')?.value || state.osAtual.atendente || '').trim()
+                : (state.osAtual.atendente || '');
             const payload = {
                 status_os: document.getElementById('cos-status-os')?.value || state.osAtual.status_os || 'EM ELABORAÇÃO',
                 os_tipo_operacao: resolverTipoOsComercial(state.osAtual),
                 os_criada_em: state.osAtual.os_criada_em || hojeIso(),
                 observacoes: document.getElementById('cos-obs')?.value ?? (state.osAtual.observacoes || ''),
-                os_comercial_dados_json: JSON.stringify(state.dadosOs || {})
+                os_comercial_dados_json: JSON.stringify(state.dadosOs || {}),
+                atendente: novoAtendVal
             };
             try {
                 const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
@@ -1836,6 +1917,11 @@
         const menu = document.getElementById('cos-status-custom-menu');
         if (menu && menu.style.display === 'block' && wrap && !wrap.contains(e.target)) {
             menu.style.display = 'none';
+        }
+        const wrapAtend = document.getElementById('cos-atendente-combo-wrap');
+        const dropAtend = document.getElementById('cos-atendente-dropdown');
+        if (dropAtend && dropAtend.style.display === 'block' && wrapAtend && !wrapAtend.contains(e.target)) {
+            dropAtend.style.display = 'none';
         }
     });
 
