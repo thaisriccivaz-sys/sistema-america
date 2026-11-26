@@ -2,27 +2,27 @@
  * ============================================================================
  * MÓDULO: COMERCIAL → APROVAÇÃO (Kanban)
  * Colunas do Kanban:
- *   1. Solicitação
- *   2. Aguardando setor
- *   3. Respondida
- *   4. Aprovado
- *   5. Reprovado
+ *   1. Solicitação (com barra de SLA correndo de 15 minutos, igual ao SAC)
+ *   2. Respondida  (movimentação automática ao responder nos Comentários pela Logística)
+ *   3. Aprovado
+ *   4. Reprovado
  * ============================================================================
  */
 (function () {
     'use strict';
 
     const COLUNAS_KANBAN = [
-        { key: 'Solicitação',      titulo: 'Solicitação',      cor: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: 'ph-paper-plane-tilt' },
-        { key: 'Aguardando setor', titulo: 'Aguardando setor', cor: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'ph-hourglass-high' },
-        { key: 'Respondida',       titulo: 'Respondida',       cor: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'ph-chat-circle-text' },
-        { key: 'Aprovado',         titulo: 'Aprovado',         cor: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'ph-check-circle' },
-        { key: 'Reprovado',        titulo: 'Reprovado',        cor: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'ph-x-circle' }
+        { key: 'Solicitação', titulo: 'Solicitação', cor: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: 'ph-paper-plane-tilt' },
+        { key: 'Respondida',  titulo: 'Respondida',  cor: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'ph-chat-circle-text' },
+        { key: 'Aprovado',    titulo: 'Aprovado',    cor: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'ph-check-circle' },
+        { key: 'Reprovado',   titulo: 'Reprovado',   cor: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'ph-x-circle' }
     ];
 
     window.COMERCIAL_APROVACAO_COLUNAS = COLUNAS_KANBAN;
 
-    // Tipos de proposta sem ícone (conforme solicitado no Anexo 1)
+    const SLA_APROVACAO_LIMITE_MS = 15 * 60 * 1000; // 15 minutos
+
+    // Tipos de proposta sem ícone (Anexo 1)
     const TIPOS_PROPOSTA_APROVACAO = [
         { value: 'OBRA MENSAL',    label: 'OBRA MENSAL' },
         { value: 'OBRA QUINZENAL', label: 'OBRA QUINZENAL' },
@@ -69,7 +69,8 @@
         aprovacoes: [],
         buscaTexto: '',
         apenasUrgentes: false,
-        draggingId: null
+        draggingId: null,
+        slaTimerId: null
     };
 
     function normStr(s) {
@@ -176,6 +177,79 @@
         return s;
     }
 
+    /**
+     * Calcula os detalhes da barra de SLA de 15 minutos (padrão SAC) para cards na coluna "Solicitação".
+     */
+    function resolverSlaStartMs(aprv) {
+        if (aprv && Number(aprv.sla_inicio_ms) > 1000000000000) {
+            return Number(aprv.sla_inicio_ms);
+        }
+        const raw = String((aprv && (aprv.sla_inicio_em || aprv.criado_em)) || '').trim();
+        if (!raw) return Date.now();
+        const iso = raw.includes('T') ? raw : (raw.replace(' ', 'T') + '-03:00');
+        const ms = Date.parse(iso);
+        return !isNaN(ms) ? ms : Date.now();
+    }
+
+    function formatarTempoSlaMMSS(msAbs) {
+        const totalSec = Math.floor(Math.max(0, msAbs) / 1000);
+        const hh = Math.floor(totalSec / 3600);
+        const mm = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+        const ss = (totalSec % 60).toString().padStart(2, '0');
+        return hh > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
+    }
+
+    function calcularDetalhesSlaPorStartMs(startMs) {
+        const agora = Date.now();
+        const elapsedMs = Math.max(0, agora - startMs);
+        const remainMs = SLA_APROVACAO_LIMITE_MS - elapsedMs;
+        const isOverdue = remainMs < 0;
+        const consumedPct = isOverdue ? 100 : Math.min(100, Math.max(0, Math.round((elapsedMs / SLA_APROVACAO_LIMITE_MS) * 100)));
+
+        let barColor;
+        if (isOverdue) barColor = '#dc2626';
+        else if (consumedPct <= 40) barColor = '#15803d';
+        else if (consumedPct <= 70) barColor = '#2563eb';
+        else barColor = '#d97706';
+
+        const label = isOverdue
+            ? `-${formatarTempoSlaMMSS(Math.abs(remainMs))} (SLA estourado)`
+            : `⏳ ${formatarTempoSlaMMSS(remainMs)}`;
+
+        return {
+            startMs,
+            elapsedMs,
+            remainMs,
+            isOverdue,
+            consumedPct,
+            barColor,
+            label
+        };
+    }
+
+    function iniciarTickerSlaAprovacao() {
+        if (state.slaTimerId) return;
+        state.slaTimerId = setInterval(() => {
+            const nodes = document.querySelectorAll('.caprv-sla-wrap[data-sla-start-ms]');
+            if (!nodes.length) return;
+            nodes.forEach(node => {
+                const startMs = Number(node.getAttribute('data-sla-start-ms'));
+                if (!startMs) return;
+                const sla = calcularDetalhesSlaPorStartMs(startMs);
+                const fillEl = node.querySelector('.caprv-sla-fill');
+                const lblEl = node.querySelector('.caprv-sla-label');
+                if (fillEl) {
+                    fillEl.style.width = `${sla.consumedPct}%`;
+                    fillEl.style.background = sla.barColor;
+                }
+                if (lblEl) {
+                    lblEl.textContent = sla.label;
+                    lblEl.style.color = sla.barColor;
+                }
+            });
+        }, 1000);
+    }
+
     function obterEquipamentosCatalogoPorTipo(tipoProposta) {
         const t = normStr(tipoProposta);
         if (t.includes('evento')) {
@@ -184,11 +258,6 @@
         return EQUIPAMENTOS_OS_OBRA;
     }
 
-    /**
-     * Faz a vinculação automática de qualquer produto vindo da Proposta (ex: "BANHEIRO QUÍMICO STANDARD",
-     * "BANHEIRO QUÍMICO EXTRA LUXO O05XZC", "CABINE PCD", etc.) ou selecionado na lista da Aprovação
-     * para o nome padronizado da OS da Logística com seu respectivo ícone (ex: "💙 STD OBRA", "💜 STD EVENTO").
-     */
     function formatarNomeEquipamentoComIcone(nomeRaw, tipoProposta = '') {
         const raw = String(nomeRaw || '').trim();
         if (!raw) return '';
@@ -199,11 +268,9 @@
         const explicitoEvento = n.includes('evento') || (tProp.includes('evento') && !n.includes('obra') && !temCodObra);
         const sufixo = explicitoEvento ? 'EVENTO' : 'OBRA';
 
-        // 1. Verifica correspondência direta com os catálogos de OS
         const todos = [...EQUIPAMENTOS_OS_OBRA, ...EQUIPAMENTOS_OS_EVENTO];
         const achadoDireto = todos.find(item => normStr(item.codigo) === n || normStr(item.label) === n);
         if (achadoDireto) {
-            // Se o tipo de proposta mudou entre OBRA e EVENTO, ajusta o variante se aplicável
             if (tProp) {
                 const catAlvo = explicitoEvento ? EQUIPAMENTOS_OS_EVENTO : EQUIPAMENTOS_OS_OBRA;
                 const prefixoMod = achadoDireto.codigo.replace(/\s+(?:OBRA|EVENTO)$/i, '').trim();
@@ -213,16 +280,9 @@
             return achadoDireto.label;
         }
 
-        // 2. Vinculação automática de nomes de produtos da Proposta para equipamentos da OS com ícone
-        if (n.includes('carrinho')) {
-            return '🛤 CARRINHO';
-        }
-        if (n.includes('caixa') && n.includes('agua')) {
-            return '🧊 CAIXA DAGUA';
-        }
-        if (n.includes('fossa') || n.includes('succao') || n.includes('caminhao')) {
-            return `💧 LIMPA FOSSA ${sufixo}`;
-        }
+        if (n.includes('carrinho')) return '🛤 CARRINHO';
+        if (n.includes('caixa') && n.includes('agua')) return '🧊 CAIXA DAGUA';
+        if (n.includes('fossa') || n.includes('succao') || n.includes('caminhao')) return `💧 LIMPA FOSSA ${sufixo}`;
         if (n.includes('extra lux') || /\b(exl|elx)\b/.test(n)) {
             const ic = sufixo === 'OBRA' ? '🔵' : '🟣';
             return `${ic} EXL ${sufixo}`;
@@ -231,30 +291,14 @@
             const ic = sufixo === 'OBRA' ? '🟦' : '🟣';
             return `${ic} LX ${sufixo}`;
         }
-        if (n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel')) {
-            return `♿ PCD ${sufixo}`;
-        }
-        if (n.includes('chuveiro')) {
-            return `🚿 CHUVEIRO ${sufixo}`;
-        }
-        if (n.includes('hidraulic')) {
-            return `🚽 HIDRÁULICO ${sufixo}`;
-        }
-        if (n.includes('mictorio') || n.includes('kros')) {
-            return `💦 MICTÓRIO ${sufixo}`;
-        }
-        if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3') || n.includes('3 torneiras')) {
-            return `🧼 PBIII ${sufixo}`;
-        }
-        if (n.includes('pia') || n.includes('pbii') || n.includes('lavatorio') || n.includes('2 torneiras')) {
-            return `🧼 PBII ${sufixo}`;
-        }
-        if (n.includes('guarita') && n.includes('dupla')) {
-            return `⚪ GUARITA DUPLA ${sufixo}`;
-        }
-        if (n.includes('guarita')) {
-            return `⬜ GUARITA INDIVIDUAL ${sufixo}`;
-        }
+        if (n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel')) return `♿ PCD ${sufixo}`;
+        if (n.includes('chuveiro')) return `🚿 CHUVEIRO ${sufixo}`;
+        if (n.includes('hidraulic')) return `🚽 HIDRÁULICO ${sufixo}`;
+        if (n.includes('mictorio') || n.includes('kros')) return `💦 MICTÓRIO ${sufixo}`;
+        if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3') || n.includes('3 torneiras')) return `🧼 PBIII ${sufixo}`;
+        if (n.includes('pia') || n.includes('pbii') || n.includes('lavatorio') || n.includes('2 torneiras')) return `🧼 PBII ${sufixo}`;
+        if (n.includes('guarita') && n.includes('dupla')) return `⚪ GUARITA DUPLA ${sufixo}`;
+        if (n.includes('guarita')) return `⬜ GUARITA INDIVIDUAL ${sufixo}`;
         if (n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n) || n.includes('banheiro') || n.includes('cabine')) {
             const ic = sufixo === 'OBRA' ? '💙' : '💜';
             return `${ic} STD ${sufixo}`;
@@ -267,9 +311,6 @@
         return raw;
     }
 
-    /**
-     * Extrai a quantidade de manutenções de um item vindo da proposta ou salvo na aprovação.
-     */
     function extrairQtdManutencaoItem(it, tipoProposta = '') {
         if (!it || typeof it !== 'object') return 0;
         if (it.qtd_manutencao !== undefined && it.qtd_manutencao !== null && it.qtd_manutencao !== '') {
@@ -327,7 +368,6 @@
         for (const c of COLUNAS_KANBAN) {
             if (normStr(c.key) === n) return c.key;
         }
-        if (n.includes('aguardando')) return 'Aguardando setor';
         if (n.includes('respond')) return 'Respondida';
         if (n.includes('reprov')) return 'Reprovado';
         if (n.includes('aprov') || n.includes('finaliz')) return 'Aprovado';
@@ -359,6 +399,28 @@
                 <span style="font-size:${fontSizeRem}rem; font-weight:700; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(nome)}</span>
             </div>
         `;
+    }
+
+    function parseComentariosAprovacao(aprv) {
+        let arr = [];
+        try {
+            arr = typeof aprv.comentarios_json === 'string'
+                ? JSON.parse(aprv.comentarios_json || '[]')
+                : (Array.isArray(aprv.comentarios_json) ? aprv.comentarios_json : []);
+        } catch (_) { arr = []; }
+        if (!Array.isArray(arr)) arr = [];
+        if (arr.length === 0 && aprv && aprv.resposta_setor && String(aprv.resposta_setor).trim()) {
+            arr.push({
+                id: 1,
+                texto: String(aprv.resposta_setor).trim(),
+                usuario_nome: 'Setor / Logística',
+                colaborador_id: null,
+                foto_url: '',
+                departamento: 'Logística',
+                data_hora: aprv.atualizado_em || aprv.criado_em || ''
+            });
+        }
+        return arr;
     }
 
     async function garantirCachesClientes() {
@@ -428,6 +490,25 @@
         const cliFmt = formatarClienteComIcone(a.cliente_nome, a.cliente_grupo || '');
         const equips = formatarResumoEquipamentos(a.equipamentos_json, a.tipo_proposta || '');
         const podeExcluir = ehUsuarioThaisRicci();
+        const colNorm = normalizarColuna(a.coluna);
+        const comentarios = parseComentariosAprovacao(a);
+
+        let slaHtml = '';
+        if (colNorm === 'Solicitação') {
+            const startMs = resolverSlaStartMs(a);
+            const sla = calcularDetalhesSlaPorStartMs(startMs);
+            slaHtml = `
+                <div class="caprv-sla-wrap" data-aprv-id="${Number(a.id)}" data-sla-start-ms="${startMs}" style="margin-top:2px;">
+                    <div class="sac-sla-bar" style="height:6px; background:#e2e8f0; border-radius:999px; overflow:hidden;">
+                        <div class="sac-sla-fill caprv-sla-fill" style="height:100%; width:${sla.consumedPct}%; background:${sla.barColor}; transition:width 0.3s;"></div>
+                    </div>
+                    <div style="font-size:0.66rem; margin-top:3px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:#64748b; font-weight:700;">SLA (15 min)</span>
+                        <span class="caprv-sla-label" style="color:${sla.barColor}; font-weight:800;">${esc(sla.label)}</span>
+                    </div>
+                </div>
+            `;
+        }
 
         return `
             <div class="caprv-card" draggable="true"
@@ -437,7 +518,7 @@
                 onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 14px rgba(15,23,42,0.09)';"
                 onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 6px rgba(15,23,42,0.05)';">
 
-                <!-- Cabeçalho do Card: Nº da Aprovação + Urgente + Botão Proposta ou Vincular + Excluir (Thais) -->
+                <!-- Cabeçalho do Card -->
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
                     <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
                         <span style="background:#ea580c; color:#ffffff; font-weight:800; font-size:0.72rem; padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
@@ -477,7 +558,7 @@
                     </div>
                 </div>
 
-                <!-- Nome do Cliente (com ícone do grupo) -->
+                <!-- Nome do Cliente -->
                 <div style="font-size:0.82rem; font-weight:800; color:#0f172a; line-height:1.28;">
                     ${esc(cliFmt)}
                 </div>
@@ -498,7 +579,7 @@
                     </div>
                 ` : ''}
 
-                <!-- Equipamentos na Proposta (com ícone, qtd de produtos e qtd de manutenção) -->
+                <!-- Equipamentos na Proposta -->
                 ${equips.length > 0 ? `
                     <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
                         ${equips.slice(0, 4).map(eq => `
@@ -514,6 +595,16 @@
                     <div style="font-size:0.71rem; color:#64748b; font-style:italic; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-wrap; line-height:1.3;">"${esc(a.observacoes)}"</div>
                 ` : ''}
 
+                ${comentarios.length > 0 ? `
+                    <div style="font-size:0.69rem; color:#0369a1; background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; padding:3px 7px; display:flex; align-items:center; gap:5px;">
+                        <i class="ph ph-chat-circle-dots" style="flex-shrink:0;"></i>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><strong>${esc(comentarios[comentarios.length - 1].usuario_nome)}:</strong> ${esc(comentarios[comentarios.length - 1].texto)}</span>
+                    </div>
+                ` : ''}
+
+                <!-- Barra de SLA de 15 minutos (apenas na coluna Solicitação) -->
+                ${slaHtml}
+
                 <!-- Rodapé do card: Foto + Nome do Atendente que abriu a solicitação e Data -->
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; border-top:1px dashed #e2e8f0; margin-top:2px;">
                     ${renderAtendenteAvatarHtml(a, 22, 0.71)}
@@ -527,6 +618,7 @@
         const container = document.getElementById('view-comercial-aprovacao');
         if (!container) return;
 
+        iniciarTickerSlaAprovacao();
         const filtradas = filtrarAprovacoesMemoria();
 
         container.innerHTML = `
@@ -568,13 +660,14 @@
                     </div>
                 </div>
 
-                <!-- Grid das 5 Colunas do Kanban -->
-                <div style="display:grid; grid-template-columns:repeat(5, minmax(230px, 1fr)); gap:0.7rem; overflow-x:auto; padding-bottom:0.5rem; align-items:start;">
+                <!-- Grid das 4 Colunas do Kanban (Solicitação, Respondida, Aprovado, Reprovado) -->
+                <div style="display:grid; grid-template-columns:repeat(4, minmax(240px, 1fr)); gap:0.75rem; overflow-x:auto; padding-bottom:0.5rem; align-items:start;">
                     ${COLUNAS_KANBAN.map(col => {
                         const cardsCol = filtradas.filter(a => normalizarColuna(a.coluna) === col.key);
+                        const permiteDrop = (col.key === 'Aprovado' || col.key === 'Reprovado');
                         return `
                             <div class="caprv-coluna"
-                                ondragover="event.preventDefault(); this.style.outline='2px dashed ${col.cor}';"
+                                ondragover="event.preventDefault(); this.style.outline='2px dashed ${permiteDrop ? col.cor : '#94a3b8'}';"
                                 ondragleave="this.style.outline='';"
                                 ondrop="this.style.outline=''; window._comercialAprovacao.onDropColuna(event, '${esc(col.key)}')"
                                 style="background:${col.bg}; border:1px solid ${col.border}; border-radius:12px; display:flex; flex-direction:column; min-height:70vh; max-height:calc(100vh - 180px);">
@@ -626,13 +719,6 @@
         if (el) el.remove();
     }
 
-    /**
-     * Renderiza a tabela de equipamentos adicionados com 3 colunas de dados + ação (Anexo 2):
-     * 1. Nome do Produto (com ícone)
-     * 2. Quantidade de Produtos
-     * 3. Quantidade de Manutenção
-     * 4. Ação (Remover)
-     */
     function renderTabelaEquipamentosDraftHtml(equipsDraft) {
         if (!Array.isArray(equipsDraft) || !equipsDraft.length) {
             return `<div style="color:#94a3b8; font-size:0.78rem; font-style:italic; padding:10px; text-align:center;">Nenhum equipamento adicionado. Selecione o produto, informe a quantidade de produtos e a quantidade de manutenção e clique em "+ Incluir".</div>`;
@@ -676,8 +762,47 @@
     }
 
     /**
-     * Modal (Swal) para exibir o Histórico de Movimentação entre as colunas de uma Aprovação.
+     * Renderiza o histórico de troca de Comentários com Nome, Foto, Departamento e Dia/Hora.
      */
+    function renderListaComentariosHtml(comentariosArr) {
+        if (!Array.isArray(comentariosArr) || !comentariosArr.length) {
+            return `
+                <div style="text-align:center; color:#94a3b8; font-size:0.77rem; padding:16px 8px; font-style:italic;">
+                    Nenhum comentário registrado ainda. Quando a Logística responder aqui, a aprovação irá automaticamente para "Respondida"; quando o Comercial comentar, voltará para "Solicitação" com nova contagem de SLA.
+                </div>
+            `;
+        }
+        return comentariosArr.map(c => {
+            const nome = String(c.usuario_nome || 'Colaborador').trim();
+            const iniciais = obterIniciaisNome(nome);
+            const fotoUrl = String(c.foto_url || (c.colaborador_id ? `/api/colaboradores/foto/${c.colaborador_id}` : '')).trim();
+            const depto = String(c.departamento || '').trim();
+            const depNorm = normStr(depto);
+            const ehLog = depNorm.includes('logistic') || depNorm.includes('operac');
+            const ehCom = depNorm.includes('comercial') || depNorm.includes('venda');
+            const badgeBg = ehLog ? '#f0fdf4' : (ehCom ? '#fff7ed' : '#f1f5f9');
+            const badgeColor = ehLog ? '#15803d' : (ehCom ? '#ea580c' : '#475569');
+            const badgeBorder = ehLog ? '#bbf7d0' : (ehCom ? '#fed7aa' : '#cbd5e1');
+
+            return `
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; gap:5px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                        <div style="display:inline-flex; align-items:center; gap:7px;">
+                            <div style="width:24px; height:24px; border-radius:999px; background:#ede9fe; border:1px solid #c4b5fd; color:#5b21b6; font-size:0.62rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; position:relative;">
+                                <span>${esc(iniciais)}</span>
+                                ${fotoUrl ? `<img src="${esc(fotoUrl)}" alt="${esc(nome)}" onerror="this.style.display='none';" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">` : ''}
+                            </div>
+                            <span style="font-size:0.78rem; font-weight:800; color:#0f172a;">${esc(nome)}</span>
+                            ${depto ? `<span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-size:0.66rem; font-weight:800; padding:1px 7px; border-radius:999px;">${esc(depto)}</span>` : ''}
+                        </div>
+                        <span style="font-size:0.69rem; color:#64748b; font-weight:600;">${esc(fmtDataHoraBr(c.data_hora))}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#1e293b; white-space:pre-wrap; line-height:1.4; padding-left:31px;">${esc(c.texto)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
     async function abrirModalHistoricoAprovacao(aprovacaoId) {
         const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(aprovacaoId));
         if (!aprv) return;
@@ -718,7 +843,7 @@
 
         await Swal.fire({
             title: `Histórico de Movimentação — Aprovação Nº ${numFmt}`,
-            width: '880px',
+            width: '900px',
             html: `
                 <div style="text-align:left; font-family:'Inter',sans-serif;">
                     <div style="max-height:420px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
@@ -726,7 +851,7 @@
                             <thead>
                                 <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.7rem; text-transform:uppercase; position:sticky; top:0;">
                                     <th style="padding:8px 10px; width:135px;">Data / Hora</th>
-                                    <th style="padding:8px 10px; width:165px;">Usuário</th>
+                                    <th style="padding:8px 10px; width:185px;">Usuário</th>
                                     <th style="padding:8px 10px; width:235px;">Movimentação de Coluna</th>
                                     <th style="padding:8px 10px;">Detalhe</th>
                                 </tr>
@@ -741,9 +866,6 @@
         });
     }
 
-    /**
-     * Sub-modal (Swal) para pesquisar e selecionar Cliente ao clicar na Lupa ou dar Enter.
-     */
     async function abrirModalPesquisaClienteAprovacao(termoInicial, onSelectCliente) {
         const clientes = await garantirCachesClientes();
         const qIni = limparIconeCliente(termoInicial || '');
@@ -1092,9 +1214,6 @@
         }
     }
 
-    /**
-     * Verifica se uma proposta já possui alguma aprovação vinculada.
-     */
     function propostaJaPossuiAprovacao(propostaObjOuId, ignorarAprovacaoId = 0) {
         const pid = typeof propostaObjOuId === 'object' ? Number(propostaObjOuId?.id) : Number(propostaObjOuId);
         if (!pid) return false;
@@ -1119,7 +1238,6 @@
         };
 
         const cliNorm = normStr(limparIconeCliente(clienteFiltroInicial || ''));
-        // Não permite selecionar proposta que já tenha aprovação vinculada!
         const elegiveis = (propostas || [])
             .filter(p => !isSituacaoExcluida(p.fase_negociacao) && !propostaJaPossuiAprovacao(p))
             .sort((a, b) => {
@@ -1333,7 +1451,6 @@
             await carregarVinculosDoCliente(inpCli.value);
         }
 
-        // 1. Campo Cliente
         if (inpCli && dropCli) {
             const renderDropCli = () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1399,7 +1516,6 @@
             }
         };
 
-        // 2. Campo Contato
         if (inpCon && dropCon) {
             const renderDropCon = async () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1462,7 +1578,6 @@
             }
         };
 
-        // 3. Campo Endereço de Instalação
         if (inpEnd && dropEnd) {
             const renderDropEnd = async () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1529,7 +1644,6 @@
             }
         };
 
-        // 4. Campo Equipamentos da OS da Logística
         if (inpEq && dropEq) {
             const renderDropEq = () => {
                 const tipoAtual = selTipo ? selTipo.value : 'OBRA MENSAL';
@@ -1611,6 +1725,17 @@
         async mudarColunaRapido(id, novaColuna) {
             const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(id));
             if (!aprv || normalizarColuna(aprv.coluna) === novaColuna) return;
+
+            // Regra obrigatória: passar para a coluna de Respondida e de Solicitação não deve ser possível arrastando o Kanban, apenas pelo campo de Comentários
+            if (novaColuna === 'Solicitação' || novaColuna === 'Respondida') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Movimentação via Comentários',
+                    html: `Não é permitido mover para a coluna <strong>"${esc(novaColuna)}"</strong> arrastando o Kanban.<br><br>Essa movimentação ocorre automaticamente através do envio de <strong>Comentários</strong> nos detalhes da aprovação.`
+                });
+                return;
+            }
+
             try {
                 const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
                 const r = await fetch(`/api/comercial/aprovacoes/${id}`, {
@@ -1631,6 +1756,8 @@
                     if (typeof mostrarToastSucesso === 'function') {
                         mostrarToastSucesso(`Aprovação Nº ${aprv.numero_aprovacao} movida para "${novaColuna}"!`);
                     }
+                } else {
+                    Swal.fire('Aviso', (res && res.error) || 'Não foi possível mover a aprovação.', 'warning');
                 }
             } catch (e) {
                 console.error(e);
@@ -1697,9 +1824,6 @@
             }
         },
 
-        /**
-         * Abre modal para criar uma Nova Solicitação de Aprovação.
-         */
         async abrirModalNovaAprovacao(dadosIniciais = {}, onCreatedCallback = null) {
             await garantirCachesClientes();
             let propIdSelecionada = dadosIniciais.proposta_id ? Number(dadosIniciais.proposta_id) : null;
@@ -1918,7 +2042,6 @@
 
                 abrirOverlayModalAprovacao(`
                     <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:13px;">
-                        <!-- Cabeçalho do Modal -->
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
@@ -1942,7 +2065,6 @@
                             </div>
                         </div>
 
-                        <!-- Opção de Vincular ou Não a uma Proposta na criação -->
                         <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                                 <label style="font-size:0.78rem; font-weight:800; color:#9a3412; display:inline-flex; align-items:center; gap:5px;">
@@ -1958,7 +2080,6 @@
                             <div id="caprv-nova-vinc-prop-box"></div>
                         </div>
 
-                        <!-- Linha 1: Tipo de Proposta (sem ícone) + Cliente + Contato -->
                         <div style="display:grid; grid-template-columns:1fr 1.8fr 1.2fr; gap:12px; align-items:end;">
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Tipo de Proposta <span style="color:#dc2626;">*</span></label>
@@ -1968,7 +2089,6 @@
                                 </select>
                             </div>
 
-                            <!-- Cliente com Lupa e Botão + Amarelo -->
                             <div style="position:relative;">
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Cliente <span style="color:#dc2626;">*</span></label>
                                 <div style="display:flex; align-items:center; gap:4px;">
@@ -1989,7 +2109,6 @@
                                 <div id="caprv-drop-cliente" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                             </div>
 
-                            <!-- Contato com Lupa e Botão + Amarelo -->
                             <div style="position:relative;">
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Contato</label>
                                 <div style="display:flex; align-items:center; gap:4px;">
@@ -2011,7 +2130,6 @@
                             </div>
                         </div>
 
-                        <!-- Linha 2: Endereço de Instalação com Lupa e Botão + Amarelo -->
                         <div style="position:relative;">
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço de Instalação</label>
                             <div style="display:flex; align-items:center; gap:4px;">
@@ -2032,7 +2150,6 @@
                             <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                         </div>
 
-                        <!-- Linha 3: Equipamentos (3 campos: Nome do Produto, Qtd. de Produtos, Qtd. de Manutenção + Tabela em Colunas) -->
                         <div>
                             <div style="display:grid; grid-template-columns:1fr 140px 150px auto; gap:8px; align-items:end; margin-bottom:6px;">
                                 <div style="position:relative;">
@@ -2062,7 +2179,6 @@
                             </div>
                         </div>
 
-                        <!-- Linha 4: Observações da Solicitação -->
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Observações da Solicitação</label>
                             <textarea id="caprv-inp-obs" rows="5"
@@ -2070,7 +2186,6 @@
                                 style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(obsIni)}</textarea>
                         </div>
 
-                        <!-- Rodapé de Ações -->
                         <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px; border-top:1px solid #e2e8f0; padding-top:12px;">
                             <button type="button" onclick="window._fecharModalNovaAprovCancel()"
                                 style="background:#64748b; color:#ffffff; border:none; padding:8px 18px; border-radius:7px; font-size:0.82rem; font-weight:700; cursor:pointer;">
@@ -2097,10 +2212,11 @@
 
         /**
          * Modal para editar / visualizar detalhes de uma Solicitação de Aprovação.
-         * - Permite editar os dados da solicitação; se ela já tiver sido movida de coluna
-         *   e for editada, retorna automaticamente para a coluna "Solicitação".
-         * - Inclui botão de "Histórico" para visualizar todas as movimentações entre colunas.
-         * - Não permite criar nova solicitação para a mesma proposta nem vincular mais de uma aprovação à proposta.
+         * - Campo "Etapa / Coluna do Kanban" ocultado conforme solicitado.
+         * - Campo "Comentários" no lugar de "Resposta do Setor / Parecer", com histórico
+         *   de troca de comentários (nome, foto, departamento, dia e hora).
+         * - Quando Logística comenta na coluna Solicitação -> vai automaticamente para Respondida.
+         * - Quando Comercial comenta -> volta automaticamente para Solicitação com novo SLA de 15 min.
          */
         async abrirModalDetalhesAprovacao(id) {
             await garantirCachesClientes();
@@ -2124,12 +2240,21 @@
                 };
             }).filter(it => it.produto);
 
+            let comentariosAtuais = parseComentariosAprovacao(aprv);
             const snapshotEquipsInicial = JSON.stringify(equipsDraft);
             const colOriginal = normalizarColuna(aprv.coluna);
 
             const atualizarTabelaEquipsDom = () => {
                 const w = document.getElementById('caprv-equips-list');
                 if (w) w.innerHTML = renderTabelaEquipamentosDraftHtml(equipsDraft);
+            };
+
+            const atualizarListaComentariosDom = () => {
+                const box = document.getElementById('caprv-comentarios-history');
+                if (box) {
+                    box.innerHTML = renderListaComentariosHtml(comentariosAtuais);
+                    box.scrollTop = box.scrollHeight;
+                }
             };
 
             window._removerEquipModalAprov = (idx) => {
@@ -2159,11 +2284,69 @@
                 atualizarTabelaEquipsDom();
             };
 
+            window._enviarComentarioModalAprov = async () => {
+                const inpCom = document.getElementById('caprv-inp-novo-comentario');
+                const texto = String(inpCom?.value || '').trim();
+                if (!texto) {
+                    Swal.fire('Aviso', 'Digite o comentário antes de clicar em Enviar Comentário.', 'info');
+                    return false;
+                }
+                const btnEnv = document.getElementById('caprv-btn-enviar-comentario');
+                if (btnEnv) btnEnv.disabled = true;
+                try {
+                    const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                    const r = await fetch(`/api/comercial/aprovacoes/${aprv.id}/comentarios`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(tk ? { 'Authorization': 'Bearer ' + tk } : {})
+                        },
+                        body: JSON.stringify({ texto })
+                    });
+                    const res = await r.json();
+                    if (!r.ok || !res.success) {
+                        Swal.fire('Erro', (res && res.error) || 'Não foi possível enviar o comentário.', 'error');
+                        return false;
+                    }
+                    if (inpCom) inpCom.value = '';
+                    await carregarAprovacoesServidor();
+                    const aprvAtualizada = (state.aprovacoes || []).find(x => Number(x.id) === Number(aprv.id));
+                    if (aprvAtualizada) {
+                        Object.assign(aprv, aprvAtualizada);
+                        comentariosAtuais = parseComentariosAprovacao(aprvAtualizada);
+                    } else if (res.comentario) {
+                        comentariosAtuais.push(res.comentario);
+                    }
+                    atualizarListaComentariosDom();
+                    renderKanbanBoard();
+
+                    if (typeof mostrarToastSucesso === 'function') {
+                        if (res.mudou_coluna) {
+                            mostrarToastSucesso(`Comentário enviado! Aprovação Nº ${numAprv} movida automaticamente para "${res.nova_coluna}".`);
+                        } else {
+                            mostrarToastSucesso('Comentário registrado com sucesso!');
+                        }
+                    }
+                    return true;
+                } catch (e) {
+                    Swal.fire('Erro', e.message || 'Erro ao enviar comentário.', 'error');
+                    return false;
+                } finally {
+                    if (btnEnv) btnEnv.disabled = false;
+                }
+            };
+
             window._fecharModalDetAprov = () => {
                 fecharOverlayModalAprovacao();
             };
 
             window._salvarModalDetAprov = async () => {
+                // Se houver um comentário digitado no campo e ainda não enviado, envia-o primeiro
+                const textoPendente = String(document.getElementById('caprv-inp-novo-comentario')?.value || '').trim();
+                if (textoPendente) {
+                    await window._enviarComentarioModalAprov();
+                }
+
                 const cliRaw = limparIconeCliente(document.getElementById('caprv-inp-cliente')?.value || '');
                 if (!cliRaw) {
                     Swal.fire('Campo Obrigatório', 'Informe o Nome do Cliente.', 'warning');
@@ -2175,7 +2358,7 @@
                 const novoEndereco = String(document.getElementById('caprv-inp-endereco')?.value || '').trim();
                 const novaObs = String(document.getElementById('caprv-inp-obs')?.value || '').trim();
                 const novoUrgente = Boolean(document.getElementById('caprv-chk-urgente')?.checked);
-                const novaColunaSelect = document.getElementById('det-aprv-coluna')?.value || colOriginal;
+                const colAtualRecente = normalizarColuna(aprv.coluna);
 
                 const editouSolicitacao = Boolean(
                     novoTipo !== tipoIni ||
@@ -2188,8 +2371,7 @@
                     JSON.stringify(equipsDraft) !== snapshotEquipsInicial
                 );
 
-                // Se editou os dados da solicitação e ela já tinha sido movida de coluna, volta para "Solicitação"
-                const deveRetornarParaSolicitacao = Boolean(editouSolicitacao && colOriginal !== 'Solicitação');
+                const deveRetornarParaSolicitacao = Boolean(editouSolicitacao && colAtualRecente !== 'Solicitação');
 
                 const payload = {
                     tipo_proposta: novoTipo,
@@ -2198,11 +2380,10 @@
                     contato_nome: novoContato,
                     endereco_instalacao: novoEndereco,
                     equipamentos: equipsDraft,
-                    coluna: deveRetornarParaSolicitacao ? 'Solicitação' : novaColunaSelect,
+                    coluna: deveRetornarParaSolicitacao ? 'Solicitação' : colAtualRecente,
                     retornar_para_solicitacao: deveRetornarParaSolicitacao,
                     urgente: novoUrgente,
-                    observacoes: novaObs,
-                    resposta_setor: String(document.getElementById('det-aprv-resposta')?.value || '').trim()
+                    observacoes: novaObs
                 };
 
                 try {
@@ -2222,7 +2403,7 @@
                         renderKanbanBoard();
                         if (typeof mostrarToastSucesso === 'function') {
                             if (res.retornou_para_solicitacao || deveRetornarParaSolicitacao) {
-                                mostrarToastSucesso(`Aprovação Nº ${numAprv} editada e retornada para a coluna "Solicitação"!`);
+                                mostrarToastSucesso(`Aprovação Nº ${numAprv} editada e retornada para "Solicitação" (novo SLA iniciado)!`);
                             } else {
                                 mostrarToastSucesso(`Aprovação Nº ${numAprv} atualizada!`);
                             }
@@ -2236,20 +2417,24 @@
             };
 
             const cliFmtAtual = formatarClienteComIcone(aprv.cliente_nome, aprv.cliente_grupo || '');
-            // Verifica se já estamos na tela de Proposta/Contrato com essa mesma proposta aberta
             const propAbertaNaTela = Number(window._propostasEditandoId || 0);
+            const metaCol = COLUNAS_KANBAN.find(c => c.key === colOriginal) || COLUNAS_KANBAN[0];
 
             abrirOverlayModalAprovacao(`
                 <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:13px;">
-                    <!-- Cabeçalho com Nº da Aprovação + Atendente com Foto + Histórico + Urgente -->
+                    <!-- Cabeçalho -->
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
-                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:8px;">
                                 <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
                                     <i class="ph ph-seal-check" style="font-size:1.3rem;"></i>
                                 </div>
                                 <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Aprovação Nº ${esc(numAprv)}</h3>
                             </div>
+
+                            <span style="background:${metaCol.bg}; color:${metaCol.cor}; border:1px solid ${metaCol.border}; padding:3px 10px; border-radius:999px; font-size:0.73rem; font-weight:800; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ${metaCol.icon}"></i> ${esc(metaCol.titulo)}
+                            </span>
 
                             <!-- Foto e Nome do Atendente que abriu a solicitação -->
                             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:999px; padding:3px 11px 3px 5px; display:inline-flex; align-items:center; gap:6px;">
@@ -2296,7 +2481,7 @@
                         </div>
                     </div>
 
-                    <!-- Linha 1: Tipo de Proposta (sem ícone) + Cliente + Contato -->
+                    <!-- Linha 1: Tipo de Proposta + Cliente + Contato -->
                     <div style="display:grid; grid-template-columns:1fr 1.8fr 1.2fr; gap:12px; align-items:end;">
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Tipo de Proposta <span style="color:#dc2626;">*</span></label>
@@ -2347,34 +2532,25 @@
                         </div>
                     </div>
 
-                    <!-- Linha 2: Endereço de Instalação + Etapa do Kanban -->
-                    <div style="display:grid; grid-template-columns:2.2fr 1fr; gap:12px; align-items:end;">
-                        <div style="position:relative;">
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço de Instalação</label>
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <input type="text" id="caprv-inp-endereco" value="${esc(aprv.endereco_instalacao || '')}"
-                                    autocomplete="off"
-                                    style="flex:1; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
-                                <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickLupaEndereco()"
-                                    title="Pesquisar Endereços do Cliente"
-                                    style="background:#2563eb; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                    <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i>
-                                </button>
-                                <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickAddEndereco()"
-                                    title="Cadastrar Novo Endereço no Cliente"
-                                    style="background:#eab308; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
-                                    <i class="ph ph-plus" style="font-size:1rem; font-weight:bold;"></i>
-                                </button>
-                            </div>
-                            <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
+                    <!-- Linha 2: Endereço de Instalação (Campo Etapa / Coluna do Kanban ocultado conforme solicitado) -->
+                    <div style="position:relative;">
+                        <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Endereço de Instalação</label>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <input type="text" id="caprv-inp-endereco" value="${esc(aprv.endereco_instalacao || '')}"
+                                autocomplete="off"
+                                style="flex:1; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
+                            <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickLupaEndereco()"
+                                title="Pesquisar Endereços do Cliente"
+                                style="background:#2563eb; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="ph ph-magnifying-glass" style="font-size:1rem;"></i>
+                            </button>
+                            <button type="button" class="caprv-btn-only-cliente" onclick="window._caprvClickAddEndereco()"
+                                title="Cadastrar Novo Endereço no Cliente"
+                                style="background:#eab308; color:#ffffff; border:none; width:34px; height:34px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="ph ph-plus" style="font-size:1rem; font-weight:bold;"></i>
+                            </button>
                         </div>
-
-                        <div>
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Etapa / Coluna do Kanban</label>
-                            <select id="det-aprv-coluna" style="width:100%; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:700; text-transform:none;">
-                                ${COLUNAS_KANBAN.map(c => `<option value="${esc(c.key)}" ${colOriginal === c.key ? 'selected' : ''}>${esc(c.titulo)}</option>`).join('')}
-                            </select>
-                        </div>
+                        <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                     </div>
 
                     <!-- Linha 3: Equipamentos (3 campos + Tabela com 3 colunas de dados + ação) -->
@@ -2402,24 +2578,41 @@
                             <button type="button" onclick="window._adicionarEquipModalAprov()"
                                 style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer; white-space:nowrap;">+ Incluir</button>
                         </div>
-                        <div id="caprv-equips-list" style="max-height:165px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
+                        <div id="caprv-equips-list" style="max-height:155px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
                             ${renderTabelaEquipamentosDraftHtml(equipsDraft)}
                         </div>
                     </div>
 
-                    <!-- Linha 4: Observações + Resposta do Setor -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <!-- Linha 4: Observações da Solicitação + Comentários (com foto, nome, dia e hora) -->
+                    <div style="display:grid; grid-template-columns:1fr 1.25fr; gap:12px; align-items:start;">
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Observações da Solicitação</label>
-                            <textarea id="caprv-inp-obs" rows="5"
+                            <textarea id="caprv-inp-obs" rows="7"
                                 placeholder="Observações da solicitação..."
-                                style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.observacoes || '')}</textarea>
+                                style="width:100%; min-height:175px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.observacoes || '')}</textarea>
                         </div>
-                        <div>
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Resposta do Setor / Parecer</label>
-                            <textarea id="det-aprv-resposta" rows="5"
-                                placeholder="Registre a resposta ou parecer do setor..."
-                                style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.resposta_setor || '')}</textarea>
+
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            <label style="display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; font-weight:700; color:#475569;">
+                                <span><i class="ph ph-chats-circle" style="color:#0284c7;"></i> Comentários</span>
+                                <span style="font-size:0.68rem; color:#64748b; font-weight:600;">Logística → Respondida • Comercial → Solicitação (novo SLA)</span>
+                            </label>
+
+                            <!-- Histórico de Comentários -->
+                            <div id="caprv-comentarios-history" style="height:115px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; padding:8px; background:#ffffff; display:flex; flex-direction:column; gap:6px;">
+                                ${renderListaComentariosHtml(comentariosAtuais)}
+                            </div>
+
+                            <!-- Input para novo comentário -->
+                            <div style="display:flex; gap:6px; align-items:flex-start;">
+                                <textarea id="caprv-inp-novo-comentario" rows="2"
+                                    placeholder="Escreva um comentário..."
+                                    style="flex:1; min-height:48px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.8rem; line-height:1.35; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;"></textarea>
+                                <button type="button" id="caprv-btn-enviar-comentario" onclick="window._enviarComentarioModalAprov()"
+                                    style="background:#0284c7; color:#ffffff; border:none; height:48px; padding:0 14px; border-radius:7px; font-size:0.78rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; flex-shrink:0;">
+                                    <i class="ph ph-paper-plane-right"></i> Enviar Comentário
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -2445,8 +2638,9 @@
                         </div>
                     </div>
                 </div>
-            `, 980);
+            `, 1020);
 
+            atualizarListaComentariosDom();
             await configurarFormularioAprovacaoInterativo((novoTipo) => {
                 equipsDraft = equipsDraft.map(eq => ({
                     ...eq,
@@ -2456,9 +2650,6 @@
             });
         },
 
-        /**
-         * Permite vincular uma Aprovação (sem proposta) a uma Proposta existente que ainda não tenha aprovação vinculada.
-         */
         async abrirModalVincularProposta(aprovacaoId) {
             await garantirCachesClientes();
             const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(aprovacaoId));
@@ -2482,7 +2673,6 @@
             };
 
             const cliAprvNorm = normStr(limparIconeCliente(aprv.cliente_nome));
-            // Não mostra propostas que já possuem aprovação vinculada!
             const listaElegivel = (propostas || [])
                 .filter(p => !isSituacaoExcluida(p.fase_negociacao) && !propostaJaPossuiAprovacao(p, aprv.id))
                 .sort((a, b) => {
@@ -2648,12 +2838,6 @@
             }
         },
 
-        /**
-         * Caso a proposta AINDA NÃO tenha aprovação vinculada e existam solicitações
-         * sem proposta vinculada do mesmo cliente nas situações Solicitação, Aguardando setor ou Respondida,
-         * exibe a lista com endereço e colunas separadas de Nome do Produto (com ícone), Qtd. Produtos e Qtd. Manutenção
-         * para o usuário selecionar e editar/vincular.
-         */
         async abrirModalSelecaoAprovacoesDoClienteNaProposta(propIdOpcional) {
             const propId = Number(propIdOpcional || window._propostasEditandoId_proposta);
             if (!propId) {
@@ -2668,7 +2852,6 @@
                 ? window._propostasData.find(p => Number(p.id) === propId)
                 : null;
 
-            // Se a proposta já possui aprovação vinculada, abre diretamente os detalhes da aprovação existente!
             const jaVinc = (pMem && pMem.aprovacao_id)
                 ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
                 : state.aprovacoes.find(a => Number(a.proposta_id) === propId);
@@ -2687,9 +2870,8 @@
                 : (pMem ? parseEquipamentosLista(pMem.itens) : []);
 
             const cliNorm = normStr(clienteNome);
-            const etapasPermitidas = ['Solicitação', 'Aguardando setor', 'Respondida'];
+            const etapasPermitidas = ['Solicitação', 'Respondida'];
 
-            // Aprovações do mesmo cliente que ainda não pertencem a outra proposta
             const aprovacoesCliente = (state.aprovacoes || []).filter(a => {
                 if (a.proposta_id && Number(a.proposta_id) !== propId) return false;
                 const col = normalizarColuna(a.coluna);
@@ -2698,7 +2880,6 @@
                 return normStr(limparIconeCliente(a.cliente_nome)) === cliNorm;
             });
 
-            // Se não existe nenhuma solicitação em aberto para este cliente, abre direto o modal de criação vinculado a esta proposta
             if (!aprovacoesCliente.length) {
                 return await this.abrirModalNovaAprovacao({
                     proposta_id: propId,
@@ -2828,11 +3009,6 @@
             });
         },
 
-        /**
-         * Ação do botão laranja "Aprovação" dentro da tela de Proposta ou Contrato:
-         * - Se a proposta já tiver uma aprovação vinculada, mantém a tela de Proposta aberta
-         *   e abre diretamente os detalhes da Solicitação de Aprovação para edição!
-         */
         async acaoBotaoAprovacaoNaProposta(propIdOpcional) {
             const propId = Number(propIdOpcional || window._propostasEditandoId || window._propostasEditandoId_proposta || window._propostasEditandoId_contrato);
             if (!propId) {

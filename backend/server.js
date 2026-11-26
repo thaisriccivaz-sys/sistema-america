@@ -42578,7 +42578,7 @@ function resolverContextoUsuarioComercial(userJwt) {
       const emailUser = String(dbUser.email || u.email || '').trim().toLowerCase();
       const nomeUser = String(dbUser.nome || rawNome || rawUsername || '').trim();
 
-      db.all("SELECT id, nome_completo, email, email_corporativo FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'", [], (eC, colabs) => {
+      db.all("SELECT id, nome_completo, email, email_corporativo, departamento, cargo, foto_base64, foto_path FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'", [], (eC, colabs) => {
         const listColabs = Array.isArray(colabs) ? colabs : [];
         let colab = null;
         if (emailUser) {
@@ -42623,11 +42623,15 @@ function resolverContextoUsuarioComercial(userJwt) {
             if (d.responsavel_nome && (matchNomeFlex(d.responsavel_nome, nomeColaborador) || matchNomeFlex(d.responsavel_nome, rawUsername) || matchNomeFlex(d.responsavel_nome, nomeUser))) return true;
             return false;
           });
+          const temFotoColab = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
           resolve({
             usuario_id: myUserId,
             username: rawUsername || dbUser.username || '',
             nome_colaborador: nomeColaborador || rawUsername || 'Colaborador',
             colaborador_id: colab ? colab.id : null,
+            departamento: colab ? String(colab.departamento || '').trim() : '',
+            cargo: colab ? String(colab.cargo || '').trim() : '',
+            foto_url: (colab && colab.id && temFotoColab) ? `/api/colaboradores/foto/${colab.id}` : '',
             is_gestor_departamento: Boolean(isThais || isGestorDepto),
             pode_excluir_proposta: Boolean(isThais || isGestorDepto)
           });
@@ -43921,6 +43925,9 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   criado_por_foto_url TEXT DEFAULT '',
   criado_por_colaborador_id INTEGER,
   historico_json TEXT DEFAULT '[]',
+  comentarios_json TEXT DEFAULT '[]',
+  sla_inicio_em TEXT,
+  sla_inicio_ms INTEGER,
   criado_em TEXT,
   atualizado_em TEXT
 )`, (errAprv) => {
@@ -43930,6 +43937,9 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_foto_url TEXT DEFAULT ''", () => {});
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_colaborador_id INTEGER", () => {});
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN historico_json TEXT DEFAULT '[]'", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN comentarios_json TEXT DEFAULT '[]'", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN sla_inicio_em TEXT", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN sla_inicio_ms INTEGER", () => {});
 });
 
 function gerarCodigoAprovacaoComercial(cb) {
@@ -44037,14 +44047,15 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
     }
 
     const prosseguirCriacaoAprovacao = () => {
+      const agoraMs = Date.now();
       const historicoInicial = JSON.stringify([
         {
           data_hora: agora,
           usuario: autor,
           de_coluna: '—',
           para_coluna: 'Solicitação',
-          acao: 'Criação da Solicitação',
-          detalhe: propId ? `Solicitação criada e vinculada à Proposta Nº ${propCodigo || propId}` : 'Solicitação de aprovação criada na coluna Solicitação'
+          acao: 'Criação da Solicitação (SLA 15 min)',
+          detalhe: propId ? `Solicitação criada e vinculada à Proposta Nº ${propCodigo || propId} (SLA de 15 min iniciado)` : 'Solicitação de aprovação criada na coluna Solicitação (SLA de 15 min iniciado)'
         }
       ]);
 
@@ -44053,12 +44064,14 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
           `INSERT INTO comercial_aprovacoes (
             numero_aprovacao, proposta_id, proposta_codigo, tipo_proposta, ainda_nao_e_cliente,
             cliente_nome, contato_nome, endereco_instalacao, equipamentos_json, coluna,
-            urgente, observacoes, resposta_setor, criado_por, criado_por_colaborador_id, historico_json, criado_em, atualizado_em
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            urgente, observacoes, resposta_setor, criado_por, criado_por_colaborador_id,
+            historico_json, comentarios_json, sla_inicio_em, sla_inicio_ms, criado_em, atualizado_em
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             novoNumAprov, propId, propCodigo, tipoProposta, aindaNaoCliente,
             clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna,
-            urgente, observacoes, respostaSetor, autor, colabIdAutor, historicoInicial, agora, agora
+            urgente, observacoes, respostaSetor, autor, colabIdAutor,
+            historicoInicial, '[]', agora, agoraMs, agora, agora
           ],
           function(errIns) {
             if (errIns) return res.status(500).json({ error: errIns.message });
@@ -44088,6 +44101,9 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
                     criado_por: autor,
                     criado_por_colaborador_id: colabIdAutor,
                     historico_json: historicoInicial,
+                    comentarios_json: '[]',
+                    sla_inicio_em: agora,
+                    sla_inicio_ms: agoraMs,
                     criado_em: agora
                   }
                 });
@@ -44142,6 +44158,7 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
     const ctxUser = await resolverContextoUsuarioComercial(req.user);
     const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
     const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const agoraMs = Date.now();
 
     db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
       if (errG) return res.status(500).json({ error: errG.message });
@@ -44173,14 +44190,25 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
         (b.urgente !== undefined && urgente !== Number(row.urgente || 0))
       );
 
-      const colAnterior = String(row.coluna || 'Solicitação').trim();
+      const colAnterior = String(row.coluna || 'Solicitação').trim() === 'Aguardando setor' ? 'Solicitação' : String(row.coluna || 'Solicitação').trim();
       let coluna = b.coluna !== undefined ? String(b.coluna || colAnterior).trim() : colAnterior;
       let retornouParaSolicitacao = false;
+      let slaInicioEm = row.sla_inicio_em || row.criado_em || agora;
+      let slaInicioMs = Number(row.sla_inicio_ms) || agoraMs;
 
-      // Regra obrigatória: se a solicitação foi editada e já tinha sido movida de coluna, volta para "Solicitação"
+      // Regra obrigatória: se a solicitação foi editada e já tinha sido movida de coluna, volta para "Solicitação" com nova contagem de SLA
       if (dadosSolicitacaoMudaram && colAnterior !== 'Solicitação') {
         coluna = 'Solicitação';
         retornouParaSolicitacao = true;
+        slaInicioEm = agora;
+        slaInicioMs = agoraMs;
+      } else if (!dadosSolicitacaoMudaram && b.coluna !== undefined && coluna !== colAnterior) {
+        // Regra obrigatória: passar para a coluna de Respondida ou Solicitação não deve ser possível arrastando o Kanban
+        if (coluna === 'Solicitação' || coluna === 'Respondida') {
+          return res.status(400).json({
+            error: `A movimentação para a coluna "${coluna}" não pode ser feita arrastando o Kanban — ela ocorre automaticamente através do campo de Comentários.`
+          });
+        }
       }
 
       let histArr = [];
@@ -44206,8 +44234,8 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
           usuario: autor,
           de_coluna: colAnterior,
           para_coluna: 'Solicitação',
-          acao: 'Edição da Solicitação (Retorno Automático)',
-          detalhe: `Solicitação editada — retornou automaticamente de "${colAnterior}" para "Solicitação"`
+          acao: 'Edição da Solicitação (Novo SLA 15 min)',
+          detalhe: `Solicitação editada — retornou automaticamente de "${colAnterior}" para "Solicitação" com nova contagem de SLA`
         });
       } else if (coluna !== colAnterior) {
         histArr.push({
@@ -44246,9 +44274,11 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
           observacoes = ?,
           resposta_setor = ?,
           historico_json = ?,
+          sla_inicio_em = ?,
+          sla_inicio_ms = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [propId, propCodigo, tipoProposta, aindaNaoCliente, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, novoHistoricoJson, agora, id],
+        [propId, propCodigo, tipoProposta, aindaNaoCliente, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, novoHistoricoJson, slaInicioEm, slaInicioMs, agora, id],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (propId) {
@@ -44262,6 +44292,135 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
     });
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao atualizar aprovação.' });
+  }
+});
+
+// POST /api/comercial/aprovacoes/:id/comentarios - Adiciona comentário com foto/nome/data/hora e movimenta automaticamente entre Solicitação e Respondida
+app.post('/api/comercial/aprovacoes/:id/comentarios', authenticateToken, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const texto = String(req.body?.texto || '').trim();
+    if (!id) return res.status(400).json({ error: 'ID inválido.' });
+    if (!texto) return res.status(400).json({ error: 'Digite um comentário antes de enviar.' });
+
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Colaborador';
+    const colabId = (ctxUser && ctxUser.colaborador_id) ? Number(ctxUser.colaborador_id) : null;
+    const fotoUrl = (ctxUser && ctxUser.foto_url) || '';
+    const depto = (ctxUser && ctxUser.departamento) || '';
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const agoraMs = Date.now();
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+    db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
+      if (errG) return res.status(500).json({ error: errG.message });
+      if (!row) return res.status(404).json({ error: 'Aprovação não encontrada.' });
+
+      let comentariosArr = [];
+      try {
+        comentariosArr = JSON.parse(row.comentarios_json || '[]');
+        if (!Array.isArray(comentariosArr)) comentariosArr = [];
+      } catch (_) { comentariosArr = []; }
+
+      const novoComentario = {
+        id: agoraMs,
+        texto,
+        usuario_nome: autor,
+        colaborador_id: colabId,
+        foto_url: fotoUrl,
+        departamento: depto,
+        data_hora: agora
+      };
+      comentariosArr.push(novoComentario);
+
+      const depNorm = norm(depto);
+      const ehLogistica = depNorm.includes('logistic') || depNorm.includes('operac') || depNorm.includes('frota') || depNorm.includes('rota');
+      const ehComercial = depNorm.includes('comercial') || depNorm.includes('venda');
+
+      const colAnterior = String(row.coluna || 'Solicitação').trim() === 'Aguardando setor' ? 'Solicitação' : String(row.coluna || 'Solicitação').trim();
+      let novaColuna = colAnterior;
+      let slaInicioEm = row.sla_inicio_em || row.criado_em || agora;
+      let slaInicioMs = Number(row.sla_inicio_ms) || agoraMs;
+
+      let histArr = [];
+      try {
+        histArr = JSON.parse(row.historico_json || '[]');
+        if (!Array.isArray(histArr)) histArr = [];
+      } catch (_) { histArr = []; }
+      if (histArr.length === 0) {
+        histArr.push({
+          data_hora: row.criado_em || agora,
+          usuario: row.criado_por || 'Sistema',
+          de_coluna: '—',
+          para_coluna: 'Solicitação',
+          acao: 'Criação da Solicitação',
+          detalhe: 'Solicitação criada na coluna Solicitação'
+        });
+      }
+
+      const resumoTexto = texto.length > 90 ? texto.substring(0, 87) + '...' : texto;
+
+      if (ehLogistica && colAnterior === 'Solicitação') {
+        novaColuna = 'Respondida';
+        histArr.push({
+          data_hora: agora,
+          usuario: `${autor} (Logística)`,
+          de_coluna: colAnterior,
+          para_coluna: 'Respondida',
+          acao: 'Respondida nos Comentários (Logística)',
+          detalhe: `Movida automaticamente para "Respondida" após resposta da Logística: "${resumoTexto}"`
+        });
+      } else if (ehComercial && colAnterior !== 'Solicitação') {
+        novaColuna = 'Solicitação';
+        slaInicioEm = agora;
+        slaInicioMs = agoraMs;
+        histArr.push({
+          data_hora: agora,
+          usuario: `${autor} (Comercial)`,
+          de_coluna: colAnterior,
+          para_coluna: 'Solicitação',
+          acao: 'Comentário do Comercial (Novo SLA 15 min)',
+          detalhe: `Retornou automaticamente para "Solicitação" com nova contagem de SLA após comentário do Comercial: "${resumoTexto}"`
+        });
+      } else {
+        histArr.push({
+          data_hora: agora,
+          usuario: `${autor}${depto ? ' (' + depto + ')' : ''}`,
+          de_coluna: colAnterior,
+          para_coluna: novaColuna,
+          acao: 'Novo Comentário',
+          detalhe: `Comentário adicionado: "${resumoTexto}"`
+        });
+      }
+
+      db.run(
+        `UPDATE comercial_aprovacoes SET
+          comentarios_json = ?,
+          resposta_setor = ?,
+          coluna = ?,
+          historico_json = ?,
+          sla_inicio_em = ?,
+          sla_inicio_ms = ?,
+          atualizado_em = ?
+         WHERE id = ?`,
+        [JSON.stringify(comentariosArr), texto, novaColuna, JSON.stringify(histArr), slaInicioEm, slaInicioMs, agora, id],
+        function(errUp) {
+          if (errUp) return res.status(500).json({ error: errUp.message });
+          db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (eG, updated) => {
+            res.json({
+              success: true,
+              comentario: novoComentario,
+              mudou_coluna: novaColuna !== colAnterior,
+              de_coluna: colAnterior,
+              nova_coluna: novaColuna,
+              aprovacao: updated
+            });
+          });
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao salvar comentário.' });
   }
 });
 
