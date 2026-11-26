@@ -18,25 +18,36 @@ function normStr(s) {
 }
 
 const EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
-    // OBRA (Banheiros e Chuveiro têm diferenciação Obra / Evento)
-    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA' },
-    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
-    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
-    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
-    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA' },
-    // EVENTO (Banheiros e Chuveiro têm diferenciação Obra / Evento)
-    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
-    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO' },
-    // ESTOQUE ÚNICO (sem diferenciação de Obra e Evento — retira sempre do mesmo estoque)
-    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
-    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
-    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
-    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO' },
-    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO' },
-    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO' }
+    // Ordem oficial solicitada dos quadros de estoque (sempre Obra seguido de Evento para os que separam):
+    // 1. STD (Obra / Evento)
+    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA',   ordem: 1 },
+    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO', ordem: 2 },
+    // 2. LUXO (Obra / Evento)
+    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA',   ordem: 3 },
+    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO', ordem: 4 },
+    // 3. EXL (Obra / Evento)
+    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA',   ordem: 5 },
+    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO', ordem: 6 },
+    // 4. PCD (Obra / Evento)
+    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA',   ordem: 7 },
+    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO', ordem: 8 },
+    // 5. Mictório (Estoque Único)
+    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO',  ordem: 9 },
+    // 6. PBII (Estoque Único)
+    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO',  ordem: 10 },
+    // 7. PBIII (Estoque Único)
+    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO',  ordem: 11 },
+    // 8. Chuveiro (Obra / Evento)
+    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA',   ordem: 12 },
+    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO', ordem: 13 },
+    // 9. Hidráulico (Estoque Único)
+    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO',  ordem: 14 },
+    // 10. Guarita Individual (Estoque Único)
+    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO',  ordem: 15 },
+    // 11. Guarita Dupla (Estoque Único)
+    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO',  ordem: 16 },
+    // 12. Grade de Aço (Estoque Único)
+    { codigo: 'GRADE DE AÇO',       icone: '🚧', label: '🚧 GRADE DE AÇO',       categoria: 'UNICO',  ordem: 17 }
 ];
 
 function limparEmojiModeloOs(s) {
@@ -63,6 +74,8 @@ function normalizarCodigoModeloOs(raw, corOpcional, vinculoOpcional) {
     if (n.includes('pbii') || n.includes('pia ii') || n.includes('pia 2') || n === 'pia' || n.includes('lavatorio')) return 'PBII';
     if (n.includes('guarita') && n.includes('dupla')) return 'GUARITA DUPLA';
     if (n.includes('guarita')) return 'GUARITA INDIVIDUAL';
+    if (n.includes('grade') && (n.includes('aco') || n.includes('isolamento') || n.includes('conten'))) return 'GRADE DE AÇO';
+    if (n === 'grade' || n === 'grade de aco') return 'GRADE DE AÇO';
 
     // 3. Match direto no catálogo
     const achado = EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.find(item =>
@@ -388,6 +401,19 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                     if (errRes) return res.status(500).json({ error: errRes.message });
 
                     const dataFiltro = String(req.query.data || '').trim();
+                    const dataDe = String(req.query.data_de || req.query.data || '').trim();
+                    const dataAte = String(req.query.data_ate || '').trim();
+                    const temFiltroData = Boolean(dataDe || dataAte);
+
+                    const reservaBatePeriodo = (dtEntrega) => {
+                        const dt = String(dtEntrega || '').trim();
+                        if (!dt) return false;
+                        if (dataDe && dataAte) return dt >= dataDe && dt <= dataAte;
+                        if (dataDe) return dt === dataDe;
+                        if (dataAte) return dt <= dataAte;
+                        return true;
+                    };
+
                     const listaItens = (itens || []).map(it => {
                         let vincs = [];
                         try { vincs = JSON.parse(it.equipamentos_comercial_json || '[]'); } catch (_) { vincs = []; }
@@ -405,15 +431,18 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         quantidade: Number(r.quantidade_reservada ?? 0) || 0
                     }));
 
-                    // Agrupar resumo por modelo
+                    // Agrupar resumo por modelo (sempre inicializa todos os 17 quadros oficiais mesmo com estoque 0)
                     const mapModelos = new Map();
                     const garantirModelo = (modName) => {
                         const codNorm = normalizarCodigoModeloOs(modName);
                         const key = String(codNorm || modName || '').trim().toUpperCase();
                         if (!key) return null;
                         if (!mapModelos.has(key)) {
+                            const catItem = EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.find(x => x.codigo === key);
                             mapModelos.set(key, {
                                 modelo: key,
+                                categoria: catItem ? catItem.categoria : (key.includes('EVENTO') ? 'EVENTO' : (key.includes('OBRA') ? 'OBRA' : 'UNICO')),
+                                ordem: catItem ? catItem.ordem : 999,
                                 quantidade_total: 0,
                                 quantidade_reservada: 0,
                                 reservado_total: 0,
@@ -426,6 +455,11 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         }
                         return mapModelos.get(key);
                     };
+
+                    // Garante que todos os modelos do catálogo oficial existam mesmo com estoque 0
+                    EQUIPAMENTOS_OS_LOGISTICA_CATALOGO.forEach(cat => {
+                        garantirModelo(cat.codigo);
+                    });
 
                     listaItens.forEach(it => {
                         const m = garantirModelo(it.modelo);
@@ -465,22 +499,24 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         const qRes = Math.max(0, parseInt(r.quantidade_reservada ?? 0, 10) || 0);
                         m.quantidade_reservada += qRes;
                         m.reservado_total += qRes;
-                        if (dataFiltro && String(r.data_entrega || '') === dataFiltro) {
+                        if (temFiltroData && reservaBatePeriodo(r.data_entrega)) {
                             m.reservado_na_data += qRes;
                         }
                     });
 
                     const modelosResumo = Array.from(mapModelos.values()).map(m => ({
                         modelo: m.modelo,
+                        categoria: m.categoria,
+                        ordem: m.ordem,
                         quantidade_total: m.quantidade_total,
                         quantidade_reservada: m.quantidade_reservada,
                         reservado_total: m.reservado_total,
                         reservado_na_data: m.reservado_na_data,
-                        quantidade_disponivel: m.quantidade_total - (dataFiltro ? m.reservado_na_data : m.reservado_total),
+                        quantidade_disponivel: m.quantidade_total - (temFiltroData ? m.reservado_na_data : m.reservado_total),
                         registros_count: m.registros_count,
                         cores: Array.from(m.cores),
                         equipamentos_comercial: Array.from(m.equipamentos_comercial.values())
-                    })).sort((a, b) => a.modelo.localeCompare(b.modelo, 'pt-BR'));
+                    })).sort((a, b) => (a.ordem !== b.ordem ? a.ordem - b.ordem : a.modelo.localeCompare(b.modelo, 'pt-BR')));
 
                     res.json({
                         catalogo_os_logistica: EQUIPAMENTOS_OS_LOGISTICA_CATALOGO,

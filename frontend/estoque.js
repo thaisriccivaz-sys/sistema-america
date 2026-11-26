@@ -3453,28 +3453,27 @@ window.fecharModalEquipamentoEstoque = function() {
 
 // Catálogo oficial de produtos para vínculo de Estoque da Logística:
 // - Banheiros (STD, LX, EXL, PCD) e Chuveiro têm diferenciação entre OBRA e EVENTO.
-// - Hidráulico, Mictório, PBII, PBIII, Guarita Individual e Guarita Dupla têm estoque único (sem separação Obra/Evento).
+// - Hidráulico, Mictório, PBII, PBIII, Guarita Individual, Guarita Dupla e Grade de Aço têm estoque único (sem separação Obra/Evento).
 // - Limpa Fossa, Carrinho e Caixa D'água NÃO aparecem na vinculação do Controle de Equipamentos.
+// - Ordem oficial dos quadros: STD (Obra/Evento), Luxo (Obra/Evento), EXL (Obra/Evento), PCD (Obra/Evento), Mictório, PBII, PBIII, Chuveiro (Obra/Evento), Hidráulico, Guarita Individual, Guarita Dupla, Grade de Aço.
 window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO = [
-    // OBRA
-    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA' },
-    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA' },
-    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA' },
-    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA' },
-    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA' },
-    // EVENTO
-    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO' },
-    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO' },
-    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO' },
-    // ESTOQUE ÚNICO (Obra e Evento retiram do mesmo estoque)
-    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO' },
-    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO' },
-    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO' },
-    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO' },
-    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO' },
-    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO' }
+    { codigo: 'STD OBRA',           icone: '💙', label: '💙 STD OBRA',           categoria: 'OBRA',   ordem: 1 },
+    { codigo: 'STD EVENTO',         icone: '💜', label: '💜 STD EVENTO',         categoria: 'EVENTO', ordem: 2 },
+    { codigo: 'LX OBRA',            icone: '🟦', label: '🟦 LX OBRA',            categoria: 'OBRA',   ordem: 3 },
+    { codigo: 'LX EVENTO',          icone: '🟣', label: '🟣 LX EVENTO',          categoria: 'EVENTO', ordem: 4 },
+    { codigo: 'EXL OBRA',           icone: '🔵', label: '🔵 EXL OBRA',           categoria: 'OBRA',   ordem: 5 },
+    { codigo: 'EXL EVENTO',         icone: '🟣', label: '🟣 EXL EVENTO',         categoria: 'EVENTO', ordem: 6 },
+    { codigo: 'PCD OBRA',           icone: '♿', label: '♿ PCD OBRA',           categoria: 'OBRA',   ordem: 7 },
+    { codigo: 'PCD EVENTO',         icone: '♿', label: '♿ PCD EVENTO',         categoria: 'EVENTO', ordem: 8 },
+    { codigo: 'MICTÓRIO',           icone: '💦', label: '💦 MICTÓRIO',           categoria: 'UNICO',  ordem: 9 },
+    { codigo: 'PBII',               icone: '🧼', label: '🧼 PBII',               categoria: 'UNICO',  ordem: 10 },
+    { codigo: 'PBIII',              icone: '🧼', label: '🧼 PBIII',              categoria: 'UNICO',  ordem: 11 },
+    { codigo: 'CHUVEIRO OBRA',      icone: '🚿', label: '🚿 CHUVEIRO OBRA',      categoria: 'OBRA',   ordem: 12 },
+    { codigo: 'CHUVEIRO EVENTO',    icone: '🚿', label: '🚿 CHUVEIRO EVENTO',    categoria: 'EVENTO', ordem: 13 },
+    { codigo: 'HIDRÁULICO',         icone: '🚽', label: '🚽 HIDRÁULICO',         categoria: 'UNICO',  ordem: 14 },
+    { codigo: 'GUARITA INDIVIDUAL', icone: '⬜', label: '⬜ GUARITA INDIVIDUAL', categoria: 'UNICO',  ordem: 15 },
+    { codigo: 'GUARITA DUPLA',      icone: '⚪', label: '⚪ GUARITA DUPLA',      categoria: 'UNICO',  ordem: 16 },
+    { codigo: 'GRADE DE AÇO',       icone: '🚧', label: '🚧 GRADE DE AÇO',       categoria: 'UNICO',  ordem: 17 }
 ];
 
 window._normModeloOsLog = function(s) {
@@ -3505,6 +3504,7 @@ window.resolverInfoModeloEstoqueLogistica = function(raw) {
     else if (n.includes('pbii') || n.includes('pia ii') || n === 'pia' || n.includes('lavatorio')) alvo = 'pbii';
     else if (n.includes('guarita') && n.includes('dupla')) alvo = 'guarita dupla';
     else if (n.includes('guarita')) alvo = 'guarita individual';
+    else if (n.includes('grade')) alvo = 'grade de aco';
 
     const achado = (window.EQUIPAMENTOS_OS_LOGISTICA_CATALOGO || []).find(it =>
         window._normModeloOsLog(it.codigo) === alvo || window._normModeloOsLog(it.label) === alvo
