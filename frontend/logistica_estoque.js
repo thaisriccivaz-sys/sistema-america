@@ -8,7 +8,7 @@ window._logEstoqueState = {
     reservas: [],
     equipamentosComercial: [],
     filtroTexto: '',
-    filtroModelo: '',
+    filtroModelos: [], // array de códigos selecionados (ex: ['STD OBRA', 'LX OBRA'])
     filtroDataDe: '',
     filtroDataAte: '',
     filtroContexto: 'INDIFERENTE', // 'INDIFERENTE' | 'OBRA' | 'EVENTO'
@@ -135,9 +135,23 @@ window.renderTelaLogisticaEstoque = async function() {
                                 '<input type="text" id="filtro-log-est-texto" class="form-control" placeholder="Digite para filtrar em tempo real..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;padding-left:34px;height:38px;">' +
                             '</div>' +
                         '</div>' +
-                        '<div style="width:185px;">' +
+                        '<div style="width:235px;position:relative;" id="wrap-filtro-log-est-modelos">' +
                             '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;">Filtrar Modelo</label>' +
-                            '<input type="text" id="filtro-log-est-modelo" class="form-control" placeholder="Ex: STD, LUXO, PCD..." oninput="window.filtrarTelaLogisticaEstoque()" style="width:100%;height:38px;">' +
+                            '<button type="button" id="btn-dropdown-filtro-log-est-modelos" onclick="window.toggleDropdownFiltroModelosLogEst(event)" style="width:100%;height:38px;padding:0 10px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-size:0.81rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left;">' +
+                                '<span id="lbl-btn-filtro-log-est-modelos" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Todos os modelos</span>' +
+                                '<i class="ph ph-caret-down" style="color:#64748b;flex-shrink:0;"></i>' +
+                            '</button>' +
+                            '<div id="dropdown-filtro-log-est-modelos" style="display:none;position:absolute;top:calc(100% + 4px);left:0;width:270px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,0.16);z-index:10020;padding:8px;">' +
+                                '<div style="position:relative;margin-bottom:6px;">' +
+                                    '<i class="ph ph-magnifying-glass" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.9rem;"></i>' +
+                                    '<input type="text" id="inp-busca-dropdown-modelo-log-est" class="form-control" placeholder="Buscar modelo..." oninput="window.renderOpcoesDropdownFiltroModelosLogEst(this.value)" style="width:100%;padding-left:28px;height:32px;font-size:0.79rem;">' +
+                                '</div>' +
+                                '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-bottom:1px solid #f1f5f9;margin-bottom:4px;font-size:0.74rem;">' +
+                                    '<button type="button" onclick="window.selecionarTodosModelosFiltroLogEst(true)" style="border:none;background:none;color:#1d4ed8;font-weight:700;cursor:pointer;padding:2px 4px;">Marcar todos</button>' +
+                                    '<button type="button" onclick="window.selecionarTodosModelosFiltroLogEst(false)" style="border:none;background:none;color:#64748b;font-weight:600;cursor:pointer;padding:2px 4px;">Limpar seleção</button>' +
+                                '</div>' +
+                                '<div id="lista-opcoes-dropdown-modelo-log-est" style="max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>' +
+                            '</div>' +
                         '</div>' +
                         '<div>' +
                             '<label style="display:block;font-size:0.76rem;font-weight:700;color:#475569;margin-bottom:4px;"><i class="ph ph-calendar-blank"></i> Período — De</label>' +
@@ -171,12 +185,11 @@ window.renderTelaLogisticaEstoque = async function() {
                     '<div id="logistica-estoque-tabela-container"></div>' +
                 '</div>' +
             '</div>';
+        window.renderOpcoesDropdownFiltroModelosLogEst('');
         window.renderCardsModelosLogisticaEstoque();
         window.renderTabelaAtivaLogisticaEstoque();
     }
 
-    // Sempre inicia a tela com todos os vínculos minimizados
-    window._logEstoqueState.vinculosExpandidosPorItem = {};
     await window.carregarLogisticaEstoque();
 };
 
@@ -384,19 +397,134 @@ window.toggleQuadrosModelosLogisticaEstoque = function() {
 
 window.limparTodosFiltrosLogisticaEstoque = function() {
     const elTxt = document.getElementById('filtro-log-est-texto');
-    const elMod = document.getElementById('filtro-log-est-modelo');
     const elDe = document.getElementById('filtro-log-est-data-de');
     const elAte = document.getElementById('filtro-log-est-data-ate');
+    const elBuscaMod = document.getElementById('inp-busca-dropdown-modelo-log-est');
     if (elTxt) elTxt.value = '';
-    if (elMod) elMod.value = '';
     if (elDe) elDe.value = '';
     if (elAte) elAte.value = '';
+    if (elBuscaMod) elBuscaMod.value = '';
     window._logEstoqueState.filtroTexto = '';
-    window._logEstoqueState.filtroModelo = '';
+    window._logEstoqueState.filtroModelos = [];
     window._logEstoqueState.filtroDataDe = '';
     window._logEstoqueState.filtroDataAte = '';
+    window._atualizarTextoBotaoFiltroModelosLogEst();
+    window.renderOpcoesDropdownFiltroModelosLogEst('');
     window.setFiltroContextoLogisticaEstoque('INDIFERENTE');
 };
+
+window._modeloPassaFiltroSelecionadosLogEst = function(modeloRaw) {
+    const selecionados = window._logEstoqueState.filtroModelos || [];
+    if (!Array.isArray(selecionados) || selecionados.length === 0) return true;
+    const alvo = _normLogEst(modeloRaw);
+    return selecionados.some(m => _normLogEst(m) === alvo);
+};
+
+window._atualizarTextoBotaoFiltroModelosLogEst = function() {
+    const lbl = document.getElementById('lbl-btn-filtro-log-est-modelos');
+    const btn = document.getElementById('btn-dropdown-filtro-log-est-modelos');
+    if (!lbl) return;
+    const sel = window._logEstoqueState.filtroModelos || [];
+    if (sel.length === 0) {
+        lbl.textContent = 'Todos os modelos';
+        if (btn) {
+            btn.style.borderColor = '#cbd5e1';
+            btn.style.background = '#fff';
+            btn.style.color = '#334155';
+        }
+    } else if (sel.length === 1) {
+        lbl.textContent = _fmtModeloComIconeLogEst(sel[0]);
+        if (btn) {
+            btn.style.borderColor = '#059669';
+            btn.style.background = '#ecfdf5';
+            btn.style.color = '#047857';
+        }
+    } else {
+        lbl.textContent = sel.length + ' modelos selecionados';
+        if (btn) {
+            btn.style.borderColor = '#059669';
+            btn.style.background = '#ecfdf5';
+            btn.style.color = '#047857';
+        }
+    }
+};
+
+window.toggleDropdownFiltroModelosLogEst = function(event) {
+    if (event) event.stopPropagation();
+    const dd = document.getElementById('dropdown-filtro-log-est-modelos');
+    if (!dd) return;
+    const abrir = dd.style.display !== 'block';
+    dd.style.display = abrir ? 'block' : 'none';
+    if (abrir) {
+        const inp = document.getElementById('inp-busca-dropdown-modelo-log-est');
+        if (inp) {
+            inp.value = '';
+            window.renderOpcoesDropdownFiltroModelosLogEst('');
+            setTimeout(() => inp.focus(), 30);
+        } else {
+            window.renderOpcoesDropdownFiltroModelosLogEst('');
+        }
+    }
+};
+
+window.renderOpcoesDropdownFiltroModelosLogEst = function(termo) {
+    const cont = document.getElementById('lista-opcoes-dropdown-modelo-log-est');
+    if (!cont) return;
+    const q = _normLogEst(termo || '');
+    const catalogo = window._ORDEM_QUADROS_ESTOQUE_LOGISTICA || [];
+    const sel = window._logEstoqueState.filtroModelos || [];
+
+    const filtrados = catalogo.filter(it => !q || _normLogEst(it.codigo).includes(q) || _normLogEst(it.label).includes(q));
+    if (filtrados.length === 0) {
+        cont.innerHTML = '<div style="padding:8px;text-align:center;color:#94a3b8;font-size:0.78rem;">Nenhum modelo encontrado</div>';
+        return;
+    }
+
+    cont.innerHTML = filtrados.map(it => {
+        const checked = sel.some(m => _normLogEst(m) === _normLogEst(it.codigo));
+        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:0.8rem;font-weight:700;color:#0f172a;background:' + (checked ? '#ecfdf5' : 'transparent') + ';" onmouseover="if(!this.querySelector(\'input\').checked)this.style.background=\'#f8fafc\'" onmouseout="this.style.background=this.querySelector(\'input\').checked?\'#ecfdf5\':\'transparent\'">' +
+            '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="window.toggleModeloFiltroCheckboxLogEst(\'' + _escLogEst(it.codigo) + '\')" style="cursor:pointer;accent-color:#059669;width:15px;height:15px;">' +
+            '<span>' + _escLogEst(it.label) + '</span>' +
+        '</label>';
+    }).join('');
+};
+
+window.toggleModeloFiltroCheckboxLogEst = function(codigo) {
+    const arr = (window._logEstoqueState.filtroModelos || []).slice();
+    const idx = arr.findIndex(m => _normLogEst(m) === _normLogEst(codigo));
+    if (idx >= 0) {
+        arr.splice(idx, 1);
+    } else {
+        arr.push(codigo);
+    }
+    window._logEstoqueState.filtroModelos = arr;
+    window._atualizarTextoBotaoFiltroModelosLogEst();
+    const inp = document.getElementById('inp-busca-dropdown-modelo-log-est');
+    window.renderOpcoesDropdownFiltroModelosLogEst(inp ? inp.value : '');
+    window.renderCardsModelosLogisticaEstoque();
+    window.renderTabelaAtivaLogisticaEstoque();
+};
+
+window.selecionarTodosModelosFiltroLogEst = function(marcarTodos) {
+    if (marcarTodos) {
+        window._logEstoqueState.filtroModelos = (window._ORDEM_QUADROS_ESTOQUE_LOGISTICA || []).map(x => x.codigo);
+    } else {
+        window._logEstoqueState.filtroModelos = [];
+    }
+    window._atualizarTextoBotaoFiltroModelosLogEst();
+    const inp = document.getElementById('inp-busca-dropdown-modelo-log-est');
+    window.renderOpcoesDropdownFiltroModelosLogEst(inp ? inp.value : '');
+    window.renderCardsModelosLogisticaEstoque();
+    window.renderTabelaAtivaLogisticaEstoque();
+};
+
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('dropdown-filtro-log-est-modelos');
+    const wrap = document.getElementById('wrap-filtro-log-est-modelos');
+    if (dd && dd.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+        dd.style.display = 'none';
+    }
+});
 
 window.abrirContratoPeloEstoqueLogistica = function(propostaId) {
     const idNum = Number(propostaId);
@@ -458,33 +586,17 @@ window.limparFiltrosTopoLogisticaEstoque = function() {
 
 window.filtrarTelaLogisticaEstoque = function() {
     const txt = document.getElementById('filtro-log-est-texto')?.value || '';
-    const mod = document.getElementById('filtro-log-est-modelo')?.value || '';
     window._logEstoqueState.filtroTexto = txt;
-    window._logEstoqueState.filtroModelo = mod;
     window.renderCardsModelosLogisticaEstoque();
     window.renderTabelaAtivaLogisticaEstoque();
 };
 
 window.limparFiltrosLogisticaEstoque = function() {
-    const elTxt = document.getElementById('filtro-log-est-texto');
-    const elMod = document.getElementById('filtro-log-est-modelo');
-    if (elTxt) elTxt.value = '';
-    if (elMod) elMod.value = '';
-    window._logEstoqueState.filtroTexto = '';
-    window._logEstoqueState.filtroModelo = '';
-    window.renderCardsModelosLogisticaEstoque();
-    window.renderTabelaAtivaLogisticaEstoque();
+    window.limparTodosFiltrosLogisticaEstoque();
 };
 
 window.filtrarPorModeloCardLogisticaEstoque = function(modelo) {
-    const elMod = document.getElementById('filtro-log-est-modelo');
-    if (!elMod) return;
-    if (_normLogEst(elMod.value) === _normLogEst(modelo)) {
-        elMod.value = '';
-    } else {
-        elMod.value = modelo;
-    }
-    window.filtrarTelaLogisticaEstoque();
+    window.toggleModeloFiltroCheckboxLogEst(modelo);
 };
 
 window.renderCardsModelosLogisticaEstoque = function() {
@@ -496,7 +608,7 @@ window.renderCardsModelosLogisticaEstoque = function() {
     const dtDe = window._logEstoqueState.filtroDataDe || '';
     const dtAte = window._logEstoqueState.filtroDataAte || '';
     const temFiltroData = Boolean(dtDe || dtAte);
-    const modAtivo = _normLogEst(window._logEstoqueState.filtroModelo);
+    const modelosSel = window._logEstoqueState.filtroModelos || [];
 
     // Garante que todos os 17 quadros na ordem oficial existam (mesmo com estoque 0)
     const ordemCatalogo = window._ORDEM_QUADROS_ESTOQUE_LOGISTICA || [];
@@ -508,6 +620,7 @@ window.renderCardsModelosLogisticaEstoque = function() {
             categoria: cat.categoria,
             ordem: cat.ordem,
             quantidade_total: 0,
+            quantidade_manutencao: 0,
             equipamentos_comercial: []
         });
     });
@@ -518,6 +631,7 @@ window.renderCardsModelosLogisticaEstoque = function() {
         const existente = mapPorCodigo.get(cod);
         if (existente) {
             existente.quantidade_total = Number(m.quantidade_total) || 0;
+            existente.quantidade_manutencao = Number(m.quantidade_manutencao) || 0;
             existente.equipamentos_comercial = Array.isArray(m.equipamentos_comercial) ? m.equipamentos_comercial : [];
         } else {
             mapPorCodigo.set(cod, {
@@ -525,6 +639,7 @@ window.renderCardsModelosLogisticaEstoque = function() {
                 categoria: m.categoria || (cod.includes('EVENTO') ? 'EVENTO' : (cod.includes('OBRA') ? 'OBRA' : 'UNICO')),
                 ordem: Number(m.ordem) || 999,
                 quantidade_total: Number(m.quantidade_total) || 0,
+                quantidade_manutencao: Number(m.quantidade_manutencao) || 0,
                 equipamentos_comercial: Array.isArray(m.equipamentos_comercial) ? m.equipamentos_comercial : []
             });
         }
@@ -541,9 +656,9 @@ window.renderCardsModelosLogisticaEstoque = function() {
         }
     });
 
-    // Filtra pelo Tipo (Obra / Evento / Indiferente) e ordena na sequência oficial
+    // Filtra pelo Tipo (Todos / Obra / Evento) e pelos modelos selecionados no dropdown, ordenando na sequência oficial
     const listaQuadros = Array.from(mapPorCodigo.values())
-        .filter(m => window._modeloBateContextoLogEst(m.modelo))
+        .filter(m => window._modeloBateContextoLogEst(m.modelo) && window._modeloPassaFiltroSelecionadosLogEst(m.modelo))
         .sort((a, b) => (a.ordem !== b.ordem ? a.ordem - b.ordem : a.modelo.localeCompare(b.modelo, 'pt-BR')));
 
     const labelRes = temFiltroData
@@ -551,8 +666,9 @@ window.renderCardsModelosLogisticaEstoque = function() {
         : 'Reservado';
 
     box.innerHTML = listaQuadros.map(m => {
-        const isSel = modAtivo && modAtivo === _normLogEst(m.modelo);
+        const isSel = modelosSel.some(s => _normLogEst(s) === _normLogEst(m.modelo));
         const qtdTotal = Number(m.quantidade_total) || 0;
+        const qtdManut = Number(m.quantidade_manutencao) || 0;
 
         // Calcula reservas deste modelo considerando o filtro de período De / Até do topo (entrega e retirada)
         const qtdRes = reservasAll.reduce((acc, r) => {
@@ -561,9 +677,8 @@ window.renderCardsModelosLogisticaEstoque = function() {
             return acc + (Number(r.quantidade ?? r.quantidade_reservada ?? 0) || 0);
         }, 0);
 
-        const disponivel = qtdTotal - qtdRes;
+        const disponivel = qtdTotal - qtdRes - qtdManut;
         const corDisp = disponivel < 0 ? '#dc2626' : (disponivel === 0 ? '#d97706' : '#059669');
-        const eqCount = (m.equipamentos_comercial || []).length;
 
         const mUp = String(m.modelo || '').toUpperCase();
         const badgeStyle = mUp.includes('EVENTO')
@@ -572,24 +687,28 @@ window.renderCardsModelosLogisticaEstoque = function() {
                 ? 'background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;'
                 : 'background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;');
 
-        return '<div onclick="window.filtrarPorModeloCardLogisticaEstoque(\'' + _escLogEst(m.modelo) + '\')" style="background:#fff;border:2px solid ' + (isSel ? '#059669' : '#e2e8f0') + ';border-radius:12px;padding:0.95rem 1.1rem;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 2px rgba(15,23,42,0.03);">' +
+        return '<div onclick="window.filtrarPorModeloCardLogisticaEstoque(\'' + _escLogEst(m.modelo) + '\')" style="background:#fff;border:2px solid ' + (isSel ? '#059669' : '#e2e8f0') + ';border-radius:12px;padding:0.9rem 1rem;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 2px rgba(15,23,42,0.03);">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">' +
                 '<span style="' + badgeStyle + 'border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.84rem;display:inline-flex;align-items:center;gap:5px;">' +
                     '' + _escLogEst(_fmtModeloComIconeLogEst(m.modelo)) +
                 '</span>' +
             '</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;background:#f8fafc;border-radius:8px;padding:7px 6px;">' +
+            '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;background:#f8fafc;border-radius:8px;padding:7px 4px;">' +
                 '<div>' +
-                    '<div style="font-size:0.68rem;color:#64748b;font-weight:600;">Estoque</div>' +
-                    '<div style="font-size:1rem;font-weight:800;color:#0f172a;">' + qtdTotal + '</div>' +
+                    '<div style="font-size:0.65rem;color:#64748b;font-weight:600;">Estoque</div>' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:#0f172a;">' + qtdTotal + '</div>' +
+                '</div>' +
+                '<div style="border-left:1px solid #e2e8f0;">' +
+                    '<div style="font-size:0.65rem;color:#64748b;font-weight:600;">' + labelRes + '</div>' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:#1d4ed8;">' + qtdRes + '</div>' +
                 '</div>' +
                 '<div style="border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">' +
-                    '<div style="font-size:0.68rem;color:#64748b;font-weight:600;">' + labelRes + '</div>' +
-                    '<div style="font-size:1rem;font-weight:800;color:#1d4ed8;">' + qtdRes + '</div>' +
+                    '<div style="font-size:0.65rem;color:#64748b;font-weight:600;">Manutenção</div>' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:#d97706;">' + qtdManut + '</div>' +
                 '</div>' +
                 '<div>' +
-                    '<div style="font-size:0.68rem;color:#64748b;font-weight:600;">Disponível</div>' +
-                    '<div style="font-size:1rem;font-weight:800;color:' + corDisp + ';">' + disponivel + '</div>' +
+                    '<div style="font-size:0.65rem;color:#64748b;font-weight:600;">Disponível</div>' +
+                    '<div style="font-size:0.95rem;font-weight:800;color:' + corDisp + ';">' + disponivel + '</div>' +
                 '</div>' +
             '</div>' +
         '</div>';
@@ -602,8 +721,8 @@ window.renderTabelaAtivaLogisticaEstoque = function() {
 
     const badgeItens = document.getElementById('badge-count-log-est-itens');
     const badgeRes = document.getElementById('badge-count-log-est-reservas');
-    const itensCtx = (window._logEstoqueState.itens || []).filter(it => window._modeloBateContextoLogEst(it.modelo));
-    const resCtx = (window._logEstoqueState.reservas || []).filter(r => window._modeloBateContextoLogEst(r.modelo_estoque) && window._reservaBatePeriodoLogEst(r));
+    const itensCtx = (window._logEstoqueState.itens || []).filter(it => window._modeloBateContextoLogEst(it.modelo) && window._modeloPassaFiltroSelecionadosLogEst(it.modelo));
+    const resCtx = (window._logEstoqueState.reservas || []).filter(r => window._modeloBateContextoLogEst(r.modelo_estoque) && window._modeloPassaFiltroSelecionadosLogEst(r.modelo_estoque) && window._reservaBatePeriodoLogEst(r));
     if (badgeItens) badgeItens.textContent = String(itensCtx.length);
     if (badgeRes) badgeRes.textContent = String(resCtx.length);
 
@@ -616,14 +735,13 @@ window.renderTabelaAtivaLogisticaEstoque = function() {
 
 window._renderTabelaItensEstoqueLogEst = function(cont) {
     const q = _normLogEst(window._logEstoqueState.filtroTexto);
-    const qMod = _normLogEst(window._logEstoqueState.filtroModelo);
     const eqComercialAll = window._logEstoqueState.equipamentosComercial || [];
     const alocacaoMap = window._calcularAlocacaoContratosPorItemEstoqueLogEst();
     const expandidosMap = window._logEstoqueState.vinculosExpandidosPorItem || {};
 
     const lista = (window._logEstoqueState.itens || []).filter(item => {
         if (!window._modeloBateContextoLogEst(item.modelo)) return false;
-        if (qMod && !_normLogEst(item.modelo).includes(qMod)) return false;
+        if (!window._modeloPassaFiltroSelecionadosLogEst(item.modelo)) return false;
         if (!q) return true;
         const vincs = (item.equipamentos_comercial || []).map(x => typeof x === 'object' ? (x.nome || x.codigo || '') : String(x)).join(' ');
         const eqPorMod = eqComercialAll.filter(e => _normLogEst(e.logistica_estoque_modelo) === _normLogEst(item.modelo)).map(e => (e.codigo || '') + ' ' + (e.nome || '')).join(' ');
@@ -745,12 +863,11 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
 
 window._renderTabelaReservasContratosLogEst = function(cont) {
     const q = _normLogEst(window._logEstoqueState.filtroTexto);
-    const qMod = _normLogEst(window._logEstoqueState.filtroModelo);
 
     const lista = (window._logEstoqueState.reservas || []).filter(r => {
         if (!window._modeloBateContextoLogEst(r.modelo_estoque)) return false;
+        if (!window._modeloPassaFiltroSelecionadosLogEst(r.modelo_estoque)) return false;
         if (!window._reservaBatePeriodoLogEst(r)) return false;
-        if (qMod && !_normLogEst(r.modelo_estoque).includes(qMod)) return false;
         if (!q) return true;
         const alvo = _normLogEst([r.contrato_numero, r.cliente_nome, r.equipamento_comercial_nome, r.modelo_estoque, r.data_entrega].join(' '));
         return alvo.includes(q);

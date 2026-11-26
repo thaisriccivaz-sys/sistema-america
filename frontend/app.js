@@ -1452,11 +1452,54 @@ function renderAppTabs() {
     }).join('');
 }
 
+// ── PRESERVAÇÃO DE ROLAGEM (SCROLL) POR ABA / TELA ──────────────────────────
+window._tabScrollPositions = window._tabScrollPositions || {};
+
+window._salvarScrollDaAbaAtiva = function (tabObj) {
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if (tabObj) {
+        tabObj._scrollY = y;
+        if (tabObj.tabId) window._tabScrollPositions[tabObj.tabId] = y;
+        if (tabObj.target) window._tabScrollPositions['target:' + tabObj.target] = y;
+    }
+    const activeView = document.querySelector('.content-view.active');
+    if (activeView && activeView.id) {
+        window._tabScrollPositions['view:' + activeView.id] = y;
+        if (activeView.id === 'view-logistica-pipeline') {
+            window._pipelineScrollY = y;
+        }
+    }
+};
+
+window._restaurarScrollDaAba = function (tabObj, targetFallback) {
+    let savedY = 0;
+    if (tabObj && typeof tabObj._scrollY === 'number') {
+        savedY = tabObj._scrollY;
+    } else if (tabObj && tabObj.tabId && typeof window._tabScrollPositions[tabObj.tabId] === 'number') {
+        savedY = window._tabScrollPositions[tabObj.tabId];
+    } else if ((tabObj?.target || targetFallback) && typeof window._tabScrollPositions['target:' + (tabObj?.target || targetFallback)] === 'number') {
+        savedY = window._tabScrollPositions['target:' + (tabObj?.target || targetFallback)];
+    } else if ((tabObj?.target === 'logistica-pipeline' || targetFallback === 'logistica-pipeline') && typeof window._pipelineScrollY === 'number') {
+        savedY = window._pipelineScrollY;
+    }
+    const aplicarScroll = () => {
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+    };
+    aplicarScroll();
+    requestAnimationFrame(aplicarScroll);
+    setTimeout(aplicarScroll, 95);
+    setTimeout(aplicarScroll, 220);
+};
+
 // Navegar para uma aba existente pelo seu tabId único
 window.navigateToTab = function (tabId) {
     const tab = appOpenTabs.find(t => t.tabId === tabId);
     if (!tab) return;
     const prevActiveTab = appOpenTabs.find(t => t.active && t.tabId !== tabId);
+    // Salva a posição exata da barra de rolagem da aba/tela anterior antes de sair dela
+    if (prevActiveTab) {
+        window._salvarScrollDaAbaAtiva(prevActiveTab);
+    }
     if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
         if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
             window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
@@ -1473,21 +1516,10 @@ window.navigateToTab = function (tabId) {
     }
     appOpenTabs.forEach(t => t.active = (t.tabId === tabId));
     renderAppTabs();
-    // Salvar o scroll do Pipeline se ele estiver aberto no momento
-    const pipeView = document.getElementById('view-logistica-pipeline');
-    if (pipeView && pipeView.classList.contains('active')) {
-        window._pipelineScrollY = window.scrollY;
-    }
 
     // Restaurar o estado da view correspondente
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-
-    if (tab.target !== 'logistica-pipeline') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (typeof window._pipelineScrollY !== 'undefined') {
-        window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
-    }
 
     if (tab.target === 'treinamento-materiais-terapia' || tab.target === 'treinamento-presenca-terapia') {
         window._currentTreinamentoTipo = 'terapia';
@@ -1516,6 +1548,7 @@ window.navigateToTab = function (tabId) {
     const targetNavObj = document.querySelector(`[data-target="${tab.target}"]`);
     if (targetNavObj) targetNavObj.classList.add('active');
     updateBreadcrumb(tab.target);
+    window._restaurarScrollDaAba(tab, tab.target);
     // Module-specific render hooks
     if (tab.target === 'treinamento-materiais' && typeof window.renderTreinamentosTable === 'function') {
         setTimeout(() => window.renderTreinamentosTable(), 80);
@@ -1689,8 +1722,13 @@ window.closeAppTab = async function (tabId, forceClose = false) {
 // Para colaborador/prontuário, use openColaboradorTab / openProntuarioTab.
 function navigateTo(target) {
     if (target === 'comercial-propostas') target = 'comercial-proposta';
+    let _abaEhNova = false;
     if (target !== 'login') {
         const prevActiveTab = appOpenTabs.find(t => t.active);
+        // Salva a posição de rolagem da tela/aba atual antes de abrir ou trocar para outra tela
+        if (prevActiveTab) {
+            window._salvarScrollDaAbaAtiva(prevActiveTab);
+        }
         if (prevActiveTab && (prevActiveTab.target === 'comercial-proposta' || prevActiveTab.target === 'comercial-contratos')) {
             if (typeof window.salvarSnapshotEstadoFormComercial === 'function') {
                 window.salvarSnapshotEstadoFormComercial(prevActiveTab.target === 'comercial-contratos' ? 'contrato' : 'proposta', prevActiveTab.tabId);
@@ -1718,7 +1756,8 @@ function navigateTo(target) {
                     window._resetarEstadoMemoriaFormComercial('proposta');
                 }
             }
-            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+            _abaEhNova = true;
+            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true, _scrollY: 0 });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
         } else if (target === 'comercial-contratos') {
             const ctrTabs = appOpenTabs.filter(t => t.target === 'comercial-contratos');
@@ -1740,7 +1779,8 @@ function navigateTo(target) {
                     window._resetarEstadoMemoriaFormComercial('contrato');
                 }
             }
-            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+            _abaEhNova = true;
+            appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true, _scrollY: 0 });
             appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
         } else if (target === 'comercial-os') {
             const osTabs = appOpenTabs.filter(t => t.target === 'comercial-os');
@@ -1770,14 +1810,16 @@ function navigateTo(target) {
                 if (!window._comercialOsAbrirPropostaId && window._comercialOS && typeof window._comercialOS.resetarParaNovaAba === 'function') {
                     window._comercialOS.resetarParaNovaAba();
                 }
-                appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true });
+                _abaEhNova = true;
+                appOpenTabs.push({ tabId: newTabId, target, title: newTitle, color: meta.color, icon: meta.icon, active: true, _scrollY: 0 });
                 appOpenTabs.forEach(t => t.active = (t.tabId === newTabId));
             }
         } else {
             // Telas simples: apenas uma aba por target
             const existingTab = appOpenTabs.find(t => t.tabId === target);
             if (!existingTab) {
-                appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true });
+                _abaEhNova = true;
+                appOpenTabs.push({ tabId: target, target, title: meta.title, color: meta.color, icon: meta.icon, active: true, _scrollY: 0 });
             }
             appOpenTabs.forEach(t => t.active = (t.tabId === target));
         }
@@ -1798,26 +1840,8 @@ function navigateTo(target) {
         }
     }
 
-    // Salvar o scroll do Pipeline se ele estiver aberto no momento
-    const pipeView = document.getElementById('view-logistica-pipeline');
-    if (pipeView && pipeView.classList.contains('active')) {
-        window._pipelineScrollY = window.scrollY;
-    }
-
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-
-    if (target !== 'logistica-pipeline') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (typeof window._pipelineScrollY !== 'undefined') {
-        window.scrollTo({ top: window._pipelineScrollY, behavior: 'instant' });
-    }
-
-    if (target === 'treinamento-materiais-terapia' || target === 'treinamento-presenca-terapia') {
-        window._currentTreinamentoTipo = 'terapia';
-    } else if (target === 'treinamento-materiais' || target === 'treinamento-presenca') {
-        window._currentTreinamentoTipo = 'treinamento';
-    }
 
     const _comercialSubTabMap = {
         'comercial-proposta': 'propostas',
@@ -1842,6 +1866,19 @@ function navigateTo(target) {
     if (targetNavObj) targetNavObj.classList.add('active');
 
     updateBreadcrumb(target);
+
+    const activeTabNow = appOpenTabs.find(t => t.active);
+    if (_abaEhNova) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+        window._restaurarScrollDaAba(activeTabNow, target);
+    }
+
+    if (target === 'treinamento-materiais-terapia' || target === 'treinamento-presenca-terapia') {
+        window._currentTreinamentoTipo = 'terapia';
+    } else if (target === 'treinamento-materiais' || target === 'treinamento-presenca') {
+        window._currentTreinamentoTipo = 'treinamento';
+    }
 
     if (target === 'dashboard') {
         loadDashboard();
@@ -2034,13 +2071,16 @@ function navigateTo(target) {
 // Abre uma aba de CADASTRO de colaborador, nomeada com o colaborador.
 // Se já existir aba para esse colaborador, apenas ativa. Novo colaborador usa tabId 'form-colaborador-novo'.
 window._openColaboradorTab = function (colabId, nomeColab) {
+    const prevActiveTab = appOpenTabs.find(t => t.active);
+    if (prevActiveTab) window._salvarScrollDaAbaAtiva(prevActiveTab);
+
     const tabId = colabId ? `form-colaborador-${colabId}` : 'form-colaborador-novo';
     const label = nomeColab ? `Cadastro: ${nomeColab.split(' ')[0]}` : 'Novo Colaborador';
     const meta = getTabMeta('form-colaborador');
 
     const existingTab = appOpenTabs.find(t => t.tabId === tabId);
     if (!existingTab) {
-        appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true });
+        appOpenTabs.push({ tabId, target: 'form-colaborador', title: label, color: meta.color, icon: meta.icon, active: true, _scrollY: 0 });
     } else {
         existingTab.title = label; // Atualiza nome se necessário
     }
@@ -2052,12 +2092,19 @@ window._openColaboradorTab = function (colabId, nomeColab) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const targetView = document.getElementById('view-form-colaborador');
     if (targetView) targetView.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!existingTab) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+        window._restaurarScrollDaAba(existingTab, 'form-colaborador');
+    }
     updateBreadcrumb('form-colaborador');
 };
 
 // Abre uma aba de PRONTUÁRIO, nomeada com o colaborador.
 window._openProntuarioTab = function (colabId, nomeColab, colaboradorData) {
+    const prevActiveTab = appOpenTabs.find(t => t.active);
+    if (prevActiveTab) window._salvarScrollDaAbaAtiva(prevActiveTab);
+
     const tabId = `prontuario-${colabId}`;
     const firstName = (nomeColab || '').split(' ')[0];
     const label = `Prontuário: ${firstName}`;
@@ -2065,7 +2112,7 @@ window._openProntuarioTab = function (colabId, nomeColab, colaboradorData) {
 
     const existingTab = appOpenTabs.find(t => t.tabId === tabId);
     if (!existingTab) {
-        appOpenTabs.push({ tabId, target: 'prontuario', title: label, color: meta.color, icon: meta.icon, active: true, _colaboradorData: colaboradorData });
+        appOpenTabs.push({ tabId, target: 'prontuario', title: label, color: meta.color, icon: meta.icon, active: true, _colaboradorData: colaboradorData, _scrollY: 0 });
     } else {
         existingTab._colaboradorData = colaboradorData;
         existingTab.title = label;
@@ -2078,7 +2125,11 @@ window._openProntuarioTab = function (colabId, nomeColab, colaboradorData) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     const targetView = document.getElementById('view-prontuario');
     if (targetView) targetView.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!existingTab) {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+        window._restaurarScrollDaAba(existingTab, 'prontuario');
+    }
     updateBreadcrumb('prontuario');
 };
 

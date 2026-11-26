@@ -1,0 +1,7 @@
+# Preservação da Posição de Rolagem (Scroll) entre Abas e Telas (Regra Obrigatória)
+
+Sempre que o usuário estiver em uma tela com barra de rolagem (como **Logística → Estoque**, **Pipeline OS**, **Colaboradores**, **Contratos**, **Propostas**, **Controle de Equipamentos**, etc.) e clicar em um item, link ou botão que **abra outra tela ou troque de aba** (por exemplo, clicar no número de um Contrato dentro do Estoque da Logística para abrir a tela de Contratos):
+
+1. **Nunca rolar a tela original de volta para o topo ao sair dela:** A posição exata da barra de rolagem (`window.scrollY`) da aba/tela de origem **DEVE** ser salva automaticamente antes de trocar para a nova tela (`window._salvarScrollDaAbaAtiva(prevActiveTab)` em `frontend/app.js`).
+2. **Restaurar a posição exata ao voltar para a aba/tela anterior:** Quando o usuário voltar para a aba/tela original (via clique na aba do topo `navigateToTab(tabId)` ou pelo menu `navigateTo(target)` para uma aba já aberta), o sistema **DEVE** restaurar imediatamente a rolagem para o ponto exato onde estava (`window._restaurarScrollDaAba(tab, target)` usando `window.scrollTo({ top: savedY, behavior: 'instant' })`), facilitando encontrar a informação sem precisar rolar tudo novamente.
+3. **Preservar o estado visual da tela ao reativar a aba:** Ao voltar para uma aba que já estava aberta e inicializada, não resetar os elementos expandidos/recolhidos nem forçar `window.scrollTo({ top: 0 })` após o carregamento assíncrono dos dados. Apenas abas recém-abertas (`_abaEhNova = true`) devem iniciar no topo (`top: 0`).
