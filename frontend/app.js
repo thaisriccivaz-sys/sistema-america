@@ -20480,9 +20480,10 @@ window._pmRestaurarPdfs = async function() {
         const data = await r.json();
         if (!r.ok || !data.pdfs) return;
         let temCom = false;
-        ['adiantamento','pagamento','emprestimo','comunicacao'].forEach(function(campo) {
+        ['adiantamento','pagamento','decimo_terceiro','emprestimo','comunicacao'].forEach(function(campo) {
             const info = data.pdfs[campo];
             const statusEl = document.getElementById('pm-r2-status-' + campo);
+            if (statusEl) statusEl.innerHTML = '';
             if (info && statusEl) {
                 statusEl.innerHTML = '<span style="color:#16a34a;font-size:0.75rem;display:flex;align-items:center;gap:4px;">'
                     + '<i class=\"ph ph-check-circle\"></i> ' + (info.nome_arquivo || campo + '.pdf')
@@ -20557,7 +20558,7 @@ window._pmRestaurarPdfs = async function() {
               <div style="display:flex;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap;padding:1rem;background:#fdf4ff;border:1px solid #f9a8d4;border-radius:10px;">
                 <div style="flex:1;min-width:120px;">
                   <label style="font-size:0.75rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Mês</label>
-                  <select id="pm-mes" onchange="if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
+                  <select id="pm-mes" onchange="window._pmAtualizarVisibilidade13(); if(document.getElementById('pm-tipo-doc').value==='Pagamentos') window._pmCarregarDocumentos()" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.85rem;">
                     ${['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
                       .map((m,i) => `<option value="${String(i+1).padStart(2,'0')}" ${i+1===new Date().getMonth()+1?'selected':''}>${m}</option>`).join('')}
                   </select>
@@ -20605,6 +20606,12 @@ window._pmRestaurarPdfs = async function() {
                   <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite Salário/Pagamento (PDF Único)</label>
                   <input id="pm-file-pagamento" type="file" accept=".pdf" onchange="window._pmSalvarPdfR2('pagamento', this.files[0])" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
                   <div id="pm-r2-status-pagamento" style="margin-top:3px;min-height:18px;"></div>
+                </div>
+
+                <div id="pm-wrap-decimo-terceiro" style="margin-bottom:1.5rem;display:none;">
+                  <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Holerite de 13º (PDF Único)</label>
+                  <input id="pm-file-decimo-terceiro" type="file" accept=".pdf" onchange="window._pmSalvarPdfR2('decimo_terceiro', this.files[0])" style="width:100%;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                  <div id="pm-r2-status-decimo_terceiro" style="margin-top:3px;min-height:18px;"></div>
                 </div>
 
                 <div style="margin-bottom:1.5rem;padding:0.75rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
@@ -20703,6 +20710,7 @@ window._pmRestaurarPdfs = async function() {
                                             <th style="padding:0.5rem 0.75rem;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;">DEPARTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">ADIANTAMENTO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;">HOLERITE</th>
+                      <th id="pm-th-13" style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#64748b;display:none;">13º</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#166534;" title="Documento de Empréstimos associado por CPF">EMPRÉSTIMO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#475569;" title="Documento genérico enviado a todos">COMUNICAÇÃO</th>
                       <th style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#0f766e;" title="Relatório de Comissão (Comercial → Comissão) anexado antes do comunicado, para quem tem contratos no mês">COMISSÃO</th>
@@ -20744,10 +20752,32 @@ window._pmRestaurarPdfs = async function() {
         </div>
         <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>`;
 
+        window._pmAtualizarVisibilidade13();
+
         // Carregar colaboradores para dropdown de correção
         fetch('/api/colaboradores?status=Ativo', { headers: { Authorization: 'Bearer ' + (window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token')) } })
             .then(r => r.json()).then(data => { _todosColabs = data.colaboradores || data || []; })
             .catch(() => {});
+    };
+
+    window._pmIsMes13 = function() {
+        const m = parseInt(document.getElementById('pm-mes')?.value || '0', 10);
+        return m === 11 || m === 12;
+    };
+
+    window._pmAtualizarVisibilidade13 = function() {
+        const isNovDez = window._pmIsMes13();
+        const wrap = document.getElementById('pm-wrap-decimo-terceiro');
+        if (wrap) wrap.style.display = isNovDez ? 'block' : 'none';
+        const th13 = document.getElementById('pm-th-13');
+        if (th13) th13.style.display = isNovDez ? '' : 'none';
+        if (!isNovDez) {
+            const inp13 = document.getElementById('pm-file-decimo-terceiro');
+            if (inp13) inp13.value = '';
+        }
+        if (typeof window._pmFiltrar === 'function' && document.getElementById('pm-review-section') && document.getElementById('pm-review-section').style.display !== 'none') {
+            window._pmFiltrar();
+        }
     };
 
     // ÔöÇÔöÇ Controle do tipo de documento ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
@@ -20765,6 +20795,7 @@ window._pmRestaurarPdfs = async function() {
         if (t && t.value === 'Pagamentos') {
             dz.style.display = 'none';
             dzDual.style.display = 'block';
+            window._pmAtualizarVisibilidade13();
             window._pmCarregarDocumentos();
             return;
         } else {
@@ -20900,14 +20931,16 @@ window._pmRestaurarPdfs = async function() {
             }
         };
 
+        const isMes13  = window._pmIsMes13();
         const fileAd   = await _getFile('adiantamento', 'pm-file-adiantamento');
         const filePg   = await _getFile('pagamento',    'pm-file-pagamento');
+        const file13   = isMes13 ? await _getFile('decimo_terceiro', 'pm-file-decimo-terceiro') : null;
         const fileEmpr = await _getFile('emprestimo',   'pm-file-emprestimo');
         const fileCom  = await _getFile('comunicacao',  'pm-file-comunicacao');
 
-        if (!fileAd && !filePg) {
+        if (!fileAd && !filePg && !file13) {
             _restoreBtn();
-            Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento ou Pagamento) para processar.', timer:3000 });
+            Swal.fire({ icon:'warning', title:'Atenção', text:'Anexe pelo menos um holerite (Adiantamento, Pagamento ou 13º) para processar.', timer:3000 });
             return;
         }
 
@@ -20922,10 +20955,11 @@ window._pmRestaurarPdfs = async function() {
 
         const b64Ad = await readB64(fileAd);
         const b64Pg = await readB64(filePg);
+        const b6413 = await readB64(file13);
         const b64Empr = await readB64(fileEmpr);
         const b64Com = await readB64(fileCom);
 
-        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, emprestimo: b64Empr, comunicacao: b64Com };
+        window._pdfDuploBase64 = { adiantamento: b64Ad, pagamento: b64Pg, decimo_terceiro: b6413, emprestimo: b64Empr, comunicacao: b64Com };
 
         document.getElementById('pm-processing').style.display = 'block';
         document.getElementById('pm-processing').innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;margin-right:0.5rem;"></i> Processando Holerites...';
@@ -20937,6 +20971,7 @@ window._pmRestaurarPdfs = async function() {
             formData.append('ano', document.getElementById('pm-ano').value);
             if (fileAd) formData.append('pdfAdiantamento', fileAd);
             if (filePg) formData.append('pdfPagamento', filePg);
+            if (file13) formData.append('pdfDecimoTerceiro', file13);
             if (fileEmpr) formData.append('pdfEmprestimo', fileEmpr);
 
             const r = await fetch('/api/pagamentos-massa/processar', {
@@ -20956,6 +20991,7 @@ window._pmRestaurarPdfs = async function() {
                     if (item) {
                         item.paginaAdiantamento = res.paginaAdiantamento;
                         item.paginaPagamento = res.paginaPagamento;
+                        item.paginaDecimoTerceiro = res.paginaDecimoTerceiro || null;
                         item.paginaEmprestimo = res.paginaEmprestimo || null;
                         matches++;
                     }
@@ -20987,7 +21023,7 @@ window._pmRestaurarPdfs = async function() {
                 const ano  = document.getElementById('pm-ano')?.value || String(new Date().getFullYear());
 
                 // Itens com holerite identificado e selecionados
-                const itensComHolerite = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento));
+                const itensComHolerite = _itensProcessados.filter(i => i.selecionado && i.colaborador_id && (i.paginaAdiantamento || i.paginaPagamento || i.paginaDecimoTerceiro));
 
                 if (itensComHolerite.length === 0) {
                     Swal.fire({ icon:'success', title:'Processado', text: `${matches} correspondências encontradas, mas nenhuma selecionada para salvar.`, timer:3000 });
@@ -21049,6 +21085,7 @@ window._pmRestaurarPdfs = async function() {
                             pagina: i.pagina,
                             paginaAdiantamento: i.paginaAdiantamento,
                             paginaPagamento: i.paginaPagamento,
+                            paginaDecimoTerceiro: i.paginaDecimoTerceiro || null,
                             paginaEmprestimo: i.paginaEmprestimo || null,
                             colaborador_id: i.colaborador_id,
                             docId: i.docId,
@@ -21217,6 +21254,9 @@ window._pmRestaurarPdfs = async function() {
 
     function _pmRenderTabela(itens) {
         const temComAoVivo = !!(window._pdfDuploBase64 && (window._pdfDuploBase64.comunicacao || window._pdfDuploBase64.comunicacaoSalva));
+        const mostrar13 = typeof window._pmIsMes13 === 'function' ? window._pmIsMes13() : false;
+        const th13 = document.getElementById('pm-th-13');
+        if (th13) th13.style.display = mostrar13 ? '' : 'none';
         const tbody = document.getElementById('pm-tbody');
         if (!tbody) return;
         const matchColors = { exato: '#dcfce7', parcial: '#fef9c3', aproximado: '#ffedd5', null: '#fee2e2' };
@@ -21292,6 +21332,9 @@ window._pmRestaurarPdfs = async function() {
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;">
               ${((item.paginaPagamento && item.paginaPagamento !== '-') || item.temPagamento) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
             </td>
+            <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;color:#22c55e;${mostrar13 ? '' : 'display:none;'}">
+              ${((item.paginaDecimoTerceiro && item.paginaDecimoTerceiro !== '-') || item.temDecimoTerceiro) ? 'OK' : '<span style="color:#9ca3af;font-weight:normal">-</span>'}
+            </td>
             <td style="padding:0.5rem 0.75rem;text-align:center;font-size:0.75rem;font-weight:700;">
               ${item.paginaEmprestimo ? '<span style="color:#166534;">OK</span>' : (item.temEmprestimo ? '<span style="color:#166534;">✓</span>' : '<span style="color:#9ca3af;font-weight:normal">-</span>')}
             </td>
@@ -21329,7 +21372,7 @@ window._pmRestaurarPdfs = async function() {
 
         // Se temos um docId base (do banco) e temos as páginas do holerite ainda não salvas,
         // usa preview-merge para mostrar como ficará (sem salvar)
-        if (item.docId && window._pdfDuploBase64 && (item.paginaAdiantamento || item.paginaPagamento)) {
+        if (item.docId && window._pdfDuploBase64 && (item.paginaAdiantamento || item.paginaPagamento || item.paginaDecimoTerceiro)) {
             const f = document.createElement('form');
             f.method = 'POST';
             f.action = `/api/pagamentos-massa/preview-merge?token=${token}`;
@@ -21344,6 +21387,10 @@ window._pmRestaurarPdfs = async function() {
             if (item.paginaPagamento && window._pdfDuploBase64.pagamento) {
                const i4 = document.createElement('input'); i4.type='hidden'; i4.name='pdfPagamento'; i4.value=window._pdfDuploBase64.pagamento; f.appendChild(i4);
                const i5 = document.createElement('input'); i5.type='hidden'; i5.name='paginaPagamento'; i5.value=item.paginaPagamento; f.appendChild(i5);
+            }
+            if (item.paginaDecimoTerceiro && window._pdfDuploBase64.decimo_terceiro) {
+               const i13a = document.createElement('input'); i13a.type='hidden'; i13a.name='pdfDecimoTerceiro'; i13a.value=window._pdfDuploBase64.decimo_terceiro; f.appendChild(i13a);
+               const i13b = document.createElement('input'); i13b.type='hidden'; i13b.name='paginaDecimoTerceiro'; i13b.value=item.paginaDecimoTerceiro; f.appendChild(i13b);
             }
             if (item.paginaEmprestimo && window._pdfDuploBase64 && window._pdfDuploBase64.emprestimo) {
                const i6 = document.createElement('input'); i6.type='hidden'; i6.name='pdfEmprestimo'; i6.value=window._pdfDuploBase64.emprestimo; f.appendChild(i6);
@@ -21423,6 +21470,7 @@ window._pmRestaurarPdfs = async function() {
                     pagina: i.pagina,
                     paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
                     paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
+                    paginaDecimoTerceiro: i.salvoEm ? null : i.paginaDecimoTerceiro,
                     colaborador_id: i.colaborador_id,
                     docId: i.docId,
                     enviarEmail: false, // <-- Só salva, não envia
@@ -21478,6 +21526,7 @@ window._pmRestaurarPdfs = async function() {
                     pagina: i.pagina,
                     paginaAdiantamento: i.salvoEm ? null : i.paginaAdiantamento,
                     paginaPagamento: i.salvoEm ? null : i.paginaPagamento,
+                    paginaDecimoTerceiro: i.salvoEm ? null : i.paginaDecimoTerceiro,
                     colaborador_id: i.colaborador_id,
                     docId: i.docId,
                     enviarEmail: true,

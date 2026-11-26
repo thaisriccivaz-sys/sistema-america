@@ -15461,12 +15461,15 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
         if (tipoDocumento === 'Pagamentos') {
             const fileAd = files.find(f => f.fieldname === 'pdfAdiantamento');
             const filePg = files.find(f => f.fieldname === 'pdfPagamento');
+            const file13 = files.find(f => f.fieldname === 'pdfDecimoTerceiro');
 
             let resAd = null;
             let resPg = null;
+            let res13 = null;
 
             if (fileAd) resAd = await pagamentosMassa.processarPDF(fileAd.buffer, 'Holerite Adiantamento');
             if (filePg) resPg = await pagamentosMassa.processarPDF(filePg.buffer, 'Holerite Salario');
+            if (file13) res13 = await pagamentosMassa.processarPDF(file13.buffer, 'Holerite 13 Salario');
 
             // Processar PDF de Empréstimos por CPF
             const fileEmpr = files.find(f => f.fieldname === 'pdfEmprestimo');
@@ -15497,6 +15500,17 @@ app.post('/api/pagamentos-massa/processar', authenticateToken, multer({ storage:
                             colabsMap[r.colaborador_id].paginaPagamento = colabsMap[r.colaborador_id].paginaPagamento ? [colabsMap[r.colaborador_id].paginaPagamento] : [];
                         }
                         colabsMap[r.colaborador_id].paginaPagamento.push(r.pagina);
+                    }
+                });
+            }
+            if (res13 && res13.resultado) {
+                res13.resultado.forEach(r => {
+                    if (r.colaborador_id) {
+                        if (!colabsMap[r.colaborador_id]) colabsMap[r.colaborador_id] = { ...r, paginaDecimoTerceiro: [] };
+                        if (!Array.isArray(colabsMap[r.colaborador_id].paginaDecimoTerceiro)) {
+                            colabsMap[r.colaborador_id].paginaDecimoTerceiro = colabsMap[r.colaborador_id].paginaDecimoTerceiro ? [colabsMap[r.colaborador_id].paginaDecimoTerceiro] : [];
+                        }
+                        colabsMap[r.colaborador_id].paginaDecimoTerceiro.push(r.pagina);
                     }
                 });
             }
@@ -15567,7 +15581,7 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
         let query = `
             SELECT d.id as doc_id, d.document_type as tipo, d.month, d.year,
                    d.upload_date, d.assinafy_sent_at, d.assinafy_signed_at, d.assinafy_status,
-                   d.tem_adiantamento, d.tem_pagamento, d.tem_emprestimo, d.tem_comunicacao, d.tem_comissao,
+                   d.tem_adiantamento, d.tem_pagamento, d.tem_decimo_terceiro, d.tem_emprestimo, d.tem_comunicacao, d.tem_comissao,
                    c.id as colaborador_id, c.nome_completo as colaborador_nome, 
                    c.email, c.email_corporativo, c.departamento, c.cargo, dep.tipo as setor
             FROM documentos d
@@ -15619,9 +15633,10 @@ app.get('/api/pagamentos-massa/pendentes', authenticateToken, async (req, res) =
             enviadoEm: fmtDt(r.assinafy_sent_at),
             assinadoEm: fmtDt(r.assinafy_signed_at),
             assinadoStatus: r.assinafy_status || null,
-            temAdiantamento: r.tem_adiantamento ? true : false,
-            temPagamento:    r.tem_pagamento    ? true : false,
-            temEmprestimo:   r.tem_emprestimo   ? true : false,
+            temAdiantamento:   r.tem_adiantamento    ? true : false,
+            temPagamento:      r.tem_pagamento       ? true : false,
+            temDecimoTerceiro: r.tem_decimo_terceiro ? true : false,
+            temEmprestimo:     r.tem_emprestimo      ? true : false,
             temComunicacao:  r.tem_comunicacao  ? true : false,
             temComissao:     parseInt(r.tem_comissao, 10) || 0,
         }));
@@ -15746,18 +15761,30 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
     }
 
     try {
-        const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento, pdfEmprestimo, paginaEmprestimo } = req.body;
+        const { docId, pdfAdiantamento, paginaAdiantamento, pdfPagamento, paginaPagamento, pdfDecimoTerceiro, paginaDecimoTerceiro, pdfEmprestimo, paginaEmprestimo } = req.body;
         if (!docId) return res.status(400).send('Doc ID nao fornecido');
 
-        const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path, colaborador_id, month, year FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
-        if (!rowBase || !rowBase.file_path) return res.status(404).send('Documento base nao encontrado');
+        const rowBase = await new Promise((resolve, reject) => db.get('SELECT file_path, r2_key, colaborador_id, month, year FROM documentos WHERE id = ?', [docId], (e, r) => e ? reject(e) : resolve(r)));
+        if (!rowBase || (!rowBase.file_path && !rowBase.r2_key)) return res.status(404).send('Documento base nao encontrado');
 
         const fs = require('fs').promises;
+        const fsSync = require('fs');
         const path = require('path');
         const { PDFDocument } = require('pdf-lib');
         
         const fullPath = rowBase.file_path;
-        const baseBytes = await fs.readFile(fullPath);
+        let baseBytes;
+        if (fullPath && fsSync.existsSync(fullPath)) {
+            baseBytes = await fs.readFile(fullPath);
+        } else if (rowBase.r2_key) {
+            const r2ModPrev = require('./utils/r2');
+            const { stream: r2StPrev } = await r2ModPrev.downloadStreamFromR2(rowBase.r2_key);
+            const chPrev = [];
+            await new Promise((rr, rx) => { r2StPrev.on('data', c => chPrev.push(c)); r2StPrev.on('end', rr); r2StPrev.on('error', rx); });
+            baseBytes = Buffer.concat(chPrev);
+        } else {
+            return res.status(404).send('Arquivo base nao encontrado');
+        }
         const basePdfDoc = await PDFDocument.load(baseBytes);
 
         // Merge Adiantamento if provided
@@ -15776,6 +15803,15 @@ app.post('/api/pagamentos-massa/preview-merge', async (req, res) => {
             const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
             const pgPages = await basePdfDoc.copyPages(pgPdfDoc, pgPdfDoc.getPageIndices());
             pgPages.forEach(p => basePdfDoc.addPage(p));
+        }
+
+        // Merge Holerite 13º Salário if provided (abaixo do holerite de salário, com recorte 1x)
+        if (pdfDecimoTerceiro && paginaDecimoTerceiro) {
+            const buf13 = Buffer.from(pdfDecimoTerceiro, 'base64');
+            const bufExtraida13 = await pagamentosMassa.extrairPagina(buf13, paginaDecimoTerceiro, true);
+            const decPdfDoc = await PDFDocument.load(bufExtraida13);
+            const decPages = await basePdfDoc.copyPages(decPdfDoc, decPdfDoc.getPageIndices());
+            decPages.forEach(p => basePdfDoc.addPage(p));
         }
 
         // Merge Empréstimo if provided (página inteira, sem recorte)
@@ -15826,6 +15862,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
     const bufferPDF = pdfBase64 ? Buffer.from(pdfBase64, 'base64') : null;
     const bufAd = pdfDuploBase64 && pdfDuploBase64.adiantamento ? Buffer.from(pdfDuploBase64.adiantamento, 'base64') : null;
     const bufPg = pdfDuploBase64 && pdfDuploBase64.pagamento ? Buffer.from(pdfDuploBase64.pagamento, 'base64') : null;
+    const buf13 = pdfDuploBase64 && pdfDuploBase64.decimo_terceiro ? Buffer.from(pdfDuploBase64.decimo_terceiro, 'base64') : null;
     const bufEmpr = pdfDuploBase64 && pdfDuploBase64.emprestimo ? Buffer.from(pdfDuploBase64.emprestimo, 'base64') : null;
     const bufCom = pdfDuploBase64 && pdfDuploBase64.comunicacao ? Buffer.from(pdfDuploBase64.comunicacao, 'base64') : null;
     
@@ -15852,10 +15889,10 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             // Lemos o arquivo base (_base.pdf ou o arquivo atual), mesclamos os novos holerites
             // e gravamos um novo registro, removendo o antigo assinado.
             if (item.forcarAnexar && docId && tipo === 'Pagamentos') {
-                const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
+                const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento) || (buf13 && item.paginaDecimoTerceiro);
                 console.log(`[PAGAMENTOS-MASSA] forcarAnexar=true para colaborador ${item.colaborador_id}, doc ${docId}. hasNewHolerites=${hasNewHolerites}`);
                 if (hasNewHolerites) {
-                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowOld = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_decimo_terceiro, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowOld && rowOld.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -15871,7 +15908,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             } else if (fsSync.existsSync(fullPath)) {
                                 baseBytes = await fsP.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0) + (rowOld.tem_comunicacao ? 1 : 0) + (parseInt(rowOld.tem_comissao, 10) || 0);
+                                const paginasHolAnt = (rowOld.tem_adiantamento ? 1 : 0) + (rowOld.tem_pagamento ? 1 : 0) + (rowOld.tem_decimo_terceiro ? 1 : 0) + (rowOld.tem_emprestimo ? 1 : 0) + (rowOld.tem_comunicacao ? 1 : 0) + (parseInt(rowOld.tem_comissao, 10) || 0);
                                 if (paginasHolAnt > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHolAnt);
@@ -15889,7 +15926,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 baseBytes = Buffer.concat(r2ChFA);
                                 console.log('[PM] Base do R2 (forcarAnexar):', rowOld.r2_key);
                                 const tmpFA = await PDFDocument.load(baseBytes);
-                                const holAntFA = (rowOld.tem_adiantamento?1:0)+(rowOld.tem_pagamento?1:0)+(rowOld.tem_emprestimo?1:0)+(rowOld.tem_comunicacao?1:0)+(parseInt(rowOld.tem_comissao,10)||0);
+                                const holAntFA = (rowOld.tem_adiantamento?1:0)+(rowOld.tem_pagamento?1:0)+(rowOld.tem_decimo_terceiro?1:0)+(rowOld.tem_emprestimo?1:0)+(rowOld.tem_comunicacao?1:0)+(parseInt(rowOld.tem_comissao,10)||0);
                                 if (holAntFA > 0) {
                                     const totFA = tmpFA.getPageCount(), baseFA = Math.max(1, totFA-holAntFA);
                                     const limFA = await PDFDocument.create();
@@ -15901,7 +15938,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             }
 
                             const basePdfDoc = await PDFDocument.load(baseBytes);
-                            let temAdFlag = false, temPgFlag = false;
+                            let temAdFlag = false, temPgFlag = false, tem13Flag = false;
                             if (bufAd && item.paginaAdiantamento) {
                                 const bufExAd = await pagamentosMassa.extrairPagina(bufAd, item.paginaAdiantamento, true);
                                 const adDoc = await PDFDocument.load(bufExAd);
@@ -15915,6 +15952,13 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 const pgPgs = await basePdfDoc.copyPages(pgDoc, pgDoc.getPageIndices());
                                 pgPgs.forEach(p => basePdfDoc.addPage(p));
                                 temPgFlag = true;
+                            }
+                            if (buf13 && item.paginaDecimoTerceiro) {
+                                const bufEx13 = await pagamentosMassa.extrairPagina(buf13, item.paginaDecimoTerceiro, true);
+                                const decDoc = await PDFDocument.load(bufEx13);
+                                const decPgs = await basePdfDoc.copyPages(decDoc, decDoc.getPageIndices());
+                                decPgs.forEach(p => basePdfDoc.addPage(p));
+                                tem13Flag = true;
                             }
                             // Empréstimos: anexado por último, sem recorte da metade
                             let temEmprFlag = false;
@@ -15960,6 +16004,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 basePath: BASE_UPLOAD_PATH,
                                 temAdiantamento: temAdFlag,
                                 temPagamento: temPgFlag,
+                                temDecimoTerceiro: tem13Flag,
                                 temEmprestimo: temEmprFlag,
                             temComunicacao: temComFlag,
                                 temComissao: comissaoInfo ? comissaoInfo.paginas : 0,
@@ -16019,9 +16064,10 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                     ano: anoDoc,
                     mes: mesDoc,
                     basePath: BASE_UPLOAD_PATH,
-                    temAdiantamento: !!(item.paginaAdiantamento && bufAd),
-                    temPagamento:    !!(item.paginaPagamento    && bufPg),
-                    temEmprestimo:   !!(item.paginaEmprestimo   && bufEmpr),
+                    temAdiantamento:   !!(item.paginaAdiantamento   && bufAd),
+                    temPagamento:      !!(item.paginaPagamento      && bufPg),
+                    temDecimoTerceiro: !!(item.paginaDecimoTerceiro && buf13),
+                    temEmprestimo:     !!(item.paginaEmprestimo     && bufEmpr),
                     temComunicacao:  !!(bufCom),
                 });
                 docId = dbRes.docId;
@@ -16031,11 +16077,11 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
             } else if (tipo === 'Pagamentos') {
                 // Se o documento base já existe (Ponto + VR + VT), juntar os Holerites SE fornecidos
                 // Quando nao h?? páginas de adiantamento/holerite, o doc já está completo - apenas enviar
-                const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento);
+                const hasNewHolerites = (bufAd && item.paginaAdiantamento) || (bufPg && item.paginaPagamento) || (buf13 && item.paginaDecimoTerceiro);
 
                 if (hasNewHolerites) {
                     // Sempre reconstrói a partir do _base.pdf para nunca duplicar
-                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
+                    const rowBase = await new Promise((res, rej) => db.get('SELECT file_path, r2_key, tem_adiantamento, tem_pagamento, tem_decimo_terceiro, tem_emprestimo, tem_comunicacao, tem_comissao FROM documentos WHERE id = ?', [docId], (e, r) => e ? rej(e) : res(r)));
                     if (rowBase && rowBase.file_path) {
                         try {
                             const { PDFDocument } = require('pdf-lib');
@@ -16060,7 +16106,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 baseBytes = Buffer.concat(r2ChMG);
                                 console.log('[PM] Base do R2 (merge normal):', rowBase.r2_key);
                                 const tmpMG = await PDFDocument.load(baseBytes);
-                                const holAntMG = (rowBase.tem_adiantamento?1:0)+(rowBase.tem_pagamento?1:0)+(rowBase.tem_emprestimo?1:0)+(rowBase.tem_comunicacao?1:0)+(parseInt(rowBase.tem_comissao,10)||0);
+                                const holAntMG = (rowBase.tem_adiantamento?1:0)+(rowBase.tem_pagamento?1:0)+(rowBase.tem_decimo_terceiro?1:0)+(rowBase.tem_emprestimo?1:0)+(rowBase.tem_comunicacao?1:0)+(parseInt(rowBase.tem_comissao,10)||0);
                                 if (holAntMG > 0) {
                                     const totMG = tmpMG.getPageCount(), baseMG = Math.max(1, totMG-holAntMG);
                                     const limMG = await PDFDocument.create();
@@ -16071,7 +16117,7 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 // Fallback: usa o arquivo atual e tenta remover páginas de holerite
                                 baseBytes = await fs.readFile(fullPath);
                                 const tempDoc = await PDFDocument.load(baseBytes);
-                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0) + (rowBase.tem_comunicacao ? 1 : 0) + (parseInt(rowBase.tem_comissao, 10) || 0);
+                                const paginasHoleriteAnteriores = (rowBase.tem_adiantamento ? 1 : 0) + (rowBase.tem_pagamento ? 1 : 0) + (rowBase.tem_decimo_terceiro ? 1 : 0) + (rowBase.tem_emprestimo ? 1 : 0) + (rowBase.tem_comunicacao ? 1 : 0) + (parseInt(rowBase.tem_comissao, 10) || 0);
                                 if (paginasHoleriteAnteriores > 0) {
                                     const totalPags = tempDoc.getPageCount();
                                     const paginasBase = Math.max(1, totalPags - paginasHoleriteAnteriores);
@@ -16098,6 +16144,12 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                                 const pgPdfDoc = await PDFDocument.load(bufExtraidaPg);
                                 const pgPages = await basePdfDoc.copyPages(pgPdfDoc, pgPdfDoc.getPageIndices());
                                 pgPages.forEach(p => basePdfDoc.addPage(p));
+                            }
+                            if (buf13 && item.paginaDecimoTerceiro) {
+                                const bufExtraida13 = await pagamentosMassa.extrairPagina(buf13, item.paginaDecimoTerceiro, true);
+                                const decPdfDoc = await PDFDocument.load(bufExtraida13);
+                                const decPages = await basePdfDoc.copyPages(decPdfDoc, decPdfDoc.getPageIndices());
+                                decPages.forEach(p => basePdfDoc.addPage(p));
                             }
                             // Empréstimos: por último, sem recorte da metade
                             let temEmprMerged = false;
@@ -16146,9 +16198,10 @@ app.post('/api/pagamentos-massa/enviar', authenticateToken, async (req, res) => 
                             // Atualizar indicadores de holerite e r2_key no banco
                             const temAd = !!(bufAd && item.paginaAdiantamento);
                             const temPg = !!(bufPg && item.paginaPagamento);
+                            const tem13 = !!(buf13 && item.paginaDecimoTerceiro);
                             await new Promise(r => db.run(
-                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_emprestimo = ?, tem_comunicacao = ?, tem_comissao = ?, r2_key = ? WHERE id = ?',
-                                [temAd ? 1 : 0, temPg ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, (comissaoInfo ? comissaoInfo.paginas : 0), newR2Key, docId], () => r()
+                                'UPDATE documentos SET tem_adiantamento = ?, tem_pagamento = ?, tem_decimo_terceiro = ?, tem_emprestimo = ?, tem_comunicacao = ?, tem_comissao = ?, r2_key = ? WHERE id = ?',
+                                [temAd ? 1 : 0, temPg ? 1 : 0, tem13 ? 1 : 0, temEmprMerged ? 1 : 0, temComMerged ? 1 : 0, (comissaoInfo ? comissaoInfo.paginas : 0), newR2Key, docId], () => r()
                             ));
 
                             // Opcional: Atualizar no OneDrive se configurado

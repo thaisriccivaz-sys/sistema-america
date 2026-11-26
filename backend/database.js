@@ -784,8 +784,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     if (!cols.includes('atestado_inicio')) db.run("ALTER TABLE documentos ADD COLUMN atestado_inicio TEXT", (err) => {});
                     if (!cols.includes('atestado_fim'))    db.run("ALTER TABLE documentos ADD COLUMN atestado_fim TEXT", (err) => {});
                     // Indicadores se holerite adiantamento/pagamento/emprestimo foram anexados
-                    if (!cols.includes('tem_adiantamento')) db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
-                    if (!cols.includes('tem_pagamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_adiantamento'))    db.run("ALTER TABLE documentos ADD COLUMN tem_adiantamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_pagamento'))       db.run("ALTER TABLE documentos ADD COLUMN tem_pagamento INTEGER DEFAULT 0", (err) => {});
+                    if (!cols.includes('tem_decimo_terceiro')) db.run("ALTER TABLE documentos ADD COLUMN tem_decimo_terceiro INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_emprestimo'))   db.run("ALTER TABLE documentos ADD COLUMN tem_emprestimo INTEGER DEFAULT 0", (err) => {});
                     if (!cols.includes('tem_comunicacao'))  db.run("ALTER TABLE documentos ADD COLUMN tem_comunicacao INTEGER DEFAULT 0", (err) => {});
                     // Relatório de Comissão anexado antes do comunicado: guarda a QUANTIDADE de páginas (0 = não anexado)
