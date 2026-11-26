@@ -405,12 +405,22 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                     const dataAte = String(req.query.data_ate || '').trim();
                     const temFiltroData = Boolean(dataDe || dataAte);
 
-                    const reservaBatePeriodo = (dtEntrega) => {
-                        const dt = String(dtEntrega || '').trim();
-                        if (!dt) return false;
-                        if (dataDe && dataAte) return dt >= dataDe && dt <= dataAte;
-                        if (dataDe) return dt === dataDe;
-                        if (dataAte) return dt <= dataAte;
+                    // Uma reserva de contrato ocupa o equipamento entre data_entrega e data_retirada (se houver)
+                    const reservaOcupaNoPeriodo = (r) => {
+                        const dtIni = String(r?.data_entrega || '').trim().slice(0, 10);
+                        const dtFimRaw = String(r?.data_retirada || '').trim().slice(0, 10);
+                        const dtFim = (dtFimRaw && dtFimRaw >= dtIni) ? dtFimRaw : dtIni;
+                        if (!dtIni) return false;
+                        if (dataDe && dataAte) {
+                            return dtIni <= dataAte && dtFim >= dataDe;
+                        }
+                        if (dataDe) {
+                            if (dtFimRaw && dtFimRaw >= dtIni) return dtIni <= dataDe && dtFimRaw >= dataDe;
+                            return dtIni === dataDe;
+                        }
+                        if (dataAte) {
+                            return dtIni <= dataAte;
+                        }
                         return true;
                     };
 
@@ -499,7 +509,7 @@ function registerLogisticaEstoqueRoutes(app, db, authenticateToken) {
                         const qRes = Math.max(0, parseInt(r.quantidade_reservada ?? 0, 10) || 0);
                         m.quantidade_reservada += qRes;
                         m.reservado_total += qRes;
-                        if (temFiltroData && reservaBatePeriodo(r.data_entrega)) {
+                        if (temFiltroData && reservaOcupaNoPeriodo(r)) {
                             m.reservado_na_data += qRes;
                         }
                     });

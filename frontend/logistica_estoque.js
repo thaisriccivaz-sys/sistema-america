@@ -13,7 +13,8 @@ window._logEstoqueState = {
     filtroDataAte: '',
     filtroContexto: 'INDIFERENTE', // 'INDIFERENTE' | 'OBRA' | 'EVENTO'
     editandoId: null,
-    comercialSelecionadosModal: [] // array of ids or names
+    comercialSelecionadosModal: [], // array of ids or names
+    vinculosExpandidosPorItem: {}   // { [itemId]: true/false } — inicia sempre minimizado ({})
 };
 
 // Ordem oficial solicitada dos quadros de estoque (sempre Obra seguido de Evento para os que separam):
@@ -179,19 +180,132 @@ window.renderTelaLogisticaEstoque = async function() {
         window.renderTabelaAtivaLogisticaEstoque();
     }
 
+    // Sempre inicia a tela com todos os vínculos minimizados
+    window._logEstoqueState.vinculosExpandidosPorItem = {};
     await window.carregarLogisticaEstoque();
 };
 
-window._reservaBatePeriodoLogEst = function(dtEntrega) {
+window._reservaBatePeriodoLogEst = function(reservaOuData) {
     const dtDe = String(window._logEstoqueState.filtroDataDe || '').trim();
     const dtAte = String(window._logEstoqueState.filtroDataAte || '').trim();
     if (!dtDe && !dtAte) return true;
-    const dt = String(dtEntrega || '').trim();
-    if (!dt) return false;
-    if (dtDe && dtAte) return dt >= dtDe && dt <= dtAte;
-    if (dtDe) return dt === dtDe;
-    if (dtAte) return dt <= dtAte;
+
+    const isObj = typeof reservaOuData === 'object' && reservaOuData !== null;
+    const dtIni = String(isObj ? (reservaOuData.data_entrega || '') : (reservaOuData || '')).trim().slice(0, 10);
+    const dtFimRaw = isObj ? String(reservaOuData.data_retirada || '').trim().slice(0, 10) : '';
+    const dtFim = (dtFimRaw && dtFimRaw >= dtIni) ? dtFimRaw : dtIni;
+
+    if (!dtIni) return false;
+    if (dtDe && dtAte) {
+        return dtIni <= dtAte && dtFim >= dtDe;
+    }
+    if (dtDe) {
+        if (dtFimRaw && dtFimRaw >= dtIni) return dtIni <= dtDe && dtFimRaw >= dtDe;
+        return dtIni === dtDe;
+    }
+    if (dtAte) {
+        return dtIni <= dtAte;
+    }
     return true;
+};
+
+window.toggleVinculosItemLogisticaEstoque = function(itemId) {
+    const key = String(itemId);
+    if (!window._logEstoqueState.vinculosExpandidosPorItem) {
+        window._logEstoqueState.vinculosExpandidosPorItem = {};
+    }
+    const atual = Boolean(window._logEstoqueState.vinculosExpandidosPorItem[key]);
+    window._logEstoqueState.vinculosExpandidosPorItem[key] = !atual;
+
+    const box = document.getElementById('log-est-vinculos-box-' + key);
+    const icon = document.getElementById('log-est-vinculos-icon-' + key);
+    const txt = document.getElementById('log-est-vinculos-txt-' + key);
+    if (box) {
+        const aberto = !atual;
+        box.style.display = aberto ? 'flex' : 'none';
+        if (icon) icon.className = aberto ? 'ph ph-caret-up' : 'ph ph-caret-down';
+        if (txt) {
+            const count = box.getAttribute('data-count') || '0';
+            txt.textContent = aberto
+                ? ('Ocultar ' + count + ' equipamento(s) vinculado(s)')
+                : (count + ' equipamento(s) vinculado(s)');
+        }
+    } else {
+        window.renderTabelaAtivaLogisticaEstoque();
+    }
+};
+
+// Distribui as unidades reservadas de cada modelo (filtradas pelas datas de entrega/retirada)
+// entre os equipamentos físicos daquele modelo (ordenados por Série), para mostrar em qual
+// Nº de Contrato cada equipamento físico está alocado na data/período selecionado.
+window._calcularAlocacaoContratosPorItemEstoqueLogEst = function() {
+    const itensAll = (window._logEstoqueState.itens || []).slice();
+    const reservasAtivas = (window._logEstoqueState.reservas || []).filter(r => window._reservaBatePeriodoLogEst(r));
+
+    // Ordena as reservas por data de entrega e número de contrato
+    reservasAtivas.sort((a, b) => {
+        const da = String(a.data_entrega || '');
+        const db = String(b.data_entrega || '');
+        if (da !== db) return da.localeCompare(db);
+        return String(a.contrato_numero || a.numero_contrato || '').localeCompare(String(b.contrato_numero || b.numero_contrato || ''), 'pt-BR', { numeric: true });
+    });
+
+    // Agrupa os itens físicos por modelo normalizado, ordenados por número de série (numérico/alfabético)
+    const itensPorModelo = new Map();
+    itensAll.forEach(it => {
+        const modKey = _normLogEst(it.modelo);
+        if (!modKey) return;
+        if (!itensPorModelo.has(modKey)) itensPorModelo.set(modKey, []);
+        itensPorModelo.get(modKey).push(it);
+    });
+
+    itensPorModelo.forEach(lista => {
+        lista.sort((a, b) => {
+            const sa = String(a.numero_serie || '').trim();
+            const sb = String(b.numero_serie || '').trim();
+            if (sa && sb) return sa.localeCompare(sb, 'pt-BR', { numeric: true });
+            if (sa) return -1;
+            if (sb) return 1;
+            return (Number(a.id) || 0) - (Number(b.id) || 0);
+        });
+    });
+
+    // Fila de unidades de reserva por modelo
+    const filaUnidadesPorModelo = new Map();
+    reservasAtivas.forEach(r => {
+        const modKey = _normLogEst(r.modelo_estoque);
+        if (!modKey) return;
+        if (!filaUnidadesPorModelo.has(modKey)) filaUnidadesPorModelo.set(modKey, []);
+        const qtd = Math.max(0, parseInt(r.quantidade ?? r.quantidade_reservada ?? 0, 10) || 0);
+        const fila = filaUnidadesPorModelo.get(modKey);
+        for (let i = 0; i < qtd; i++) {
+            fila.push({
+                proposta_id: r.proposta_id,
+                contrato_numero: String(r.contrato_numero || r.numero_contrato || r.proposta_id || '').trim(),
+                cliente_nome: r.cliente_nome || '',
+                data_entrega: r.data_entrega || '',
+                data_retirada: r.data_retirada || '',
+                equipamento_comercial_nome: r.equipamento_comercial_nome || ''
+            });
+        }
+    });
+
+    // Mapa item.id -> array de reservas alocadas àquele equipamento físico
+    const alocacaoPorItemId = new Map();
+    itensPorModelo.forEach((listaItensMod, modKey) => {
+        const fila = filaUnidadesPorModelo.get(modKey) || [];
+        let ptr = 0;
+        listaItensMod.forEach(item => {
+            const cap = Math.max(1, parseInt(item.quantidade ?? 1, 10) || 1);
+            const alocadas = [];
+            for (let c = 0; c < cap && ptr < fila.length; c++) {
+                alocadas.push(fila[ptr++]);
+            }
+            alocacaoPorItemId.set(Number(item.id), alocadas);
+        });
+    });
+
+    return alocacaoPorItemId;
 };
 
 window._modeloBateContextoLogEst = function(modeloRaw) {
@@ -426,10 +540,10 @@ window.renderCardsModelosLogisticaEstoque = function() {
         const isSel = modAtivo && modAtivo === _normLogEst(m.modelo);
         const qtdTotal = Number(m.quantidade_total) || 0;
 
-        // Calcula reservas deste modelo considerando o filtro de período De / Até do topo
+        // Calcula reservas deste modelo considerando o filtro de período De / Até do topo (entrega e retirada)
         const qtdRes = reservasAll.reduce((acc, r) => {
             if (_normLogEst(r.modelo_estoque) !== _normLogEst(m.modelo)) return acc;
-            if (!window._reservaBatePeriodoLogEst(r.data_entrega)) return acc;
+            if (!window._reservaBatePeriodoLogEst(r)) return acc;
             return acc + (Number(r.quantidade ?? r.quantidade_reservada ?? 0) || 0);
         }, 0);
 
@@ -478,7 +592,7 @@ window.renderTabelaAtivaLogisticaEstoque = function() {
     const badgeItens = document.getElementById('badge-count-log-est-itens');
     const badgeRes = document.getElementById('badge-count-log-est-reservas');
     const itensCtx = (window._logEstoqueState.itens || []).filter(it => window._modeloBateContextoLogEst(it.modelo));
-    const resCtx = (window._logEstoqueState.reservas || []).filter(r => window._modeloBateContextoLogEst(r.modelo_estoque) && window._reservaBatePeriodoLogEst(r.data_entrega));
+    const resCtx = (window._logEstoqueState.reservas || []).filter(r => window._modeloBateContextoLogEst(r.modelo_estoque) && window._reservaBatePeriodoLogEst(r));
     if (badgeItens) badgeItens.textContent = String(itensCtx.length);
     if (badgeRes) badgeRes.textContent = String(resCtx.length);
 
@@ -493,6 +607,8 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
     const q = _normLogEst(window._logEstoqueState.filtroTexto);
     const qMod = _normLogEst(window._logEstoqueState.filtroModelo);
     const eqComercialAll = window._logEstoqueState.equipamentosComercial || [];
+    const alocacaoMap = window._calcularAlocacaoContratosPorItemEstoqueLogEst();
+    const expandidosMap = window._logEstoqueState.vinculosExpandidosPorItem || {};
 
     const lista = (window._logEstoqueState.itens || []).filter(item => {
         if (!window._modeloBateContextoLogEst(item.modelo)) return false;
@@ -500,7 +616,8 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
         if (!q) return true;
         const vincs = (item.equipamentos_comercial || []).map(x => typeof x === 'object' ? (x.nome || x.codigo || '') : String(x)).join(' ');
         const eqPorMod = eqComercialAll.filter(e => _normLogEst(e.logistica_estoque_modelo) === _normLogEst(item.modelo)).map(e => (e.codigo || '') + ' ' + (e.nome || '')).join(' ');
-        const alvo = _normLogEst([item.modelo, item.cor, item.numero_serie, item.medidas, vincs, eqPorMod].join(' '));
+        const alocados = (alocacaoMap.get(Number(item.id)) || []).map(a => (a.contrato_numero || '') + ' ' + (a.cliente_nome || '')).join(' ');
+        const alvo = _normLogEst([item.modelo, item.cor, item.numero_serie, item.medidas, vincs, eqPorMod, alocados].join(' '));
         return alvo.includes(q);
     });
 
@@ -534,13 +651,50 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
         });
 
         const vinculosList = Array.from(nomesMap.values());
+        const itemIdKey = String(item.id);
+        const isExpanded = Boolean(expandidosMap[itemIdKey]);
         const vinculosHtml = vinculosList.length > 0
-            ? '<div style="display:flex;flex-wrap:wrap;gap:4px;">' +
-                vinculosList.map(v =>
-                    '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.74rem;font-weight:600;">' + _escLogEst(v) + '</span>'
-                ).join('') +
+            ? '<div>' +
+                '<button type="button" onclick="window.toggleVinculosItemLogisticaEstoque(\'' + _escLogEst(itemIdKey) + '\')" style="display:inline-flex;align-items:center;gap:6px;background:#f8fafc;color:#1e293b;border:1px solid #cbd5e1;border-radius:7px;padding:4px 10px;font-size:0.77rem;font-weight:700;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background=\'#eff6ff\';this.style.borderColor=\'#93c5fd\';this.style.color=\'#1d4ed8\'" onmouseout="this.style.background=\'#f8fafc\';this.style.borderColor=\'#cbd5e1\';this.style.color=\'#1e293b\'">' +
+                    '<i class="ph ph-link" style="color:#1d4ed8;"></i>' +
+                    '<span id="log-est-vinculos-txt-' + _escLogEst(itemIdKey) + '">' +
+                        (isExpanded ? ('Ocultar ' + vinculosList.length + ' equipamento(s) vinculado(s)') : (vinculosList.length + ' equipamento(s) vinculado(s)')) +
+                    '</span>' +
+                    '<i id="log-est-vinculos-icon-' + _escLogEst(itemIdKey) + '" class="' + (isExpanded ? 'ph ph-caret-up' : 'ph ph-caret-down') + '" style="font-size:0.85rem;color:#475569;"></i>' +
+                '</button>' +
+                '<div id="log-est-vinculos-box-' + _escLogEst(itemIdKey) + '" data-count="' + vinculosList.length + '" style="display:' + (isExpanded ? 'flex' : 'none') + ';flex-wrap:wrap;gap:4px;margin-top:7px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">' +
+                    vinculosList.map(v =>
+                        '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.74rem;font-weight:600;">' + _escLogEst(v) + '</span>'
+                    ).join('') +
+                '</div>' +
               '</div>'
             : '<span style="color:#94a3b8;font-size:0.78rem;">Sem vínculo comercial</span>';
+
+        // Contrato vinculado/reservado para este equipamento considerando a data/período selecionado
+        const alocadas = alocacaoMap.get(Number(item.id)) || [];
+        let contratoColHtml = '';
+        if (alocadas.length > 0) {
+            contratoColHtml = '<div style="display:flex;flex-direction:column;gap:4px;">' +
+                alocadas.map(a => {
+                    const numCtr = a.contrato_numero || a.proposta_id || '—';
+                    const dtEntBr = _formatarDataBrLogEst(a.data_entrega);
+                    const dtRetBr = a.data_retirada ? _formatarDataBrLogEst(a.data_retirada) : '';
+                    const periodoTxt = dtRetBr ? (dtEntBr + ' até ' + dtRetBr) : dtEntBr;
+                    const cliFmt = typeof window.formatarNomeClienteComIcone === 'function' && a.cliente_nome
+                        ? window.formatarNomeClienteComIcone(a.cliente_nome)
+                        : (a.cliente_nome || '');
+                    return '<div style="display:flex;flex-direction:column;gap:2px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:4px 9px;">' +
+                        '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+                            '<span style="font-weight:800;color:#1d4ed8;font-size:0.8rem;white-space:nowrap;"><i class="ph ph-file-text"></i> Contrato #' + _escLogEst(numCtr) + '</span>' +
+                            '<span style="font-size:0.72rem;color:#475569;font-weight:600;white-space:nowrap;"><i class="ph ph-calendar"></i> ' + _escLogEst(periodoTxt) + '</span>' +
+                        '</div>' +
+                        (cliFmt ? '<div style="font-size:0.73rem;color:#0f172a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px;" title="' + _escLogEst(cliFmt) + '">' + _escLogEst(cliFmt) + '</div>' : '') +
+                    '</div>';
+                }).join('') +
+            '</div>';
+        } else {
+            contratoColHtml = '<span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:999px;padding:3px 10px;font-weight:700;font-size:0.75rem;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-check-circle"></i> Disponível</span>';
+        }
 
         const serieStr = String(item.numero_serie || '').trim();
         const serieBadge = serieStr
@@ -554,6 +708,7 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
             '<td>' + serieBadge + '</td>' +
             '<td><span style="background:' + modStyle + ';border-radius:7px;padding:3px 10px;font-weight:800;font-size:0.82rem;white-space:nowrap;">' + _escLogEst(_fmtModeloComIconeLogEst(item.modelo)) + '</span></td>' +
             '<td style="color:#334155;font-weight:600;">' + (_escLogEst(item.cor) || '<span style="color:#94a3b8;">—</span>') + '</td>' +
+            '<td>' + contratoColHtml + '</td>' +
             '<td>' + vinculosHtml + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;">' +
@@ -576,6 +731,7 @@ window._renderTabelaItensEstoqueLogEst = function(cont) {
                         '<th style="width:110px;">Série</th>' +
                         '<th>Modelo</th>' +
                         '<th>Cor</th>' +
+                        '<th>Contrato / Disponibilidade</th>' +
                         '<th>Vínculo com Equipamentos</th>' +
                         '<th style="text-align:right;">Ações</th>' +
                     '</tr>' +
@@ -591,7 +747,7 @@ window._renderTabelaReservasContratosLogEst = function(cont) {
 
     const lista = (window._logEstoqueState.reservas || []).filter(r => {
         if (!window._modeloBateContextoLogEst(r.modelo_estoque)) return false;
-        if (!window._reservaBatePeriodoLogEst(r.data_entrega)) return false;
+        if (!window._reservaBatePeriodoLogEst(r)) return false;
         if (qMod && !_normLogEst(r.modelo_estoque).includes(qMod)) return false;
         if (!q) return true;
         const alvo = _normLogEst([r.contrato_numero, r.cliente_nome, r.equipamento_comercial_nome, r.modelo_estoque, r.data_entrega].join(' '));
