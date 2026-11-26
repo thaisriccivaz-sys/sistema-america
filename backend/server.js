@@ -43901,12 +43901,14 @@ app.delete('/api/propostas/:id/anexos-os-comercial/:anexoId', authenticateToken,
   });
 });
 
-// ── APROVAÇÃO COMERCIAL (Kanban: Solicitação, Aguardando setor, Respondida, Aprovado, Reprovado, Finalizado) ──
+// ── APROVAÇÃO COMERCIAL (Kanban: Solicitação, Aguardando setor, Respondida, Aprovado, Reprovado) ──
 db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   numero_aprovacao TEXT NOT NULL,
   proposta_id INTEGER,
   proposta_codigo TEXT DEFAULT '',
+  tipo_proposta TEXT DEFAULT 'OBRA MENSAL',
+  ainda_nao_e_cliente INTEGER DEFAULT 0,
   cliente_nome TEXT DEFAULT '',
   contato_nome TEXT DEFAULT '',
   endereco_instalacao TEXT DEFAULT '',
@@ -43916,10 +43918,16 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   observacoes TEXT DEFAULT '',
   resposta_setor TEXT DEFAULT '',
   criado_por TEXT DEFAULT '',
+  criado_por_foto_url TEXT DEFAULT '',
+  criado_por_colaborador_id INTEGER,
   criado_em TEXT,
   atualizado_em TEXT
 )`, (errAprv) => {
   if (errAprv) console.error('[COMERCIAL_APROVACOES] Erro ao criar tabela comercial_aprovacoes:', errAprv.message);
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN tipo_proposta TEXT DEFAULT 'OBRA MENSAL'", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN ainda_nao_e_cliente INTEGER DEFAULT 0", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_foto_url TEXT DEFAULT ''", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_colaborador_id INTEGER", () => {});
 });
 
 function gerarCodigoAprovacaoComercial(cb) {
@@ -43939,38 +43947,85 @@ function gerarCodigoAprovacaoComercial(cb) {
   });
 }
 
-// GET /api/comercial/aprovacoes - Lista todas as aprovações do Kanban Comercial
+// GET /api/comercial/aprovacoes - Lista todas as aprovações do Kanban Comercial (com foto do atendente que abriu a solicitação e grupo do cliente)
 app.get('/api/comercial/aprovacoes', authenticateToken, (req, res) => {
   db.all(
-    `SELECT a.*, p.codigo AS prop_codigo_real, p.contrato AS prop_contrato_real, p.fase_negociacao AS prop_fase_real
+    `SELECT a.*, p.codigo AS prop_codigo_real, p.contrato AS prop_contrato_real, p.fase_negociacao AS prop_fase_real, p.tipo AS prop_tipo_real
      FROM comercial_aprovacoes a
      LEFT JOIN propostas p ON p.id = a.proposta_id
      ORDER BY a.urgente DESC, a.id DESC`,
     [],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(Array.isArray(rows) ? rows : []);
+      const lista = Array.isArray(rows) ? rows : [];
+      if (!lista.length) return res.json([]);
+      db.all('SELECT id, nome_completo, email, email_corporativo, departamento, cargo, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+        db.all('SELECT nome_razao_social, nome_fantasia, grupo_clientes FROM clientes', [], (errCli, clientesRows) => {
+          const listaColabs = Array.isArray(colabs) ? colabs : [];
+          const listaClis = Array.isArray(clientesRows) ? clientesRows : [];
+          const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+          const enriquecidos = lista.map(item => {
+            const autorRaw = String(item.criado_por || '').trim();
+            const autorNorm = norm(autorRaw).replace(/[._-]+/g, ' ').trim();
+            let colab = item.criado_por_colaborador_id
+              ? listaColabs.find(c => Number(c.id) === Number(item.criado_por_colaborador_id))
+              : null;
+            if (!colab && autorNorm) {
+              colab = listaColabs.find(c => norm(c.nome_completo) === autorNorm)
+                || listaColabs.find(c => {
+                  const nC = norm(c.nome_completo);
+                  return nC && (nC.includes(autorNorm) || autorNorm.includes(nC));
+                })
+                || null;
+            }
+            const temFoto = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
+            const fotoUrl = (colab && colab.id && temFoto)
+              ? `/api/colaboradores/foto/${colab.id}`
+              : (item.criado_por_foto_url || '');
+            const nomeAtendente = (colab && colab.nome_completo) ? String(colab.nome_completo).trim() : (autorRaw || 'Colaborador');
+
+            const cliLimpoNorm = norm(String(item.cliente_nome || '').replace(/^[💎🥇🥈🥉]\s*/, ''));
+            const cliMatch = cliLimpoNorm
+              ? listaClis.find(cl => norm(cl.nome_razao_social) === cliLimpoNorm || norm(cl.nome_fantasia) === cliLimpoNorm)
+              : null;
+
+            return {
+              ...item,
+              criado_por: nomeAtendente,
+              criado_por_foto_url: fotoUrl,
+              criado_por_colaborador_id: colab ? Number(colab.id) : (item.criado_por_colaborador_id || null),
+              cliente_grupo: (cliMatch && cliMatch.grupo_clientes) ? cliMatch.grupo_clientes : ''
+            };
+          });
+          res.json(enriquecidos);
+        });
+      });
     }
   );
 });
 
-// POST /api/comercial/aprovacoes - Cria uma nova Aprovação (a partir de uma Proposta ou avulsa na tela de Aprovação)
+// POST /api/comercial/aprovacoes - Cria uma nova Aprovação (sempre na coluna Solicitação)
 app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
   try {
     const b = req.body || {};
     const ctxUser = await resolverContextoUsuarioComercial(req.user);
     const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const colabIdAutor = (ctxUser && ctxUser.colaborador_id) ? Number(ctxUser.colaborador_id) : null;
     const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     const propId = b.proposta_id ? Number(b.proposta_id) : null;
     const propCodigo = String(b.proposta_codigo || '').trim();
+    const tipoProposta = String(b.tipo_proposta || 'OBRA MENSAL').trim();
+    const aindaNaoCliente = (Number(b.ainda_nao_e_cliente) === 1 || b.ainda_nao_e_cliente === true) ? 1 : 0;
     const clienteNome = String(b.cliente_nome || '').trim();
     const contatoNome = String(b.contato_nome || '').trim();
     const enderecoInstalacao = String(b.endereco_instalacao || '').trim();
     const equipamentosJson = typeof b.equipamentos_json === 'string'
       ? b.equipamentos_json
       : JSON.stringify(Array.isArray(b.equipamentos) ? b.equipamentos : []);
-    const coluna = String(b.coluna || 'Solicitação').trim() || 'Solicitação';
+    // Regra obrigatória: Toda nova aprovação deve sempre ser criada na coluna "Solicitação"
+    const coluna = 'Solicitação';
     const urgente = (Number(b.urgente) === 1 || b.urgente === true) ? 1 : 0;
     const observacoes = String(b.observacoes || '').trim();
     const respostaSetor = String(b.resposta_setor || '').trim();
@@ -43982,14 +44037,14 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
     gerarCodigoAprovacaoComercial((novoNumAprov) => {
       db.run(
         `INSERT INTO comercial_aprovacoes (
-          numero_aprovacao, proposta_id, proposta_codigo, cliente_nome, contato_nome,
-          endereco_instalacao, equipamentos_json, coluna, urgente, observacoes,
-          resposta_setor, criado_por, criado_em, atualizado_em
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          numero_aprovacao, proposta_id, proposta_codigo, tipo_proposta, ainda_nao_e_cliente,
+          cliente_nome, contato_nome, endereco_instalacao, equipamentos_json, coluna,
+          urgente, observacoes, resposta_setor, criado_por, criado_por_colaborador_id, criado_em, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          novoNumAprov, propId, propCodigo, clienteNome, contatoNome,
-          enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes,
-          respostaSetor, autor, agora, agora
+          novoNumAprov, propId, propCodigo, tipoProposta, aindaNaoCliente,
+          clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna,
+          urgente, observacoes, respostaSetor, autor, colabIdAutor, agora, agora
         ],
         function(errIns) {
           if (errIns) return res.status(500).json({ error: errIns.message });
@@ -44006,6 +44061,8 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
                   numero_aprovacao: novoNumAprov,
                   proposta_id: propId,
                   proposta_codigo: propCodigo,
+                  tipo_proposta: tipoProposta,
+                  ainda_nao_e_cliente: aindaNaoCliente,
                   cliente_nome: clienteNome,
                   contato_nome: contatoNome,
                   endereco_instalacao: enderecoInstalacao,
@@ -44015,6 +44072,7 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
                   observacoes,
                   resposta_setor: respostaSetor,
                   criado_por: autor,
+                  criado_por_colaborador_id: colabIdAutor,
                   criado_em: agora
                 }
               });
@@ -44057,6 +44115,8 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
       if (errG) return res.status(500).json({ error: errG.message });
       if (!row) return res.status(404).json({ error: 'Aprovação não encontrada.' });
 
+      const tipoProposta = b.tipo_proposta !== undefined ? String(b.tipo_proposta || row.tipo_proposta || 'OBRA MENSAL').trim() : (row.tipo_proposta || 'OBRA MENSAL');
+      const aindaNaoCliente = b.ainda_nao_e_cliente !== undefined ? ((Number(b.ainda_nao_e_cliente) === 1 || b.ainda_nao_e_cliente === true) ? 1 : 0) : (row.ainda_nao_e_cliente || 0);
       const clienteNome = b.cliente_nome !== undefined ? String(b.cliente_nome || '').trim() : row.cliente_nome;
       const contatoNome = b.contato_nome !== undefined ? String(b.contato_nome || '').trim() : row.contato_nome;
       const enderecoInstalacao = b.endereco_instalacao !== undefined ? String(b.endereco_instalacao || '').trim() : row.endereco_instalacao;
@@ -44074,6 +44134,8 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
         `UPDATE comercial_aprovacoes SET
           proposta_id = ?,
           proposta_codigo = ?,
+          tipo_proposta = ?,
+          ainda_nao_e_cliente = ?,
           cliente_nome = ?,
           contato_nome = ?,
           endereco_instalacao = ?,
@@ -44084,7 +44146,7 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
           resposta_setor = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [propId, propCodigo, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, agora, id],
+        [propId, propCodigo, tipoProposta, aindaNaoCliente, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, agora, id],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (propId) {

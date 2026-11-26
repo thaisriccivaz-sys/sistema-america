@@ -1368,7 +1368,7 @@ const TAB_META = {
     'comercial-dashboard': { color: '#7048e8', icon: 'ph-chart-line-up', title: 'Dashboard Comercial' },
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
-    'comercial-aprovacao': { color: '#7048e8', icon: 'ph-Stamp', title: 'Aprovação' },
+    'comercial-aprovacao': { color: '#7048e8', icon: 'ph-seal-check', title: 'Aprovação' },
     'comercial-contratos': { color: '#7048e8', icon: 'ph-files', title: 'Contratos' },
     'comercial-os': { color: '#7048e8', icon: 'ph-clipboard-text', title: 'OS' },
     'comercial-assinaturas': { color: '#7048e8', icon: 'ph-signature', title: 'Assinaturas' },

@@ -439,6 +439,13 @@ let _currentPropostaTab = 'form'; // 'lista', 'form' ou 'cadastro-cliente'
 let _clienteEditandoId = null;
 let _clienteContatos = [];
 let _clientesCache = [];
+if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, '_clientesCache')) {
+    Object.defineProperty(window, '_clientesCache', {
+        get: () => _clientesCache,
+        set: (v) => { _clientesCache = Array.isArray(v) ? v : []; },
+        configurable: true
+    });
+}
 
 // Variáveis de estado para o cadastro de contatos
 let _contatoEditandoId = null;
@@ -4801,7 +4808,7 @@ function _renderFormPropostaInt() {
                             <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
                         <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Solicitar ou vincular Aprovação desta Proposta'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato') ? 'inline-flex' : 'none'}; background:#7c3aed; color:#ffffff; border:1px solid #6d28d9; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
-                            <i class="ph ph-Stamp" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Aprovação'}</span>
+                            <i class="ph ph-seal-check" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Aprovação'}</span>
                         </button>
                         <button type="button" id="btn-prop-gerar-os-contrato" onclick="window.gerarOsComercialDoContrato(${id || 'null'})" title="Gerar OS Comercial vinculada a este contrato assinado" style="display:${(!isNovo && window._modoTelaComercial === 'contrato' && !Boolean(v('numero_os') && String(v('numero_os')).trim()) && (['CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO', 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase()) || Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)))) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                             <i class="ph ph-clipboard-text" style="font-size:1rem;"></i> <span>Gerar OS</span>
@@ -8576,6 +8583,9 @@ window.modalSalvarCliente = async function(clientId) {
                         window.verificarBloqueioFaturamentoProposta(razaoSocial);
                     }
                 }
+                if (typeof window._onAprovacaoClienteSalvo === 'function') {
+                    window._onAprovacaoClienteSalvo(razaoSocial, payload.grupo_clientes);
+                }
             }
 
             // Se o cadastro foi aberto a partir da tela ou modal de Endereços (+), selecionar o cliente recém-cadastrado
@@ -9428,6 +9438,10 @@ window.salvarNovoContatoModalProposta = async function() {
                 if (inpSigEmail && (!selSigTipo || selSigTipo.value !== 'América Rental')) {
                     inpSigEmail.value = conEmail.toLowerCase();
                 }
+            } else if (window._novoContatoModalOrigemTarget === 'aprovacao') {
+                if (typeof window._onAprovacaoContatoSalvo === 'function') {
+                    window._onAprovacaoContatoSalvo(conNome, empRazao);
+                }
             } else {
                 const propContatoInput = document.getElementById('prop-contato');
                 if (propContatoInput) propContatoInput.value = conNome;
@@ -9436,6 +9450,9 @@ window.salvarNovoContatoModalProposta = async function() {
                     propCliInput.value = empRazao;
                     propCliInput.dispatchEvent(new Event('input'));
                     propCliInput.dispatchEvent(new Event('change'));
+                }
+                if (typeof window._onAprovacaoContatoSalvo === 'function') {
+                    window._onAprovacaoContatoSalvo(conNome, empRazao);
                 }
             }
             window._novoContatoModalOrigemAssinaturaDigital = false;
@@ -9459,7 +9476,9 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null, origemA
     window._novoContatoModalOrigemTarget = targetOrigem || null;
     const rawClienteRef = targetOrigem === 'interveniente'
         ? (document.getElementById('prop-interveniente')?.value || '')
-        : (document.getElementById('prop-cliente')?.value || '');
+        : (targetOrigem === 'aprovacao'
+            ? (document.getElementById('caprv-inp-cliente')?.value || document.getElementById('prop-cliente')?.value || '')
+            : (document.getElementById('prop-cliente')?.value || ''));
     const clienteNome = (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(rawClienteRef) : rawClienteRef).trim();
     const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
     let fullCli = foundCli;
@@ -18547,6 +18566,9 @@ window.modalSalvarEndereco = async function() {
                 if (typeof window.classificarRegiaoEDias === 'function') {
                     window.classificarRegiaoEDias();
                 }
+            }
+            if (typeof window._onAprovacaoEnderecoSalvo === 'function') {
+                window._onAprovacaoEnderecoSalvo(fullAddress);
             }
 
             if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
