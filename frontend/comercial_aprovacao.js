@@ -95,6 +95,38 @@
     }
 
     /**
+     * Verifica se o usuário logado é thais.ricci (única com permissão de excluir aprovação).
+     */
+    function ehUsuarioThaisRicci() {
+        try {
+            const candidatos = [];
+            if (window.currentUser) {
+                candidatos.push(window.currentUser.username, window.currentUser.email, window.currentUser.nome, window.currentUser.nome_completo);
+            }
+            const lsUser = localStorage.getItem('erp_user') || localStorage.getItem('user');
+            if (lsUser) {
+                try {
+                    const u = JSON.parse(lsUser);
+                    candidatos.push(u.username, u.email, u.nome, u.nome_completo);
+                } catch (_) {
+                    candidatos.push(lsUser);
+                }
+            }
+            const topNameEl = document.getElementById('user-name-display') || document.querySelector('.user-name');
+            if (topNameEl && topNameEl.textContent) {
+                candidatos.push(topNameEl.textContent);
+            }
+            return candidatos.some(c => {
+                const n = normStr(c);
+                if (!n) return false;
+                return n === 'thais.ricci' || n.startsWith('thais.ricci@') || (n.includes('thais') && n.includes('ricci'));
+            });
+        } catch (_) {
+            return false;
+        }
+    }
+
+    /**
      * Remove prefixos de ícone de grupo (💎, 🥇, 🥈, 🥉) e eventual surrogate órfão (\uFFFD / [\uD800-\uDFFF])
      * utilizando flag Unicode (/u) para nunca quebrar pares substitutos UTF-16.
      */
@@ -255,7 +287,7 @@
 
     async function carregarAprovacoesServidor() {
         try {
-            await garantirCachesClientes();
+            const pClientes = garantirCachesClientes().catch(() => []);
             let lista = [];
             if (typeof window.apiGet === 'function') {
                 lista = await window.apiGet('/comercial/aprovacoes');
@@ -266,6 +298,7 @@
                 });
                 if (r.ok) lista = await r.json();
             }
+            await pClientes;
             state.aprovacoes = Array.isArray(lista) ? lista : [];
             window._comercialAprovacoesCache = state.aprovacoes;
             return state.aprovacoes;
@@ -302,6 +335,7 @@
         const propCod = String(a.prop_codigo_real || a.proposta_codigo || '').trim().padStart(2, '0');
         const cliFmt = formatarClienteComIcone(a.cliente_nome, a.cliente_grupo || '');
         const equips = formatarResumoEquipamentos(a.equipamentos_json, a.tipo_proposta || '');
+        const podeExcluir = ehUsuarioThaisRicci();
 
         return `
             <div class="caprv-card" draggable="true"
@@ -311,10 +345,10 @@
                 onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 14px rgba(15,23,42,0.09)';"
                 onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 6px rgba(15,23,42,0.05)';">
 
-                <!-- Cabeçalho do Card: Nº da Aprovação + Urgente + Botão Proposta ou Vincular -->
+                <!-- Cabeçalho do Card: Nº da Aprovação + Urgente + Botão Proposta ou Vincular + Excluir (Thais) -->
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
                     <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
-                        <span style="background:#7c3aed; color:#ffffff; font-weight:800; font-size:0.72rem; padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
+                        <span style="background:#ea580c; color:#ffffff; font-weight:800; font-size:0.72rem; padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">
                             <i class="ph ph-seal-check"></i> Aprovação Nº ${esc(numAprv)}
                         </span>
                         ${ehUrgente ? `
@@ -324,21 +358,31 @@
                         ` : ''}
                     </div>
 
-                    ${propId ? `
-                        <button type="button"
-                            onclick="event.stopPropagation(); if(typeof window.abrirPropostaDiretoId === 'function') window.abrirPropostaDiretoId(${propId});"
-                            title="Abrir Proposta Nº ${esc(propCod)}"
-                            style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
-                            <i class="ph ph-file-text"></i> Proposta Nº ${esc(propCod)}
-                        </button>
-                    ` : `
-                        <button type="button"
-                            onclick="event.stopPropagation(); window._comercialAprovacao.abrirModalVincularProposta(${Number(a.id)});"
-                            title="Vincular esta aprovação a uma proposta"
-                            style="background:#f5f3ff; color:#6d28d9; border:1px dashed #c4b5fd; padding:2px 8px; border-radius:5px; font-size:0.69rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
-                            <i class="ph ph-link"></i> Vincular Proposta
-                        </button>
-                    `}
+                    <div style="display:inline-flex; align-items:center; gap:4px;">
+                        ${propId ? `
+                            <button type="button"
+                                onclick="event.stopPropagation(); if(typeof window.abrirPropostaDiretoId === 'function') window.abrirPropostaDiretoId(${propId});"
+                                title="Abrir Proposta Nº ${esc(propCod)}"
+                                style="background:#2563eb; color:#ffffff; border:1px solid #1d4ed8; padding:2px 8px; border-radius:5px; font-size:0.7rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                                <i class="ph ph-file-text"></i> Proposta Nº ${esc(propCod)}
+                            </button>
+                        ` : `
+                            <button type="button"
+                                onclick="event.stopPropagation(); window._comercialAprovacao.abrirModalVincularProposta(${Number(a.id)});"
+                                title="Vincular esta aprovação a uma proposta"
+                                style="background:#f5f3ff; color:#6d28d9; border:1px dashed #c4b5fd; padding:2px 8px; border-radius:5px; font-size:0.69rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                                <i class="ph ph-link"></i> Vincular Proposta
+                            </button>
+                        `}
+                        ${podeExcluir ? `
+                            <button type="button"
+                                onclick="event.stopPropagation(); window._comercialAprovacao.excluirAprovacao(${Number(a.id)});"
+                                title="Excluir Aprovação Nº ${esc(numAprv)}"
+                                style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:22px; height:22px; border-radius:5px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <i class="ph ph-trash" style="font-size:0.8rem;"></i>
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
 
                 <!-- Nome do Cliente (com ícone do grupo) -->
@@ -398,7 +442,7 @@
                 <!-- Barra Superior -->
                 <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:0.65rem 1.15rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:34px; height:34px; border-radius:9px; background:#f5f3ff; border:1px solid #ddd6fe; display:flex; align-items:center; justify-content:center; color:#7c3aed;">
+                        <div style="width:34px; height:34px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; display:flex; align-items:center; justify-content:center; color:#ea580c;">
                             <i class="ph ph-seal-check" style="font-size:1.25rem;"></i>
                         </div>
                         <h3 style="margin:0; font-size:1.05rem; font-weight:800; color:#0f172a;">Aprovação</h3>
@@ -421,7 +465,7 @@
                         </label>
 
                         <button type="button" onclick="window._comercialAprovacao.abrirModalNovaAprovacao()"
-                            style="background:#7c3aed; color:#ffffff; border:1px solid #6d28d9; height:32px; padding:0 14px; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                            style="background:#ea580c; color:#ffffff; border:1px solid #c2410c; height:32px; padding:0 14px; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                             <i class="ph ph-plus-circle" style="font-size:0.95rem;"></i> Nova Aprovação
                         </button>
 
@@ -468,12 +512,6 @@
         `;
     }
 
-    /**
-     * Cria ou retorna o container de modal customizado da tela de Aprovação.
-     * Usamos um overlay próprio (z-index: 1000) para que sub-modais como
-     * Cadastrar Novo Cliente, Cadastrar Novo Contato, Cadastrar Endereço ou
-     * Pesquisa com Lupa (Swal z-index: 1060) abram POR CIMA sem fechar o modal de Aprovação!
-     */
     function abrirOverlayModalAprovacao(htmlInterno, maxWidthPx = 980) {
         fecharOverlayModalAprovacao();
         const overlay = document.createElement('div');
@@ -516,7 +554,6 @@
             }).slice(0, 150);
         };
 
-        // Se digitou algo e há exatamente 1 resultado diferente do atual, ou quer abrir a lista:
         const renderLinhas = (termo) => {
             const lista = filtrar(termo);
             if (!lista.length) {
@@ -858,14 +895,137 @@
     }
 
     /**
-     * Inicializa e gerencia o comportamento interativo dos campos de:
-     * - Tipo de Proposta
-     * - Checkbox "Ainda não é cliente"
-     * - Pesquisa/Dropdown/Lupa/+ de Cliente, Contato e Endereço de Instalação
-     * - Seleção de Equipamentos da OS da Logística com ícones
-     * dentro do modal de Nova Aprovação ou Detalhes da Aprovação.
+     * Sub-modal (Swal) para selecionar uma Proposta (usado dentro do modal "Nova Solicitação de Aprovação"
+     * quando o usuário marca que deseja vincular a uma proposta na hora de criar).
      */
-    async function configurarFormularioAprovacaoInterativo(opcoes) {
+    async function abrirSeletorPropostaParaNovaAprovacao(clienteFiltroInicial, onSelectPropostaObj) {
+        let propostas = [];
+        try {
+            propostas = await window.apiGet('/propostas');
+            if (Array.isArray(propostas)) window._propostasData = propostas;
+        } catch (_) {
+            propostas = Array.isArray(window._propostasData) ? window._propostasData : [];
+        }
+
+        const isSituacaoExcluida = (faseRaw) => {
+            const f = normStr(faseRaw || 'Em Elaboração');
+            return f.includes('aprovad') || f.includes('reprovad') || f.includes('sem resposta') || f.includes('cancelad');
+        };
+
+        const cliNorm = normStr(limparIconeCliente(clienteFiltroInicial || ''));
+        const elegiveis = (propostas || [])
+            .filter(p => !isSituacaoExcluida(p.fase_negociacao))
+            .sort((a, b) => {
+                const aM = cliNorm && normStr(limparIconeCliente(a.cliente_nome)) === cliNorm ? 1 : 0;
+                const bM = cliNorm && normStr(limparIconeCliente(b.cliente_nome)) === cliNorm ? 1 : 0;
+                if (bM !== aM) return bM - aM;
+                return Number(b.id || 0) - Number(a.id || 0);
+            });
+
+        const renderBadgeSituacao = (fase) => {
+            const f = String(fase || 'Em Elaboração').trim();
+            if (typeof window.renderBadgeFaseNegociacaoHtml === 'function') {
+                return window.renderBadgeFaseNegociacaoHtml(f);
+            }
+            return `<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:700; white-space:nowrap;">${esc(f)}</span>`;
+        };
+
+        const renderLinhas = (termo) => {
+            const q = normStr(termo);
+            const fil = elegiveis.filter(p => {
+                if (!q) return true;
+                return normStr(`${p.codigo} ${p.cliente_nome} ${p.endereco_instalacao} ${p.tipo} ${p.fase_negociacao}`).includes(q);
+            }).slice(0, 80);
+
+            if (!fil.length) {
+                return `<tr><td colspan="6" style="padding:1.25rem; text-align:center; color:#94a3b8;">Nenhuma proposta elegível encontrada.</td></tr>`;
+            }
+            return fil.map(p => {
+                const cod = String(p.codigo || p.id).padStart(2, '0');
+                return `
+                    <tr style="border-bottom:1px solid #e2e8f0;"
+                        onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#ffffff'">
+                        <td style="padding:8px 10px; font-weight:800; color:#2563eb; white-space:nowrap;">Nº ${esc(cod)}</td>
+                        <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${esc(formatarClienteComIcone(p.cliente_nome))}</td>
+                        <td style="padding:8px 10px; color:#475569; font-size:0.75rem;">${esc(p.endereco_instalacao || '—')}</td>
+                        <td style="padding:8px 10px; color:#475569; font-size:0.74rem; white-space:nowrap;">${esc(p.tipo || '—')}</td>
+                        <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${renderBadgeSituacao(p.fase_negociacao)}</td>
+                        <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
+                            <div style="display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+                                <button type="button"
+                                    onclick="event.stopPropagation(); window._verPdfPropSubPicker(${Number(p.id)});"
+                                    title="Visualizar Documento PDF da Proposta Nº ${esc(cod)}"
+                                    style="background:#0f172a; color:#ffffff; border:none; width:30px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                    <i class="ph ph-eye" style="font-size:0.95rem;"></i>
+                                </button>
+                                <button type="button"
+                                    onclick="event.stopPropagation(); window._escolherPropSubPicker(${Number(p.id)});"
+                                    style="background:#ea580c; color:#ffffff; border:none; height:28px; padding:0 11px; border-radius:6px; font-size:0.73rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+                                    <i class="ph ph-check"></i> Selecionar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        };
+
+        window._verPdfPropSubPicker = async (prId) => {
+            await visualizarPdfPropostaNoModal(prId);
+        };
+
+        window._escolherPropSubPicker = (prId) => {
+            const pObj = elegiveis.find(x => Number(x.id) === Number(prId));
+            Swal.close();
+            if (pObj && typeof onSelectPropostaObj === 'function') {
+                onSelectPropostaObj(pObj);
+            }
+        };
+
+        const qIni = limparIconeCliente(clienteFiltroInicial || '');
+        const temDoCli = qIni && elegiveis.some(p => normStr(limparIconeCliente(p.cliente_nome)).includes(normStr(qIni)));
+        const filtroIni = temDoCli ? qIni : '';
+
+        await Swal.fire({
+            title: 'Selecionar Proposta para Vincular',
+            width: '1120px',
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'Fechar',
+            html: `
+                <div style="text-align:left; font-family:'Inter',sans-serif; display:flex; flex-direction:column; gap:10px;">
+                    <input type="text" id="swal-pick-prop-nova-inp" value="${esc(filtroIni)}"
+                        placeholder="Digite o nº da proposta, cliente, endereço ou situação..."
+                        style="width:100%; height:35px; padding:4px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
+                    <div style="max-height:400px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.79rem; text-align:left;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.71rem; text-transform:uppercase; position:sticky; top:0;">
+                                    <th style="padding:8px 10px; width:85px;">Proposta</th>
+                                    <th style="padding:8px 10px;">Cliente</th>
+                                    <th style="padding:8px 10px;">Endereço de Instalação</th>
+                                    <th style="padding:8px 10px; width:130px;">Tipo</th>
+                                    <th style="padding:8px 10px; text-align:center; width:145px;">Situação</th>
+                                    <th style="padding:8px 10px; text-align:center; width:145px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="swal-pick-prop-nova-tbody">${renderLinhas(filtroIni)}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            didOpen: () => {
+                const inp = document.getElementById('swal-pick-prop-nova-inp');
+                const tb = document.getElementById('swal-pick-prop-nova-tbody');
+                if (inp && tb) {
+                    inp.addEventListener('input', () => { tb.innerHTML = renderLinhas(inp.value); });
+                    inp.focus();
+                }
+            }
+        });
+    }
+
+    async function configurarFormularioAprovacaoInterativo() {
         const clientes = await garantirCachesClientes();
         let contatosClienteAtual = [];
         let enderecosClienteAtual = [];
@@ -935,7 +1095,6 @@
             await carregarVinculosDoCliente(razaoSocial);
         };
 
-        // Callbacks globais chamados quando o usuário cadastra um novo Cliente, Contato ou Endereço pelo botão '+' amarelo
         window._onAprovacaoClienteSalvo = async (razaoSocial, grupo) => {
             await garantirCachesClientes();
             await selecionarClienteNoForm(razaoSocial, grupo);
@@ -963,12 +1122,11 @@
         }
         atualizarVisibilidadeBotoesCadastro();
 
-        // Pré-carrega contatos e endereços caso já haja cliente preenchido
         if (inpCli && limparIconeCliente(inpCli.value)) {
             await carregarVinculosDoCliente(inpCli.value);
         }
 
-        // 1. Campo Cliente: filtro em tempo real + Enter para abrir pesquisa na lupa
+        // 1. Campo Cliente
         if (inpCli && dropCli) {
             const renderDropCli = () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1024,7 +1182,6 @@
             });
         }
 
-        // Botões Lupa e + de Cliente
         window._caprvClickLupaCliente = () => {
             if (chkNaoCliente && chkNaoCliente.checked) return;
             abrirModalPesquisaClienteAprovacao(inpCli ? inpCli.value : '', selecionarClienteNoForm);
@@ -1035,7 +1192,7 @@
             }
         };
 
-        // 2. Campo Contato: dropdown dos contatos do cliente + Lupa + botão '+'
+        // 2. Campo Contato
         if (inpCon && dropCon) {
             const renderDropCon = async () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1098,7 +1255,7 @@
             }
         };
 
-        // 3. Campo Endereço de Instalação: dropdown dos endereços do cliente + Lupa + botão '+'
+        // 3. Campo Endereço de Instalação
         if (inpEnd && dropEnd) {
             const renderDropEnd = async () => {
                 if (chkNaoCliente && chkNaoCliente.checked) {
@@ -1165,7 +1322,7 @@
             }
         };
 
-        // 4. Campo Equipamentos da OS da Logística (com ícones e filtro em tempo real por Tipo de Proposta)
+        // 4. Campo Equipamentos da OS da Logística
         if (inpEq && dropEq) {
             const renderDropEq = () => {
                 const tipoAtual = selTipo ? selTipo.value : 'OBRA MENSAL';
@@ -1200,6 +1357,7 @@
 
     window._comercialAprovacao = {
         async init() {
+            renderKanbanBoard();
             await carregarAprovacoesServidor();
             renderKanbanBoard();
         },
@@ -1267,13 +1425,74 @@
         },
 
         /**
+         * Exclusão de aprovação (disponível apenas para o usuário thais.ricci).
+         */
+        async excluirAprovacao(id, fecharModalApos = false) {
+            if (!ehUsuarioThaisRicci()) {
+                Swal.fire('Acesso Restrito', 'Apenas o usuário thais.ricci pode excluir uma aprovação.', 'warning');
+                return false;
+            }
+            const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(id));
+            const numFmt = aprv ? String(aprv.numero_aprovacao || aprv.id).padStart(2, '0') : String(id);
+
+            const ask = await Swal.fire({
+                icon: 'warning',
+                title: `Excluir Aprovação Nº ${numFmt}?`,
+                html: `Tem certeza que deseja excluir a <strong>Aprovação Nº ${esc(numFmt)}</strong>?<br><span style="font-size:0.78rem; color:#64748b;">Caso esteja vinculada a uma proposta, o vínculo será removido.</span>`,
+                showCancelButton: true,
+                confirmButtonText: '<i class="ph ph-trash"></i> Sim, Excluir',
+                confirmButtonColor: '#dc2626',
+                cancelButtonText: 'Cancelar'
+            });
+            if (!ask.isConfirmed) return false;
+
+            try {
+                const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const r = await fetch(`/api/comercial/aprovacoes/${id}`, {
+                    method: 'DELETE',
+                    headers: tk ? { 'Authorization': 'Bearer ' + tk } : {}
+                });
+                const res = await r.json();
+                if (!r.ok || !res.success) {
+                    Swal.fire('Erro', (res && res.error) || 'Não foi possível excluir a aprovação.', 'error');
+                    return false;
+                }
+                if (Array.isArray(window._propostasData)) {
+                    window._propostasData.forEach(p => {
+                        if (Number(p.aprovacao_id) === Number(id)) {
+                            p.aprovacao_id = null;
+                            p.numero_aprovacao = null;
+                        }
+                    });
+                }
+                if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+                    window.atualizarVisibilidadeBotoesPosSalvoProposta();
+                }
+                if (fecharModalApos) {
+                    fecharOverlayModalAprovacao();
+                }
+                await carregarAprovacoesServidor();
+                renderKanbanBoard();
+                if (typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso(`Aprovação Nº ${numFmt} excluída com sucesso!`);
+                }
+                return true;
+            } catch (e) {
+                Swal.fire('Erro', e.message || 'Erro ao excluir aprovação.', 'error');
+                return false;
+            }
+        },
+
+        /**
          * Abre modal para criar uma Nova Solicitação de Aprovação.
-         * Sempre nasce na coluna "Solicitação".
+         * Permite selecionar se gostaria de vincular a uma proposta ou não!
          */
         async abrirModalNovaAprovacao(dadosIniciais = {}, onCreatedCallback = null) {
             await garantirCachesClientes();
-            const propId = dadosIniciais.proposta_id ? Number(dadosIniciais.proposta_id) : null;
-            const propCodigo = String(dadosIniciais.proposta_codigo || '').trim();
+            let propIdSelecionada = dadosIniciais.proposta_id ? Number(dadosIniciais.proposta_id) : null;
+            let propCodigoSelecionado = String(dadosIniciais.proposta_codigo || '').trim();
+            let desejarVincularProp = Boolean(propIdSelecionada);
+
             const tipoIniRaw = String(dadosIniciais.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
             const tipoIni = TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tipoIniRaw) ? tipoIniRaw : 'OBRA MENSAL';
             const cliIni = limparIconeCliente(dadosIniciais.cliente_nome || '');
@@ -1303,6 +1522,93 @@
                         <button type="button" onclick="window._removerEquipModalAprov(${idx})" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; padding:1px 7px; font-size:0.75rem; font-weight:700; cursor:pointer;">&times;</button>
                     </div>
                 `).join('');
+            };
+
+            const atualizarPainelVinculoPropHtml = () => {
+                const wrap = document.getElementById('caprv-nova-vinc-prop-box');
+                if (!wrap) return;
+                if (!desejarVincularProp) {
+                    wrap.innerHTML = `<span style="font-size:0.76rem; color:#64748b;">Esta aprovação será criada sem proposta vinculada (poderá ser vinculada depois).</span>`;
+                    return;
+                }
+                if (propIdSelecionada) {
+                    const codFmt = String(propCodigoSelecionado || propIdSelecionada).padStart(2, '0');
+                    wrap.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="background:#2563eb; color:#ffffff; font-weight:800; font-size:0.76rem; padding:3px 10px; border-radius:6px; display:inline-flex; align-items:center; gap:5px;">
+                                <i class="ph ph-file-text"></i> Vinculada à Proposta Nº ${esc(codFmt)}
+                            </span>
+                            <button type="button" onclick="window._abrirSeletorPropostaModalNovaAprov()"
+                                style="background:#ffffff; color:#ea580c; border:1px solid #fdba74; padding:3px 10px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer;">
+                                Trocar Proposta
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    wrap.innerHTML = `
+                        <button type="button" onclick="window._abrirSeletorPropostaModalNovaAprov()"
+                            style="background:#ea580c; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-size:0.76rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                            <i class="ph ph-magnifying-glass"></i> Selecionar Proposta para Vincular
+                        </button>
+                    `;
+                }
+            };
+
+            window._onToggleDesejaVincularPropNovaAprov = (val) => {
+                desejarVincularProp = (val === 'sim');
+                if (!desejarVincularProp) {
+                    propIdSelecionada = null;
+                    propCodigoSelecionado = '';
+                }
+                atualizarPainelVinculoPropHtml();
+                if (desejarVincularProp && !propIdSelecionada) {
+                    window._abrirSeletorPropostaModalNovaAprov();
+                }
+            };
+
+            window._abrirSeletorPropostaModalNovaAprov = () => {
+                const cliAtual = document.getElementById('caprv-inp-cliente')?.value || '';
+                abrirSeletorPropostaParaNovaAprovacao(cliAtual, (pObj) => {
+                    propIdSelecionada = Number(pObj.id);
+                    propCodigoSelecionado = String(pObj.codigo || pObj.id);
+                    desejarVincularProp = true;
+                    const selVinc = document.getElementById('caprv-sel-deseja-vincular');
+                    if (selVinc) selVinc.value = 'sim';
+                    atualizarPainelVinculoPropHtml();
+
+                    // Preenche automaticamente Cliente, Contato, Endereço, Tipo e Equipamentos a partir da proposta escolhida
+                    const inpCli = document.getElementById('caprv-inp-cliente');
+                    if (inpCli && pObj.cliente_nome) {
+                        inpCli.value = formatarClienteComIcone(pObj.cliente_nome);
+                        inpCli.dispatchEvent(new Event('input'));
+                    }
+                    const dropCli = document.getElementById('caprv-drop-cliente');
+                    if (dropCli) dropCli.style.display = 'none';
+
+                    const inpCon = document.getElementById('caprv-inp-contato');
+                    if (inpCon && pObj.contato_nome) inpCon.value = pObj.contato_nome;
+
+                    const inpEnd = document.getElementById('caprv-inp-endereco');
+                    if (inpEnd && pObj.endereco_instalacao) inpEnd.value = pObj.endereco_instalacao;
+
+                    const selTipo = document.getElementById('caprv-sel-tipo-proposta');
+                    const tPropUp = String(pObj.tipo || '').trim().toUpperCase();
+                    if (selTipo && TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tPropUp)) {
+                        selTipo.value = tPropUp;
+                    }
+
+                    const itensProp = parseEquipamentosLista(pObj.itens);
+                    if (itensProp.length > 0) {
+                        const tUsar = selTipo ? selTipo.value : 'OBRA MENSAL';
+                        equipsDraft = itensProp.map(it => ({
+                            produto: formatarNomeEquipamentoComIcone(it.produto || it.descricao || it.nome || '', tUsar),
+                            quantidade: Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1),
+                            observacao: String(it.observacao || '').trim()
+                        })).filter(it => it.produto);
+                        const w = document.getElementById('caprv-equips-list');
+                        if (w) w.innerHTML = renderEquipsDraftHtml();
+                    }
+                });
             };
 
             window._removerEquipModalAprov = (idx) => {
@@ -1336,9 +1642,13 @@
                         Swal.fire('Campo Obrigatório', 'Informe o Nome do Cliente.', 'warning');
                         return;
                     }
+                    if (desejarVincularProp && !propIdSelecionada) {
+                        Swal.fire('Selecione a Proposta', 'Você marcou que deseja vincular a uma proposta. Selecione a proposta ou mude a opção para "Não vincular a uma proposta agora".', 'warning');
+                        return;
+                    }
                     const payload = {
-                        proposta_id: propId,
-                        proposta_codigo: propCodigo,
+                        proposta_id: desejarVincularProp ? propIdSelecionada : null,
+                        proposta_codigo: desejarVincularProp ? propCodigoSelecionado : '',
                         tipo_proposta: document.getElementById('caprv-sel-tipo-proposta')?.value || 'OBRA MENSAL',
                         ainda_nao_e_cliente: Boolean(document.getElementById('caprv-chk-nao-cliente')?.checked),
                         cliente_nome: cliRaw,
@@ -1365,6 +1675,16 @@
                             Swal.fire('Erro', (res && res.error) || 'Não foi possível criar a aprovação.', 'error');
                             return;
                         }
+                        if (payload.proposta_id && Array.isArray(window._propostasData)) {
+                            const pMem = window._propostasData.find(p => Number(p.id) === Number(payload.proposta_id));
+                            if (pMem) {
+                                pMem.aprovacao_id = res.aprovacao?.id;
+                                pMem.numero_aprovacao = res.numero_aprovacao;
+                            }
+                        }
+                        if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+                            window.atualizarVisibilidadeBotoesPosSalvoProposta();
+                        }
                         fecharOverlayModalAprovacao();
                         await carregarAprovacoesServidor();
                         renderKanbanBoard();
@@ -1383,21 +1703,21 @@
                 const cliFmtIni = cliIni ? formatarClienteComIcone(cliIni) : '';
 
                 abrirOverlayModalAprovacao(`
-                    <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:14px;">
+                    <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:13px;">
                         <!-- Cabeçalho do Modal -->
                         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="width:36px; height:36px; border-radius:9px; background:#f5f3ff; border:1px solid #ddd6fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;">
+                                <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
                                     <i class="ph ph-seal-check" style="font-size:1.3rem;"></i>
                                 </div>
                                 <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">
-                                    ${propId ? `Solicitar Aprovação — Proposta Nº ${esc(propCodigo)}` : 'Nova Solicitação de Aprovação'}
+                                    Nova Solicitação de Aprovação
                                 </h3>
                             </div>
 
                             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                                 <label style="display:inline-flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:5px 11px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; user-select:none;">
-                                    <input type="checkbox" id="caprv-chk-nao-cliente" style="margin:0; width:14px; height:14px; accent-color:#7c3aed;">
+                                    <input type="checkbox" id="caprv-chk-nao-cliente" style="margin:0; width:14px; height:14px; accent-color:#ea580c;">
                                     <span>Ainda não é cliente</span>
                                 </label>
 
@@ -1406,6 +1726,22 @@
                                     <span>🚨 APROVAÇÃO URGENTE</span>
                                 </label>
                             </div>
+                        </div>
+
+                        <!-- Opção de Vincular ou Não a uma Proposta na criação -->
+                        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <label style="font-size:0.78rem; font-weight:800; color:#9a3412; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-link"></i> Gostaria de vincular a uma proposta?
+                                </label>
+                                <select id="caprv-sel-deseja-vincular"
+                                    onchange="window._onToggleDesejaVincularPropNovaAprov(this.value)"
+                                    style="height:30px; padding:2px 10px; border:1px solid #fdba74; border-radius:6px; font-size:0.78rem; font-weight:700; color:#0f172a; background:#ffffff; text-transform:none;">
+                                    <option value="nao" ${!desejarVincularProp ? 'selected' : ''}>Não vincular a uma proposta agora</option>
+                                    <option value="sim" ${desejarVincularProp ? 'selected' : ''}>Sim, vincular a uma proposta</option>
+                                </select>
+                            </div>
+                            <div id="caprv-nova-vinc-prop-box"></div>
                         </div>
 
                         <!-- Linha 1: Tipo de Proposta + Cliente + Contato -->
@@ -1497,19 +1833,19 @@
                                 <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
                                     style="width:80px; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:700;">
                                 <button type="button" onclick="window._adicionarEquipModalAprov()"
-                                    style="background:#7c3aed; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
+                                    style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
                             </div>
-                            <div id="caprv-equips-list" style="display:flex; flex-direction:column; gap:5px; max-height:150px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#ffffff;">
+                            <div id="caprv-equips-list" style="display:flex; flex-direction:column; gap:5px; max-height:145px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#ffffff;">
                                 ${renderEquipsDraftHtml()}
                             </div>
                         </div>
 
-                        <!-- Linha 4: Observações da Solicitação (Textarea amplo com quebra de linha) -->
+                        <!-- Linha 4: Observações da Solicitação -->
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Observações da Solicitação</label>
                             <textarea id="caprv-inp-obs" rows="5"
                                 placeholder="Digite todas as observações e detalhes necessários para a aprovação (pressione Enter para pular linha)..."
-                                style="width:100%; min-height:115px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(obsIni)}</textarea>
+                                style="width:100%; min-height:110px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(obsIni)}</textarea>
                         </div>
 
                         <!-- Rodapé de Ações -->
@@ -1519,13 +1855,14 @@
                                 Cancelar
                             </button>
                             <button type="button" onclick="window._salvarModalNovaAprovConfirm()"
-                                style="background:#7c3aed; color:#ffffff; border:none; padding:8px 20px; border-radius:7px; font-size:0.84rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                                style="background:#ea580c; color:#ffffff; border:none; padding:8px 20px; border-radius:7px; font-size:0.84rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
                                 <i class="ph ph-check"></i> Gerar Aprovação
                             </button>
                         </div>
                     </div>
                 `, 980);
 
+                atualizarPainelVinculoPropHtml();
                 await configurarFormularioAprovacaoInterativo();
             });
         },
@@ -1533,7 +1870,7 @@
         /**
          * Modal para editar / visualizar detalhes de um card do Kanban de Aprovação.
          */
-        async abrirModalDetalhesAprovacao(id) {
+        async abrirModalDetalhesAprovacao(id, opcoesExtras = {}) {
             await garantirCachesClientes();
             const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(id));
             if (!aprv) return;
@@ -1543,6 +1880,7 @@
             const tipoIniRaw = String(aprv.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
             const tipoIni = TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tipoIniRaw) ? tipoIniRaw : 'OBRA MENSAL';
             const naoEhCliIni = Number(aprv.ainda_nao_e_cliente) === 1;
+            const podeExcluir = ehUsuarioThaisRicci();
 
             let equipsDraft = parseEquipamentosLista(aprv.equipamentos_json).map(it => {
                 const rawNome = String(it.produto || it.descricao || it.nome || '').trim();
@@ -1634,6 +1972,7 @@
             };
 
             const cliFmtAtual = formatarClienteComIcone(aprv.cliente_nome, aprv.cliente_grupo || '');
+            const propOrigemModal = Number(opcoesExtras.propostaIdContexto || 0);
 
             abrirOverlayModalAprovacao(`
                 <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:13px;">
@@ -1641,7 +1980,7 @@
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:8px;">
-                                <div style="width:36px; height:36px; border-radius:9px; background:#f5f3ff; border:1px solid #ddd6fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;">
+                                <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
                                     <i class="ph ph-seal-check" style="font-size:1.3rem;"></i>
                                 </div>
                                 <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:#0f172a;">Aprovação Nº ${esc(numAprv)}</h3>
@@ -1654,7 +1993,15 @@
                             </div>
                         </div>
 
-                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            ${propOrigemModal ? `
+                                <button type="button"
+                                    onclick="window._fecharModalDetAprov(); window._comercialAprovacao.abrirModalSelecaoAprovacoesDoClienteNaProposta(${propOrigemModal});"
+                                    style="background:#fff7ed; color:#ea580c; border:1px solid #fdba74; padding:5px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-list-Bullets"></i> Ver Solicitações do Cliente / Trocar
+                                </button>
+                            ` : ''}
+
                             ${propId ? `
                                 <button type="button"
                                     onclick="window._fecharModalDetAprov(); if(typeof window.abrirPropostaDiretoId==='function') window.abrirPropostaDiretoId(${propId});"
@@ -1664,13 +2011,13 @@
                             ` : `
                                 <button type="button"
                                     onclick="window._fecharModalDetAprov(); window._comercialAprovacao.abrirModalVincularProposta(${Number(aprv.id)});"
-                                    style="background:#7c3aed; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                    style="background:#ea580c; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
                                     <i class="ph ph-link"></i> Vincular a uma Proposta
                                 </button>
                             `}
 
                             <label style="display:inline-flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #cbd5e1; color:#334155; padding:5px 10px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer;">
-                                <input type="checkbox" id="caprv-chk-nao-cliente" ${naoEhCliIni ? 'checked' : ''} style="margin:0; accent-color:#7c3aed;">
+                                <input type="checkbox" id="caprv-chk-nao-cliente" ${naoEhCliIni ? 'checked' : ''} style="margin:0; accent-color:#ea580c;">
                                 <span>Ainda não é cliente</span>
                             </label>
 
@@ -1777,7 +2124,7 @@
                             <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
                                 style="width:80px; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:700;">
                             <button type="button" onclick="window._adicionarEquipModalAprov()"
-                                style="background:#7c3aed; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
+                                style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
                         </div>
                         <div id="caprv-equips-list" style="display:flex; flex-direction:column; gap:5px; max-height:130px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#ffffff;">
                             ${renderEquipsDraftHtml()}
@@ -1801,15 +2148,25 @@
                     </div>
 
                     <!-- Rodapé -->
-                    <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px; border-top:1px solid #e2e8f0; padding-top:12px;">
-                        <button type="button" onclick="window._fecharModalDetAprov()"
-                            style="background:#64748b; color:#ffffff; border:none; padding:8px 18px; border-radius:7px; font-size:0.82rem; font-weight:700; cursor:pointer;">
-                            Fechar
-                        </button>
-                        <button type="button" onclick="window._salvarModalDetAprov()"
-                            style="background:#7c3aed; color:#ffffff; border:none; padding:8px 20px; border-radius:7px; font-size:0.84rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                            <i class="ph ph-check"></i> Salvar Alterações
-                        </button>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid #e2e8f0; padding-top:12px; flex-wrap:wrap;">
+                        <div>
+                            ${podeExcluir ? `
+                                <button type="button" onclick="window._comercialAprovacao.excluirAprovacao(${Number(aprv.id)}, true)"
+                                    style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; padding:8px 14px; border-radius:7px; font-size:0.8rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-trash"></i> Excluir Aprovação
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button type="button" onclick="window._fecharModalDetAprov()"
+                                style="background:#64748b; color:#ffffff; border:none; padding:8px 18px; border-radius:7px; font-size:0.82rem; font-weight:700; cursor:pointer;">
+                                Fechar
+                            </button>
+                            <button type="button" onclick="window._salvarModalDetAprov()"
+                                style="background:#ea580c; color:#ffffff; border:none; padding:8px 20px; border-radius:7px; font-size:0.84rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                                <i class="ph ph-check"></i> Salvar Alterações
+                            </button>
+                        </div>
                     </div>
                 </div>
             `, 980);
@@ -1819,10 +2176,6 @@
 
         /**
          * Permite vincular uma Aprovação a uma Proposta existente.
-         * - Popup ampliado (1120px)
-         * - Mostra a coluna "Situação" da proposta
-         * - Não mostra propostas com situação Aprovada, Reprovada ou Sem Resposta
-         * - Coluna de Ação em uma única linha com botão de Olho (visualizar PDF da proposta) + botão Vincular
          */
         async abrirModalVincularProposta(aprovacaoId) {
             await garantirCachesClientes();
@@ -1837,7 +2190,6 @@
                 propostas = Array.isArray(window._propostasData) ? window._propostasData : [];
             }
 
-            // Filtrar propostas excluindo Aprovada, Reprovada, Sem Resposta, Cancelada
             const isSituacaoExcluida = (faseRaw) => {
                 const f = normStr(faseRaw || 'Em Elaboração');
                 if (f.includes('aprovad')) return true;
@@ -1879,8 +2231,8 @@
                     const cod = String(p.codigo || p.id).padStart(2, '0');
                     const mesmoCli = cliAprvNorm && normStr(limparIconeCliente(p.cliente_nome)) === cliAprvNorm;
                     return `
-                        <tr style="border-bottom:1px solid #e2e8f0; background:${mesmoCli ? '#f5f3ff' : '#ffffff'};"
-                            onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='${mesmoCli ? '#f5f3ff' : '#ffffff'}'">
+                        <tr style="border-bottom:1px solid #e2e8f0; background:${mesmoCli ? '#fff7ed' : '#ffffff'};"
+                            onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='${mesmoCli ? '#fff7ed' : '#ffffff'}'">
                             <td style="padding:8px 10px; font-weight:800; color:#2563eb; white-space:nowrap;">Nº ${esc(cod)}</td>
                             <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${esc(formatarClienteComIcone(p.cliente_nome))}</td>
                             <td style="padding:8px 10px; color:#475569; font-size:0.75rem;">${esc(p.endereco_instalacao || '—')}</td>
@@ -1896,7 +2248,7 @@
                                     </button>
                                     <button type="button"
                                         onclick="event.stopPropagation(); window._confirmarVinculoAprovacaoProposta(${Number(aprv.id)}, ${Number(p.id)});"
-                                        style="background:#7c3aed; color:#ffffff; border:none; height:28px; padding:0 11px; border-radius:6px; font-size:0.73rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
+                                        style="background:#ea580c; color:#ffffff; border:none; height:28px; padding:0 11px; border-radius:6px; font-size:0.73rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; white-space:nowrap; flex-shrink:0;">
                                         <i class="ph ph-link"></i> Vincular
                                     </button>
                                 </div>
@@ -1920,7 +2272,6 @@
             };
 
             const qIni = limparIconeCliente(aprv.cliente_nome);
-            // Se não houver propostas do mesmo cliente, mostra todas inicialmente
             const temDoCliente = listaElegivel.some(p => normStr(limparIconeCliente(p.cliente_nome)).includes(normStr(qIni)));
             const filtroInicial = temDoCliente ? qIni : '';
 
@@ -1928,7 +2279,7 @@
                 <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:12px;">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <div style="width:36px; height:36px; border-radius:9px; background:#f5f3ff; border:1px solid #ddd6fe; color:#7c3aed; display:flex; align-items:center; justify-content:center;">
+                            <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
                                 <i class="ph ph-link" style="font-size:1.25rem;"></i>
                             </div>
                             <h3 style="margin:0; font-size:1.1rem; font-weight:800; color:#0f172a;">
@@ -2014,109 +2365,214 @@
             }
         },
 
-        async verificarAprovacaoCompativelPorClienteEndereco(propostaObj) {
-            if (!propostaObj) return null;
-            const lista = await carregarAprovacoesServidor();
-            const cliProp = normStr(limparIconeCliente(propostaObj.cliente_nome || ''));
-            const endProp = normStr(propostaObj.endereco_instalacao || '');
-            if (!cliProp) return null;
-
-            const candidata = lista.find(a => {
-                if (a.proposta_id && Number(a.proposta_id) !== Number(propostaObj.id)) return false;
-                const cliA = normStr(limparIconeCliente(a.cliente_nome || ''));
-                const endA = normStr(a.endereco_instalacao || '');
-                if (cliA !== cliProp) return false;
-                if (endProp && endA && (endA === endProp || endA.includes(endProp) || endProp.includes(endA))) {
-                    return true;
-                }
-                return false;
-            });
-
-            return candidata || null;
-        },
-
-        async acaoBotaoAprovacaoNaProposta(propIdOpcional) {
+        /**
+         * Ao clicar no botão "Aprovação" dentro da tela de Proposta:
+         * Mostra todas as aprovações nas situações "Solicitação", "Aguardando setor" (Aguardando resposta)
+         * e "Respondida" com o mesmo nome de cliente, permitindo selecionar a solicitação
+         * (exibindo na lista o endereço de instalação e os produtos selecionados também)
+         * ou criar uma nova solicitação já vinculada a essa proposta.
+         */
+        async abrirModalSelecaoAprovacoesDoClienteNaProposta(propIdOpcional) {
             const propId = Number(propIdOpcional || window._propostasEditandoId_proposta);
+            if (!propId) {
+                Swal.fire('Salve a proposta primeiro', 'Salve a proposta antes de gerar ou vincular uma Aprovação.', 'info');
+                return null;
+            }
+
+            await carregarAprovacoesServidor();
+
             const obterValDom = (id) => document.getElementById(id)?.value || '';
-            const pMem = (Array.isArray(window._propostasData) && propId)
+            const pMem = (Array.isArray(window._propostasData))
                 ? window._propostasData.find(p => Number(p.id) === propId)
                 : null;
 
             const clienteNome = limparIconeCliente(obterValDom('prop-cliente') || (pMem && pMem.cliente_nome) || '');
             const contatoNome = String(obterValDom('prop-contato') || (pMem && pMem.contato_nome) || '').trim();
             const enderecoInst = String(obterValDom('prop-endereco') || (pMem && pMem.endereco_instalacao) || '').trim();
-            const codigoProp = String(obterValDom('prop-codigo') || (pMem && pMem.codigo) || '').trim();
+            const codigoProp = String(obterValDom('prop-codigo') || (pMem && pMem.codigo) || propId).trim();
             const tipoProp = String(obterValDom('prop-tipo') || (pMem && pMem.tipo) || 'OBRA MENSAL').trim();
             const equipsAtuais = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
                 ? window._propProdutosAdicionados
                 : (pMem ? parseEquipamentosLista(pMem.itens) : []);
 
-            await carregarAprovacoesServidor();
+            const cliNorm = normStr(clienteNome);
+            const etapasPermitidas = ['Solicitação', 'Aguardando setor', 'Respondida'];
 
-            const aprvVinculada = (pMem && pMem.aprovacao_id)
-                ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
-                : (propId ? state.aprovacoes.find(a => Number(a.proposta_id) === propId) : null);
+            const aprovacoesCliente = (state.aprovacoes || []).filter(a => {
+                const col = normalizarColuna(a.coluna);
+                if (!etapasPermitidas.includes(col)) return false;
+                if (!cliNorm) return true;
+                return normStr(limparIconeCliente(a.cliente_nome)) === cliNorm;
+            });
 
-            if (aprvVinculada) {
-                if (pMem && !pMem.aprovacao_id) {
-                    pMem.aprovacao_id = aprvVinculada.id;
-                    pMem.numero_aprovacao = aprvVinculada.numero_aprovacao;
+            const renderBadgeColuna = (colRaw) => {
+                const colKey = normalizarColuna(colRaw);
+                const meta = COLUNAS_KANBAN.find(c => c.key === colKey) || COLUNAS_KANBAN[0];
+                return `<span style="background:${meta.bg}; color:${meta.cor}; border:1px solid ${meta.border}; padding:3px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><i class="ph ${meta.icon}"></i> ${esc(meta.titulo)}</span>`;
+            };
+
+            const renderLinhasAprovacoesCli = () => {
+                if (!aprovacoesCliente.length) {
+                    return `
+                        <tr>
+                            <td colspan="5" style="padding:1.5rem; text-align:center; color:#64748b;">
+                                Nenhuma solicitação nas situações <strong>Solicitação</strong>, <strong>Aguardando setor</strong> ou <strong>Respondida</strong> encontrada para o cliente <strong>${esc(formatarClienteComIcone(clienteNome))}</strong>.
+                            </td>
+                        </tr>
+                    `;
                 }
-                await this.abrirModalDetalhesAprovacao(aprvVinculada.id);
-                return aprvVinculada;
-            }
+                return aprovacoesCliente.map(a => {
+                    const numAprv = String(a.numero_aprovacao || a.id).padStart(2, '0');
+                    const equips = formatarResumoEquipamentos(a.equipamentos_json, a.tipo_proposta || '');
+                    const jaEhEsta = Number(a.proposta_id) === propId;
+                    return `
+                        <tr style="border-bottom:1px solid #e2e8f0; background:${jaEhEsta ? '#fff7ed' : '#ffffff'};"
+                            onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='${jaEhEsta ? '#fff7ed' : '#ffffff'}'">
+                            <td style="padding:9px 10px; font-weight:800; color:#ea580c; white-space:nowrap;">
+                                Aprovação Nº ${esc(numAprv)}
+                                <div style="font-size:0.68rem; color:#94a3b8; font-weight:600;">${esc(fmtDataHoraBr(a.criado_em))}</div>
+                            </td>
+                            <td style="padding:9px 10px; white-space:nowrap;">
+                                ${renderBadgeColuna(a.coluna)}
+                            </td>
+                            <td style="padding:9px 10px; color:#334155; font-size:0.77rem;">
+                                ${esc(a.endereco_instalacao || '—')}
+                            </td>
+                            <td style="padding:9px 10px;">
+                                ${equips.length > 0
+                                    ? `<div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                        ${equips.map(eq => `<span style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.71rem; font-weight:700; padding:2px 7px; border-radius:5px;">${eq.qtd}x ${esc(eq.nome)}</span>`).join('')}
+                                       </div>`
+                                    : '<span style="color:#94a3b8; font-size:0.74rem;">—</span>'
+                                }
+                            </td>
+                            <td style="padding:9px 10px; text-align:center; white-space:nowrap;">
+                                <button type="button"
+                                    onclick="window._selecionarAprovacaoExistenteDaProposta(${Number(a.id)}, ${propId})"
+                                    style="background:#ea580c; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-check"></i> ${jaEhEsta ? 'Vinculada' : 'Selecionar'}
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            };
 
+            return new Promise((resolve) => {
+                window._fecharModalSelAprovProp = () => {
+                    fecharOverlayModalAprovacao();
+                    resolve(null);
+                };
+
+                window._selecionarAprovacaoExistenteDaProposta = async (apId, prId) => {
+                    fecharOverlayModalAprovacao();
+                    const vinc = await this.vincularAprovacaoComProposta(apId, prId);
+                    resolve(vinc);
+                };
+
+                window._criarNovaSolicitacaoDaProposta = async () => {
+                    fecharOverlayModalAprovacao();
+                    const nova = await this.abrirModalNovaAprovacao({
+                        proposta_id: propId,
+                        proposta_codigo: codigoProp,
+                        tipo_proposta: tipoProp,
+                        cliente_nome: clienteNome,
+                        contato_nome: contatoNome,
+                        endereco_instalacao: enderecoInst,
+                        equipamentos: equipsAtuais
+                    }, (novaAprv) => {
+                        if (novaAprv && pMem) {
+                            pMem.aprovacao_id = novaAprv.id;
+                            pMem.numero_aprovacao = novaAprv.numero_aprovacao;
+                        }
+                        if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+                            window.atualizarVisibilidadeBotoesPosSalvoProposta();
+                        }
+                    });
+                    resolve(nova);
+                };
+
+                abrirOverlayModalAprovacao(`
+                    <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:12px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:36px; height:36px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#ea580c; display:flex; align-items:center; justify-content:center;">
+                                    <i class="ph ph-seal-check" style="font-size:1.3rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0; font-size:1.08rem; font-weight:800; color:#0f172a;">
+                                        Aprovações do Cliente — ${esc(formatarClienteComIcone(clienteNome))}
+                                    </h3>
+                                    <span style="font-size:0.75rem; color:#64748b;">
+                                        Proposta Nº ${esc(String(codigoProp).padStart(2, '0'))} • Selecione uma solicitação em andamento ou crie uma nova já vinculada a esta proposta
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button type="button" onclick="window._criarNovaSolicitacaoDaProposta()"
+                                    style="background:#ea580c; color:#ffffff; border:none; padding:7px 14px; border-radius:7px; font-size:0.8rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+                                    <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Criar Nova Solicitação Vinculada à Proposta
+                                </button>
+                                <button type="button" onclick="window._fecharModalSelAprovProp()"
+                                    style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:7px 12px; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                                    Fechar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="max-height:420px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.71rem; text-transform:uppercase; position:sticky; top:0; z-index:1;">
+                                        <th style="padding:9px 10px; width:145px;">Solicitação</th>
+                                        <th style="padding:9px 10px; width:155px;">Situação</th>
+                                        <th style="padding:9px 10px;">Endereço de Instalação</th>
+                                        <th style="padding:9px 10px;">Produtos / Equipamentos Selecionados</th>
+                                        <th style="padding:9px 10px; text-align:center; width:130px;">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${renderLinhasAprovacoesCli()}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `, 1060);
+            });
+        },
+
+        async acaoBotaoAprovacaoNaProposta(propIdOpcional) {
+            const propId = Number(propIdOpcional || window._propostasEditandoId || window._propostasEditandoId_proposta || window._propostasEditandoId_contrato);
             if (!propId) {
                 Swal.fire('Salve a proposta primeiro', 'Salve a proposta antes de gerar ou vincular uma Aprovação.', 'info');
                 return null;
             }
 
-            const compativel = await this.verificarAprovacaoCompativelPorClienteEndereco({
-                id: propId,
-                cliente_nome: clienteNome,
-                endereco_instalacao: enderecoInst
-            });
+            await carregarAprovacoesServidor();
 
-            if (compativel) {
-                const numComp = String(compativel.numero_aprovacao || compativel.id).padStart(2, '0');
-                const ask = await Swal.fire({
-                    icon: 'question',
-                    title: `Aprovação encontrada (Nº ${numComp})`,
-                    html: `Existe a <strong>Aprovação Nº ${esc(numComp)}</strong> para o cliente <strong>${esc(formatarClienteComIcone(compativel.cliente_nome, compativel.cliente_grupo))}</strong> no mesmo endereço (<em>${esc(compativel.endereco_instalacao || '—')}</em>).<br><br>Gostaria de vincular esta proposta a essa aprovação?`,
-                    showCancelButton: true,
-                    showDenyButton: true,
-                    confirmButtonText: `<i class="ph ph-link"></i> Sim, vincular à Aprovação Nº ${numComp}`,
-                    confirmButtonColor: '#7c3aed',
-                    denyButtonText: '<i class="ph ph-plus-circle"></i> Criar Nova Aprovação',
-                    denyButtonColor: '#2563eb',
-                    cancelButtonText: 'Cancelar'
-                });
+            const pMem = (Array.isArray(window._propostasData))
+                ? window._propostasData.find(p => Number(p.id) === propId)
+                : null;
 
-                if (ask.isConfirmed) {
-                    return await this.vincularAprovacaoComProposta(compativel.id, propId);
+            const aprvVinculada = (pMem && pMem.aprovacao_id)
+                ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
+                : state.aprovacoes.find(a => Number(a.proposta_id) === propId);
+
+            // Se já tiver uma aprovação vinculada (ou se estiver na tela de Contrato), abre os detalhes dela
+            // com botão no topo para ver/trocar entre as solicitações do cliente
+            if (aprvVinculada) {
+                if (pMem && !pMem.aprovacao_id) {
+                    pMem.aprovacao_id = aprvVinculada.id;
+                    pMem.numero_aprovacao = aprvVinculada.numero_aprovacao;
                 }
-                if (!ask.isDenied) {
-                    return null;
-                }
+                await this.abrirModalDetalhesAprovacao(aprvVinculada.id, { propostaIdContexto: propId });
+                return aprvVinculada;
             }
 
-            return await this.abrirModalNovaAprovacao({
-                proposta_id: propId,
-                proposta_codigo: codigoProp,
-                tipo_proposta: tipoProp,
-                cliente_nome: clienteNome,
-                contato_nome: contatoNome,
-                endereco_instalacao: enderecoInst,
-                equipamentos: equipsAtuais
-            }, (novaAprv) => {
-                if (novaAprv && pMem) {
-                    pMem.aprovacao_id = novaAprv.id;
-                    pMem.numero_aprovacao = novaAprv.numero_aprovacao;
-                }
-                if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
-                    window.atualizarVisibilidadeBotoesPosSalvoProposta();
-                }
-            });
+            // Se não tiver aprovação vinculada, mostra a lista de todas as aprovações do cliente
+            // em Solicitação, Aguardando setor e Respondida (com endereço e produtos) ou opção de criar nova
+            return await this.abrirModalSelecaoAprovacoesDoClienteNaProposta(propId);
         },
 
         /**
@@ -2131,14 +2587,6 @@
             const pMem = (Array.isArray(window._propostasData))
                 ? window._propostasData.find(p => Number(p.id) === idNum)
                 : null;
-            const clienteNome = limparIconeCliente(document.getElementById('prop-cliente')?.value || (pMem && pMem.cliente_nome) || '');
-            const contatoNome = String(document.getElementById('prop-contato')?.value || (pMem && pMem.contato_nome) || '').trim();
-            const enderecoInst = String(document.getElementById('prop-endereco')?.value || (pMem && pMem.endereco_instalacao) || '').trim();
-            const codigoProp = String(document.getElementById('prop-codigo')?.value || (pMem && pMem.codigo) || '').trim();
-            const tipoProp = String(document.getElementById('prop-tipo')?.value || (pMem && pMem.tipo) || 'OBRA MENSAL').trim();
-            const equipsAtuais = Array.isArray(window._propProdutosAdicionados) && window._propProdutosAdicionados.length > 0
-                ? window._propProdutosAdicionados
-                : (pMem ? parseEquipamentosLista(pMem.itens) : []);
 
             const validarColunaAprovada = (aprvObj) => {
                 if (!aprvObj) return false;
@@ -2167,62 +2615,14 @@
                 return validarColunaAprovada(jaVinculada);
             }
 
-            const compativel = await this.verificarAprovacaoCompativelPorClienteEndereco({
-                id: idNum,
-                cliente_nome: clienteNome,
-                endereco_instalacao: enderecoInst
-            });
-
-            if (compativel) {
-                const numComp = String(compativel.numero_aprovacao || compativel.id).padStart(2, '0');
-                const ask = await Swal.fire({
-                    icon: 'question',
-                    title: 'Vincular Aprovação Existente?',
-                    html: `Para aprovar uma proposta é necessário que ela esteja vinculada a uma aprovação na coluna <strong>"Aprovado"</strong>.<br><br>Encontramos a <strong>Aprovação Nº ${esc(numComp)}</strong> do cliente <strong>${esc(formatarClienteComIcone(compativel.cliente_nome, compativel.cliente_grupo))}</strong> com o mesmo endereço (<em>${esc(compativel.endereco_instalacao || '—')}</em>).<br><br>Gostaria de vincular esta proposta a essa aprovação?`,
-                    showCancelButton: true,
-                    confirmButtonText: `<i class="ph ph-link"></i> Sim, vincular à Aprovação Nº ${numComp}`,
-                    confirmButtonColor: '#7c3aed',
-                    cancelButtonText: 'Não'
-                });
-                if (ask.isConfirmed) {
-                    const vinc = await this.vincularAprovacaoComProposta(compativel.id, idNum);
-                    if (!vinc) return false;
-                    return validarColunaAprovada(vinc);
-                }
-                return false;
-            }
-
-            const askGerar = await Swal.fire({
-                icon: 'warning',
-                title: 'Aprovação Obrigatória',
-                html: 'Uma proposta apenas pode ser aprovada para virar contrato se tiver uma <strong>Aprovação</strong> vinculada na coluna <strong>"Aprovado"</strong>.<br><br>Deseja solicitar uma aprovação agora?',
-                showCancelButton: true,
-                confirmButtonText: '<i class="ph ph-seal-check"></i> Solicitar Aprovação Agora',
-                confirmButtonColor: '#7c3aed',
-                cancelButtonText: 'Cancelar'
-            });
-
-            if (!askGerar.isConfirmed) return false;
-
-            const criada = await this.abrirModalNovaAprovacao({
-                proposta_id: idNum,
-                proposta_codigo: codigoProp,
-                tipo_proposta: tipoProp,
-                cliente_nome: clienteNome,
-                contato_nome: contatoNome,
-                endereco_instalacao: enderecoInst,
-                equipamentos: equipsAtuais
-            }, (novaAprv) => {
-                if (novaAprv && pMem) {
-                    pMem.aprovacao_id = novaAprv.id;
-                    pMem.numero_aprovacao = novaAprv.numero_aprovacao;
-                }
-                if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
-                    window.atualizarVisibilidadeBotoesPosSalvoProposta();
-                }
-            });
-
-            return validarColunaAprovada(criada);
+            const selecionadaOuCriada = await this.abrirModalSelecaoAprovacoesDoClienteNaProposta(idNum);
+            if (!selecionadaOuCriada) return false;
+            return validarColunaAprovada(selecionadaOuCriada);
         }
+    };
+
+    // Expõe a função global esperada pelo roteador de abas (app.js)
+    window.renderTelaAprovacaoComercial = async function () {
+        return await window._comercialAprovacao.init();
     };
 })();

@@ -44227,10 +44227,16 @@ app.post('/api/comercial/aprovacoes/:id/vincular-proposta', authenticateToken, a
   }
 });
 
-// DELETE /api/comercial/aprovacoes/:id - Remove uma aprovação e limpa vínculo na proposta
-app.delete('/api/comercial/aprovacoes/:id', authenticateToken, (req, res) => {
+// DELETE /api/comercial/aprovacoes/:id - Remove uma aprovação e limpa vínculo na proposta (apenas usuário thais.ricci)
+app.delete('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID inválido.' });
+  const uname = String(req.user?.username || req.user?.email || '').toLowerCase().trim();
+  const unome = String(req.user?.nome || req.user?.nome_completo || '').toLowerCase().trim();
+  const isThaisRicci = uname === 'thais.ricci' || uname.startsWith('thais.ricci@') || (unome.includes('thais') && unome.includes('ricci'));
+  if (!isThaisRicci) {
+    return res.status(403).json({ error: 'Apenas o usuário thais.ricci tem permissão para excluir uma aprovação.' });
+  }
   db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
     if (errG) return res.status(500).json({ error: errG.message });
     if (!row) return res.status(404).json({ error: 'Aprovação não encontrada.' });

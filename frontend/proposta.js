@@ -4807,8 +4807,8 @@ function _renderFormPropostaInt() {
                             <i id="ico-btn-prop-aditivo-operacao" class="ph ${window._propAditivoOperacao === 'substituir' ? 'ph-arrows-left-right' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'ph-wrench' : 'ph-plus-circle')}" style="font-size:1rem;"></i>
                             <span id="lbl-btn-prop-aditivo-operacao">${window._propAditivoOperacao === 'substituir' ? 'Substituir' : (window._propAditivoOperacao === 'adicionar_manutencao' ? 'Adicionar Manutenção' : 'Adicionar')}</span>
                         </button>
-                        <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Solicitar ou vincular Aprovação desta Proposta'}" style="display:${(!isNovo && window._modoTelaComercial !== 'contrato') ? 'inline-flex' : 'none'}; background:#7c3aed; color:#ffffff; border:1px solid #6d28d9; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'" onfocus="this.blur()">
-                            <i class="ph ph-seal-check" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(v('numero_aprovacao'))}` : 'Aprovação'}</span>
+                        <button type="button" id="btn-prop-aprovacao-comercial" onclick="window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${id || 'null'})" title="${v('numero_aprovacao') ? `Abrir Aprovação Nº ${_escHtmlProp(String(v('numero_aprovacao')).padStart(2, '0'))}` : 'Solicitar ou vincular Aprovação'}" style="display:${!isNovo ? 'inline-flex' : 'none'}; background:#ea580c; color:#ffffff; border:1px solid #c2410c; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#c2410c'" onmouseout="this.style.background='#ea580c'" onfocus="this.blur()">
+                            <i class="ph ph-seal-check" style="font-size:1rem;"></i> <span id="lbl-btn-prop-aprovacao-comercial">${v('numero_aprovacao') ? `Aprovação Nº ${_escHtmlProp(String(v('numero_aprovacao')).padStart(2, '0'))}` : 'Aprovação'}</span>
                         </button>
                         <button type="button" id="btn-prop-gerar-os-contrato" onclick="window.gerarOsComercialDoContrato(${id || 'null'})" title="Gerar OS Comercial vinculada a este contrato assinado" style="display:${(!isNovo && window._modoTelaComercial === 'contrato' && !Boolean(v('numero_os') && String(v('numero_os')).trim()) && (['CONTRATO ASSINADO', 'CONTRATO DIGITAL ASSINADO', 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', 'NAO ASSINA CONTRATO - ENTREGA LIBERADA'].includes(String(v('situacao_contrato') || '').trim().toUpperCase()) || Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)))) ? 'inline-flex' : 'none'}; background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:800; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'" onfocus="this.blur()">
                             <i class="ph ph-clipboard-text" style="font-size:1rem;"></i> <span>Gerar OS</span>
@@ -6139,11 +6139,25 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnAprovCom = document.getElementById('btn-prop-aprovacao-comercial');
     if (btnAprovCom) {
-        if (_propostasEditandoId && window._modoTelaComercial !== 'contrato') {
-            const numAprvAtu = String((prop && prop.numero_aprovacao) || '').trim();
+        if (_propostasEditandoId) {
+            let numAprvAtu = String((prop && prop.numero_aprovacao) || '').trim();
+            if (!numAprvAtu && Array.isArray(window._comercialAprovacoesCache)) {
+                const apVinc = window._comercialAprovacoesCache.find(a =>
+                    (prop && prop.aprovacao_id && Number(a.id) === Number(prop.aprovacao_id)) ||
+                    Number(a.proposta_id) === Number(_propostasEditandoId)
+                );
+                if (apVinc && apVinc.numero_aprovacao) {
+                    numAprvAtu = String(apVinc.numero_aprovacao).trim();
+                    if (prop) {
+                        prop.aprovacao_id = apVinc.id;
+                        prop.numero_aprovacao = numAprvAtu;
+                    }
+                }
+            }
+            const numFmt = numAprvAtu ? String(numAprvAtu).padStart(2, '0') : '';
             const lblAprv = document.getElementById('lbl-btn-prop-aprovacao-comercial');
-            if (lblAprv) lblAprv.textContent = numAprvAtu ? ('Aprovação Nº ' + numAprvAtu) : 'Aprovação';
-            btnAprovCom.title = numAprvAtu ? ('Abrir Aprovação Nº ' + numAprvAtu) : 'Solicitar ou vincular Aprovação desta Proposta';
+            if (lblAprv) lblAprv.textContent = numFmt ? ('Aprovação Nº ' + numFmt) : 'Aprovação';
+            btnAprovCom.title = numFmt ? ('Abrir Aprovação Nº ' + numFmt) : 'Solicitar ou vincular Aprovação';
             btnAprovCom.setAttribute('onclick', `window._comercialAprovacao && window._comercialAprovacao.acaoBotaoAprovacaoNaProposta(${Number(_propostasEditandoId)})`);
             btnAprovCom.style.display = 'inline-flex';
         } else {
