@@ -597,8 +597,17 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             const nm = norm(String(nomeProd || '').replace(/^\d+\s*-\s*/, ''));
             return equip.find(eq => (cod && cod !== '—' && norm(eq.codigo) === cod) || (nm && norm(eq.nome) === nm)) || null;
         };
+        const ehTipoVendaPub = String(p.tipo || '').toUpperCase().includes('VENDA');
         const descricaoDe = (it, nomeProd) => {
             const a = acharEquip(it, nomeProd);
+            if (ehTipoVendaPub) {
+                if (a && String(a.especificacao_tecnica_venda || '').trim()) {
+                    return String(a.especificacao_tecnica_venda).trim();
+                }
+                if (it.especificacao_tecnica_venda && String(it.especificacao_tecnica_venda).trim()) {
+                    return String(it.especificacao_tecnica_venda).trim();
+                }
+            }
             if (a && String(a.especificacao_tecnica || a.descricao_proposta || '').trim()) {
                 return String(a.especificacao_tecnica || a.descricao_proposta || '').trim();
             }
@@ -624,6 +633,7 @@ module.exports = function registrarPropostaPublica(app, db, authenticateToken, s
             return 'https://' + s;
         };
         const linkDe = (it, nomeProd) => {
+            if (ehTipoVendaPub) return '';
             if (it.link_url && String(it.link_url).trim()) return normUrl(it.link_url);
             const a = acharEquip(it, nomeProd);
             return a && a.link_url ? normUrl(a.link_url) : '';

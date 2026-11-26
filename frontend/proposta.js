@@ -31797,7 +31797,7 @@ window.gerarHtmlTabelaProdutosContrato = function(itensRaw, tipoContrato = '', p
     const itensCalc = itens.map((it, idx) => {
         const nome = String(it.produto || it.descricao || it.nome || ('Item ' + (idx + 1))).replace(/^\d+\s*-\s*/, '').trim();
         const textoTecnico = String(
-            (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(it) : '') ||
+            (typeof window.obterDescricaoPropostaEquipamento === 'function' ? window.obterDescricaoPropostaEquipamento(it, tipoContrato || (propostaObj && propostaObj.tipo)) : '') ||
             it.especificacao_tecnica ||
             it.descricao_proposta ||
             ''

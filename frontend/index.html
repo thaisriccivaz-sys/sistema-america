@@ -39,7 +39,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261118v2" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261126v1" defer></script>
+    <script src="estoque.js?v=20261126v2" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
@@ -4046,16 +4046,19 @@
                             </div>
                         </div>
 
-                        <div class="table-responsive">
-                            <table class="table">
+                        <div id="top-scroll-estoque-equipamentos" onscroll="var b=document.getElementById('body-scroll-estoque-equipamentos'); if(b && b.scrollLeft!==this.scrollLeft) b.scrollLeft=this.scrollLeft;" style="overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:4px; border-radius:6px;">
+                            <div id="top-scroll-inner-estoque-equipamentos" style="height:1px; width:1350px;"></div>
+                        </div>
+                        <div id="body-scroll-estoque-equipamentos" class="table-responsive" onscroll="var t=document.getElementById('top-scroll-estoque-equipamentos'); if(t && t.scrollLeft!==this.scrollLeft) t.scrollLeft=this.scrollLeft;">
+                            <table id="tbl-controle-equipamentos" class="table" style="min-width:1280px;">
                                 <thead>
                                     <tr style="font-size:0.78rem;">
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('codigo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Código <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('nome')" style="cursor:pointer;white-space:nowrap;user-select:none;">Equipamento / Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
-                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('logistica_estoque_modelo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Estoque Logística <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('unidade_medida')" style="cursor:pointer;white-space:nowrap;user-select:none;">Unid. Medida <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('fonte_fornecimento')" style="cursor:pointer;white-space:nowrap;user-select:none;">Fonte de Fornecimento <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('grupo_produto')" style="cursor:pointer;white-space:nowrap;user-select:none;">Grupo de Produto <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
+                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('logistica_estoque_modelo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Estoque Logística <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th style="white-space:nowrap;">Especificação Técnica</th>
                                         <th style="text-align:right;white-space:nowrap;">Ações</th>
                                     </tr>
@@ -4272,7 +4275,7 @@
                                             <div style="position:relative; display:flex; align-items:center;">
                                                 <input type="text" id="equipamento-est-fonte" required class="form-control" style="width:100%; padding-right:32px;" placeholder="Digite ou Selecione" autocomplete="off"
                                                     onfocus="window.abrirComboEquipamento('modal-fonte', false)"
-                                                    oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-fonte', true);">
+                                                    oninput="this.value = this.value.toUpperCase(); window.abrirComboEquipamento('modal-fonte', true); if(window.atualizarVisibilidadeTextoTecnicoVendaModal) window.atualizarVisibilidadeTextoTecnicoVendaModal();">
                                                 <button type="button" tabindex="-1" onclick="window.toggleComboEquipamento('modal-fonte')" title="Mostrar opções" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
                                                     <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
                                                 </button>
@@ -4325,6 +4328,14 @@
                             <div style="margin-bottom:1.25rem;">
                                 <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">Especificação Técnica</label>
                                 <textarea id="equipamento-est-especificacao" rows="3" class="form-control" style="width:100%;resize:vertical;text-transform:none !important;" placeholder="Descreva as especificações técnicas do equipamento..."></textarea>
+                            </div>
+
+                            <!-- Texto Técnico para Venda (Apenas quando Fonte de Fornecimento = PRÓPRIO AVULSO) -->
+                            <div id="wrap-equipamento-est-especificacao-venda" style="display:none;margin-bottom:1.25rem;">
+                                <label style="display:block;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">
+                                    Texto Técnico para Venda <span style="font-weight:500;color:#64748b;font-size:0.76rem;">(Exibido na Proposta quando for do tipo Venda)</span>
+                                </label>
+                                <textarea id="equipamento-est-especificacao-venda" rows="3" class="form-control" style="width:100%;resize:vertical;text-transform:none !important;" placeholder="Descreva o texto técnico para propostas do tipo Venda..."></textarea>
                             </div>
 
                             <!-- Descrição para Proposta (oculto — proposta puxa de Especificação Técnica) -->
@@ -6975,12 +6986,12 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261126v2"></script>
     <script src="comercial_credenciamento.js?v=20261126v2"></script>
-    <script src="proposta.js?v=20261126v25"></script>
+    <script src="proposta.js?v=20261126v26"></script>
     <script src="proposta_dias_produto.js?v=20261122v15"></script>
     <script src="proposta_zonas.js?v=20261117v2"></script>
     <script src="comercial_eventos.js?v=20261102v1"></script>
     <script src="proposta_servicos.js?v=20261122v15"></script>
-    <script src="comercial_boxes.js?v=20261122v15"></script>
+    <script src="comercial_boxes.js?v=20261126v1"></script>
     <script src="comercial_comissao.js?v=12"></script>
     <script src="comercial_dashboard.js?v=20261125v2"></script>
     <script src="comercial_os.js?v=20261125v7"></script>

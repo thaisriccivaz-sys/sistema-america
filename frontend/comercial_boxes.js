@@ -515,9 +515,15 @@
         return limparFormatoNome(raw, raw);
     };
 
-    /* Busca a "Especificação Técnica" no cadastro do equipamento pelo código ou nome para exibir abaixo do produto na proposta */
-    window.obterDescricaoPropostaEquipamento = function (itemOuProd) {
+    /* Busca a "Especificação Técnica" (ou "Texto Técnico para Venda" quando a proposta for do tipo Venda) no cadastro do equipamento */
+    window.obterDescricaoPropostaEquipamento = function (itemOuProd, tipoPropostaOpcional) {
         if (!itemOuProd) return '';
+        const tipoRef = String(
+            tipoPropostaOpcional !== undefined && tipoPropostaOpcional !== null
+                ? tipoPropostaOpcional
+                : (document.getElementById('prop-tipo')?.value || window._boxesModeloAtivo || '')
+        );
+        const ehVenda = norm(tipoRef).includes('venda');
         const lista = (window._boxCacheDadosAux && window._boxCacheDadosAux.equipamentos.length)
             ? window._boxCacheDadosAux.equipamentos
             : (window._equipamentosEstoqueData || []);
@@ -527,6 +533,14 @@
             (cod && cod !== '—' && norm(eq.codigo) === cod) ||
             (nome && norm(eq.nome) === nome)
         );
+        if (ehVenda) {
+            if (achado && String(achado.especificacao_tecnica_venda || '').trim()) {
+                return String(achado.especificacao_tecnica_venda).trim();
+            }
+            if (itemOuProd.especificacao_tecnica_venda && String(itemOuProd.especificacao_tecnica_venda).trim()) {
+                return String(itemOuProd.especificacao_tecnica_venda).trim();
+            }
+        }
         if (achado && String(achado.especificacao_tecnica || achado.descricao_proposta || '').trim()) {
             return String(achado.especificacao_tecnica || achado.descricao_proposta || '').trim();
         }
@@ -1078,7 +1092,7 @@
             return {
                 quantidade: qtd,
                 nome: nomeProd,
-                descricao_proposta: window.obterDescricaoPropostaEquipamento(it),
+                descricao_proposta: window.obterDescricaoPropostaEquipamento(it, modeloEfetivo || prop.tipo),
                 foto_url: window.obterFotoPropostaEquipamento(it),
                 link_url: window.obterLinkPropostaEquipamento(it),
                 observacao: String(it.observacao || '').trim().toUpperCase(),
@@ -1107,7 +1121,7 @@
             return {
                 quantidade: qtd,
                 nome: nomeServ,
-                descricao_proposta: window.obterDescricaoPropostaEquipamento({ codigo: s.codigo, produto: nomeServ }),
+                descricao_proposta: window.obterDescricaoPropostaEquipamento({ codigo: s.codigo, produto: nomeServ }, modeloEfetivo || prop.tipo),
                 link_url: window.obterLinkPropostaEquipamento({ codigo: s.codigo, produto: nomeServ, link_url: s.link_url }),
                 observacao: String(s.observacao || '').trim().toUpperCase(),
                 quant_diarias: '—',
@@ -1296,8 +1310,10 @@
                 <div class="bq-d" style="text-align:center; font-size:${u(18)}; color:${ROXO}; line-height:1.2;">VALOR<br>R$</div>
             </div>`;
 
+        const ehPropostaVendaQuadro = modTipoQuadroUpper === 'VENDA' || modTipoQuadroUpper === 'VENDAS' || modTipoQuadroUpper.includes('VENDA');
         const svgChainLink = `<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="width:${u(20)}; height:${u(20)}; display:block;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
         const iconeLinkItem = (it) => {
+            if (ehPropostaVendaQuadro) return '';
             const rawUrl = String(it.link_url || '').trim();
             const urlHref = rawUrl ? (/^https?:\/\//i.test(rawUrl) || rawUrl.startsWith('/') ? rawUrl : 'https://' + rawUrl) : '';
             const baseStyle = `width:${u(36)}; height:${u(36)}; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; text-decoration:none; box-sizing:border-box;`;
