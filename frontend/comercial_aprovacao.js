@@ -22,12 +22,13 @@
 
     window.COMERCIAL_APROVACAO_COLUNAS = COLUNAS_KANBAN;
 
+    // Tipos de proposta sem ícone (conforme solicitado no Anexo 1)
     const TIPOS_PROPOSTA_APROVACAO = [
-        { value: 'OBRA MENSAL',    label: '💙 OBRA MENSAL' },
-        { value: 'OBRA QUINZENAL', label: '💙 OBRA QUINZENAL' },
-        { value: 'OBRA SEMANAL',   label: '💙 OBRA SEMANAL' },
-        { value: 'EVENTO',         label: '💜 EVENTO' },
-        { value: 'LIMPA FOSSA',    label: '💧 LIMPA FOSSA' }
+        { value: 'OBRA MENSAL',    label: 'OBRA MENSAL' },
+        { value: 'OBRA QUINZENAL', label: 'OBRA QUINZENAL' },
+        { value: 'OBRA SEMANAL',   label: 'OBRA SEMANAL' },
+        { value: 'EVENTO',         label: 'EVENTO' },
+        { value: 'LIMPA FOSSA',    label: 'LIMPA FOSSA' }
     ];
 
     const EQUIPAMENTOS_OS_OBRA = [
@@ -94,9 +95,6 @@
             .replace(/\r?\n/g, ' ');
     }
 
-    /**
-     * Verifica se o usuário logado é thais.ricci (única com permissão de excluir aprovação).
-     */
     function ehUsuarioThaisRicci() {
         try {
             const candidatos = [];
@@ -126,10 +124,6 @@
         }
     }
 
-    /**
-     * Remove prefixos de ícone de grupo (💎, 🥇, 🥈, 🥉) e eventual surrogate órfão (\uFFFD / [\uD800-\uDFFF])
-     * utilizando flag Unicode (/u) para nunca quebrar pares substitutos UTF-16.
-     */
     function limparIconeCliente(nome) {
         let str = String(nome || '')
             .replace(/[\uFFFD\uD800-\uDFFF]/g, '')
@@ -190,20 +184,117 @@
         return EQUIPAMENTOS_OS_OBRA;
     }
 
+    /**
+     * Faz a vinculação automática de qualquer produto vindo da Proposta (ex: "BANHEIRO QUÍMICO STANDARD",
+     * "BANHEIRO QUÍMICO EXTRA LUXO O05XZC", "CABINE PCD", etc.) ou selecionado na lista da Aprovação
+     * para o nome padronizado da OS da Logística com seu respectivo ícone (ex: "💙 STD OBRA", "💜 STD EVENTO").
+     */
     function formatarNomeEquipamentoComIcone(nomeRaw, tipoProposta = '') {
-        const limpo = String(nomeRaw || '').trim();
-        if (!limpo) return '';
-        if (/^(?:💙|🟦|🔵|💜|🟣|♿|🚿|🚽|💦|🧼|⬜|⚪|💧|🛤|🧊)/u.test(limpo)) {
-            return limpo;
-        }
+        const raw = String(nomeRaw || '').trim();
+        if (!raw) return '';
+
+        const tProp = normStr(tipoProposta);
+        const n = normStr(raw);
+        const temCodObra = /\bO0\d[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i.test(raw);
+        const explicitoEvento = n.includes('evento') || (tProp.includes('evento') && !n.includes('obra') && !temCodObra);
+        const sufixo = explicitoEvento ? 'EVENTO' : 'OBRA';
+
+        // 1. Verifica correspondência direta com os catálogos de OS
         const todos = [...EQUIPAMENTOS_OS_OBRA, ...EQUIPAMENTOS_OS_EVENTO];
-        const n = normStr(limpo);
-        const achado = todos.find(item => normStr(item.codigo) === n || normStr(item.label) === n);
-        if (achado) return achado.label;
+        const achadoDireto = todos.find(item => normStr(item.codigo) === n || normStr(item.label) === n);
+        if (achadoDireto) {
+            // Se o tipo de proposta mudou entre OBRA e EVENTO, ajusta o variante se aplicável
+            if (tProp) {
+                const catAlvo = explicitoEvento ? EQUIPAMENTOS_OS_EVENTO : EQUIPAMENTOS_OS_OBRA;
+                const prefixoMod = achadoDireto.codigo.replace(/\s+(?:OBRA|EVENTO)$/i, '').trim();
+                const equivalente = catAlvo.find(item => item.codigo.replace(/\s+(?:OBRA|EVENTO)$/i, '').trim() === prefixoMod);
+                if (equivalente) return equivalente.label;
+            }
+            return achadoDireto.label;
+        }
+
+        // 2. Vinculação automática de nomes de produtos da Proposta para equipamentos da OS com ícone
+        if (n.includes('carrinho')) {
+            return '🛤 CARRINHO';
+        }
+        if (n.includes('caixa') && n.includes('agua')) {
+            return '🧊 CAIXA DAGUA';
+        }
+        if (n.includes('fossa') || n.includes('succao') || n.includes('caminhao')) {
+            return `💧 LIMPA FOSSA ${sufixo}`;
+        }
+        if (n.includes('extra lux') || /\b(exl|elx)\b/.test(n)) {
+            const ic = sufixo === 'OBRA' ? '🔵' : '🟣';
+            return `${ic} EXL ${sufixo}`;
+        }
+        if (n.includes('luxo') || n.includes('luxury') || /\blx\b/.test(n)) {
+            const ic = sufixo === 'OBRA' ? '🟦' : '🟣';
+            return `${ic} LX ${sufixo}`;
+        }
+        if (n.includes('pcd') || n.includes('pne') || n.includes('deficiente') || n.includes('acessivel')) {
+            return `♿ PCD ${sufixo}`;
+        }
+        if (n.includes('chuveiro')) {
+            return `🚿 CHUVEIRO ${sufixo}`;
+        }
+        if (n.includes('hidraulic')) {
+            return `🚽 HIDRÁULICO ${sufixo}`;
+        }
+        if (n.includes('mictorio') || n.includes('kros')) {
+            return `💦 MICTÓRIO ${sufixo}`;
+        }
+        if (n.includes('pbiii') || n.includes('pia iii') || n.includes('pia 3') || n.includes('3 torneiras')) {
+            return `🧼 PBIII ${sufixo}`;
+        }
+        if (n.includes('pia') || n.includes('pbii') || n.includes('lavatorio') || n.includes('2 torneiras')) {
+            return `🧼 PBII ${sufixo}`;
+        }
+        if (n.includes('guarita') && n.includes('dupla')) {
+            return `⚪ GUARITA DUPLA ${sufixo}`;
+        }
+        if (n.includes('guarita')) {
+            return `⬜ GUARITA INDIVIDUAL ${sufixo}`;
+        }
+        if (n.includes('standard') || n.includes('standart') || /\bstd\b/.test(n) || n.includes('banheiro') || n.includes('cabine')) {
+            const ic = sufixo === 'OBRA' ? '💙' : '💜';
+            return `${ic} STD ${sufixo}`;
+        }
+
         const cat = obterEquipamentosCatalogoPorTipo(tipoProposta);
         const parcial = cat.find(item => n.includes(normStr(item.codigo)));
-        if (parcial) return `${parcial.icone} ${limpo}`;
-        return limpo;
+        if (parcial) return parcial.label;
+
+        return raw;
+    }
+
+    /**
+     * Extrai a quantidade de manutenções de um item vindo da proposta ou salvo na aprovação.
+     */
+    function extrairQtdManutencaoItem(it, tipoProposta = '') {
+        if (!it || typeof it !== 'object') return 0;
+        if (it.qtd_manutencao !== undefined && it.qtd_manutencao !== null && it.qtd_manutencao !== '') {
+            const qm = parseInt(it.qtd_manutencao, 10);
+            if (!isNaN(qm) && qm >= 0) return qm;
+        }
+        if (it.manutencao !== undefined && it.manutencao !== null && it.manutencao !== '') {
+            const m0 = parseInt(it.manutencao, 10);
+            if (!isNaN(m0) && m0 >= 0) return m0;
+        }
+        if (it.manut_semana !== undefined && it.manut_semana !== null && it.manut_semana !== '') {
+            const ms = parseInt(it.manut_semana, 10);
+            if (!isNaN(ms) && ms >= 0) return ms;
+        }
+        const nomeOuCod = String(it.produto || it.descricao || it.nome || it.codigo || '');
+        const matchCod = nomeOuCod.match(/\bO0(\d)[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i);
+        if (matchCod && parseInt(matchCod[1], 10) > 0) {
+            return parseInt(matchCod[1], 10);
+        }
+        if (typeof window.extrairManutSemanaDeProduto === 'function') {
+            const ext = parseInt(window.extrairManutSemanaDeProduto(nomeOuCod), 10);
+            if (!isNaN(ext) && ext > 0) return ext;
+        }
+        const ehEvento = normStr(tipoProposta).includes('evento');
+        return ehEvento ? 0 : 1;
     }
 
     function parseEquipamentosLista(rawJson) {
@@ -226,7 +317,8 @@
             const rawNome = String(it.produto || it.descricao || it.nome || 'Equipamento').trim();
             const nome = formatarNomeEquipamentoComIcone(rawNome, tipoProposta);
             const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
-            return { nome, qtd, observacao: String(it.observacao || '').trim() };
+            const qtdManut = extrairQtdManutencaoItem(it, tipoProposta);
+            return { nome, qtd, qtd_manutencao: qtdManut, observacao: String(it.observacao || '').trim() };
         });
     }
 
@@ -370,7 +462,7 @@
                             <button type="button"
                                 onclick="event.stopPropagation(); window._comercialAprovacao.abrirModalVincularProposta(${Number(a.id)});"
                                 title="Vincular esta aprovação a uma proposta"
-                                style="background:#f5f3ff; color:#6d28d9; border:1px dashed #c4b5fd; padding:2px 8px; border-radius:5px; font-size:0.69rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                                style="background:#fff7ed; color:#ea580c; border:1px dashed #fdba74; padding:2px 8px; border-radius:5px; font-size:0.69rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
                                 <i class="ph ph-link"></i> Vincular Proposta
                             </button>
                         `}
@@ -406,12 +498,12 @@
                     </div>
                 ` : ''}
 
-                <!-- Equipamentos na Proposta -->
+                <!-- Equipamentos na Proposta (com ícone, qtd de produtos e qtd de manutenção) -->
                 ${equips.length > 0 ? `
                     <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:2px;">
                         ${equips.slice(0, 4).map(eq => `
-                            <span style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.68rem; font-weight:700; padding:1px 6px; border-radius:5px;">
-                                ${eq.qtd}x ${esc(eq.nome)}
+                            <span style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.68rem; font-weight:700; padding:2px 6px; border-radius:5px;">
+                                ${eq.qtd}x ${esc(eq.nome)}${eq.qtd_manutencao > 0 ? ` • ${eq.qtd_manutencao}x manut.` : ''}
                             </span>
                         `).join('')}
                         ${equips.length > 4 ? `<span style="font-size:0.68rem; color:#64748b; font-weight:700;">+${equips.length - 4} item(ns)</span>` : ''}
@@ -535,6 +627,121 @@
     }
 
     /**
+     * Renderiza a tabela de equipamentos adicionados com 3 colunas de dados + ação (Anexo 2):
+     * 1. Nome do Produto (com ícone)
+     * 2. Quantidade de Produtos
+     * 3. Quantidade de Manutenção
+     * 4. Ação (Remover)
+     */
+    function renderTabelaEquipamentosDraftHtml(equipsDraft) {
+        if (!Array.isArray(equipsDraft) || !equipsDraft.length) {
+            return `<div style="color:#94a3b8; font-size:0.78rem; font-style:italic; padding:10px; text-align:center;">Nenhum equipamento adicionado. Selecione o produto, informe a quantidade de produtos e a quantidade de manutenção e clique em "+ Incluir".</div>`;
+        }
+        return `
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                <thead>
+                    <tr style="background:#f8fafc; border-bottom:1.5px solid #cbd5e1; color:#475569; font-size:0.71rem; text-transform:uppercase;">
+                        <th style="padding:6px 10px;">Nome do Produto</th>
+                        <th style="padding:6px 10px; width:155px; text-align:center;">Qtd. de Produtos</th>
+                        <th style="padding:6px 10px; width:165px; text-align:center;">Qtd. de Manutenção</th>
+                        <th style="padding:6px 10px; width:60px; text-align:center;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${equipsDraft.map((eq, idx) => `
+                        <tr style="border-bottom:1px solid #e2e8f0; background:#ffffff;">
+                            <td style="padding:6px 10px; font-weight:800; color:#0f172a;">
+                                ${esc(eq.produto)}
+                            </td>
+                            <td style="padding:6px 10px; text-align:center;">
+                                <input type="number" min="1" value="${Number(eq.quantidade) || 1}"
+                                    onchange="window._atualizarCampoEquipModalAprov(${idx}, 'quantidade', this.value)"
+                                    style="width:78px; height:28px; padding:2px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:0.8rem; font-weight:800; text-align:center; color:#0f172a;">
+                            </td>
+                            <td style="padding:6px 10px; text-align:center;">
+                                <input type="number" min="0" value="${Number(eq.qtd_manutencao) || 0}"
+                                    onchange="window._atualizarCampoEquipModalAprov(${idx}, 'qtd_manutencao', this.value)"
+                                    style="width:78px; height:28px; padding:2px 6px; border:1px solid #93c5fd; border-radius:5px; font-size:0.8rem; font-weight:800; text-align:center; color:#1e40af; background:#eff6ff;">
+                            </td>
+                            <td style="padding:6px 10px; text-align:center;">
+                                <button type="button" onclick="window._removerEquipModalAprov(${idx})"
+                                    title="Remover produto"
+                                    style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:5px; width:26px; height:26px; font-size:0.85rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">&times;</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    /**
+     * Modal (Swal) para exibir o Histórico de Movimentação entre as colunas de uma Aprovação.
+     */
+    async function abrirModalHistoricoAprovacao(aprovacaoId) {
+        const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(aprovacaoId));
+        if (!aprv) return;
+        const numFmt = String(aprv.numero_aprovacao || aprv.id).padStart(2, '0');
+
+        let hist = [];
+        try {
+            hist = typeof aprv.historico_json === 'string'
+                ? JSON.parse(aprv.historico_json || '[]')
+                : (Array.isArray(aprv.historico_json) ? aprv.historico_json : []);
+        } catch (_) { hist = []; }
+
+        if (!Array.isArray(hist) || hist.length === 0) {
+            hist = [{
+                data_hora: aprv.criado_em || '',
+                usuario: aprv.criado_por || 'Sistema',
+                de_coluna: '—',
+                para_coluna: aprv.coluna || 'Solicitação',
+                acao: 'Criação da Solicitação',
+                detalhe: 'Solicitação de aprovação registrada'
+            }];
+        }
+
+        const linhasHtml = [...hist].reverse().map(h => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:8px 10px; white-space:nowrap; font-weight:700; color:#334155;">${esc(fmtDataHoraBr(h.data_hora))}</td>
+                <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${esc(h.usuario || '—')}</td>
+                <td style="padding:8px 10px; white-space:nowrap;">
+                    <span style="background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:5px; font-size:0.72rem; font-weight:700;">${esc(h.de_coluna || '—')}</span>
+                    <i class="ph ph-arrow-right" style="margin:0 4px; color:#94a3b8; font-size:0.75rem;"></i>
+                    <span style="background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; padding:2px 7px; border-radius:5px; font-size:0.72rem; font-weight:800;">${esc(h.para_coluna || '—')}</span>
+                </td>
+                <td style="padding:8px 10px; color:#475569; font-size:0.76rem;">
+                    <strong>${esc(h.acao || 'Movimentação')}:</strong> ${esc(h.detalhe || '')}
+                </td>
+            </tr>
+        `).join('');
+
+        await Swal.fire({
+            title: `Histórico de Movimentação — Aprovação Nº ${numFmt}`,
+            width: '880px',
+            html: `
+                <div style="text-align:left; font-family:'Inter',sans-serif;">
+                    <div style="max-height:420px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.79rem; text-align:left;">
+                            <thead>
+                                <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.7rem; text-transform:uppercase; position:sticky; top:0;">
+                                    <th style="padding:8px 10px; width:135px;">Data / Hora</th>
+                                    <th style="padding:8px 10px; width:165px;">Usuário</th>
+                                    <th style="padding:8px 10px; width:235px;">Movimentação de Coluna</th>
+                                    <th style="padding:8px 10px;">Detalhe</th>
+                                </tr>
+                            </thead>
+                            <tbody>${linhasHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `,
+            confirmButtonText: 'Fechar Histórico',
+            confirmButtonColor: '#64748b'
+        });
+    }
+
+    /**
      * Sub-modal (Swal) para pesquisar e selecionar Cliente ao clicar na Lupa ou dar Enter.
      */
     async function abrirModalPesquisaClienteAprovacao(termoInicial, onSelectCliente) {
@@ -639,9 +846,6 @@
         });
     }
 
-    /**
-     * Sub-modal (Swal) para pesquisar e selecionar Contato do Cliente ao clicar na Lupa ou dar Enter.
-     */
     async function abrirModalPesquisaContatoAprovacao(clienteNomeLimpo, termoInicial, onSelectContato) {
         let contatos = [];
         if (typeof window._obterDadosContatosClienteProposta === 'function') {
@@ -738,9 +942,6 @@
         });
     }
 
-    /**
-     * Sub-modal (Swal) para pesquisar e selecionar Endereço de Instalação do Cliente ao clicar na Lupa ou dar Enter.
-     */
     async function abrirModalPesquisaEnderecoAprovacao(clienteNomeLimpo, termoInicial, onSelectEndereco) {
         let enderecos = [];
         let foundCli = null;
@@ -842,9 +1043,6 @@
         });
     }
 
-    /**
-     * Visualizador de PDF da Proposta (acionado pelo botão de Olho na tela de Vincular Proposta).
-     */
     async function visualizarPdfPropostaNoModal(propostaId) {
         const idNum = Number(propostaId);
         if (!idNum) return;
@@ -895,9 +1093,17 @@
     }
 
     /**
-     * Sub-modal (Swal) para selecionar uma Proposta (usado dentro do modal "Nova Solicitação de Aprovação"
-     * quando o usuário marca que deseja vincular a uma proposta na hora de criar).
+     * Verifica se uma proposta já possui alguma aprovação vinculada.
      */
+    function propostaJaPossuiAprovacao(propostaObjOuId, ignorarAprovacaoId = 0) {
+        const pid = typeof propostaObjOuId === 'object' ? Number(propostaObjOuId?.id) : Number(propostaObjOuId);
+        if (!pid) return false;
+        if (typeof propostaObjOuId === 'object' && propostaObjOuId?.aprovacao_id && Number(propostaObjOuId.aprovacao_id) !== Number(ignorarAprovacaoId)) {
+            return true;
+        }
+        return (state.aprovacoes || []).some(a => Number(a.proposta_id) === pid && Number(a.id) !== Number(ignorarAprovacaoId));
+    }
+
     async function abrirSeletorPropostaParaNovaAprovacao(clienteFiltroInicial, onSelectPropostaObj) {
         let propostas = [];
         try {
@@ -913,8 +1119,9 @@
         };
 
         const cliNorm = normStr(limparIconeCliente(clienteFiltroInicial || ''));
+        // Não permite selecionar proposta que já tenha aprovação vinculada!
         const elegiveis = (propostas || [])
-            .filter(p => !isSituacaoExcluida(p.fase_negociacao))
+            .filter(p => !isSituacaoExcluida(p.fase_negociacao) && !propostaJaPossuiAprovacao(p))
             .sort((a, b) => {
                 const aM = cliNorm && normStr(limparIconeCliente(a.cliente_nome)) === cliNorm ? 1 : 0;
                 const bM = cliNorm && normStr(limparIconeCliente(b.cliente_nome)) === cliNorm ? 1 : 0;
@@ -938,7 +1145,7 @@
             }).slice(0, 80);
 
             if (!fil.length) {
-                return `<tr><td colspan="6" style="padding:1.25rem; text-align:center; color:#94a3b8;">Nenhuma proposta elegível encontrada.</td></tr>`;
+                return `<tr><td colspan="6" style="padding:1.25rem; text-align:center; color:#94a3b8;">Nenhuma proposta sem aprovação vinculada encontrada.</td></tr>`;
             }
             return fil.map(p => {
                 const cod = String(p.codigo || p.id).padStart(2, '0');
@@ -1025,7 +1232,7 @@
         });
     }
 
-    async function configurarFormularioAprovacaoInterativo() {
+    async function configurarFormularioAprovacaoInterativo(onTipoPropostaChange = null) {
         const clientes = await garantirCachesClientes();
         let contatosClienteAtual = [];
         let enderecosClienteAtual = [];
@@ -1350,6 +1557,9 @@
             if (selTipo) {
                 selTipo.addEventListener('change', () => {
                     if (inpEq.value) inpEq.value = '';
+                    if (typeof onTipoPropostaChange === 'function') {
+                        onTipoPropostaChange(selTipo.value);
+                    }
                 });
             }
         }
@@ -1414,6 +1624,9 @@
                 const res = await r.json();
                 if (r.ok && res.success) {
                     aprv.coluna = novaColuna;
+                    if (res.aprovacao && res.aprovacao.historico_json) {
+                        aprv.historico_json = res.aprovacao.historico_json;
+                    }
                     renderKanbanBoard();
                     if (typeof mostrarToastSucesso === 'function') {
                         mostrarToastSucesso(`Aprovação Nº ${aprv.numero_aprovacao} movida para "${novaColuna}"!`);
@@ -1424,9 +1637,10 @@
             }
         },
 
-        /**
-         * Exclusão de aprovação (disponível apenas para o usuário thais.ricci).
-         */
+        async abrirHistorico(id) {
+            await abrirModalHistoricoAprovacao(id);
+        },
+
         async excluirAprovacao(id, fecharModalApos = false) {
             if (!ehUsuarioThaisRicci()) {
                 Swal.fire('Acesso Restrito', 'Apenas o usuário thais.ricci pode excluir uma aprovação.', 'warning');
@@ -1485,7 +1699,6 @@
 
         /**
          * Abre modal para criar uma Nova Solicitação de Aprovação.
-         * Permite selecionar se gostaria de vincular a uma proposta ou não!
          */
         async abrirModalNovaAprovacao(dadosIniciais = {}, onCreatedCallback = null) {
             await garantirCachesClientes();
@@ -1493,7 +1706,7 @@
             let propCodigoSelecionado = String(dadosIniciais.proposta_codigo || '').trim();
             let desejarVincularProp = Boolean(propIdSelecionada);
 
-            const tipoIniRaw = String(dadosIniciais.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
+            const tipoIniRaw = String(dadosIniciais.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
             const tipoIni = TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tipoIniRaw) ? tipoIniRaw : 'OBRA MENSAL';
             const cliIni = limparIconeCliente(dadosIniciais.cliente_nome || '');
             const contIni = String(dadosIniciais.contato_nome || '').trim();
@@ -1508,20 +1721,14 @@
                 return {
                     produto: formatarNomeEquipamentoComIcone(rawNome, tipoIni),
                     quantidade: Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1),
+                    qtd_manutencao: extrairQtdManutencaoItem(it, tipoIni),
                     observacao: String(it.observacao || '').trim()
                 };
             }).filter(it => it.produto);
 
-            const renderEquipsDraftHtml = () => {
-                if (!equipsDraft.length) {
-                    return `<div style="color:#94a3b8; font-size:0.78rem; font-style:italic; padding:8px;">Nenhum equipamento adicionado. Selecione acima e clique em "+ Incluir".</div>`;
-                }
-                return equipsDraft.map((eq, idx) => `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:5px 10px; font-size:0.8rem;">
-                        <span style="font-weight:700; color:#1e293b;"><strong>${eq.quantidade}x</strong> ${esc(eq.produto)} ${eq.observacao ? `<span style="color:#64748b; font-weight:500;">(${esc(eq.observacao)})</span>` : ''}</span>
-                        <button type="button" onclick="window._removerEquipModalAprov(${idx})" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; padding:1px 7px; font-size:0.75rem; font-weight:700; cursor:pointer;">&times;</button>
-                    </div>
-                `).join('');
+            const atualizarTabelaEquipsDom = () => {
+                const w = document.getElementById('caprv-equips-list');
+                if (w) w.innerHTML = renderTabelaEquipamentosDraftHtml(equipsDraft);
             };
 
             const atualizarPainelVinculoPropHtml = () => {
@@ -1576,7 +1783,6 @@
                     if (selVinc) selVinc.value = 'sim';
                     atualizarPainelVinculoPropHtml();
 
-                    // Preenche automaticamente Cliente, Contato, Endereço, Tipo e Equipamentos a partir da proposta escolhida
                     const inpCli = document.getElementById('caprv-inp-cliente');
                     if (inpCli && pObj.cliente_nome) {
                         inpCli.value = formatarClienteComIcone(pObj.cliente_nome);
@@ -1592,7 +1798,7 @@
                     if (inpEnd && pObj.endereco_instalacao) inpEnd.value = pObj.endereco_instalacao;
 
                     const selTipo = document.getElementById('caprv-sel-tipo-proposta');
-                    const tPropUp = String(pObj.tipo || '').trim().toUpperCase();
+                    const tPropUp = String(pObj.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                     if (selTipo && TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tPropUp)) {
                         selTipo.value = tPropUp;
                     }
@@ -1603,31 +1809,39 @@
                         equipsDraft = itensProp.map(it => ({
                             produto: formatarNomeEquipamentoComIcone(it.produto || it.descricao || it.nome || '', tUsar),
                             quantidade: Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1),
+                            qtd_manutencao: extrairQtdManutencaoItem(it, tUsar),
                             observacao: String(it.observacao || '').trim()
                         })).filter(it => it.produto);
-                        const w = document.getElementById('caprv-equips-list');
-                        if (w) w.innerHTML = renderEquipsDraftHtml();
+                        atualizarTabelaEquipsDom();
                     }
                 });
             };
 
             window._removerEquipModalAprov = (idx) => {
                 equipsDraft.splice(idx, 1);
-                const w = document.getElementById('caprv-equips-list');
-                if (w) w.innerHTML = renderEquipsDraftHtml();
+                atualizarTabelaEquipsDom();
+            };
+
+            window._atualizarCampoEquipModalAprov = (idx, campo, valor) => {
+                if (!equipsDraft[idx]) return;
+                if (campo === 'quantidade') {
+                    equipsDraft[idx].quantidade = Math.max(1, parseInt(valor || '1', 10) || 1);
+                } else if (campo === 'qtd_manutencao') {
+                    equipsDraft[idx].qtd_manutencao = Math.max(0, parseInt(valor || '0', 10) || 0);
+                }
             };
 
             window._adicionarEquipModalAprov = () => {
                 const tipoSel = document.getElementById('caprv-sel-tipo-proposta')?.value || 'OBRA MENSAL';
                 const nmRaw = String(document.getElementById('caprv-inp-equip-nome')?.value || '').trim();
                 const qt = Math.max(1, parseInt(document.getElementById('caprv-inp-equip-qtd')?.value || '1', 10) || 1);
+                const qm = Math.max(0, parseInt(document.getElementById('caprv-inp-equip-manut')?.value || '0', 10) || 0);
                 if (!nmRaw) return;
                 const nmFmt = formatarNomeEquipamentoComIcone(nmRaw, tipoSel);
-                equipsDraft.push({ produto: nmFmt, quantidade: qt, observacao: '' });
+                equipsDraft.push({ produto: nmFmt, quantidade: qt, qtd_manutencao: qm, observacao: '' });
                 const inpN = document.getElementById('caprv-inp-equip-nome');
                 if (inpN) inpN.value = '';
-                const w = document.getElementById('caprv-equips-list');
-                if (w) w.innerHTML = renderEquipsDraftHtml();
+                atualizarTabelaEquipsDom();
             };
 
             return new Promise(async (resolve) => {
@@ -1744,7 +1958,7 @@
                             <div id="caprv-nova-vinc-prop-box"></div>
                         </div>
 
-                        <!-- Linha 1: Tipo de Proposta + Cliente + Contato -->
+                        <!-- Linha 1: Tipo de Proposta (sem ícone) + Cliente + Contato -->
                         <div style="display:grid; grid-template-columns:1fr 1.8fr 1.2fr; gap:12px; align-items:end;">
                             <div>
                                 <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Tipo de Proposta <span style="color:#dc2626;">*</span></label>
@@ -1818,25 +2032,33 @@
                             <div id="caprv-drop-endereco" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                         </div>
 
-                        <!-- Linha 3: Equipamentos da OS da Logística com Ícones -->
+                        <!-- Linha 3: Equipamentos (3 campos: Nome do Produto, Qtd. de Produtos, Qtd. de Manutenção + Tabela em Colunas) -->
                         <div>
-                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Equipamentos na Proposta / Solicitação</label>
-                            <div style="display:flex; gap:6px; margin-bottom:6px; position:relative;">
-                                <div style="flex:1; position:relative;">
+                            <div style="display:grid; grid-template-columns:1fr 140px 150px auto; gap:8px; align-items:end; margin-bottom:6px;">
+                                <div style="position:relative;">
+                                    <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Nome do Produto / Equipamento</label>
                                     <input type="text" id="caprv-inp-equip-nome"
-                                        placeholder="Clique ou digite para selecionar equipamento da OS (com ícone)..."
+                                        placeholder="Clique ou digite para selecionar o produto..."
                                         autocomplete="off"
                                         onkeydown="if(event.key==='Enter'){event.preventDefault(); window._adicionarEquipModalAprov();}"
                                         style="width:100%; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
                                     <div id="caprv-drop-equip" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                                 </div>
-                                <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
-                                    style="width:80px; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:700;">
+                                <div>
+                                    <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Qtd. de Produtos</label>
+                                    <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
+                                        style="width:100%; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:800; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Qtd. de Manutenção</label>
+                                    <input type="number" id="caprv-inp-equip-manut" value="${normStr(tipoIni).includes('evento') ? '0' : '1'}" min="0"
+                                        style="width:100%; height:34px; padding:4px 8px; border:1px solid #93c5fd; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff; box-sizing:border-box;">
+                                </div>
                                 <button type="button" onclick="window._adicionarEquipModalAprov()"
-                                    style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
+                                    style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer; white-space:nowrap;">+ Incluir</button>
                             </div>
-                            <div id="caprv-equips-list" style="display:flex; flex-direction:column; gap:5px; max-height:145px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#ffffff;">
-                                ${renderEquipsDraftHtml()}
+                            <div id="caprv-equips-list" style="max-height:175px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
+                                ${renderTabelaEquipamentosDraftHtml(equipsDraft)}
                             </div>
                         </div>
 
@@ -1845,7 +2067,7 @@
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Observações da Solicitação</label>
                             <textarea id="caprv-inp-obs" rows="5"
                                 placeholder="Digite todas as observações e detalhes necessários para a aprovação (pressione Enter para pular linha)..."
-                                style="width:100%; min-height:110px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(obsIni)}</textarea>
+                                style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(obsIni)}</textarea>
                         </div>
 
                         <!-- Rodapé de Ações -->
@@ -1863,21 +2085,31 @@
                 `, 980);
 
                 atualizarPainelVinculoPropHtml();
-                await configurarFormularioAprovacaoInterativo();
+                await configurarFormularioAprovacaoInterativo((novoTipo) => {
+                    equipsDraft = equipsDraft.map(eq => ({
+                        ...eq,
+                        produto: formatarNomeEquipamentoComIcone(eq.produto, novoTipo)
+                    }));
+                    atualizarTabelaEquipsDom();
+                });
             });
         },
 
         /**
-         * Modal para editar / visualizar detalhes de um card do Kanban de Aprovação.
+         * Modal para editar / visualizar detalhes de uma Solicitação de Aprovação.
+         * - Permite editar os dados da solicitação; se ela já tiver sido movida de coluna
+         *   e for editada, retorna automaticamente para a coluna "Solicitação".
+         * - Inclui botão de "Histórico" para visualizar todas as movimentações entre colunas.
+         * - Não permite criar nova solicitação para a mesma proposta nem vincular mais de uma aprovação à proposta.
          */
-        async abrirModalDetalhesAprovacao(id, opcoesExtras = {}) {
+        async abrirModalDetalhesAprovacao(id) {
             await garantirCachesClientes();
             const aprv = (state.aprovacoes || []).find(x => Number(x.id) === Number(id));
             if (!aprv) return;
             const numAprv = String(aprv.numero_aprovacao || aprv.id).padStart(2, '0');
             const propId = Number(aprv.proposta_id) || 0;
             const propCod = String(aprv.prop_codigo_real || aprv.proposta_codigo || '').trim().padStart(2, '0');
-            const tipoIniRaw = String(aprv.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase();
+            const tipoIniRaw = String(aprv.tipo_proposta || 'OBRA MENSAL').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
             const tipoIni = TIPOS_PROPOSTA_APROVACAO.some(t => t.value === tipoIniRaw) ? tipoIniRaw : 'OBRA MENSAL';
             const naoEhCliIni = Number(aprv.ainda_nao_e_cliente) === 1;
             const podeExcluir = ehUsuarioThaisRicci();
@@ -1887,39 +2119,44 @@
                 return {
                     produto: formatarNomeEquipamentoComIcone(rawNome, tipoIni),
                     quantidade: Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1),
+                    qtd_manutencao: extrairQtdManutencaoItem(it, tipoIni),
                     observacao: String(it.observacao || '').trim()
                 };
             }).filter(it => it.produto);
 
-            const renderEquipsDraftHtml = () => {
-                if (!equipsDraft.length) {
-                    return `<div style="color:#94a3b8; font-size:0.78rem; font-style:italic; padding:8px;">Nenhum equipamento adicionado.</div>`;
-                }
-                return equipsDraft.map((eq, idx) => `
-                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:5px 10px; font-size:0.8rem;">
-                        <span style="font-weight:700; color:#1e293b;"><strong>${eq.quantidade}x</strong> ${esc(eq.produto)} ${eq.observacao ? `<span style="color:#64748b; font-weight:500;">(${esc(eq.observacao)})</span>` : ''}</span>
-                        <button type="button" onclick="window._removerEquipModalAprov(${idx})" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; padding:1px 7px; font-size:0.75rem; font-weight:700; cursor:pointer;">&times;</button>
-                    </div>
-                `).join('');
+            const snapshotEquipsInicial = JSON.stringify(equipsDraft);
+            const colOriginal = normalizarColuna(aprv.coluna);
+
+            const atualizarTabelaEquipsDom = () => {
+                const w = document.getElementById('caprv-equips-list');
+                if (w) w.innerHTML = renderTabelaEquipamentosDraftHtml(equipsDraft);
             };
 
             window._removerEquipModalAprov = (idx) => {
                 equipsDraft.splice(idx, 1);
-                const w = document.getElementById('caprv-equips-list');
-                if (w) w.innerHTML = renderEquipsDraftHtml();
+                atualizarTabelaEquipsDom();
+            };
+
+            window._atualizarCampoEquipModalAprov = (idx, campo, valor) => {
+                if (!equipsDraft[idx]) return;
+                if (campo === 'quantidade') {
+                    equipsDraft[idx].quantidade = Math.max(1, parseInt(valor || '1', 10) || 1);
+                } else if (campo === 'qtd_manutencao') {
+                    equipsDraft[idx].qtd_manutencao = Math.max(0, parseInt(valor || '0', 10) || 0);
+                }
             };
 
             window._adicionarEquipModalAprov = () => {
                 const tipoSel = document.getElementById('caprv-sel-tipo-proposta')?.value || 'OBRA MENSAL';
                 const nmRaw = String(document.getElementById('caprv-inp-equip-nome')?.value || '').trim();
                 const qt = Math.max(1, parseInt(document.getElementById('caprv-inp-equip-qtd')?.value || '1', 10) || 1);
+                const qm = Math.max(0, parseInt(document.getElementById('caprv-inp-equip-manut')?.value || '0', 10) || 0);
                 if (!nmRaw) return;
                 const nmFmt = formatarNomeEquipamentoComIcone(nmRaw, tipoSel);
-                equipsDraft.push({ produto: nmFmt, quantidade: qt, observacao: '' });
+                equipsDraft.push({ produto: nmFmt, quantidade: qt, qtd_manutencao: qm, observacao: '' });
                 const inpN = document.getElementById('caprv-inp-equip-nome');
                 if (inpN) inpN.value = '';
-                const w = document.getElementById('caprv-equips-list');
-                if (w) w.innerHTML = renderEquipsDraftHtml();
+                atualizarTabelaEquipsDom();
             };
 
             window._fecharModalDetAprov = () => {
@@ -1932,16 +2169,39 @@
                     Swal.fire('Campo Obrigatório', 'Informe o Nome do Cliente.', 'warning');
                     return;
                 }
+                const novoTipo = document.getElementById('caprv-sel-tipo-proposta')?.value || tipoIni;
+                const novoNaoCli = Boolean(document.getElementById('caprv-chk-nao-cliente')?.checked);
+                const novoContato = String(document.getElementById('caprv-inp-contato')?.value || '').trim();
+                const novoEndereco = String(document.getElementById('caprv-inp-endereco')?.value || '').trim();
+                const novaObs = String(document.getElementById('caprv-inp-obs')?.value || '').trim();
+                const novoUrgente = Boolean(document.getElementById('caprv-chk-urgente')?.checked);
+                const novaColunaSelect = document.getElementById('det-aprv-coluna')?.value || colOriginal;
+
+                const editouSolicitacao = Boolean(
+                    novoTipo !== tipoIni ||
+                    novoNaoCli !== naoEhCliIni ||
+                    cliRaw !== limparIconeCliente(aprv.cliente_nome || '') ||
+                    novoContato !== String(aprv.contato_nome || '').trim() ||
+                    novoEndereco !== String(aprv.endereco_instalacao || '').trim() ||
+                    novaObs !== String(aprv.observacoes || '').trim() ||
+                    novoUrgente !== (Number(aprv.urgente) === 1) ||
+                    JSON.stringify(equipsDraft) !== snapshotEquipsInicial
+                );
+
+                // Se editou os dados da solicitação e ela já tinha sido movida de coluna, volta para "Solicitação"
+                const deveRetornarParaSolicitacao = Boolean(editouSolicitacao && colOriginal !== 'Solicitação');
+
                 const payload = {
-                    tipo_proposta: document.getElementById('caprv-sel-tipo-proposta')?.value || tipoIni,
-                    ainda_nao_e_cliente: Boolean(document.getElementById('caprv-chk-nao-cliente')?.checked),
+                    tipo_proposta: novoTipo,
+                    ainda_nao_e_cliente: novoNaoCli,
                     cliente_nome: cliRaw,
-                    contato_nome: String(document.getElementById('caprv-inp-contato')?.value || '').trim(),
-                    endereco_instalacao: String(document.getElementById('caprv-inp-endereco')?.value || '').trim(),
+                    contato_nome: novoContato,
+                    endereco_instalacao: novoEndereco,
                     equipamentos: equipsDraft,
-                    coluna: document.getElementById('det-aprv-coluna')?.value || normalizarColuna(aprv.coluna),
-                    urgente: Boolean(document.getElementById('caprv-chk-urgente')?.checked),
-                    observacoes: String(document.getElementById('caprv-inp-obs')?.value || '').trim(),
+                    coluna: deveRetornarParaSolicitacao ? 'Solicitação' : novaColunaSelect,
+                    retornar_para_solicitacao: deveRetornarParaSolicitacao,
+                    urgente: novoUrgente,
+                    observacoes: novaObs,
                     resposta_setor: String(document.getElementById('det-aprv-resposta')?.value || '').trim()
                 };
 
@@ -1961,7 +2221,11 @@
                         await carregarAprovacoesServidor();
                         renderKanbanBoard();
                         if (typeof mostrarToastSucesso === 'function') {
-                            mostrarToastSucesso(`Aprovação Nº ${numAprv} atualizada!`);
+                            if (res.retornou_para_solicitacao || deveRetornarParaSolicitacao) {
+                                mostrarToastSucesso(`Aprovação Nº ${numAprv} editada e retornada para a coluna "Solicitação"!`);
+                            } else {
+                                mostrarToastSucesso(`Aprovação Nº ${numAprv} atualizada!`);
+                            }
                         }
                     } else {
                         Swal.fire('Erro', (res && res.error) || 'Erro ao atualizar aprovação.', 'error');
@@ -1972,11 +2236,12 @@
             };
 
             const cliFmtAtual = formatarClienteComIcone(aprv.cliente_nome, aprv.cliente_grupo || '');
-            const propOrigemModal = Number(opcoesExtras.propostaIdContexto || 0);
+            // Verifica se já estamos na tela de Proposta/Contrato com essa mesma proposta aberta
+            const propAbertaNaTela = Number(window._propostasEditandoId || 0);
 
             abrirOverlayModalAprovacao(`
                 <div style="padding:1.25rem 1.5rem; display:flex; flex-direction:column; gap:13px;">
-                    <!-- Cabeçalho com Nº da Aprovação + Atendente com Foto + Urgente -->
+                    <!-- Cabeçalho com Nº da Aprovação + Atendente com Foto + Histórico + Urgente -->
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; flex-wrap:wrap;">
                         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1994,21 +2259,24 @@
                         </div>
 
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            ${propOrigemModal ? `
-                                <button type="button"
-                                    onclick="window._fecharModalDetAprov(); window._comercialAprovacao.abrirModalSelecaoAprovacoesDoClienteNaProposta(${propOrigemModal});"
-                                    style="background:#fff7ed; color:#ea580c; border:1px solid #fdba74; padding:5px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
-                                    <i class="ph ph-list-Bullets"></i> Ver Solicitações do Cliente / Trocar
-                                </button>
-                            ` : ''}
+                            <button type="button"
+                                onclick="window._comercialAprovacao.abrirHistorico(${Number(aprv.id)})"
+                                title="Ver histórico de movimentação entre as colunas"
+                                style="background:#7048e8; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                <i class="ph ph-clock-counter-clockwise" style="font-size:0.95rem;"></i> Histórico
+                            </button>
 
-                            ${propId ? `
+                            ${propId ? (propAbertaNaTela === propId ? `
+                                <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:800; display:inline-flex; align-items:center; gap:5px;">
+                                    <i class="ph ph-file-text"></i> Vinculada à Proposta Nº ${esc(propCod)}
+                                </span>
+                            ` : `
                                 <button type="button"
                                     onclick="window._fecharModalDetAprov(); if(typeof window.abrirPropostaDiretoId==='function') window.abrirPropostaDiretoId(${propId});"
                                     style="background:#2563eb; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
                                     <i class="ph ph-file-text"></i> Proposta Nº ${esc(propCod)}
                                 </button>
-                            ` : `
+                            `) : `
                                 <button type="button"
                                     onclick="window._fecharModalDetAprov(); window._comercialAprovacao.abrirModalVincularProposta(${Number(aprv.id)});"
                                     style="background:#ea580c; color:#fff; border:none; padding:5px 11px; border-radius:6px; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
@@ -2028,7 +2296,7 @@
                         </div>
                     </div>
 
-                    <!-- Linha 1: Tipo de Proposta + Cliente + Contato -->
+                    <!-- Linha 1: Tipo de Proposta (sem ícone) + Cliente + Contato -->
                     <div style="display:grid; grid-template-columns:1fr 1.8fr 1.2fr; gap:12px; align-items:end;">
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Tipo de Proposta <span style="color:#dc2626;">*</span></label>
@@ -2104,30 +2372,38 @@
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Etapa / Coluna do Kanban</label>
                             <select id="det-aprv-coluna" style="width:100%; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; font-weight:700; text-transform:none;">
-                                ${COLUNAS_KANBAN.map(c => `<option value="${esc(c.key)}" ${normalizarColuna(aprv.coluna) === c.key ? 'selected' : ''}>${esc(c.titulo)}</option>`).join('')}
+                                ${COLUNAS_KANBAN.map(c => `<option value="${esc(c.key)}" ${colOriginal === c.key ? 'selected' : ''}>${esc(c.titulo)}</option>`).join('')}
                             </select>
                         </div>
                     </div>
 
-                    <!-- Linha 3: Equipamentos -->
+                    <!-- Linha 3: Equipamentos (3 campos + Tabela com 3 colunas de dados + ação) -->
                     <div>
-                        <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Equipamentos na Proposta / Solicitação</label>
-                        <div style="display:flex; gap:6px; margin-bottom:6px; position:relative;">
-                            <div style="flex:1; position:relative;">
+                        <div style="display:grid; grid-template-columns:1fr 140px 150px auto; gap:8px; align-items:end; margin-bottom:6px;">
+                            <div style="position:relative;">
+                                <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Nome do Produto / Equipamento</label>
                                 <input type="text" id="caprv-inp-equip-nome"
-                                    placeholder="Clique ou digite para selecionar equipamento da OS (com ícone)..."
+                                    placeholder="Clique ou digite para selecionar o produto..."
                                     autocomplete="off"
                                     onkeydown="if(event.key==='Enter'){event.preventDefault(); window._adicionarEquipModalAprov();}"
                                     style="width:100%; height:34px; padding:4px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; box-sizing:border-box; text-transform:none;">
                                 <div id="caprv-drop-equip" style="display:none; position:absolute; top:100%; left:0; right:0; max-height:220px; overflow-y:auto; background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.15); z-index:2500; margin-top:2px;"></div>
                             </div>
-                            <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
-                                style="width:80px; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:700;">
+                            <div>
+                                <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Qtd. de Produtos</label>
+                                <input type="number" id="caprv-inp-equip-qtd" value="1" min="1"
+                                    style="width:100%; height:34px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:800; box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-size:0.74rem; font-weight:700; color:#475569; margin-bottom:3px;">Qtd. de Manutenção</label>
+                                <input type="number" id="caprv-inp-equip-manut" value="${normStr(tipoIni).includes('evento') ? '0' : '1'}" min="0"
+                                    style="width:100%; height:34px; padding:4px 8px; border:1px solid #93c5fd; border-radius:6px; font-size:0.82rem; text-align:center; font-weight:800; color:#1e40af; background:#eff6ff; box-sizing:border-box;">
+                            </div>
                             <button type="button" onclick="window._adicionarEquipModalAprov()"
-                                style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer;">+ Incluir</button>
+                                style="background:#ea580c; color:#fff; border:none; border-radius:6px; padding:0 16px; height:34px; font-size:0.8rem; font-weight:800; cursor:pointer; white-space:nowrap;">+ Incluir</button>
                         </div>
-                        <div id="caprv-equips-list" style="display:flex; flex-direction:column; gap:5px; max-height:130px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:8px; background:#ffffff;">
-                            ${renderEquipsDraftHtml()}
+                        <div id="caprv-equips-list" style="max-height:165px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
+                            ${renderTabelaEquipamentosDraftHtml(equipsDraft)}
                         </div>
                     </div>
 
@@ -2137,13 +2413,13 @@
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Observações da Solicitação</label>
                             <textarea id="caprv-inp-obs" rows="5"
                                 placeholder="Observações da solicitação..."
-                                style="width:100%; min-height:110px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.observacoes || '')}</textarea>
+                                style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.observacoes || '')}</textarea>
                         </div>
                         <div>
                             <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Resposta do Setor / Parecer</label>
                             <textarea id="det-aprv-resposta" rows="5"
                                 placeholder="Registre a resposta ou parecer do setor..."
-                                style="width:100%; min-height:110px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.resposta_setor || '')}</textarea>
+                                style="width:100%; min-height:105px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.82rem; line-height:1.45; box-sizing:border-box; resize:vertical; font-family:'Inter',sans-serif; text-transform:none;">${esc(aprv.resposta_setor || '')}</textarea>
                         </div>
                     </div>
 
@@ -2171,11 +2447,17 @@
                 </div>
             `, 980);
 
-            await configurarFormularioAprovacaoInterativo();
+            await configurarFormularioAprovacaoInterativo((novoTipo) => {
+                equipsDraft = equipsDraft.map(eq => ({
+                    ...eq,
+                    produto: formatarNomeEquipamentoComIcone(eq.produto, novoTipo)
+                }));
+                atualizarTabelaEquipsDom();
+            });
         },
 
         /**
-         * Permite vincular uma Aprovação a uma Proposta existente.
+         * Permite vincular uma Aprovação (sem proposta) a uma Proposta existente que ainda não tenha aprovação vinculada.
          */
         async abrirModalVincularProposta(aprovacaoId) {
             await garantirCachesClientes();
@@ -2200,8 +2482,9 @@
             };
 
             const cliAprvNorm = normStr(limparIconeCliente(aprv.cliente_nome));
+            // Não mostra propostas que já possuem aprovação vinculada!
             const listaElegivel = (propostas || [])
-                .filter(p => !isSituacaoExcluida(p.fase_negociacao))
+                .filter(p => !isSituacaoExcluida(p.fase_negociacao) && !propostaJaPossuiAprovacao(p, aprv.id))
                 .sort((a, b) => {
                     const aMesmoCli = cliAprvNorm && normStr(limparIconeCliente(a.cliente_nome)) === cliAprvNorm ? 1 : 0;
                     const bMesmoCli = cliAprvNorm && normStr(limparIconeCliente(b.cliente_nome)) === cliAprvNorm ? 1 : 0;
@@ -2225,7 +2508,7 @@
                 }).slice(0, 80);
 
                 if (!fil.length) {
-                    return `<tr><td colspan="6" style="text-align:center; padding:1.25rem; color:#94a3b8;">Nenhuma proposta elegível encontrada.</td></tr>`;
+                    return `<tr><td colspan="6" style="text-align:center; padding:1.25rem; color:#94a3b8;">Nenhuma proposta elegível sem aprovação encontrada.</td></tr>`;
                 }
                 return fil.map(p => {
                     const cod = String(p.codigo || p.id).padStart(2, '0');
@@ -2366,11 +2649,10 @@
         },
 
         /**
-         * Ao clicar no botão "Aprovação" dentro da tela de Proposta:
-         * Mostra todas as aprovações nas situações "Solicitação", "Aguardando setor" (Aguardando resposta)
-         * e "Respondida" com o mesmo nome de cliente, permitindo selecionar a solicitação
-         * (exibindo na lista o endereço de instalação e os produtos selecionados também)
-         * ou criar uma nova solicitação já vinculada a essa proposta.
+         * Caso a proposta AINDA NÃO tenha aprovação vinculada e existam solicitações
+         * sem proposta vinculada do mesmo cliente nas situações Solicitação, Aguardando setor ou Respondida,
+         * exibe a lista com endereço e colunas separadas de Nome do Produto (com ícone), Qtd. Produtos e Qtd. Manutenção
+         * para o usuário selecionar e editar/vincular.
          */
         async abrirModalSelecaoAprovacoesDoClienteNaProposta(propIdOpcional) {
             const propId = Number(propIdOpcional || window._propostasEditandoId_proposta);
@@ -2386,6 +2668,15 @@
                 ? window._propostasData.find(p => Number(p.id) === propId)
                 : null;
 
+            // Se a proposta já possui aprovação vinculada, abre diretamente os detalhes da aprovação existente!
+            const jaVinc = (pMem && pMem.aprovacao_id)
+                ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
+                : state.aprovacoes.find(a => Number(a.proposta_id) === propId);
+            if (jaVinc) {
+                await this.abrirModalDetalhesAprovacao(jaVinc.id);
+                return jaVinc;
+            }
+
             const clienteNome = limparIconeCliente(obterValDom('prop-cliente') || (pMem && pMem.cliente_nome) || '');
             const contatoNome = String(obterValDom('prop-contato') || (pMem && pMem.contato_nome) || '').trim();
             const enderecoInst = String(obterValDom('prop-endereco') || (pMem && pMem.endereco_instalacao) || '').trim();
@@ -2398,12 +2689,35 @@
             const cliNorm = normStr(clienteNome);
             const etapasPermitidas = ['Solicitação', 'Aguardando setor', 'Respondida'];
 
+            // Aprovações do mesmo cliente que ainda não pertencem a outra proposta
             const aprovacoesCliente = (state.aprovacoes || []).filter(a => {
+                if (a.proposta_id && Number(a.proposta_id) !== propId) return false;
                 const col = normalizarColuna(a.coluna);
                 if (!etapasPermitidas.includes(col)) return false;
-                if (!cliNorm) return true;
+                if (!cliNorm) return false;
                 return normStr(limparIconeCliente(a.cliente_nome)) === cliNorm;
             });
+
+            // Se não existe nenhuma solicitação em aberto para este cliente, abre direto o modal de criação vinculado a esta proposta
+            if (!aprovacoesCliente.length) {
+                return await this.abrirModalNovaAprovacao({
+                    proposta_id: propId,
+                    proposta_codigo: codigoProp,
+                    tipo_proposta: tipoProp,
+                    cliente_nome: clienteNome,
+                    contato_nome: contatoNome,
+                    endereco_instalacao: enderecoInst,
+                    equipamentos: equipsAtuais
+                }, (novaAprv) => {
+                    if (novaAprv && pMem) {
+                        pMem.aprovacao_id = novaAprv.id;
+                        pMem.numero_aprovacao = novaAprv.numero_aprovacao;
+                    }
+                    if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
+                        window.atualizarVisibilidadeBotoesPosSalvoProposta();
+                    }
+                });
+            }
 
             const renderBadgeColuna = (colRaw) => {
                 const colKey = normalizarColuna(colRaw);
@@ -2412,22 +2726,22 @@
             };
 
             const renderLinhasAprovacoesCli = () => {
-                if (!aprovacoesCliente.length) {
-                    return `
-                        <tr>
-                            <td colspan="5" style="padding:1.5rem; text-align:center; color:#64748b;">
-                                Nenhuma solicitação nas situações <strong>Solicitação</strong>, <strong>Aguardando setor</strong> ou <strong>Respondida</strong> encontrada para o cliente <strong>${esc(formatarClienteComIcone(clienteNome))}</strong>.
-                            </td>
-                        </tr>
-                    `;
-                }
                 return aprovacoesCliente.map(a => {
                     const numAprv = String(a.numero_aprovacao || a.id).padStart(2, '0');
                     const equips = formatarResumoEquipamentos(a.equipamentos_json, a.tipo_proposta || '');
-                    const jaEhEsta = Number(a.proposta_id) === propId;
+                    const nomesHtml = equips.length
+                        ? equips.map(eq => `<div style="font-weight:700; color:#0f172a; padding:2px 0;">${esc(eq.nome)}</div>`).join('')
+                        : '<span style="color:#94a3b8;">—</span>';
+                    const qtdProdHtml = equips.length
+                        ? equips.map(eq => `<div style="font-weight:800; color:#0f172a; padding:2px 0;">${eq.qtd}</div>`).join('')
+                        : '<span style="color:#94a3b8;">—</span>';
+                    const qtdManutHtml = equips.length
+                        ? equips.map(eq => `<div style="font-weight:800; color:#1e40af; padding:2px 0;">${eq.qtd_manutencao}</div>`).join('')
+                        : '<span style="color:#94a3b8;">—</span>';
+
                     return `
-                        <tr style="border-bottom:1px solid #e2e8f0; background:${jaEhEsta ? '#fff7ed' : '#ffffff'};"
-                            onmouseover="this.style.background='#ffedd5'" onmouseout="this.style.background='${jaEhEsta ? '#fff7ed' : '#ffffff'}'">
+                        <tr style="border-bottom:1px solid #e2e8f0; background:#ffffff;"
+                            onmouseover="this.style.background='#fff7ed'" onmouseout="this.style.background='#ffffff'">
                             <td style="padding:9px 10px; font-weight:800; color:#ea580c; white-space:nowrap;">
                                 Aprovação Nº ${esc(numAprv)}
                                 <div style="font-size:0.68rem; color:#94a3b8; font-weight:600;">${esc(fmtDataHoraBr(a.criado_em))}</div>
@@ -2438,19 +2752,14 @@
                             <td style="padding:9px 10px; color:#334155; font-size:0.77rem;">
                                 ${esc(a.endereco_instalacao || '—')}
                             </td>
-                            <td style="padding:9px 10px;">
-                                ${equips.length > 0
-                                    ? `<div style="display:flex; flex-wrap:wrap; gap:4px;">
-                                        ${equips.map(eq => `<span style="background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.71rem; font-weight:700; padding:2px 7px; border-radius:5px;">${eq.qtd}x ${esc(eq.nome)}</span>`).join('')}
-                                       </div>`
-                                    : '<span style="color:#94a3b8; font-size:0.74rem;">—</span>'
-                                }
-                            </td>
+                            <td style="padding:9px 10px;">${nomesHtml}</td>
+                            <td style="padding:9px 10px; text-align:center;">${qtdProdHtml}</td>
+                            <td style="padding:9px 10px; text-align:center;">${qtdManutHtml}</td>
                             <td style="padding:9px 10px; text-align:center; white-space:nowrap;">
                                 <button type="button"
                                     onclick="window._selecionarAprovacaoExistenteDaProposta(${Number(a.id)}, ${propId})"
                                     style="background:#ea580c; color:#ffffff; border:none; padding:5px 12px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
-                                    <i class="ph ph-check"></i> ${jaEhEsta ? 'Vinculada' : 'Selecionar'}
+                                    <i class="ph ph-check"></i> Selecionar e Editar
                                 </button>
                             </td>
                         </tr>
@@ -2467,29 +2776,10 @@
                 window._selecionarAprovacaoExistenteDaProposta = async (apId, prId) => {
                     fecharOverlayModalAprovacao();
                     const vinc = await this.vincularAprovacaoComProposta(apId, prId);
+                    if (vinc) {
+                        await this.abrirModalDetalhesAprovacao(apId);
+                    }
                     resolve(vinc);
-                };
-
-                window._criarNovaSolicitacaoDaProposta = async () => {
-                    fecharOverlayModalAprovacao();
-                    const nova = await this.abrirModalNovaAprovacao({
-                        proposta_id: propId,
-                        proposta_codigo: codigoProp,
-                        tipo_proposta: tipoProp,
-                        cliente_nome: clienteNome,
-                        contato_nome: contatoNome,
-                        endereco_instalacao: enderecoInst,
-                        equipamentos: equipsAtuais
-                    }, (novaAprv) => {
-                        if (novaAprv && pMem) {
-                            pMem.aprovacao_id = novaAprv.id;
-                            pMem.numero_aprovacao = novaAprv.numero_aprovacao;
-                        }
-                        if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
-                            window.atualizarVisibilidadeBotoesPosSalvoProposta();
-                        }
-                    });
-                    resolve(nova);
                 };
 
                 abrirOverlayModalAprovacao(`
@@ -2501,35 +2791,31 @@
                                 </div>
                                 <div>
                                     <h3 style="margin:0; font-size:1.08rem; font-weight:800; color:#0f172a;">
-                                        Aprovações do Cliente — ${esc(formatarClienteComIcone(clienteNome))}
+                                        Solicitações de Aprovação do Cliente — ${esc(formatarClienteComIcone(clienteNome))}
                                     </h3>
                                     <span style="font-size:0.75rem; color:#64748b;">
-                                        Proposta Nº ${esc(String(codigoProp).padStart(2, '0'))} • Selecione uma solicitação em andamento ou crie uma nova já vinculada a esta proposta
+                                        Proposta Nº ${esc(String(codigoProp).padStart(2, '0'))} • Selecione a solicitação de aprovação existente para vincular e editar
                                     </span>
                                 </div>
                             </div>
 
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <button type="button" onclick="window._criarNovaSolicitacaoDaProposta()"
-                                    style="background:#ea580c; color:#ffffff; border:none; padding:7px 14px; border-radius:7px; font-size:0.8rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
-                                    <i class="ph ph-plus-circle" style="font-size:1rem;"></i> Criar Nova Solicitação Vinculada à Proposta
-                                </button>
-                                <button type="button" onclick="window._fecharModalSelAprovProp()"
-                                    style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:7px 12px; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer;">
-                                    Fechar
-                                </button>
-                            </div>
+                            <button type="button" onclick="window._fecharModalSelAprovProp()"
+                                style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:7px 14px; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer;">
+                                Fechar
+                            </button>
                         </div>
 
                         <div style="max-height:420px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#ffffff;">
                             <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.71rem; text-transform:uppercase; position:sticky; top:0; z-index:1;">
-                                        <th style="padding:9px 10px; width:145px;">Solicitação</th>
-                                        <th style="padding:9px 10px; width:155px;">Situação</th>
+                                        <th style="padding:9px 10px; width:135px;">Solicitação</th>
+                                        <th style="padding:9px 10px; width:145px;">Situação</th>
                                         <th style="padding:9px 10px;">Endereço de Instalação</th>
-                                        <th style="padding:9px 10px;">Produtos / Equipamentos Selecionados</th>
-                                        <th style="padding:9px 10px; text-align:center; width:130px;">Ação</th>
+                                        <th style="padding:9px 10px;">Nome do Produto</th>
+                                        <th style="padding:9px 10px; text-align:center; width:115px;">Qtd. Produtos</th>
+                                        <th style="padding:9px 10px; text-align:center; width:125px;">Qtd. Manutenção</th>
+                                        <th style="padding:9px 10px; text-align:center; width:150px;">Ação</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -2538,14 +2824,19 @@
                             </table>
                         </div>
                     </div>
-                `, 1060);
+                `, 1120);
             });
         },
 
+        /**
+         * Ação do botão laranja "Aprovação" dentro da tela de Proposta ou Contrato:
+         * - Se a proposta já tiver uma aprovação vinculada, mantém a tela de Proposta aberta
+         *   e abre diretamente os detalhes da Solicitação de Aprovação para edição!
+         */
         async acaoBotaoAprovacaoNaProposta(propIdOpcional) {
             const propId = Number(propIdOpcional || window._propostasEditandoId || window._propostasEditandoId_proposta || window._propostasEditandoId_contrato);
             if (!propId) {
-                Swal.fire('Salve a proposta primeiro', 'Salve a proposta antes de gerar ou vincular uma Aprovação.', 'info');
+                Swal.fire('Salve a proposta primeiro', 'Salve a proposta antes de abrir ou vincular uma Aprovação.', 'info');
                 return null;
             }
 
@@ -2559,26 +2850,18 @@
                 ? state.aprovacoes.find(a => Number(a.id) === Number(pMem.aprovacao_id))
                 : state.aprovacoes.find(a => Number(a.proposta_id) === propId);
 
-            // Se já tiver uma aprovação vinculada (ou se estiver na tela de Contrato), abre os detalhes dela
-            // com botão no topo para ver/trocar entre as solicitações do cliente
             if (aprvVinculada) {
                 if (pMem && !pMem.aprovacao_id) {
                     pMem.aprovacao_id = aprvVinculada.id;
                     pMem.numero_aprovacao = aprvVinculada.numero_aprovacao;
                 }
-                await this.abrirModalDetalhesAprovacao(aprvVinculada.id, { propostaIdContexto: propId });
+                await this.abrirModalDetalhesAprovacao(aprvVinculada.id);
                 return aprvVinculada;
             }
 
-            // Se não tiver aprovação vinculada, mostra a lista de todas as aprovações do cliente
-            // em Solicitação, Aguardando setor e Respondida (com endereço e produtos) ou opção de criar nova
             return await this.abrirModalSelecaoAprovacoesDoClienteNaProposta(propId);
         },
 
-        /**
-         * Regra obrigatória para aprovar uma proposta e gerar contrato:
-         * A proposta DEVE ter uma aprovação vinculada na coluna "Aprovado".
-         */
         async garantirAprovacaoVinculadaAntesDeAprovarProposta(propId) {
             const idNum = Number(propId);
             if (!idNum) return false;
@@ -2621,7 +2904,6 @@
         }
     };
 
-    // Expõe a função global esperada pelo roteador de abas (app.js)
     window.renderTelaAprovacaoComercial = async function () {
         return await window._comercialAprovacao.init();
     };

@@ -43920,6 +43920,7 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   criado_por TEXT DEFAULT '',
   criado_por_foto_url TEXT DEFAULT '',
   criado_por_colaborador_id INTEGER,
+  historico_json TEXT DEFAULT '[]',
   criado_em TEXT,
   atualizado_em TEXT
 )`, (errAprv) => {
@@ -43928,6 +43929,7 @@ db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN ainda_nao_e_cliente INTEGER DEFAULT 0", () => {});
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_foto_url TEXT DEFAULT ''", () => {});
   db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN criado_por_colaborador_id INTEGER", () => {});
+  db.run("ALTER TABLE comercial_aprovacoes ADD COLUMN historico_json TEXT DEFAULT '[]'", () => {});
 });
 
 function gerarCodigoAprovacaoComercial(cb) {
@@ -44034,81 +44036,111 @@ app.post('/api/comercial/aprovacoes', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'O Nome do Cliente é obrigatório para criar uma aprovação.' });
     }
 
-    gerarCodigoAprovacaoComercial((novoNumAprov) => {
-      db.run(
-        `INSERT INTO comercial_aprovacoes (
-          numero_aprovacao, proposta_id, proposta_codigo, tipo_proposta, ainda_nao_e_cliente,
-          cliente_nome, contato_nome, endereco_instalacao, equipamentos_json, coluna,
-          urgente, observacoes, resposta_setor, criado_por, criado_por_colaborador_id, criado_em, atualizado_em
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          novoNumAprov, propId, propCodigo, tipoProposta, aindaNaoCliente,
-          clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna,
-          urgente, observacoes, respostaSetor, autor, colabIdAutor, agora, agora
-        ],
-        function(errIns) {
-          if (errIns) return res.status(500).json({ error: errIns.message });
-          const newId = this.lastID;
+    const prosseguirCriacaoAprovacao = () => {
+      const historicoInicial = JSON.stringify([
+        {
+          data_hora: agora,
+          usuario: autor,
+          de_coluna: '—',
+          para_coluna: 'Solicitação',
+          acao: 'Criação da Solicitação',
+          detalhe: propId ? `Solicitação criada e vinculada à Proposta Nº ${propCodigo || propId}` : 'Solicitação de aprovação criada na coluna Solicitação'
+        }
+      ]);
 
-          const finalizarResposta = () => {
-            db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [newId], (eG, row) => {
-              res.json({
-                success: true,
-                id: newId,
-                numero_aprovacao: novoNumAprov,
-                aprovacao: row || {
+      gerarCodigoAprovacaoComercial((novoNumAprov) => {
+        db.run(
+          `INSERT INTO comercial_aprovacoes (
+            numero_aprovacao, proposta_id, proposta_codigo, tipo_proposta, ainda_nao_e_cliente,
+            cliente_nome, contato_nome, endereco_instalacao, equipamentos_json, coluna,
+            urgente, observacoes, resposta_setor, criado_por, criado_por_colaborador_id, historico_json, criado_em, atualizado_em
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            novoNumAprov, propId, propCodigo, tipoProposta, aindaNaoCliente,
+            clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna,
+            urgente, observacoes, respostaSetor, autor, colabIdAutor, historicoInicial, agora, agora
+          ],
+          function(errIns) {
+            if (errIns) return res.status(500).json({ error: errIns.message });
+            const newId = this.lastID;
+
+            const finalizarResposta = () => {
+              db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [newId], (eG, row) => {
+                res.json({
+                  success: true,
                   id: newId,
                   numero_aprovacao: novoNumAprov,
-                  proposta_id: propId,
-                  proposta_codigo: propCodigo,
-                  tipo_proposta: tipoProposta,
-                  ainda_nao_e_cliente: aindaNaoCliente,
-                  cliente_nome: clienteNome,
-                  contato_nome: contatoNome,
-                  endereco_instalacao: enderecoInstalacao,
-                  equipamentos_json: equipamentosJson,
-                  coluna,
-                  urgente,
-                  observacoes,
-                  resposta_setor: respostaSetor,
-                  criado_por: autor,
-                  criado_por_colaborador_id: colabIdAutor,
-                  criado_em: agora
-                }
+                  aprovacao: row || {
+                    id: newId,
+                    numero_aprovacao: novoNumAprov,
+                    proposta_id: propId,
+                    proposta_codigo: propCodigo,
+                    tipo_proposta: tipoProposta,
+                    ainda_nao_e_cliente: aindaNaoCliente,
+                    cliente_nome: clienteNome,
+                    contato_nome: contatoNome,
+                    endereco_instalacao: enderecoInstalacao,
+                    equipamentos_json: equipamentosJson,
+                    coluna,
+                    urgente,
+                    observacoes,
+                    resposta_setor: respostaSetor,
+                    criado_por: autor,
+                    criado_por_colaborador_id: colabIdAutor,
+                    historico_json: historicoInicial,
+                    criado_em: agora
+                  }
+                });
               });
-            });
-          };
+            };
 
-          if (propId) {
-            db.run(
-              'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
-              [newId, novoNumAprov, agora, propId],
-              () => {
-                db.run(
-                  `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
-                   VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
-                  [autor, propId, `Aprovação Nº ${novoNumAprov}${urgente ? ' (URGENTE)' : ''}`]
-                );
-                finalizarResposta();
-              }
-            );
-          } else {
-            finalizarResposta();
+            if (propId) {
+              db.run(
+                'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
+                [newId, novoNumAprov, agora, propId],
+                () => {
+                  db.run(
+                    `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+                     VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
+                    [autor, propId, `Aprovação Nº ${novoNumAprov}${urgente ? ' (URGENTE)' : ''}`]
+                  );
+                  finalizarResposta();
+                }
+              );
+            } else {
+              finalizarResposta();
+            }
           }
+        );
+      });
+    };
+
+    if (propId) {
+      db.get('SELECT id, numero_aprovacao FROM comercial_aprovacoes WHERE proposta_id = ?', [propId], (errDup, jaExiste) => {
+        if (errDup) return res.status(500).json({ error: errDup.message });
+        if (jaExiste) {
+          return res.status(400).json({
+            error: `Esta proposta já possui a Aprovação Nº ${jaExiste.numero_aprovacao} vinculada. Não é permitido vincular mais de uma aprovação à mesma proposta — edite a aprovação existente.`
+          });
         }
-      );
-    });
+        prosseguirCriacaoAprovacao();
+      });
+    } else {
+      prosseguirCriacaoAprovacao();
+    }
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao criar aprovação.' });
   }
 });
 
-// PUT /api/comercial/aprovacoes/:id - Atualiza dados / coluna / urgência da Aprovação
+// PUT /api/comercial/aprovacoes/:id - Atualiza dados / coluna / urgência da Aprovação e registra histórico de movimentação
 app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: 'ID inválido.' });
     const b = req.body || {};
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
     const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (errG, row) => {
@@ -44123,12 +44155,81 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
       const equipamentosJson = b.equipamentos_json !== undefined
         ? (typeof b.equipamentos_json === 'string' ? b.equipamentos_json : JSON.stringify(b.equipamentos_json || []))
         : (b.equipamentos !== undefined ? JSON.stringify(b.equipamentos || []) : row.equipamentos_json);
-      const coluna = b.coluna !== undefined ? String(b.coluna || row.coluna || 'Solicitação').trim() : row.coluna;
       const urgente = b.urgente !== undefined ? ((Number(b.urgente) === 1 || b.urgente === true) ? 1 : 0) : row.urgente;
       const observacoes = b.observacoes !== undefined ? String(b.observacoes || '') : row.observacoes;
       const respostaSetor = b.resposta_setor !== undefined ? String(b.resposta_setor || '') : row.resposta_setor;
       const propId = b.proposta_id !== undefined ? (b.proposta_id ? Number(b.proposta_id) : null) : row.proposta_id;
       const propCodigo = b.proposta_codigo !== undefined ? String(b.proposta_codigo || '').trim() : row.proposta_codigo;
+
+      const dadosSolicitacaoMudaram = Boolean(
+        b.retornar_para_solicitacao === true ||
+        (b.tipo_proposta !== undefined && tipoProposta !== String(row.tipo_proposta || 'OBRA MENSAL').trim()) ||
+        (b.ainda_nao_e_cliente !== undefined && aindaNaoCliente !== Number(row.ainda_nao_e_cliente || 0)) ||
+        (b.cliente_nome !== undefined && clienteNome !== String(row.cliente_nome || '').trim()) ||
+        (b.contato_nome !== undefined && contatoNome !== String(row.contato_nome || '').trim()) ||
+        (b.endereco_instalacao !== undefined && enderecoInstalacao !== String(row.endereco_instalacao || '').trim()) ||
+        ((b.equipamentos !== undefined || b.equipamentos_json !== undefined) && equipamentosJson !== String(row.equipamentos_json || '[]')) ||
+        (b.observacoes !== undefined && observacoes !== String(row.observacoes || '')) ||
+        (b.urgente !== undefined && urgente !== Number(row.urgente || 0))
+      );
+
+      const colAnterior = String(row.coluna || 'Solicitação').trim();
+      let coluna = b.coluna !== undefined ? String(b.coluna || colAnterior).trim() : colAnterior;
+      let retornouParaSolicitacao = false;
+
+      // Regra obrigatória: se a solicitação foi editada e já tinha sido movida de coluna, volta para "Solicitação"
+      if (dadosSolicitacaoMudaram && colAnterior !== 'Solicitação') {
+        coluna = 'Solicitação';
+        retornouParaSolicitacao = true;
+      }
+
+      let histArr = [];
+      try {
+        histArr = JSON.parse(row.historico_json || '[]');
+        if (!Array.isArray(histArr)) histArr = [];
+      } catch (_) { histArr = []; }
+
+      if (histArr.length === 0) {
+        histArr.push({
+          data_hora: row.criado_em || agora,
+          usuario: row.criado_por || 'Sistema',
+          de_coluna: '—',
+          para_coluna: 'Solicitação',
+          acao: 'Criação da Solicitação',
+          detalhe: 'Solicitação criada na coluna Solicitação'
+        });
+      }
+
+      if (retornouParaSolicitacao) {
+        histArr.push({
+          data_hora: agora,
+          usuario: autor,
+          de_coluna: colAnterior,
+          para_coluna: 'Solicitação',
+          acao: 'Edição da Solicitação (Retorno Automático)',
+          detalhe: `Solicitação editada — retornou automaticamente de "${colAnterior}" para "Solicitação"`
+        });
+      } else if (coluna !== colAnterior) {
+        histArr.push({
+          data_hora: agora,
+          usuario: autor,
+          de_coluna: colAnterior,
+          para_coluna: coluna,
+          acao: 'Movimentação de Coluna',
+          detalhe: `Movida de "${colAnterior}" para "${coluna}"`
+        });
+      } else if (dadosSolicitacaoMudaram) {
+        histArr.push({
+          data_hora: agora,
+          usuario: autor,
+          de_coluna: colAnterior,
+          para_coluna: coluna,
+          acao: 'Edição da Solicitação',
+          detalhe: 'Dados da solicitação de aprovação atualizados'
+        });
+      }
+
+      const novoHistoricoJson = JSON.stringify(histArr);
 
       db.run(
         `UPDATE comercial_aprovacoes SET
@@ -44144,16 +44245,17 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
           urgente = ?,
           observacoes = ?,
           resposta_setor = ?,
+          historico_json = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [propId, propCodigo, tipoProposta, aindaNaoCliente, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, agora, id],
+        [propId, propCodigo, tipoProposta, aindaNaoCliente, clienteNome, contatoNome, enderecoInstalacao, equipamentosJson, coluna, urgente, observacoes, respostaSetor, novoHistoricoJson, agora, id],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (propId) {
             db.run('UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ? WHERE id = ?', [id, row.numero_aprovacao, propId]);
           }
           db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (e2, updated) => {
-            res.json({ success: true, aprovacao: updated });
+            res.json({ success: true, retornou_para_solicitacao: retornouParaSolicitacao, aprovacao: updated });
           });
         }
       );
@@ -44163,7 +44265,7 @@ app.put('/api/comercial/aprovacoes/:id', authenticateToken, async (req, res) => 
   }
 });
 
-// POST /api/comercial/aprovacoes/:id/vincular-proposta - Vincula uma aprovação existente a uma proposta (atualizando cliente, contato, endereço e equipamentos da proposta se desejado)
+// POST /api/comercial/aprovacoes/:id/vincular-proposta - Vincula uma aprovação existente a uma proposta (impedindo mais de uma aprovação por proposta)
 app.post('/api/comercial/aprovacoes/:id/vincular-proposta', authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -44177,49 +44279,76 @@ app.post('/api/comercial/aprovacoes/:id/vincular-proposta', authenticateToken, a
       if (errA) return res.status(500).json({ error: errA.message });
       if (!aprv) return res.status(404).json({ error: 'Aprovação não encontrada.' });
 
-      db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
-        if (errP) return res.status(500).json({ error: errP.message });
-        if (!prop) return res.status(404).json({ error: 'Proposta não encontrada.' });
+      db.get('SELECT id, numero_aprovacao FROM comercial_aprovacoes WHERE proposta_id = ? AND id != ?', [propId, id], (errDup, outraAprv) => {
+        if (errDup) return res.status(500).json({ error: errDup.message });
+        if (outraAprv) {
+          return res.status(400).json({
+            error: `Esta proposta já está vinculada à Aprovação Nº ${outraAprv.numero_aprovacao}. Não é permitido vincular mais de uma aprovação a uma proposta.`
+          });
+        }
 
-        const cliNome = prop.cliente_nome || aprv.cliente_nome || '';
-        const contNome = prop.contato_nome || aprv.contato_nome || '';
-        const endInst = prop.endereco_instalacao || aprv.endereco_instalacao || '';
-        const equipJson = (prop.itens && prop.itens !== '[]') ? prop.itens : (aprv.equipamentos_json || '[]');
+        db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errP, prop) => {
+          if (errP) return res.status(500).json({ error: errP.message });
+          if (!prop) return res.status(404).json({ error: 'Proposta não encontrada.' });
 
-        db.run(
-          `UPDATE comercial_aprovacoes SET
-            proposta_id = ?,
-            proposta_codigo = ?,
-            cliente_nome = ?,
-            contato_nome = ?,
-            endereco_instalacao = ?,
-            equipamentos_json = ?,
-            atualizado_em = ?
-           WHERE id = ?`,
-          [prop.id, String(prop.codigo || ''), cliNome, contNome, endInst, equipJson, agora, id],
-          function(errUpA) {
-            if (errUpA) return res.status(500).json({ error: errUpA.message });
-            db.run(
-              'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
-              [id, aprv.numero_aprovacao, agora, prop.id],
-              function(errUpP) {
-                if (errUpP) return res.status(500).json({ error: errUpP.message });
-                db.run(
-                  `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
-                   VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
-                  [autor, prop.id, `Aprovação Nº ${aprv.numero_aprovacao}`]
-                );
-                db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (eG, rowAtualizada) => {
-                  res.json({
-                    success: true,
-                    numero_aprovacao: aprv.numero_aprovacao,
-                    aprovacao: rowAtualizada
+          const cliNome = prop.cliente_nome || aprv.cliente_nome || '';
+          const contNome = prop.contato_nome || aprv.contato_nome || '';
+          const endInst = prop.endereco_instalacao || aprv.endereco_instalacao || '';
+          const equipJson = (aprv.equipamentos_json && aprv.equipamentos_json !== '[]')
+            ? aprv.equipamentos_json
+            : (prop.itens || '[]');
+
+          let histArr = [];
+          try {
+            histArr = JSON.parse(aprv.historico_json || '[]');
+            if (!Array.isArray(histArr)) histArr = [];
+          } catch (_) { histArr = []; }
+          histArr.push({
+            data_hora: agora,
+            usuario: autor,
+            de_coluna: aprv.coluna || 'Solicitação',
+            para_coluna: aprv.coluna || 'Solicitação',
+            acao: 'Vínculo com Proposta',
+            detalhe: `Vinculada à Proposta Nº ${prop.codigo || prop.id}`
+          });
+          const novoHistJson = JSON.stringify(histArr);
+
+          db.run(
+            `UPDATE comercial_aprovacoes SET
+              proposta_id = ?,
+              proposta_codigo = ?,
+              cliente_nome = ?,
+              contato_nome = ?,
+              endereco_instalacao = ?,
+              equipamentos_json = ?,
+              historico_json = ?,
+              atualizado_em = ?
+             WHERE id = ?`,
+            [prop.id, String(prop.codigo || ''), cliNome, contNome, endInst, equipJson, novoHistJson, agora, id],
+            function(errUpA) {
+              if (errUpA) return res.status(500).json({ error: errUpA.message });
+              db.run(
+                'UPDATE propostas SET aprovacao_id = ?, numero_aprovacao = ?, atualizado_em = ? WHERE id = ?',
+                [id, aprv.numero_aprovacao, agora, prop.id],
+                function(errUpP) {
+                  if (errUpP) return res.status(500).json({ error: errUpP.message });
+                  db.run(
+                    `INSERT INTO auditoria (usuario, programa, registro_id, campo, conteudo_anterior, conteudo_atual, snapshot_json)
+                     VALUES (?, 'Proposta', ?, 'Aprovação Vinculada', '—', ?, '{"_origem_log":"proposta"}')`,
+                    [autor, prop.id, `Aprovação Nº ${aprv.numero_aprovacao}`]
+                  );
+                  db.get('SELECT * FROM comercial_aprovacoes WHERE id = ?', [id], (eG, rowAtualizada) => {
+                    res.json({
+                      success: true,
+                      numero_aprovacao: aprv.numero_aprovacao,
+                      aprovacao: rowAtualizada
+                    });
                   });
-                });
-              }
-            );
-          }
-        );
+                }
+              );
+            }
+          );
+        });
       });
     });
   } catch (e) {
