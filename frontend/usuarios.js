@@ -68,6 +68,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Logística', pagina_id: 'logistica-agenda',         pagina_nome: 'Agenda Logística', icone: 'ph-calendar' },
     { modulo: 'Logística', pagina_id: 'logistica-epi',            pagina_nome: 'Entrega de EPI',   icone: 'ph-shield-check' },
     { modulo: 'Logística', pagina_id: 'logistica-equipes',        pagina_nome: 'Equipes',       icone: 'ph-users-three' },
+    { modulo: 'Logística', pagina_id: 'logistica-estoque',        pagina_nome: 'Estoque',       icone: 'ph-package' },
     // Módulo Financeiro
     { modulo: 'Financeiro', pagina_id: 'compras-gestao-frota', pagina_nome: 'Gestão de Frota', icone: 'ph-truck' },
     { modulo: 'Financeiro', pagina_id: 'compras-corretivas', pagina_nome: 'Corretiva', icone: 'ph-wrench' },
@@ -671,7 +672,7 @@ const MENU_HIERARQUIA = [
                     'logistica-dashboard', 'logistica-agenda', 'logistica-epi', 
                     'logistica-multas', 'logistica-equipes', 'logistica-frota', 'logistica-frota-manutencao', 
                     'logistica-credenciamento', 'logistica-senhas', 
-                    'logistica-sinistros'
+                    'logistica-sinistros', 'logistica-estoque'
                 ]
             },
             {

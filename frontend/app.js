@@ -820,6 +820,7 @@ const BREADCRUMB_MAP = {
     'logistica-multas-monaco': { path: 'Diretoria → Multas Mônaco', code: 'LOG012' },
     'logistica-equipes': { path: 'Equipes', code: 'LOG013' },
     'logistica-frota': { path: 'Gestão de Frota', code: 'LOG005' },
+    'logistica-estoque': { path: 'Logística → Estoque', code: 'LOG016' },
     'logistica-credenciamento': { path: 'Credenciamento', code: 'LOG006' },
     'logistica-senhas': { path: 'Cofre de Senhas', code: 'LOG007' },
     'rh-agenda': { path: 'Agenda RH', code: 'RH020' },
@@ -1041,6 +1042,9 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-dashboard'] === undefined) mapPerms['comercial-dashboard'] = true;
             if (mapPerms['comercial-os'] === undefined) mapPerms['comercial-os'] = true;
             if (mapPerms['comercial-aprovacao'] === undefined) mapPerms['comercial-aprovacao'] = true;
+        }
+        if (mapPerms['logistica-frota'] || mapPerms['logistica-rota-redonda'] || mapPerms['logistica-dashboard'] || mapPerms['logistica-credenciamento']) {
+            if (mapPerms['logistica-estoque'] === undefined) mapPerms['logistica-estoque'] = true;
         }
         if (mapPerms['app-lideranca-separacao'] || mapPerms['app-lideranca-resumo-rota'] || mapPerms['app-lideranca-entregas'] || mapPerms['app-lideranca-retiradas']) {
             if (mapPerms['app-lideranca-insumos'] === undefined) mapPerms['app-lideranca-insumos'] = true;
@@ -1346,6 +1350,7 @@ const TAB_META = {
     'logistica-multas-monaco': { color: '#d9480f', icon: 'ph-police-car', title: 'Multas Mônaco' },
     'logistica-equipes': { color: '#2d9e5f', icon: 'ph-users-three', title: 'Equipes' },
     'logistica-frota': { color: '#2d9e5f', icon: 'ph-truck', title: 'Gestão de Frota' },
+    'logistica-estoque': { color: '#2d9e5f', icon: 'ph-package', title: 'Estoque' },
     'logistica-frota:corretiva': { color: '#2d9e5f', icon: 'ph-wrench', title: 'Corretiva' },
     'logistica-frota:revisao': { color: '#2d9e5f', icon: 'ph-seal-check', title: 'Revisão' },
     'logistica-credenciamento': { color: '#2d9e5f', icon: 'ph-identification-card', title: 'Credenciamento' },
@@ -1554,6 +1559,9 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'logistica-credenciamento' && typeof window.carregarHistoricoCredenciamento === 'function') {
         setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+    }
+    if (tab.target === 'logistica-estoque' && typeof window.renderTelaLogisticaEstoque === 'function') {
+        setTimeout(() => window.renderTelaLogisticaEstoque(), 80);
     }
     if (tab.target === 'logistica-itinerantes' && typeof window.renderItinerantesPage === 'function') {
         setTimeout(() => window.renderItinerantesPage(), 80);
@@ -1926,6 +1934,8 @@ function navigateTo(target) {
         if (typeof window.initComprasEstoque === 'function') setTimeout(() => window.initComprasEstoque(), 80);
     } else if (target === 'logistica-credenciamento') {
         if (typeof window.carregarHistoricoCredenciamento === 'function') setTimeout(() => window.carregarHistoricoCredenciamento(), 80);
+    } else if (target === 'logistica-estoque') {
+        if (typeof window.renderTelaLogisticaEstoque === 'function') setTimeout(() => window.renderTelaLogisticaEstoque(), 80);
     } else if (target === 'logistica-itinerantes') {
         if (typeof window.renderItinerantesPage === 'function') setTimeout(() => window.renderItinerantesPage(), 80);
     } else if (target === 'rh-agenda') {

@@ -36059,6 +36059,16 @@ app.post('/api/estoque-equipamentos/importar', authenticateToken, uploadImportEq
     }
 });
 
+// ── Módulo Estoque da Logística e Reserva Automática de Contratos ──
+let _logisticaEstoqueMod = null;
+try {
+    _logisticaEstoqueMod = require('./routes_logistica_estoque');
+    _logisticaEstoqueMod.registerLogisticaEstoqueRoutes(app, db, authenticateToken);
+    console.log('[LOGISTICA-ESTOQUE] Rotas de Estoque da Logística registradas com sucesso.');
+} catch (eLogEst) {
+    console.error('[LOGISTICA-ESTOQUE] Erro ao registrar rotas:', eLogEst.message);
+}
+
 // POST /api/estoque-equipamentos
 app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const d = req.body || {};
@@ -36071,6 +36081,7 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const link_url = String(d.link_url !== undefined ? d.link_url : '').trim();
+    const logistica_estoque_modelo = String(d.logistica_estoque_modelo || '').trim() || null;
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const foto_base64 = String(d.foto_base64 || '').trim();
@@ -36098,13 +36109,17 @@ app.post('/api/estoque-equipamentos', authenticateToken, (req, res) => {
                 db.run(
                     `INSERT INTO estoque_equipamentos (
                         codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto,
-                        especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item,
+                        especificacao_tecnica, descricao_proposta, link_url, logistica_estoque_modelo, produto_venda, tipo_item,
                         r2_key, foto_url, criado_por, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item, r2Key, fotoUrlFallback, criado_por, agora, agora],
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [codigo, nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, logistica_estoque_modelo, produto_venda, tipo_item, r2Key, fotoUrlFallback, criado_por, agora, agora],
                     function(errIns) {
                         if (errIns) return res.status(500).json({ error: errIns.message });
-                        res.json({ success: true, id: this.lastID, codigo, r2_key: r2Key });
+                        const newId = this.lastID;
+                        if (_logisticaEstoqueMod && typeof _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos === 'function') {
+                            _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos(db);
+                        }
+                        res.json({ success: true, id: newId, codigo, r2_key: r2Key });
                     }
                 );
             } catch (errUp) {
@@ -36129,12 +36144,15 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
     const especificacao_tecnica = String(d.especificacao_tecnica || '').trim();
     const descricao_proposta = String(d.descricao_proposta !== undefined ? d.descricao_proposta : '').trim();
     const link_url = String(d.link_url !== undefined ? d.link_url : '').trim();
+    const logistica_estoque_modelo = d.logistica_estoque_modelo !== undefined
+        ? (String(d.logistica_estoque_modelo || '').trim() || null)
+        : undefined;
     const produto_venda = d.produto_venda ? 1 : 0;
     const tipo_item = String(d.tipo_item || 'matriz').trim().toLowerCase() === 'estoque' ? 'estoque' : 'matriz';
     const foto_base64 = String(d.foto_base64 || '').trim();
     const remover_foto = Boolean(d.remover_foto);
 
-    db.get('SELECT id, codigo, nome, r2_key, foto_url FROM estoque_equipamentos WHERE id = ?', [id], (errCur, rowCur) => {
+    db.get('SELECT id, codigo, nome, r2_key, foto_url, logistica_estoque_modelo FROM estoque_equipamentos WHERE id = ?', [id], (errCur, rowCur) => {
         if (errCur) return res.status(500).json({ error: errCur.message });
         if (!rowCur) return res.status(404).json({ error: 'Equipamento não encontrado.' });
 
@@ -36151,33 +36169,32 @@ app.put('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
             try {
                 let novoR2Key = rowCur.r2_key || null;
                 let novoFotoUrl = rowCur.foto_url || null;
-                const r2 = require('./utils/r2');
 
                 if (remover_foto) {
-                    if (rowCur.r2_key && r2.isReady()) {
-                        await r2.deleteFromR2(rowCur.r2_key).catch(() => {});
-                    }
                     novoR2Key = null;
                     novoFotoUrl = null;
                 } else if (foto_base64 && foto_base64.startsWith('data:image/')) {
-                    if (rowCur.r2_key && r2.isReady()) {
-                        await r2.deleteFromR2(rowCur.r2_key).catch(() => {});
-                    }
                     const up = await uploadFotoEquipamentoParaR2(rowCur.codigo || id, foto_base64);
                     novoR2Key = up.r2_key;
                     novoFotoUrl = up.foto_url;
                 }
 
+                const modeloFinal = logistica_estoque_modelo !== undefined
+                    ? logistica_estoque_modelo
+                    : (rowCur.logistica_estoque_modelo || null);
                 const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
                 db.run(
                     `UPDATE estoque_equipamentos SET
                         nome = ?, unidade_medida = ?, fonte_fornecimento = ?, grupo_produto = ?,
-                        especificacao_tecnica = ?, descricao_proposta = ?, link_url = ?, produto_venda = ?, tipo_item = ?,
+                        especificacao_tecnica = ?, descricao_proposta = ?, link_url = ?, logistica_estoque_modelo = ?, produto_venda = ?, tipo_item = ?,
                         r2_key = ?, foto_url = ?, updated_at = ?
                      WHERE id = ?`,
-                    [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, produto_venda, tipo_item, novoR2Key, novoFotoUrl, agora, id],
+                    [nome, unidade_medida, fonte_fornecimento, grupo_produto, especificacao_tecnica, descricao_proposta, link_url, modeloFinal, produto_venda, tipo_item, novoR2Key, novoFotoUrl, agora, id],
                     function(errUpd) {
                         if (errUpd) return res.status(500).json({ error: errUpd.message });
+                        if (_logisticaEstoqueMod && typeof _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos === 'function') {
+                            _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos(db);
+                        }
                         res.json({ success: true, r2_key: novoR2Key });
                     }
                 );
@@ -36197,15 +36214,11 @@ app.delete('/api/estoque-equipamentos/:id', authenticateToken, (req, res) => {
         if (errRow) return res.status(500).json({ error: errRow.message });
         if (!row) return res.status(404).json({ error: 'Equipamento não encontrado.' });
 
-        try {
-            const r2 = require('./utils/r2');
-            if (row.r2_key && r2.isReady()) {
-                await r2.deleteFromR2(row.r2_key).catch(() => {});
-            }
-        } catch (e) {}
-
         db.run('DELETE FROM estoque_equipamentos WHERE id = ?', [id], function(errDel) {
             if (errDel) return res.status(500).json({ error: errDel.message });
+            if (_logisticaEstoqueMod && typeof _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos === 'function') {
+                _logisticaEstoqueMod.recalcularTodasReservasContratosAtivos(db);
+            }
             res.json({ success: true });
         });
     });
@@ -43821,6 +43834,7 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
               [autor, propId, String(prop.status_os || 'EM ELABORAÇÃO'), novoStatusOs, snap]
             );
           }
+          sincronizarContratoDaProposta(propId);
           res.json({
             success: true,
             status_os: novoStatusOs,
@@ -44937,6 +44951,9 @@ app.post('/api/propostas/:id/comentarios-contrato', authenticateToken, (req, res
 // POST /api/propostas - Criar nova proposta
 function sincronizarContratoDaProposta(propostaId) {
   if (!propostaId) return;
+  if (_logisticaEstoqueMod && typeof _logisticaEstoqueMod.sincronizarReservasEstoqueDoContrato === 'function') {
+    _logisticaEstoqueMod.sincronizarReservasEstoqueDoContrato(db, propostaId);
+  }
   db.get('SELECT * FROM propostas WHERE id = ?', [propostaId], (err, p) => {
     if (err || !p) return;
     const tipoNorm = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -47130,6 +47147,7 @@ app.delete('/api/propostas/:id', authenticateToken, async (req, res) => {
       db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Proposta/Contrato não encontrado' });
+        db.run('DELETE FROM logistica_estoque_reservas WHERE proposta_id = ?', [req.params.id], () => {});
         res.json({ success: true });
       });
     });

@@ -22,6 +22,44 @@ function getBadgeColors(nome, isLow) {
 window._estoqueEnderecos = [];
 window._estoqueCache = {};
 
+window.ampliarFotoEstoque = function(src, titulo) {
+    if (!src) return;
+    const old = document.getElementById('modal-lightbox-foto-equipamento');
+    if (old) old.remove();
+
+    const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-lightbox-foto-equipamento';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(15,23,42,0.82);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;animation:fadeIn 0.15s ease;';
+    overlay.onclick = function(e) {
+        if (e.target === overlay) overlay.remove();
+    };
+
+    overlay.innerHTML =
+        '<div style="background:#fff;border-radius:16px;max-width:92vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.45);overflow:hidden;min-width:320px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">' +
+                '<div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:1rem;color:#0f172a;">' +
+                    '<i class="ph ph-image" style="color:#0284c7;font-size:1.25rem;"></i>' +
+                    '<span>' + escHtml(titulo || 'Foto do Equipamento') + '</span>' +
+                '</div>' +
+                '<button type="button" onclick="document.getElementById(\'modal-lightbox-foto-equipamento\')?.remove()" style="border:none;background:#e2e8f0;color:#334155;width:32px;height:32px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;" title="Fechar">' +
+                    '<i class="ph ph-x"></i>' +
+                '</button>' +
+            '</div>' +
+            '<div style="padding:20px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:auto;">' +
+                '<img src="' + escHtml(src) + '" alt="' + escHtml(titulo || 'Foto') + '" style="max-width:85vw;max-height:76vh;object-fit:contain;border-radius:10px;">' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+};
+
+window.ampliarFotoEquipamentoId = function(id) {
+    const item = (window._equipamentosEstoqueData || []).find(x => String(x.id) === String(id));
+    if (!item || !item.foto_url) return;
+    window.ampliarFotoEstoque(item.foto_url, (item.codigo ? '[' + item.codigo + '] ' : '') + (item.nome || 'Equipamento'));
+};
+
 async function _carregarEnderecos() {
     try {
         const token = window.currentToken || localStorage.getItem("erp_token") || localStorage.getItem("token");
@@ -3121,7 +3159,7 @@ window.renderEquipamentosEstoqueTable = function() {
     });
 
     if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b;padding:2rem;">Nenhum equipamento encontrado.</td></tr>';
         return;
     }
 
@@ -3130,12 +3168,17 @@ window.renderEquipamentosEstoqueTable = function() {
     tbody.innerHTML = lista.map(item => {
         const especTexto = String(item.especificacao_tecnica || '').trim();
         const especPreview = especTexto
-            ? '<div style="max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
+            ? '<div style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#475569;font-size:0.82rem;" title="' + esc(especTexto) + '">' + esc(especTexto) + '</div>'
             : '<span style="color:#94a3b8;font-size:0.8rem;">—</span>';
 
         const fotoThumb = item.foto_url
-            ? '<img src="' + esc(item.foto_url) + '" alt="" onclick="if(window.ampliarFotoEstoque) window.ampliarFotoEstoque(\'' + esc(item.foto_url) + '\', \'' + esc(item.nome) + '\')" title="Clique para ampliar foto" style="width:36px;height:36px;object-fit:contain;border-radius:6px;border:1px solid #cbd5e1;background:#fff;padding:2px;cursor:zoom-in;flex-shrink:0;">'
-            : '<div title="Sem foto cadastrada — clique em Editar para adicionar" onclick="window.abrirModalEquipamentoEstoque(' + item.id + ')" style="width:36px;height:36px;border-radius:6px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><i class="ph ph-camera" style="font-size:1rem;"></i></div>';
+            ? '<img src="' + esc(item.foto_url) + '" alt="" onclick="event.stopPropagation(); window.ampliarFotoEquipamentoId(' + item.id + ')" title="Clique para ampliar foto" style="width:40px;height:40px;object-fit:contain;border-radius:6px;border:1px solid #cbd5e1;background:#fff;padding:2px;cursor:zoom-in;flex-shrink:0;">'
+            : '<div title="Sem foto cadastrada — clique em Editar para adicionar" onclick="window.abrirModalEquipamentoEstoque(' + item.id + ')" style="width:40px;height:40px;border-radius:6px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><i class="ph ph-camera" style="font-size:1rem;"></i></div>';
+
+        const modLog = String(item.logistica_estoque_modelo || '').trim();
+        const vinculoLogHtml = modLog
+            ? '<button type="button" onclick="window.abrirModalVincularEquipamentoLogisticaRapido(' + item.id + ')" title="Vinculado ao modelo ' + esc(modLog) + ' do Estoque da Logística (clique para alterar)" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;border-radius:6px;padding:3px 9px;font-size:0.76rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="ph ph-package"></i> ' + esc(modLog) + '</button>'
+            : '<button type="button" onclick="window.abrirModalVincularEquipamentoLogisticaRapido(' + item.id + ')" title="Vincular a um modelo do Estoque da Logística" style="background:#f8fafc;color:#64748b;border:1px dashed #cbd5e1;border-radius:6px;padding:3px 9px;font-size:0.75rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;"><i class="ph ph-link"></i> Vincular</button>';
 
         return '<tr>' +
             '<td><span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-weight:700;font-size:0.78rem;white-space:nowrap;">' + esc(item.codigo) + '</span></td>' +
@@ -3143,6 +3186,7 @@ window.renderEquipamentosEstoqueTable = function() {
             '<td><span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:600;white-space:nowrap;">' + esc(item.unidade_medida) + '</span></td>' +
             '<td style="color:#334155;font-size:0.84rem;font-weight:600;text-transform:uppercase;">' + esc(String(item.fonte_fornecimento || '').toUpperCase()) + '</td>' +
             '<td><span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:0.75rem;font-weight:700;white-space:nowrap;">' + esc(String(item.grupo_produto || '').toUpperCase()) + '</span></td>' +
+            '<td>' + vinculoLogHtml + '</td>' +
             '<td>' + especPreview + '</td>' +
             '<td style="text-align:right;white-space:nowrap;">' +
                 '<div style="display:inline-flex;gap:6px;align-items:center;">' +
@@ -3240,6 +3284,12 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         if (document.getElementById('equipamento-est-link-url')) {
             document.getElementById('equipamento-est-link-url').value = item.link_url || '';
         }
+        if (document.getElementById('equipamento-est-logistica-modelo')) {
+            document.getElementById('equipamento-est-logistica-modelo').value = item.logistica_estoque_modelo || '';
+        }
+        if (document.getElementById('equipamento-est-logistica-modelo')) {
+            document.getElementById('equipamento-est-logistica-modelo').value = item.logistica_estoque_modelo || '';
+        }
         if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
         if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
         if (document.getElementById('equipamento-est-remover-foto')) document.getElementById('equipamento-est-remover-foto').value = '0';
@@ -3261,6 +3311,9 @@ window.abrirModalEquipamentoEstoque = async function(id) {
         }
         if (document.getElementById('equipamento-est-link-url')) {
             document.getElementById('equipamento-est-link-url').value = '';
+        }
+        if (document.getElementById('equipamento-est-logistica-modelo')) {
+            document.getElementById('equipamento-est-logistica-modelo').value = '';
         }
         if (document.getElementById('equipamento-est-foto')) document.getElementById('equipamento-est-foto').value = '';
         if (document.getElementById('equipamento-est-foto-base64')) document.getElementById('equipamento-est-foto-base64').value = '';
@@ -3343,6 +3396,123 @@ window.duplicarEquipamentoDoModal = async function() {
 window.fecharModalEquipamentoEstoque = function() {
     const modal = document.getElementById('modal-estoque-equipamento');
     if (modal) modal.style.display = 'none';
+    const listEl = document.getElementById('combo-list-modal-logistica-modelo');
+    if (listEl) listEl.style.display = 'none';
+};
+
+window._carregarModelosEstoqueLogisticaCache = async function() {
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/logistica/estoque', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (r.ok) {
+            const d = await r.json();
+            const setMod = new Set(['STD', 'LUXO', 'EXTRA LUXO', 'PCD']);
+            (d.modelos || []).forEach(m => { if (m.modelo) setMod.add(String(m.modelo).trim()); });
+            (d.itens || []).forEach(it => { if (it.modelo) setMod.add(String(it.modelo).trim()); });
+            (window._equipamentosEstoqueData || []).forEach(eq => {
+                if (eq.logistica_estoque_modelo) setMod.add(String(eq.logistica_estoque_modelo).trim());
+            });
+            window._modelosEstoqueLogisticaCache = Array.from(setMod).filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            window._resumoModelosEstoqueLogistica = d.modelos || [];
+            return window._modelosEstoqueLogisticaCache;
+        }
+    } catch (e) {}
+    return window._modelosEstoqueLogisticaCache || ['STD', 'LUXO', 'EXTRA LUXO', 'PCD'];
+};
+
+window.abrirComboModeloEstoqueLogisticaModal = async function(termo) {
+    const listEl = document.getElementById('combo-list-modal-logistica-modelo');
+    if (!listEl) return;
+    const modelos = await window._carregarModelosEstoqueLogisticaCache();
+    const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
+    const filtrados = modelos.filter(m => !q || norm(m).includes(q));
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    let html = '<div onclick="document.getElementById(\'equipamento-est-logistica-modelo\').value=\'\'; document.getElementById(\'combo-list-modal-logistica-modelo\').style.display=\'none\';" style="padding:8px 12px;cursor:pointer;font-size:0.82rem;color:#64748b;border-bottom:1px solid #f1f5f9;">— Sem vínculo com estoque —</div>';
+    filtrados.forEach(mod => {
+        const resMod = (window._resumoModelosEstoqueLogistica || []).find(x => String(x.modelo).toUpperCase() === String(mod).toUpperCase());
+        const qtdInfo = resMod ? (' <span style="color:#047857;font-size:0.75rem;font-weight:600;">(Estoque: ' + resMod.quantidade_total + ')</span>') : '';
+        html += '<div onclick="document.getElementById(\'equipamento-est-logistica-modelo\').value=\'' + esc(mod) + '\'; document.getElementById(\'combo-list-modal-logistica-modelo\').style.display=\'none\';" style="padding:8px 12px;cursor:pointer;font-size:0.84rem;font-weight:600;color:#0f172a;border-bottom:1px solid #f8fafc;display:flex;align-items:center;justify-content:space-between;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'#fff\'">' +
+            '<span><i class="ph ph-package" style="color:#059669;margin-right:6px;"></i>' + esc(mod) + '</span>' +
+            qtdInfo +
+        '</div>';
+    });
+    listEl.innerHTML = html;
+    listEl.style.display = 'block';
+};
+
+document.addEventListener('click', function(e) {
+    const listEl = document.getElementById('combo-list-modal-logistica-modelo');
+    const inpEl = document.getElementById('equipamento-est-logistica-modelo');
+    if (listEl && listEl.style.display === 'block') {
+        if (!listEl.contains(e.target) && e.target !== inpEl) {
+            listEl.style.display = 'none';
+        }
+    }
+});
+
+window.abrirModalVincularEquipamentoLogisticaRapido = async function(equipamentoId) {
+    const item = (window._equipamentosEstoqueData || []).find(x => String(x.id) === String(equipamentoId));
+    if (!item) return;
+    const modelos = await window._carregarModelosEstoqueLogisticaCache();
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const atual = String(item.logistica_estoque_modelo || '').trim();
+
+    const chipsHtml = modelos.map(m => {
+        const ativo = m.toUpperCase() === atual.toUpperCase();
+        return '<button type="button" onclick="document.getElementById(\'swal-inp-modelo-logistica\').value=\'' + esc(m) + '\'" style="padding:6px 12px;border-radius:8px;border:1px solid ' + (ativo ? '#059669' : '#cbd5e1') + ';background:' + (ativo ? '#ecfdf5' : '#f8fafc') + ';color:' + (ativo ? '#047857' : '#334155') + ';font-weight:700;font-size:0.82rem;cursor:pointer;">' + esc(m) + '</button>';
+    }).join('');
+
+    const { isConfirmed, value } = await Swal.fire({
+        title: 'Vincular ao Estoque da Logística',
+        html:
+            '<div style="text-align:left;font-size:0.88rem;color:#334155;">' +
+                '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+                    '<div style="font-size:0.75rem;color:#64748b;font-weight:600;">Equipamento do Comercial (Proposta / Contrato)</div>' +
+                    '<div style="font-weight:700;color:#0f172a;margin-top:2px;">[' + esc(item.codigo) + '] ' + esc(item.nome) + '</div>' +
+                '</div>' +
+                '<label style="display:block;font-weight:600;font-size:0.82rem;color:#475569;margin-bottom:4px;">Modelo no Estoque da Logística (ex: STD, LUXO, PCD)</label>' +
+                '<input id="swal-inp-modelo-logistica" class="form-control" style="width:100%;font-size:0.95rem;margin-bottom:10px;" value="' + esc(atual) + '" placeholder="Digite ou selecione um modelo abaixo...">' +
+                '<div style="font-size:0.76rem;color:#64748b;margin-bottom:6px;">Modelos disponíveis no Estoque da Logística:</div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
+                    chipsHtml +
+                    '<button type="button" onclick="document.getElementById(\'swal-inp-modelo-logistica\').value=\'\'" style="padding:6px 10px;border-radius:8px;border:1px solid #fecaca;background:#fef2f2;color:#dc2626;font-weight:600;font-size:0.78rem;cursor:pointer;">Limpar vínculo</button>' +
+                '</div>' +
+                '<div style="font-size:0.76rem;color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:8px 10px;margin-top:10px;">' +
+                    '<i class="ph ph-info"></i> Quando um <strong>Contrato</strong> tiver este equipamento, o sistema reservará automaticamente a mesma quantidade desse modelo no Estoque da Logística para a data de entrega.' +
+                '</div>' +
+            '</div>',
+        showCancelButton: true,
+        confirmButtonText: 'Salvar Vínculo',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#059669',
+        preConfirm: () => {
+            return (document.getElementById('swal-inp-modelo-logistica')?.value || '').trim();
+        }
+    });
+
+    if (!isConfirmed) return;
+    try {
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token');
+        const r = await fetch(API_URL + '/estoque-equipamentos/' + item.id + '/vincular-logistica', {
+            method: 'PATCH',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ logistica_estoque_modelo: value })
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Erro ao salvar vínculo');
+        item.logistica_estoque_modelo = value;
+        window.renderEquipamentosEstoqueTable();
+        if (typeof window.carregarLogisticaEstoque === 'function') {
+            window.carregarLogisticaEstoque();
+        }
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Erro', text: err.message });
+    }
 };
 
 window.salvarEquipamentoEstoque = async function(event) {
@@ -3356,6 +3526,7 @@ window.salvarEquipamentoEstoque = async function(event) {
     const especificacao_tecnica = (document.getElementById('equipamento-est-especificacao')?.value || '').trim();
     const descricao_proposta = especificacao_tecnica;
     const link_url = (document.getElementById('equipamento-est-link-url')?.value || '').trim();
+    const logistica_estoque_modelo = (document.getElementById('equipamento-est-logistica-modelo')?.value || '').trim();
     const foto_base64 = (document.getElementById('equipamento-est-foto-base64')?.value || '').trim();
     const remover_foto = document.getElementById('equipamento-est-remover-foto')?.value === '1';
 
@@ -3415,6 +3586,7 @@ window.salvarEquipamentoEstoque = async function(event) {
                 especificacao_tecnica,
                 descricao_proposta,
                 link_url,
+                logistica_estoque_modelo,
                 foto_base64: foto_base64 || undefined,
                 remover_foto: remover_foto || undefined
             })

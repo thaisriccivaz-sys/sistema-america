@@ -39,7 +39,7 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261118v2" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261118v5" defer></script>
+    <script src="estoque.js?v=20261126v1" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
@@ -310,6 +310,8 @@
                         Equipes</a>
                     <a href="#" class="nav-item" data-target="logistica-frota"
                         onclick="navigateTo('logistica-frota'); return false;"><i class="ph ph-truck"></i> Frota</a>
+                    <a href="#" class="nav-item" data-target="logistica-estoque"
+                        onclick="navigateTo('logistica-estoque'); return false;"><i class="ph ph-package"></i> Estoque</a>
                     <a href="#" class="nav-item" data-target="logistica-credenciamento"
                         onclick="navigateTo('logistica-credenciamento'); return false;"><i
                             class="ph ph-identification-card"></i> Credenciamento</a>
@@ -903,6 +905,9 @@
                     </div>
                 
                     </section>
+
+                <!-- VIEW: LOGÍSTICA → ESTOQUE -->
+                <section id="view-logistica-estoque" class="content-view" style="padding: 1.25rem 1.5rem;"></section>
 
                 <!-- VIEW: CLIENTES ITINERANTES -->
                 <section id="view-logistica-itinerantes" class="content-view" style="padding:0;">
@@ -4047,6 +4052,7 @@
                                     <tr style="font-size:0.78rem;">
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('codigo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Código <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('nome')" style="cursor:pointer;white-space:nowrap;user-select:none;">Equipamento / Nome <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
+                                        <th onclick="window.ordenarTabelaEquipamentosEstoque('logistica_estoque_modelo')" style="cursor:pointer;white-space:nowrap;user-select:none;">Estoque Logística <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('unidade_medida')" style="cursor:pointer;white-space:nowrap;user-select:none;">Unid. Medida <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('fonte_fornecimento')" style="cursor:pointer;white-space:nowrap;user-select:none;">Fonte de Fornecimento <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
                                         <th onclick="window.ordenarTabelaEquipamentosEstoque('grupo_produto')" style="cursor:pointer;white-space:nowrap;user-select:none;">Grupo de Produto <i class="ph ph-arrows-down-up" style="font-size:0.8em;color:#94a3b8;"></i></th>
@@ -4055,7 +4061,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="table-estoque-equipamentos">
-                                    <tr><td colspan="7" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
+                                    <tr><td colspan="8" style="text-align:center;color:#64748b;">Carregando equipamentos...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -4289,12 +4295,30 @@
                                 </div>
                             </div>
 
-                            <!-- Link do Equipamento (Proposta) -->
-                            <div style="margin-bottom:0.85rem;">
-                                <label style="display:flex;align-items:center;gap:5px;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">
-                                    <i class="ph ph-link" style="color:#7048e8;font-size:0.95rem;"></i> Link do Equipamento (Proposta)
-                                </label>
-                                <input type="text" id="equipamento-est-link-url" class="form-control" style="width:100%;" placeholder="Ex: https://www.americarental.com.br/produto...">
+                            <!-- Vínculo com Equipamento de Estoque da Logística + Link do Equipamento -->
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.85rem; margin-bottom:0.85rem;">
+                                <div style="position:relative;" id="wrap-modal-equip-est-logistica-modelo">
+                                    <label style="display:flex;align-items:center;gap:5px;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">
+                                        <i class="ph ph-package" style="color:#16a34a;font-size:0.95rem;"></i> Vínculo Estoque da Logística (Modelo)
+                                    </label>
+                                    <div style="position:relative; display:flex; align-items:center;">
+                                        <input type="text" id="equipamento-est-logistica-modelo" class="form-control" style="width:100%; padding-right:32px; text-transform:none;" placeholder="Ex: STD, LUXO, EXTRA LUXO, PCD..." autocomplete="off"
+                                            onfocus="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(false)"
+                                            oninput="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(true)"
+                                            onblur="setTimeout(function(){ var d = document.getElementById('combo-list-modal-logistica-modelo'); if(d) d.style.display='none'; }, 180)">
+                                        <button type="button" tabindex="-1" onclick="window.abrirComboModeloEstoqueLogisticaModal && window.abrirComboModeloEstoqueLogisticaModal(false)" title="Selecionar Modelo do Estoque da Logística" style="position:absolute; right:4px; background:none; border:none; color:#64748b; cursor:pointer; padding:4px 6px; display:flex; align-items:center; justify-content:center;">
+                                            <i class="ph ph-caret-down" style="font-size:0.95rem;"></i>
+                                        </button>
+                                    </div>
+                                    <div id="combo-list-modal-logistica-modelo" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:10006; background:#fff; border:1px solid #cbd5e1; border-radius:8px; max-height:220px; overflow-y:auto; box-shadow:0 10px 25px -5px rgba(0,0,0,0.2); margin-top:3px;"></div>
+                                </div>
+
+                                <div>
+                                    <label style="display:flex;align-items:center;gap:5px;margin-bottom:4px;font-weight:600;font-size:0.83rem;color:#475569;">
+                                        <i class="ph ph-link" style="color:#7048e8;font-size:0.95rem;"></i> Link do Equipamento (Proposta)
+                                    </label>
+                                    <input type="text" id="equipamento-est-link-url" class="form-control" style="width:100%;" placeholder="Ex: https://www.americarental.com.br/produto...">
+                                </div>
                             </div>
 
                             <!-- Especificação Técnica -->
@@ -6924,7 +6948,7 @@
     <script src="gerenciar_avaliacoes.js?v=20261110v2"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1791925000000"></script>
-    <script src="usuarios.js?v=20261126v1"></script>
+    <script src="usuarios.js?v=20261126v2"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -6963,6 +6987,7 @@
     <script src="comercial_aprovacao.js?v=20261126v7"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>
+    <script src="logistica_estoque.js?v=20261126v1"></script>
     <script src="rh_logistica.js?v=1791923000000"></script>
     <script src="licencas.js?v=1791577700000"></script>
     <script src="celulares.js?v=20261030v1"></script>
@@ -6972,7 +6997,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=20261119v1"></script>
-    <script src="app.js?v=20261126v21"></script>
+    <script src="app.js?v=20261126v22"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->
