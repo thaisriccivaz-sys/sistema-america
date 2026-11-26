@@ -81,7 +81,7 @@ const TELAS_SISTEMA = [
     { modulo: 'Comercial', pagina_id: 'comercial-modelos-contrato', pagina_nome: 'Modelos Contratos', icone: 'ph-file-doc' },
     { modulo: 'Comercial', pagina_id: 'comercial-credenciamento', pagina_nome: 'Solicitar Credencial', icone: 'ph-identification-card' },
     { modulo: 'Comercial', pagina_id: 'comercial-proposta', pagina_nome: 'Proposta', icone: 'ph-file-text' },
-    { modulo: 'Comercial', pagina_id: 'comercial-contratos', pagina_nome: 'Contratos', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-contratos', pagina_nome: 'Contratos', icone: 'ph-files' }, { modulo: 'Comercial', pagina_id: 'comercial-os', pagina_nome: 'OS', icone: 'ph-clipboard-text' },
     { modulo: 'Comercial', pagina_id: 'comercial-assinaturas', pagina_nome: 'Assinaturas', icone: 'ph-signature' },
     { modulo: 'Comercial', pagina_id: 'comercial-enderecos', pagina_nome: 'Endereços', icone: 'ph-map-pin' },
     { modulo: 'Comercial', pagina_id: 'comercial-clientes', pagina_nome: 'Cadastro de Cliente', icone: 'ph-user-plus' },
@@ -689,7 +689,7 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-dashboard', 'comercial-credenciamento', 'comercial-proposta', 'comercial-contratos', 'comercial-assinaturas', 'comercial-comissao'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
+        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-dashboard', 'comercial-proposta', 'comercial-contratos', 'comercial-os', 'comercial-assinaturas', 'comercial-comissao', 'comercial-credenciamento'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',
