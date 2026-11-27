@@ -85,7 +85,7 @@
         enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', zona: '', municipioUf: '' } },
         propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fases: [], faseBusca: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
         contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacoes: [], sitBusca: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
-        os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
+        os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOsList: [], statusOsBusca: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
     };
 
     let atendentesComercialLista = [];
@@ -94,7 +94,7 @@
 
     function normStr(s) {
         return String(s || '')
-            .replace(/^[💎🥇🥈🥉]\s*/, '')
+            .replace(/^(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD|\s)+/gu, '')
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
@@ -126,7 +126,7 @@
         if (typeof window.limparPrefixoGrupoCliente === 'function') {
             return window.limparPrefixoGrupoCliente(String(nome || ''));
         }
-        return String(nome || '').replace(/^[💎🥇🥈🥉]\s*/g, '').trim();
+        return String(nome || '').replace(/^(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD|\s)+/gu, '').trim();
     }
 
     function iconePorGrupo(grupoRaw) {
@@ -472,11 +472,15 @@
         if (tipo === 'os') {
             const qEquip = normStr(f.equipamento);
             const qServ = normStr(f.servico);
+            const stsSelNorm = Array.isArray(f.statusOsList) ? f.statusOsList.map(x => normStr(x)).filter(Boolean) : [];
             return dados.filter(p => {
                 if (q && !p._search.includes(q)) return false;
                 if (f.modalidade && normStr(p._modalidade) !== normStr(f.modalidade)) return false;
                 if (f.tipoOs && normStr(p.os_tipo_operacao || 'Envio') !== normStr(f.tipoOs)) return false;
-                if (f.statusOs && normStr(p.status_os || 'EM ELABORAÇÃO') !== normStr(f.statusOs)) return false;
+                if (stsSelNorm.length > 0) {
+                    const rowSt = normStr(p.status_os || 'EM ELABORAÇÃO');
+                    if (!stsSelNorm.includes(rowSt)) return false;
+                }
                 if (!atendentePassaFiltro(p, f.atendentes)) return false;
                 if (qEquip && !p._equipamentosNorm.includes(qEquip)) return false;
                 if (qServ && !p._servicosNorm.includes(qServ)) return false;
@@ -614,15 +618,15 @@
 
         const colunas = [
             { key: 'numero_os', label: 'Nº OS', width: 12, widthPx: 85 },
-            { key: 'modalidade', label: 'Obra / Evento', width: 14, widthPx: 105 },
-            { key: 'tipo_os', label: 'Tipo de OS', width: 18, widthPx: 125 },
+            { key: 'modalidade', label: 'Obra / Evento', width: 14, widthPx: 100 },
+            { key: 'tipo_os', label: 'Tipo de OS', width: 18, widthPx: 120 },
             { key: 'data_cadastro', label: 'Data Cadastro', width: 14, widthPx: 105 },
             { key: 'contrato', label: 'Contrato', width: 14, widthPx: 95 },
-            { key: 'cliente', label: 'Cliente', width: 38, widthPx: 240 },
-            { key: 'contato', label: 'Contato', width: 24, widthPx: 150 },
+            { key: 'cliente', label: 'Cliente', width: 38, widthPx: 250 },
+            { key: 'contato', label: 'Contato', width: 24, widthPx: 150, ocultarTela: true },
             { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145 },
-            { key: 'status_os', label: 'Status da OS', width: 26, widthPx: 195 },
-            { key: 'equipamentos', label: 'Equipamentos', width: 40, widthPx: 240, tipo: 'multilinha' },
+            { key: 'status_os', label: 'Status da OS', width: 26, widthPx: 205 },
+            { key: 'equipamentos', label: 'Equipamentos', width: 40, widthPx: 220, tipo: 'multilinha' },
             { key: 'servicos', label: 'Serviços', width: 34, widthPx: 210, tipo: 'multilinha' },
             { key: 'data_entrega', label: 'Data Entrega', width: 14, widthPx: 105 },
             { key: 'data_retirada', label: 'Data Retirada', width: 14, widthPx: 105 },
@@ -683,24 +687,31 @@
             onmouseout="this.style.color='#1e293b'; this.style.textDecorationColor='#cbd5e1';">${esc(txt)}</button>`;
     }
 
-    function renderProdutosExpansivelHtml(itens, uidKey) {
+    function renderProdutosExpansivelHtml(itens, uidKey, opts = {}) {
         if (!Array.isArray(itens) || !itens.length) {
             return '<span style="color:#94a3b8;">—</span>';
         }
+        const singular = opts.singular || 'produto';
+        const plural = opts.plural || 'produtos';
+        const icone = opts.icone || 'ph-package';
+        const corIcone = opts.corIcone || '#6366f1';
+        const itemBg = opts.itemBg || '#f8fafc';
+        const itemTxt = opts.itemTxt || '#1e293b';
+        const itemBorda = opts.itemBorda || '#e2e8f0';
         const safeKey = String(uidKey || '').replace(/[^\w\-]/g, '_');
         const aberto = produtosExpandidosSet.has(safeKey);
-        const qtdLabel = itens.length === 1 ? '1 produto' : `${itens.length} produtos`;
+        const qtdLabel = itens.length === 1 ? `1 ${singular}` : `${itens.length} ${plural}`;
         return `<div style="min-width:0; max-width:100%;">
             <button type="button" onclick="window._comercialRelatorios.toggleDetalhesProdutos('${safeKey}', this)"
                 style="width:100%; background:${aberto ? '#eef2ff' : '#f8fafc'}; color:${aberto ? '#4338ca' : '#334155'}; border:1px solid ${aberto ? '#c7d2fe' : '#cbd5e1'}; border-radius:7px; padding:4px 9px; font-size:0.74rem; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
                 <span style="display:inline-flex; align-items:center; gap:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                    <i class="ph ph-package" style="font-size:0.86rem; color:#6366f1; flex-shrink:0;"></i>
+                    <i class="ph ${icone}" style="font-size:0.86rem; color:${corIcone}; flex-shrink:0;"></i>
                     <span>${esc(qtdLabel)}</span>
                 </span>
                 <i class="ph ph-caret-down comrel-prod-seta" style="font-size:0.82rem; flex-shrink:0; transition:transform 0.18s ease; transform:${aberto ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
             </button>
             <div id="comrel-prod-det-${safeKey}" style="display:${aberto ? 'flex' : 'none'}; flex-direction:column; gap:3px; margin-top:5px; min-width:0; max-width:100%;">
-                ${itens.map(item => `<div style="background:#f8fafc; color:#1e293b; border:1px solid #e2e8f0; border-radius:6px; padding:3px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal; overflow-wrap:break-word;">${esc(item)}</div>`).join('')}
+                ${itens.map(item => `<div style="background:${itemBg}; color:${itemTxt}; border:1px solid ${itemBorda}; border-radius:6px; padding:3px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal; overflow-wrap:break-word;">${esc(item)}</div>`).join('')}
             </div>
         </div>`;
     }
@@ -840,18 +851,10 @@
 
         return paginaLinhas.map(p => {
             const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
-            const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
-                clienteId: '',
-                clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
-                grupo: ''
-            });
             const mod = p._modalidade || resolverModalidadeOs(p);
-            const modHtml = typeof window.renderBadgeModalidadeObraEventoOsHtml === 'function'
-                ? window.renderBadgeModalidadeObraEventoOsHtml(mod)
-                : esc(mod);
-            const stHtml = typeof window.renderBadgeStatusOsComercialHtml === 'function'
-                ? window.renderBadgeStatusOsComercialHtml(p.status_os || 'EM ELABORAÇÃO')
-                : esc(p.status_os || 'EM ELABORAÇÃO');
+            const ehModEv = normStr(mod) === 'evento';
+            const modHtml = `<span style="background:${ehModEv ? '#faf5ff' : '#eff6ff'}; color:${ehModEv ? '#8E24AA' : '#156EB6'}; border:1px solid ${ehModEv ? '#e9d5ff' : '#bfdbfe'}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-block;">${ehModEv ? 'Evento' : 'Obra'}</span>`;
+            const stHtml = renderBadgeStatusOsFiltroHtml(p.status_os || 'EM ELABORAÇÃO', false);
             const dts = p._dtsOs || extrairDatasOs(p);
             const dtCad = fmtDataBr(String(p.os_criada_em || '').substring(0, 10) || p.data_cadastro);
             return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -866,12 +869,11 @@
                     ${p.contrato ? `<button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})"
                         style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.75rem; cursor:pointer;">${esc(p.contrato)}</button>` : '—'}
                 </td>
-                <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
-                <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
+                <td style="padding:8px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${esc(cliExib)}</td>
                 <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                 <td style="padding:8px 10px; white-space:nowrap;">${stHtml}</td>
-                <td style="padding:8px 10px;">${renderListaCompactaHtml(p._equipamentosList, '#fefce8', '#854d0e', '#fde68a')}</td>
-                <td style="padding:8px 10px;">${renderListaCompactaHtml(p._servicosList, '#eff6ff', '#1e40af', '#bfdbfe')}</td>
+                <td style="padding:8px 10px;">${renderProdutosExpansivelHtml(p._equipamentosList, 'os_eq_' + p.id, { singular: 'equipamento', plural: 'equipamentos', icone: 'ph-package', corIcone: '#ca8a04', itemBg: '#fefce8', itemTxt: '#854d0e', itemBorda: '#fde68a' })}</td>
+                <td style="padding:8px 10px;">${renderProdutosExpansivelHtml(p._servicosList, 'os_sv_' + p.id, { singular: 'serviço', plural: 'serviços', icone: 'ph-wrench', corIcone: '#2563eb', itemBg: '#eff6ff', itemTxt: '#1e40af', itemBorda: '#bfdbfe' })}</td>
                 <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${dts.data_entrega ? esc(fmtDataBr(dts.data_entrega)) : '—'}</td>
                 <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${dts.data_retirada ? esc(fmtDataBr(dts.data_retirada)) : '—'}</td>
                 <td style="padding:8px 10px; color:#475569; max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(p.endereco_instalacao || '')}">${esc(p.endereco_instalacao || '—')}</td>
@@ -1159,6 +1161,107 @@
         }).join('');
     }
 
+    function obterConfigStatusOsLocal(stRaw) {
+        const listaCfg = Array.isArray(window.OS_COMERCIAL_STATUS_CONFIG) ? window.OS_COMERCIAL_STATUS_CONFIG : [
+            { nome: 'EM ELABORAÇÃO',                bg: '#fef3c7', text: '#b45309', border: '#fcd34d', icon: 'ph-pencil-simple-line' },
+            { nome: 'LIBERADO',                      bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'ph-check-circle' },
+            { nome: 'ENTREGA AGENDADA',              bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'ph-calendar-check' },
+            { nome: 'ENTREGUE - ACOMPANHAMENTO OS',  bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc', icon: 'ph-truck' },
+            { nome: 'RETIRADA AGENDADA',             bg: '#fef9c3', text: '#a16207', border: '#fde047', icon: 'ph-calendar-plus' },
+            { nome: 'RETIRADA PARCIAL REALIZADA',    bg: '#ffedd5', text: '#c2410c', border: '#fdba74', icon: 'ph-arrows-split' },
+            { nome: 'RETIRADA TOTAL REALIZADA',      bg: '#f1f5f9', text: '#334155', border: '#cbd5e1', icon: 'ph-seal-check' }
+        ];
+        const sNorm = normStr(stRaw);
+        return listaCfg.find(c => normStr(c.nome) === sNorm) || listaCfg[0];
+    }
+
+    function renderBadgeStatusOsFiltroHtml(stRaw, compacto = false) {
+        const cfg = obterConfigStatusOsLocal(stRaw);
+        const pad = compacto ? '1px 8px' : '1px 9px';
+        const fz = compacto ? '0.67rem' : '0.71rem';
+        return `<span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:${pad}; border-radius:999px; font-size:${fz}; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase;">
+            <i class="ph ${cfg.icon}" style="font-size:0.82rem;"></i> ${esc(String(cfg.nome || stRaw || '').toUpperCase())}
+        </span>`;
+    }
+
+    function obterOpcoesStatusOsRelatorio() {
+        const st = stateByTipo.os;
+        const statusSet = new Set(STATUS_OS_TODOS);
+        (st?.dados || []).forEach(d => {
+            const s = String(d.status_os || '').trim();
+            if (s && !Array.from(statusSet).some(x => normStr(x) === normStr(s))) statusSet.add(s);
+        });
+        return Array.from(statusSet);
+    }
+
+    function renderResumoBotaoStatusOs() {
+        const st = stateByTipo.os;
+        const sel = Array.isArray(st?.filtros?.statusOsList) ? st.filtros.statusOsList : [];
+        if (sel.length === 0) {
+            return '<span style="color:#475569; font-weight:500;">Todos</span>';
+        }
+        if (sel.length === 1) {
+            return renderBadgeStatusOsFiltroHtml(sel[0], true);
+        }
+        return `<span style="background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; text-transform:uppercase;">${sel.length} STATUS SELECIONADOS</span>`;
+    }
+
+    function renderStatusOsMultiHtml(flexCss = 'flex:1.25 1 205px;') {
+        const st = stateByTipo.os;
+        const lblSt = 'display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:3px;';
+        return `
+            <div style="${flexCss}">
+                <label style="${lblSt}">Status da OS</label>
+                <div id="comrel-os-status-wrap" style="position:relative; width:100%;">
+                    <button type="button" id="comrel-os-status-btn" onclick="window._comercialRelatorios.toggleDropdownStatusOs(event)"
+                        style="width:100%; height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#1e293b; font-size:0.81rem; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
+                        <span id="comrel-os-status-lbl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-flex; align-items:center;">${renderResumoBotaoStatusOs()}</span>
+                        <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b; flex-shrink:0;"></i>
+                    </button>
+                    <div id="comrel-os-status-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:315px; width:100%; max-height:330px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.16); z-index:1155; overflow:hidden;">
+                        <div style="padding:7px 8px; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="comrel-os-status-busca" value="${esc(st.filtros.statusOsBusca || '')}"
+                                oninput="window._comercialRelatorios.filtrarListaStatusOs(this.value)"
+                                placeholder="Digite para filtrar status..."
+                                style="flex:1; height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.78rem; text-transform:none; outline:none;">
+                            <button type="button" onclick="window._comercialRelatorios.limparStatusOs(event)" title="Limpar seleção"
+                                style="height:28px; padding:0 8px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">Limpar</button>
+                        </div>
+                        <div id="comrel-os-status-lista" style="max-height:270px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderListaOpcoesStatusOs() {
+        const listEl = document.getElementById('comrel-os-status-lista');
+        const st = stateByTipo.os;
+        if (!listEl || !st) return;
+        const busca = normStr(st.filtros.statusOsBusca || '');
+        const selecionados = Array.isArray(st.filtros.statusOsList) ? st.filtros.statusOsList : [];
+        const todos = obterOpcoesStatusOsRelatorio();
+        const filtrados = busca
+            ? todos.filter(s => normStr(s).includes(busca) || normStr(obterConfigStatusOsLocal(s).nome).includes(busca))
+            : todos;
+
+        if (!filtrados.length) {
+            listEl.innerHTML = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:0.78rem;">Nenhum status encontrado.</div>';
+            return;
+        }
+
+        listEl.innerHTML = filtrados.map(s => {
+            const marcado = selecionados.some(x => normStr(x) === normStr(s));
+            const sEsc = String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<label style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid #f1f5f9; cursor:pointer; background:${marcado ? '#f5f3ff' : '#fff'};"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${marcado ? '#f5f3ff' : '#fff'}'">
+                <input type="checkbox" ${marcado ? 'checked' : ''} onchange="window._comercialRelatorios.toggleItemStatusOs('${sEsc}', this.checked)"
+                    style="width:14px; height:14px; accent-color:#7048e8; cursor:pointer; margin:0; flex-shrink:0;">
+                ${renderBadgeStatusOsFiltroHtml(s, false)}
+            </label>`;
+        }).join('');
+    }
+
     function renderFiltrosHtml(tipo) {
         const st = stateByTipo[tipo];
         const f = st.filtros;
@@ -1297,12 +1400,6 @@
             `;
         }
 
-        const statusSet = new Set(STATUS_OS_TODOS);
-        st.dados.forEach(d => {
-            const s = String(d.status_os || '').trim();
-            if (s && !Array.from(statusSet).some(x => normStr(x) === normStr(s))) statusSet.add(s);
-        });
-        const statusOpts = Array.from(statusSet);
         const tiposOsOpts = ['Envio', 'Visita técnica', 'Limpa fossa', 'Compras', 'Equipamentos'];
         return `
             <div style="flex:1.6 1 200px;">
@@ -1325,13 +1422,7 @@
                     ${tiposOsOpts.map(t => `<option value="${esc(t)}" ${f.tipoOs === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                 </select>
             </div>
-            <div style="flex:1.1 1 165px;">
-                <label style="${lblSt}">Status da OS</label>
-                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'statusOs', this.value, false)" style="width:100%; ${inpSt}">
-                    <option value="">Todos</option>
-                    ${statusOpts.map(s => `<option value="${esc(s)}" ${f.statusOs === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
-                </select>
-            </div>
+            ${renderStatusOsMultiHtml('flex:1.25 1 205px;')}
             ${renderAtendenteMultiHtml('os', 'flex:1.1 1 185px;')}
             <div style="flex:1 1 155px;">
                 <label style="${lblSt}">Equipamento</label>
@@ -1343,13 +1434,15 @@
                 <input type="text" data-filtro="servico" value="${esc(f.servico)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'servico', this.value, true)"
                     placeholder="Filtrar serviço..." style="width:100%; ${inpSt}">
             </div>
-            <div style="flex:0.6 1 115px;">
-                <label style="${lblSt}">Cadastro De</label>
-                <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
-            </div>
-            <div style="flex:0.6 1 115px;">
-                <label style="${lblSt}">Até</label>
-                <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
+            <div style="display:flex; gap:0.65rem; flex:1 1 265px; flex-wrap:nowrap; align-items:flex-end;">
+                <div style="flex:1 1 125px; max-width:185px;">
+                    <label style="${lblSt}">Cadastro De</label>
+                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
+                <div style="flex:1 1 125px; max-width:185px;">
+                    <label style="${lblSt}">Até</label>
+                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
             </div>
         `;
     }
@@ -1712,6 +1805,56 @@
             renderCorpoTabela('contratos');
         },
 
+        toggleDropdownStatusOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('comrel-os-status-dropdown');
+            if (!drop) return;
+            if (drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            renderListaOpcoesStatusOs();
+            drop.style.display = 'block';
+            document.getElementById('comrel-os-status-busca')?.focus();
+        },
+
+        filtrarListaStatusOs(termo) {
+            const st = stateByTipo.os;
+            if (!st) return;
+            st.filtros.statusOsBusca = termo;
+            renderListaOpcoesStatusOs();
+        },
+
+        toggleItemStatusOs(stNome, checked) {
+            const st = stateByTipo.os;
+            if (!st) return;
+            const list = Array.isArray(st.filtros.statusOsList) ? [...st.filtros.statusOsList] : [];
+            const idx = list.findIndex(x => normStr(x) === normStr(stNome));
+            if (checked && idx === -1) list.push(stNome);
+            if (!checked && idx >= 0) list.splice(idx, 1);
+            st.filtros.statusOsList = list;
+            st.page = 1;
+            const lbl = document.getElementById('comrel-os-status-lbl');
+            if (lbl) lbl.innerHTML = renderResumoBotaoStatusOs();
+            renderListaOpcoesStatusOs();
+            renderCorpoTabela('os');
+        },
+
+        limparStatusOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const st = stateByTipo.os;
+            if (!st) return;
+            st.filtros.statusOsList = [];
+            st.filtros.statusOsBusca = '';
+            st.page = 1;
+            const lbl = document.getElementById('comrel-os-status-lbl');
+            const busca = document.getElementById('comrel-os-status-busca');
+            if (lbl) lbl.innerHTML = renderResumoBotaoStatusOs();
+            if (busca) busca.value = '';
+            renderListaOpcoesStatusOs();
+            renderCorpoTabela('os');
+        },
+
         limparFiltros(tipo) {
             const st = stateByTipo[tipo];
             if (!st) return;
@@ -1822,7 +1965,8 @@
             ['comrel-contratos-atend-wrap', 'comrel-contratos-atend-dropdown'],
             ['comrel-os-atend-wrap', 'comrel-os-atend-dropdown'],
             ['comrel-propostas-fase-wrap', 'comrel-propostas-fase-dropdown'],
-            ['comrel-contratos-sit-wrap', 'comrel-contratos-sit-dropdown']
+            ['comrel-contratos-sit-wrap', 'comrel-contratos-sit-dropdown'],
+            ['comrel-os-status-wrap', 'comrel-os-status-dropdown']
         ];
         pares.forEach(([wrapId, dropId]) => {
             const drop = document.getElementById(dropId);

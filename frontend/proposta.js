@@ -6681,6 +6681,10 @@ window._aplicarIconeEmInput = function(inputEl, spanId, icone, defaultPadLeft = 
     }
 };
 
+window.limparPrefixoGrupoCliente = function(val) {
+    return String(val ?? '').replace(/^(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD|\s)+/gu, '').trim();
+};
+
 window.obterIconeGrupoPorNomeCliente = function(nomeOuObj, listaClientes) {
     if (!nomeOuObj) return '';
     if (typeof nomeOuObj === 'object') {
@@ -6688,7 +6692,7 @@ window.obterIconeGrupoPorNomeCliente = function(nomeOuObj, listaClientes) {
         if (dir) return dir;
         nomeOuObj = nomeOuObj.nome_razao_social || nomeOuObj.nome_fantasia || '';
     }
-    const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const normStr = (s) => window.limparPrefixoGrupoCliente(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const qNorm = normStr(nomeOuObj);
     if (!qNorm) return '';
     const lista = listaClientes || _clientesCache || [];
@@ -6707,7 +6711,7 @@ window.formatarNomeClienteComIcone = function(nomeOuObj, grupoOpcional, listaOpc
     const rawNome = typeof nomeOuObj === 'object'
         ? (nomeOuObj.nome_razao_social || nomeOuObj.nome_fantasia || nomeOuObj.cliente_nome || '')
         : String(nomeOuObj || '');
-    const nomeLimpo = String(rawNome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    const nomeLimpo = window.limparPrefixoGrupoCliente(rawNome);
     if (!nomeLimpo) return '';
     const ico = (grupoOpcional ? window.obterIconeApenasGrupoCliente(grupoOpcional) : '')
         || window.obterIconeGrupoPorNomeCliente(nomeOuObj, listaOpcional);
@@ -9628,7 +9632,11 @@ window.salvarNovoContatoModalProposta = async function() {
                 }
             } else if (window._novoContatoModalOrigemTarget === 'os_comercial') {
                 if (typeof window._onOsComercialContatoSalvo === 'function') {
-                    window._onOsComercialContatoSalvo(conNome, empRazao);
+                    window._onOsComercialContatoSalvo(conNome, empRazao, conCelular, conEmail);
+                }
+            } else if (window._novoContatoModalOrigemTarget === 'os_comercial_instalacao') {
+                if (typeof window._onOsComercialContatoInstalacaoSalvo === 'function') {
+                    window._onOsComercialContatoInstalacaoSalvo({ nome: conNome, celular: conCelular, email: conEmail, empRazao });
                 }
             } else {
                 const propContatoInput = document.getElementById('prop-contato');
@@ -9666,7 +9674,7 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null, origemA
         ? (document.getElementById('prop-interveniente')?.value || '')
         : (targetOrigem === 'aprovacao'
             ? (document.getElementById('caprv-inp-cliente')?.value || document.getElementById('prop-cliente')?.value || '')
-            : (targetOrigem === 'os_comercial'
+            : ((targetOrigem === 'os_comercial' || targetOrigem === 'os_comercial_instalacao')
                 ? (document.getElementById('cos-cliente')?.value || document.getElementById('prop-cliente')?.value || '')
                 : (document.getElementById('prop-cliente')?.value || '')));
     const clienteNome = (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(rawClienteRef) : rawClienteRef).trim();

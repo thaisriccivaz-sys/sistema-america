@@ -44016,6 +44016,10 @@ app.post('/api/comercial/os-avulsa', authenticateToken, async (req, res) => {
       const servFreteFob = Number(b.servico_frete_fob) ? 1 : 0;
       const tipoFrete = String(b.tipo_frete || (servFreteFob ? 'FOB' : '')).trim();
       const valorTotal = Number(b.valor_total) || 0;
+      const contatoInstalacao = String(b.contato_instalacao_contrato || '').trim();
+      const contatosRespJson = typeof b.contatos_responsaveis_contrato_json === 'string'
+        ? b.contatos_responsaveis_contrato_json
+        : JSON.stringify(b.contatos_responsaveis_contrato_json || {});
 
       db.run(
         `INSERT INTO propostas (
@@ -44023,13 +44027,15 @@ app.post('/api/comercial/os-avulsa', authenticateToken, async (req, res) => {
            titulo_contrato, cliente_nome, contato_nome, endereco_instalacao, nome_evento,
            observacoes, numero_os, status_os, os_criada_em, os_tipo_operacao, os_comercial_dados_json,
            itens, itens_servicos, servico_frete_fob, tipo_frete, valor_total,
+           contato_instalacao_contrato, contatos_responsaveis_contrato_json,
            criado_em, atualizado_em
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           '', '', tipoModalidade, atendente, dataCriada, 'OS Avulsa', 'OS AVULSA',
           titulo, clienteNome, contatoNome, enderecoInst, nomeEvento,
           obs, novoNumOs, statusOs, dataCriada, tipoOpOs, dadosJson,
           itensJson, itensServicosJson, servFreteFob, tipoFrete, valorTotal,
+          contatoInstalacao, contatosRespJson,
           agora, agora
         ],
         function(errIns) {
@@ -51799,7 +51805,7 @@ db.run(`CREATE TABLE IF NOT EXISTS clientes_historico_faturamento (
 });
 
 function limparEmojiGrupoClienteHist(nome) {
-  return String(nome || '').replace(/^[💎🥇🥈🥉]\s*/g, '').trim();
+  return String(nome || '').replace(/^(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD|\s)+/gu, '').trim();
 }
 
 function normNomeClienteHist(nome) {
@@ -52064,7 +52070,7 @@ app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (r
     const body = req.body || {};
     const titulo = String(body.titulo || 'Relatório Comercial').trim();
     const nomeArqBase = String(body.nomeArquivo || 'Relatorio_Comercial')
-      .replace(/[💎🥇🥈🥉]/g, '')
+      .replace(/(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD)/gu, '')
       .replace(/[^\w\-]+/g, '_')
       .replace(/^_+|_+$/g, '') || 'Relatorio_Comercial';
     const colunas = Array.isArray(body.colunas) ? body.colunas : [];
@@ -52074,7 +52080,7 @@ app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (r
       return res.status(400).json({ error: 'Nenhuma coluna informada para exportação.' });
     }
 
-    const limparPrefixoGrupo = (val) => String(val ?? '').replace(/^[\s💎🥇🥈🥉]+/g, '').trim();
+    const limparPrefixoGrupo = (val) => String(val ?? '').replace(/^(?:\s|💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD)+/gu, '').trim();
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'América Rental';

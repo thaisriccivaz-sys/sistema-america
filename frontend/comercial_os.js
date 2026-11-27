@@ -89,12 +89,100 @@
         anexosAtuais: []
     };
 
+    function limparPrefixoGrupoSeguroOs(val) {
+        return String(val ?? '')
+            .replace(/^(?:💎|🥇|🥈|🥉|[\uD800-\uDFFF]|\uFFFD|\s)+/gu, '')
+            .trim();
+    }
+
     function normStr(s) {
-        return String(s || '')
+        return limparPrefixoGrupoSeguroOs(s)
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
             .trim();
+    }
+
+    function formatarIntervaloHorarioMascaraOs(raw, prevRaw = '') {
+        let s = String(raw || '');
+        const p = String(prevRaw || '');
+        // Permite apagar com Backspace sobre os separadores ' às ' e ':'
+        if (p.endsWith(' às ') && s === p.slice(0, -1)) {
+            const digs = p.replace(/\D/g, '');
+            s = digs.slice(0, Math.max(0, digs.length - 1));
+        } else if (p.endsWith(':') && s === p.slice(0, -1)) {
+            const digs = p.replace(/\D/g, '');
+            s = digs.slice(0, Math.max(0, digs.length - 1));
+        }
+        let d = s.replace(/\D/g, '').slice(0, 8);
+        if (!d) return '';
+
+        const clamp2 = (twoDigits, maxVal) => {
+            if (twoDigits.length < 2) return twoDigits;
+            const n = parseInt(twoDigits, 10);
+            if (isNaN(n)) return twoDigits;
+            return String(Math.min(maxVal, Math.max(0, n))).padStart(2, '0');
+        };
+
+        if (d.length <= 2) {
+            return clamp2(d, 23);
+        }
+        const h1 = clamp2(d.slice(0, 2), 23);
+        if (d.length <= 4) {
+            const m1 = clamp2(d.slice(2, 4), 59);
+            return `${h1}:${m1}`;
+        }
+        const m1 = clamp2(d.slice(2, 4), 59);
+        if (d.length <= 6) {
+            const h2 = clamp2(d.slice(4, 6), 23);
+            return `${h1}:${m1} às ${h2}`;
+        }
+        const h2 = clamp2(d.slice(4, 6), 23);
+        const m2 = clamp2(d.slice(6, 8), 59);
+        return `${h1}:${m1} às ${h2}:${m2}`;
+    }
+
+    function horarioIntervaloValidoOs(val) {
+        return /^\d{2}:\d{2}\s+às\s+\d{2}:\d{2}$/.test(String(val || '').trim());
+    }
+
+    function extrairContatosInstalacaoIniciaisOs(prop, salvo) {
+        const adicionarUnicos = (destino, entrada) => {
+            const itens = Array.isArray(entrada)
+                ? entrada
+                : String(entrada || '').split(/\s*\|\s*|\s*;\s*/);
+            itens.forEach(raw => {
+                const txt = String(raw || '').trim();
+                if (!txt) return;
+                const nomeBase = normStr(txt.split(' - ')[0]);
+                const jaExiste = destino.some(x => normStr(x) === normStr(txt) || (nomeBase && normStr(String(x).split(' - ')[0]) === nomeBase));
+                if (!jaExiste) destino.push(txt);
+            });
+        };
+
+        const lista = [];
+        if (salvo && Array.isArray(salvo.contatos_instalacao) && salvo.contatos_instalacao.length > 0) {
+            adicionarUnicos(lista, salvo.contatos_instalacao);
+            return lista;
+        }
+        if (prop) {
+            if (prop.contato_instalacao_contrato) {
+                adicionarUnicos(lista, prop.contato_instalacao_contrato);
+            }
+            if (prop.contatos_responsaveis_contrato_json) {
+                try {
+                    const obj = typeof prop.contatos_responsaveis_contrato_json === 'string'
+                        ? JSON.parse(prop.contatos_responsaveis_contrato_json || '{}')
+                        : (prop.contatos_responsaveis_contrato_json || {});
+                    if (Array.isArray(obj.instalacao_lista) && obj.instalacao_lista.length > 0) {
+                        adicionarUnicos(lista, obj.instalacao_lista);
+                    } else if (obj.instalacao) {
+                        adicionarUnicos(lista, obj.instalacao);
+                    }
+                } catch (_) {}
+            }
+        }
+        return lista;
     }
 
     function esc(s) {
@@ -565,6 +653,7 @@
             fob_placa_veiculo: salvo.fob_placa_veiculo || '',
             fob_nome_motorista: salvo.fob_nome_motorista || '',
 
+            contatos_instalacao: extrairContatosInstalacaoIniciaisOs(prop, salvo),
             distribuicao_enderecos: Array.isArray(salvo.distribuicao_enderecos) ? salvo.distribuicao_enderecos : [],
 
             enviada_logistica: Boolean(salvo.enviada_logistica)
@@ -577,20 +666,40 @@
      */
     function verificarCamposObrigatoriosOsPreenchidos() {
         const prop = state.osAtual;
-        const d = state.dadosOs;
-        if (!prop || !prop.id || !d) return { ok: false, pendencias: ['Carregue ou salve uma OS válida'] };
+        const d = state.dadosOs || {};
+        const isNovo = !prop || !prop.id;
+        const veioDeContrato = osVeioDeContrato(prop);
 
         const pendencias = [];
         const modAtual = resolverModalidadeObraEventoOs(prop, d);
-        const ehEvento = modAtual === 'Evento';
+        const ehEvento = normStr(modAtual) === 'evento';
         const regrasPS = obterRegrasProdutosEServicosOs(prop, d);
         const temFob = regrasPS.temFob;
 
-        const tipoOsVal = regrasPS.tipoOsVal;
-        if (!String(tipoOsVal || '').trim()) pendencias.push('Tipo de OS');
+        const tipoOsVal = String(document.getElementById('cos-tipo')?.value ?? regrasPS.tipoOsVal ?? '').trim();
+        if (!tipoOsVal) pendencias.push('Tipo de OS *');
+
+        const dataCadVal = String(document.getElementById('cos-data-cadastro')?.value ?? (isNovo ? (d.os_criada_em_draft || hojeIso()) : (prop.os_criada_em || hojeIso()))).trim();
+        if (!dataCadVal) pendencias.push('Data Cadastro *');
+
+        const tituloVal = String(document.getElementById('cos-titulo-contrato')?.value ?? (isNovo ? (d.titulo_contrato_draft || '') : (prop.titulo_contrato || ''))).trim();
+        if (!veioDeContrato && !tituloVal) pendencias.push('Título *');
+
+        const cliVal = limparPrefixoGrupoSeguroOs(document.getElementById('cos-cliente')?.value ?? (isNovo ? (d.cliente_nome_draft || '') : (prop.cliente_nome || '')));
+        if (!cliVal) pendencias.push('Cliente *');
+
+        const contatoVal = String(document.getElementById('cos-contato')?.value ?? (isNovo ? (d.contato_nome_draft || '') : (prop.contato_nome || ''))).trim();
+        if (!contatoVal) pendencias.push('Contato *');
+
+        const ctsInst = Array.isArray(d.contatos_instalacao)
+            ? d.contatos_instalacao.filter(x => Boolean(String(x || '').trim()))
+            : extrairContatosInstalacaoIniciaisOs(prop, d);
+        if (ctsInst.length === 0) {
+            pendencias.push('Contato(s) de Instalação *');
+        }
 
         if (regrasPS.produtoObrigatorio && regrasPS.itensAtivos.length === 0) {
-            pendencias.push(`Adicionar pelo menos 1 Produto (obrigatório para OS de ${tipoOsVal})`);
+            pendencias.push(`Adicionar pelo menos 1 Produto (obrigatório para OS de ${tipoOsVal || 'Envio/Equipamentos'})`);
         }
         if (regrasPS.servicoObrigatorio && regrasPS.servsAtivos.length === 0) {
             pendencias.push(regrasPS.tNorm === 'limpa fossa'
@@ -598,22 +707,33 @@
                 : 'Selecionar pelo menos 1 Serviço ou marcar Frete FOB (obrigatório para OS de Obra)');
         }
 
-        if (!String(d.data_entrega || '').trim()) pendencias.push('Data de Entrega');
-        if (!d.entrega_horario_comercial && !String(d.hora_entrega || '').trim()) {
-            pendencias.push('Horário da Entrega');
+        const dataEntregaVal = String(document.getElementById('cos-data-entrega')?.value ?? d.data_entrega ?? '').trim();
+        if (!dataEntregaVal) pendencias.push('Data de Entrega *');
+
+        const chkEntCom = document.getElementById('cos-chk-entrega-comercial');
+        const entregaComercial = chkEntCom ? Boolean(chkEntCom.checked) : Boolean(d.entrega_horario_comercial);
+        const horaEntVal = String(document.getElementById('cos-hora-entrega')?.value ?? d.hora_entrega ?? '').trim();
+        if (!entregaComercial && !horarioIntervaloValidoOs(horaEntVal)) {
+            pendencias.push('Horário da Entrega * (formato HH:MM às HH:MM ou Horário comercial)');
         }
 
-        const retiradaObrigatoria = ehEvento || Boolean(d.agendar_retirada);
+        const chkAgendarRet = document.getElementById('cos-chk-agendar-retirada');
+        const agendarRet = chkAgendarRet ? Boolean(chkAgendarRet.checked) : Boolean(d.agendar_retirada);
+        const retiradaObrigatoria = ehEvento || agendarRet;
         if (retiradaObrigatoria) {
-            if (!String(d.data_retirada || '').trim()) pendencias.push('Data de Retirada');
-            if (!d.retirada_horario_comercial && !String(d.hora_retirada || '').trim()) {
-                pendencias.push('Horário da Retirada');
+            const dataRetVal = String(document.getElementById('cos-data-retirada')?.value ?? d.data_retirada ?? '').trim();
+            if (!dataRetVal) pendencias.push('Data de Retirada *');
+            const chkRetCom = document.getElementById('cos-chk-retirada-comercial');
+            const retComercial = chkRetCom ? Boolean(chkRetCom.checked) : Boolean(d.retirada_horario_comercial);
+            const horaRetVal = String(document.getElementById('cos-hora-retirada')?.value ?? d.hora_retirada ?? '').trim();
+            if (!retComercial && !horarioIntervaloValidoOs(horaRetVal)) {
+                pendencias.push('Horário da Retirada * (formato HH:MM às HH:MM ou Horário comercial)');
             }
         }
 
         const listaEndsCheck = obterListaEnderecosEstadoAtualOs(prop, d);
         if (listaEndsCheck.length === 0) {
-            pendencias.push('Endereço de Instalação');
+            pendencias.push('Endereço de Instalação *');
         }
 
         const checkDist = validarDistribuicaoProdutosEnderecosOs(prop, d);
@@ -622,21 +742,25 @@
         }
 
         if (ehEvento) {
+            const nomeEvVal = String(document.getElementById('cos-nome-evento')?.value ?? (isNovo ? (d.nome_evento_draft || '') : (prop.nome_evento || ''))).trim();
+            if (!veioDeContrato && !nomeEvVal) {
+                pendencias.push('Nome do Evento *');
+            }
             const dias = Array.isArray(d.dias_evento) ? d.dias_evento : [];
             if (dias.length === 0) {
-                pendencias.push('Dias e Horários do Evento');
+                pendencias.push('Dias e Horários do Evento *');
             } else {
                 const algumIncompleto = dias.some(x => !String(x.data || '').trim() || !String(x.hora_inicio || '').trim() || !String(x.hora_fim || '').trim());
-                if (algumIncompleto) pendencias.push('Data / Horário de Início e Fim do Evento');
+                if (algumIncompleto) pendencias.push('Data / Horário de Início e Fim do Evento *');
             }
         }
 
         if (temFob) {
-            if (!String(d.fob_data_entrega || '').trim()) pendencias.push('FOB: Data da Entrega');
-            if (!String(d.fob_data_retirada || '').trim()) pendencias.push('FOB: Data da Retirada');
-            if (!String(d.fob_modelo_veiculo || '').trim()) pendencias.push('FOB: Modelo do Veículo');
-            if (!String(d.fob_placa_veiculo || '').trim()) pendencias.push('FOB: Placa do Veículo');
-            if (!String(d.fob_nome_motorista || '').trim()) pendencias.push('FOB: Nome do Motorista');
+            if (!String(d.fob_data_entrega || '').trim()) pendencias.push('FOB: Data da Entrega *');
+            if (!String(d.fob_data_retirada || '').trim()) pendencias.push('FOB: Data da Retirada *');
+            if (!String(d.fob_modelo_veiculo || '').trim()) pendencias.push('FOB: Modelo do Veículo *');
+            if (!String(d.fob_placa_veiculo || '').trim()) pendencias.push('FOB: Placa do Veículo *');
+            if (!String(d.fob_nome_motorista || '').trim()) pendencias.push('FOB: Nome do Motorista *');
         }
 
         return { ok: pendencias.length === 0, pendencias };
@@ -645,13 +769,17 @@
     function atualizarVisibilidadeBotaoEnviarLogistica() {
         const btn = document.getElementById('btn-cos-enviar-logistica');
         if (!btn) return;
-        const prop = state.osAtual;
-        if (!prop || !prop.id) {
-            btn.style.display = 'none';
-            return;
-        }
         const check = verificarCamposObrigatoriosOsPreenchidos();
-        btn.style.display = check.ok ? 'inline-flex' : 'none';
+        btn.disabled = !check.ok;
+        btn.style.display = 'inline-flex';
+        btn.style.background = check.ok ? '#0284c7' : '#cbd5e1';
+        btn.style.color = check.ok ? '#ffffff' : '#64748b';
+        btn.style.borderColor = check.ok ? '#0369a1' : '#cbd5e1';
+        btn.style.cursor = check.ok ? 'pointer' : 'not-allowed';
+        btn.style.opacity = check.ok ? '1' : '0.75';
+        btn.title = check.ok
+            ? 'Enviar OS preenchida para a Logística'
+            : `Preencha todos os campos obrigatórios antes de enviar para a Logística:\n• ${check.pendencias.join('\n• ')}`;
     }
 
     function contratoEstaAssinado(p) {
@@ -1079,7 +1207,7 @@
         const ehEvento = normStr(modalidadeAtual) === 'evento';
         const ehObra = !ehEvento;
 
-        const clienteNomeRaw = isNovo ? (d.cliente_nome_draft || '') : v('cliente_nome');
+        const clienteNomeRaw = limparPrefixoGrupoSeguroOs(isNovo ? (d.cliente_nome_draft || '') : v('cliente_nome'));
         const clienteNomeFormatado = (clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
             ? window.formatarNomeClienteComIcone(clienteNomeRaw)
             : clienteNomeRaw;
@@ -1271,10 +1399,10 @@
                             <i class="ph ph-check"></i> Salvar
                         </button>
 
-                        <!-- Botão Enviar OS para a Logística: só aparece quando todos os campos obrigatórios da OS do Comercial estiverem preenchidos -->
-                        <button type="button" id="btn-cos-enviar-logistica" onclick="window._comercialOS.enviarOsParaLogistica()"
-                            title="Enviar OS preenchida para a Logística"
-                            style="display:${(!isNovo && checkObrig.ok) ? 'inline-flex' : 'none'}; background:#0284c7; color:#ffffff; border:1px solid #0369a1; font-weight:800;">
+                        <!-- Botão Enviar OS para a Logística: habilitado somente quando TODOS os campos obrigatórios da OS estiverem preenchidos -->
+                        <button type="button" id="btn-cos-enviar-logistica" onclick="window._comercialOS.enviarOsParaLogistica()" ${checkObrig.ok ? '' : 'disabled'}
+                            title="${checkObrig.ok ? 'Enviar OS preenchida para a Logística' : esc('Preencha todos os campos obrigatórios antes de enviar para a Logística: ' + checkObrig.pendencias.join(', '))}"
+                            style="display:inline-flex; background:${checkObrig.ok ? '#0284c7' : '#cbd5e1'}; color:${checkObrig.ok ? '#ffffff' : '#64748b'}; border:1px solid ${checkObrig.ok ? '#0369a1' : '#cbd5e1'}; font-weight:800; cursor:${checkObrig.ok ? 'pointer' : 'not-allowed'}; opacity:${checkObrig.ok ? '1' : '0.75'};">
                             <i class="ph ph-paper-plane-tilt"></i> Enviar OS para a Logística
                         </button>
 
@@ -1493,6 +1621,36 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                <div style="grid-column: 1 / -1;">
+                                    <label class="prop-lbl">Contato(s) de Instalação <span style="color:#ef4444;">*</span></label>
+                                    <div style="display:flex; gap:0.35rem; align-items:center;">
+                                        <div id="cos-contato-inst-combo-wrap" style="position:relative; flex:1; min-width:0;">
+                                            <input type="text" id="cos-contato-inst" value=""
+                                                ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+                                                placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione um ou mais contatos de instalação (ou digite e pressione Enter)...'}"
+                                                onfocus="if(!this.disabled) window._comercialOS.abrirDropdownContatosInstalacaoOs(true);"
+                                                onclick="if(!this.disabled) window._comercialOS.abrirDropdownContatosInstalacaoOs(true);"
+                                                oninput="window._comercialOS.filtrarDropdownContatosInstalacaoOs(this.value);"
+                                                onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.adicionarContatoInstalacaoManualOs(); } else if(event.key==='Escape'){ const dd=document.getElementById('cos-contato-inst-dropdown'); if(dd) dd.style.display='none'; }"
+                                                style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
+                                            ${tipoOsPreenchido ? `
+                                                <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownContatosInstalacaoOs(event)" title="Selecionar contato de instalação"
+                                                    style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                    <i class="ph ph-caret-down"></i>
+                                                </button>
+                                            ` : ''}
+                                            <div id="cos-contato-inst-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1105;"></div>
+                                        </div>
+                                        <button type="button" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.abrirModalNovoContatoInstalacaoOs(event)"
+                                            style="background:#eab308; color:white; border:none; width:26px !important; padding:0 !important; flex-shrink:0; opacity:${!tipoOsPreenchido ? '0.5' : '1'}; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'};"
+                                            title="Cadastrar Novo Contato de Instalação">
+                                            <i class="ph ph-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="cos-contatos-inst-chips" style="display:none; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -1523,10 +1681,12 @@
                                                     </div>
                                                     <div>
                                                         <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
-                                                        <input type="text" id="cos-hora-entrega" value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
-                                                            placeholder="Ex: 08:00 às 12:00"
+                                                        <input type="text" id="cos-hora-entrega" inputmode="numeric" maxlength="14"
+                                                            data-prev-hora="${esc(d.entrega_horario_comercial ? '' : (d.hora_entrega || ''))}"
+                                                            value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
+                                                            placeholder="HH:MM às HH:MM"
                                                             ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
-                                                            oninput="window._comercialOS.onChangeCampoDadosOs('hora_entrega', this.value)" style="width:100%;">
+                                                            oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'hora_entrega')" style="width:100%;">
                                                     </div>
                                                     ${!ehEvento ? `
                                                         <div>
@@ -1558,10 +1718,12 @@
                                                         </div>
                                                         <div>
                                                             <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
-                                                            <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
-                                                                placeholder="Ex: 14:00 às 18:00"
+                                                            <input type="text" id="cos-hora-retirada" inputmode="numeric" maxlength="14"
+                                                                data-prev-hora="${esc(d.retirada_horario_comercial ? '' : (d.hora_retirada || ''))}"
+                                                                value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
+                                                                placeholder="HH:MM às HH:MM"
                                                                 ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
-                                                                oninput="window._comercialOS.onChangeCampoDadosOs('hora_retirada', this.value)" style="width:100%;">
+                                                                oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'hora_retirada')" style="width:100%;">
                                                         </div>
                                                         ${!ehEvento ? `
                                                             <div>
@@ -1965,6 +2127,9 @@
 
         renderProdutosGridHtml(prop);
         renderServicosGridHtml(prop);
+        if (window._comercialOS && typeof window._comercialOS.sincronizarChipsContatosInstalacaoOs === 'function') {
+            window._comercialOS.sincronizarChipsContatosInstalacaoOs();
+        }
         if (window._comercialOS && typeof window._comercialOS.sincronizarChipsEnderecosOs === 'function') {
             window._comercialOS.sincronizarChipsEnderecosOs();
         }
@@ -2041,7 +2206,7 @@
         const osEnriquecidas = listaOs.map(p => {
             const nomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(p.cliente_nome || '')
-                : String(p.cliente_nome || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                : limparPrefixoGrupoSeguroOs(p.cliente_nome || '');
             const key = nomeLimpo.toLowerCase().trim();
             const cfgTipo = obterConfigTipoOs(resolverTipoOsComercial(p));
             return {
@@ -2212,7 +2377,7 @@
         // Quando grupo === '', formatarNomeClienteComIcone percorre todo window._clientesCache causando O(N²) (~38 milhões de iterações) e travando a aba.
         const arr = (Array.isArray(clientesBrutos) ? clientesBrutos : []).map(c => {
             const nomeRaw = String(c.nome_razao_social || c.razao_social || c.cliente_nome || '').trim();
-            const nomeLimpo = nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            const nomeLimpo = limparPrefixoGrupoSeguroOs(nomeRaw);
             const grupo = String(c.grupo_clientes || c.classificacao || c.grupo || '').trim();
             const icone = resolverIcoGrupoOs(grupo);
             const nomeExib = icone ? `${icone} ${nomeLimpo}` : nomeLimpo;
@@ -2577,7 +2742,7 @@
             const raw = String(document.getElementById('cos-cliente')?.value || '').trim();
             const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(raw)
-                : raw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                : limparPrefixoGrupoSeguroOs(raw);
             await abrirModalSelecionarClienteOs(limpo);
         },
 
@@ -2585,7 +2750,7 @@
             if (osVeioDeContrato(state.osAtual)) return;
             const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(nomeLimpo || '')
-                : String(nomeLimpo || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                : limparPrefixoGrupoSeguroOs(nomeLimpo || '');
             if (!state.dadosOs) state.dadosOs = {};
             const anterior = this._obterNomeClienteAtualOs();
             if (normStr(anterior) !== normStr(limpo)) {
@@ -2593,15 +2758,20 @@
                 this._enderecosCacheAtualOs = null;
                 this._enderecosCacheKeyOs = '';
                 this._enderecosLoadPromiseOs = null;
+                state.dadosOs.contatos_instalacao = [];
                 if (!state.osAtual || !state.osAtual.id) {
                     state.dadosOs.contato_nome_draft = '';
                     state.dadosOs.endereco_instalacao_draft = '';
                 } else {
                     state.osAtual.contato_nome = '';
                     state.osAtual.endereco_instalacao = '';
+                    state.osAtual.contato_instalacao_contrato = '';
                 }
                 const inpCt = document.getElementById('cos-contato');
                 if (inpCt) inpCt.value = '';
+                const inpCtInst = document.getElementById('cos-contato-inst');
+                if (inpCtInst) inpCtInst.value = '';
+                this.sincronizarChipsContatosInstalacaoOs();
                 const inpEnd = document.getElementById('cos-endereco-instalacao');
                 if (inpEnd) inpEnd.value = '';
                 this.sincronizarChipsEnderecosOs();
@@ -2872,7 +3042,7 @@
             const rawCli = String(document.getElementById('cos-cliente')?.value || (state.osAtual && state.osAtual.cliente_nome) || (state.dadosOs && state.dadosOs.cliente_nome_draft) || '').trim();
             return typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(rawCli)
-                : rawCli.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                : limparPrefixoGrupoSeguroOs(rawCli);
         },
 
         onInputContatoOs(valor) {
@@ -2979,6 +3149,212 @@
             this.marcarEditado();
             this.salvarSnapshotAba();
             atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        obterListaContatosInstalacaoOs() {
+            if (!state.dadosOs) state.dadosOs = {};
+            if (!Array.isArray(state.dadosOs.contatos_instalacao)) {
+                state.dadosOs.contatos_instalacao = extrairContatosInstalacaoIniciaisOs(state.osAtual, state.dadosOs);
+            }
+            return state.dadosOs.contatos_instalacao.map(x => String(x || '').trim()).filter(Boolean);
+        },
+
+        _contatoInstalacaoJaSelecionado(rotuloOuNome) {
+            const selecionados = this.obterListaContatosInstalacaoOs();
+            const alvoFull = normStr(rotuloOuNome);
+            const alvoNome = normStr(String(rotuloOuNome || '').split(' - ')[0]);
+            return selecionados.some(sel => {
+                const selFull = normStr(sel);
+                const selNome = normStr(String(sel || '').split(' - ')[0]);
+                return (alvoFull && selFull === alvoFull) || (alvoNome && selNome === alvoNome);
+            });
+        },
+
+        sincronizarChipsContatosInstalacaoOs() {
+            const chipsEl = document.getElementById('cos-contatos-inst-chips');
+            if (!chipsEl) return;
+            const tipoOk = Boolean(String(resolverTipoOsComercial(state.osAtual) || '').trim());
+            const lista = this.obterListaContatosInstalacaoOs();
+            if (lista.length === 0) {
+                chipsEl.innerHTML = '';
+                chipsEl.style.display = 'none';
+                atualizarVisibilidadeBotaoEnviarLogistica();
+                return;
+            }
+            chipsEl.style.display = 'flex';
+            chipsEl.innerHTML = lista.map((ct, idx) => `
+                <span style="display:inline-flex; align-items:center; gap:5px; background:#f5f3ff; border:1px solid #c4b5fd; color:#5b21b6; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:700; max-width:100%;">
+                    <i class="ph ph-user-check" style="font-size:0.8rem; color:#7c3aed;"></i>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:360px;" title="${esc(ct)}">${esc(ct)}</span>
+                    ${tipoOk ? `<button type="button" onclick="window._comercialOS.removerContatoInstalacaoChipOs(${idx})" title="Remover este contato de instalação"
+                        style="border:none !important; background:transparent !important; color:#dc2626 !important; cursor:pointer; font-weight:900 !important; font-size:0.84rem !important; padding:0 2px !important; height:auto !important; line-height:1;">&times;</button>` : ''}
+                </span>
+            `).join('');
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        async abrirDropdownContatosInstalacaoOs(mostrarTodos = true) {
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            const inp = document.getElementById('cos-contato-inst');
+            if (!drop || !inp || inp.disabled) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os contatos de instalação.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            if (!Array.isArray(this._contatosCacheAtualOs) && typeof window._obterDadosContatosClienteProposta === 'function') {
+                const res = await window._obterDadosContatosClienteProposta(cliNome).catch(() => ({ contatosDoCliente: [] }));
+                this._contatosCacheAtualOs = Array.isArray(res?.contatosDoCliente) ? res.contatosDoCliente : [];
+            }
+            this.renderDropdownContatosInstalacaoOs(inp.value, mostrarTodos);
+        },
+
+        async toggleDropdownContatosInstalacaoOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            if (drop && drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            await this.abrirDropdownContatosInstalacaoOs(true);
+            document.getElementById('cos-contato-inst')?.focus();
+        },
+
+        async filtrarDropdownContatosInstalacaoOs(termo) {
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!Array.isArray(this._contatosCacheAtualOs) && cliNome && typeof window._obterDadosContatosClienteProposta === 'function') {
+                const res = await window._obterDadosContatosClienteProposta(cliNome).catch(() => ({ contatosDoCliente: [] }));
+                this._contatosCacheAtualOs = Array.isArray(res?.contatosDoCliente) ? res.contatosDoCliente : [];
+            }
+            this.renderDropdownContatosInstalacaoOs(termo, false);
+        },
+
+        renderDropdownContatosInstalacaoOs(termoFiltro = '', mostrarTodos = false) {
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            if (!drop) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os contatos de instalação.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            const base = Array.isArray(this._contatosCacheAtualOs) ? this._contatosCacheAtualOs : [];
+            // Filtra fora os contatos que já foram selecionados para instalação
+            const disponiveis = base.filter(c => {
+                const rotulo = [c.nome, c.celular || c.telefone || c.email].filter(Boolean).join(' - ');
+                return !this._contatoInstalacaoJaSelecionado(rotulo) && !this._contatoInstalacaoJaSelecionado(c.nome);
+            });
+            const q = mostrarTodos ? '' : normStr(termoFiltro);
+            const filtrados = !q
+                ? disponiveis
+                : disponiveis.filter(c =>
+                    normStr(c.nome).includes(q) ||
+                    normStr(c.cargo).includes(q) ||
+                    normStr(c.celular).includes(q) ||
+                    normStr(c.telefone).includes(q) ||
+                    normStr(c.telefone_ramal).includes(q) ||
+                    normStr(c.email).includes(q)
+                );
+
+            if (!filtrados.length) {
+                const msgVazio = (base.length > 0 && disponiveis.length === 0)
+                    ? 'Todos os contatos cadastrados deste cliente já foram selecionados.'
+                    : 'Nenhum contato disponível encontrado (digite e pressione Enter ou clique no + para cadastrar).';
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">${esc(msgVazio)}</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+
+            drop.innerHTML = filtrados.slice(0, 60).map(c => {
+                const rotulo = [c.nome, c.celular || c.telefone || c.email].filter(Boolean).join(' - ');
+                const safeRotulo = String(rotulo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const telsFmt = typeof window.formatarTelefonesContatoDropdown === 'function'
+                    ? window.formatarTelefonesContatoDropdown(c).map(t => `📞 ${t}`)
+                    : ([c.celular, c.telefone].filter(Boolean).map(t => `📞 ${t}`));
+                const subInfo = [c.cargo, ...telsFmt, c.email].filter(Boolean).join(' • ');
+                const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
+                return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarContatoInstalacaoOs('${safeRotulo}')"
+                    style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:0.78rem; font-weight:700; color:#1e293b;">${esc(c.nome)}</span>
+                        ${badgesHtml}
+                    </div>
+                    ${subInfo ? `<div style="font-size:0.7rem; color:#64748b; margin-top:2px;">${esc(subInfo)}</div>` : ''}
+                </div>`;
+            }).join('');
+            drop.style.display = 'block';
+        },
+
+        selecionarContatoInstalacaoOs(rotulo) {
+            const txt = String(rotulo || '').trim();
+            if (!txt) return;
+            const lista = this.obterListaContatosInstalacaoOs();
+            if (!this._contatoInstalacaoJaSelecionado(txt)) {
+                lista.push(txt);
+                state.dadosOs.contatos_instalacao = lista;
+            }
+            const inp = document.getElementById('cos-contato-inst');
+            if (inp) inp.value = '';
+            this.sincronizarChipsContatosInstalacaoOs();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            // Mantém ou fecha suavemente atualizando a lista para que o contato selecionado suma imediatamente
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            if (drop && drop.style.display === 'block') {
+                this.renderDropdownContatosInstalacaoOs('', true);
+            }
+        },
+
+        adicionarContatoInstalacaoManualOs() {
+            const inp = document.getElementById('cos-contato-inst');
+            const val = String(inp?.value || '').trim();
+            if (!val) return;
+            this.selecionarContatoInstalacaoOs(val);
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            if (drop) drop.style.display = 'none';
+        },
+
+        removerContatoInstalacaoChipOs(idx) {
+            const lista = this.obterListaContatosInstalacaoOs();
+            if (idx < 0 || idx >= lista.length) return;
+            lista.splice(idx, 1);
+            state.dadosOs.contatos_instalacao = lista;
+            this.sincronizarChipsContatosInstalacaoOs();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            const drop = document.getElementById('cos-contato-inst-dropdown');
+            if (drop && drop.style.display === 'block') {
+                this.renderDropdownContatosInstalacaoOs(document.getElementById('cos-contato-inst')?.value || '', true);
+            }
+        },
+
+        async abrirModalNovoContatoInstalacaoOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (!String(resolverTipoOsComercial(state.osAtual) || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs();
+                return;
+            }
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                Swal.fire('Selecione o Cliente', 'Selecione o Cliente primeiro antes de cadastrar um novo contato de instalação.', 'warning');
+                return;
+            }
+            if (typeof window.cadastrarNovoContatoProposta !== 'function') {
+                Swal.fire('Aviso', 'Modal de cadastro de contatos não disponível.', 'warning');
+                return;
+            }
+            const nomeDigitado = String(document.getElementById('cos-contato-inst')?.value || '').trim();
+            window._onOsComercialContatoInstalacaoSalvo = (contatoRotulo, empRazao) => {
+                this._contatosCacheAtualOs = null;
+                if (empRazao && !this._obterNomeClienteAtualOs()) {
+                    this.selecionarClienteNaOs(empRazao, '', null);
+                }
+                this.selecionarContatoInstalacaoOs(contatoRotulo);
+                window._onOsComercialContatoInstalacaoSalvo = null;
+            };
+            await window.cadastrarNovoContatoProposta(nomeDigitado, false, 'os_comercial_instalacao');
         },
 
         obterListaEnderecosOs(valOpcional = undefined) {
@@ -3906,6 +4282,15 @@
             atualizarVisibilidadeBotaoEnviarLogistica();
         },
 
+        onInputHorarioIntervaloOs(inp, campo) {
+            if (!inp) return;
+            const prev = inp.dataset.prevHora || '';
+            const fmt = formatarIntervaloHorarioMascaraOs(inp.value, prev);
+            inp.value = fmt;
+            inp.dataset.prevHora = fmt;
+            this.onChangeCampoDadosOs(campo, fmt);
+        },
+
         onToggleHorarioComercial(qual, checked) {
             if (!state.dadosOs) state.dadosOs = {};
             if (qual === 'entrega') {
@@ -3915,6 +4300,7 @@
                 if (inp) {
                     inp.disabled = Boolean(checked);
                     inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_entrega || '');
+                    inp.dataset.prevHora = checked ? '' : (state.dadosOs.hora_entrega || '');
                 }
             } else if (qual === 'retirada') {
                 state.dadosOs.retirada_horario_comercial = Boolean(checked);
@@ -3923,6 +4309,7 @@
                 if (inp) {
                     inp.disabled = Boolean(checked);
                     inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_retirada || '');
+                    inp.dataset.prevHora = checked ? '' : (state.dadosOs.hora_retirada || '');
                 }
             } else if (qual === 'manutencao') {
                 state.dadosOs.manutencao_horario_comercial = Boolean(checked);
@@ -4145,7 +4532,7 @@
             const clienteRawInput = String(document.getElementById('cos-cliente')?.value || (state.osAtual && state.osAtual.cliente_nome) || (state.dadosOs && state.dadosOs.cliente_nome_draft) || '').trim();
             const clienteLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(clienteRawInput)
-                : clienteRawInput.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                : limparPrefixoGrupoSeguroOs(clienteRawInput);
 
             if ((!state.osAtual || !state.osAtual.id) && !clienteLimpo) {
                 if (!silencioso) Swal.fire('Cliente obrigatório', 'Selecione um Cliente antes de salvar a OS.', 'warning');
@@ -4172,6 +4559,20 @@
             }
 
             const contatoAtualVal = String(document.getElementById('cos-contato')?.value || (state.osAtual && state.osAtual.contato_nome) || (state.dadosOs && state.dadosOs.contato_nome_draft) || '').trim();
+            const listaCtInstSalvar = this.obterListaContatosInstalacaoOs();
+            state.dadosOs.contatos_instalacao = listaCtInstSalvar;
+            const contatoInstalacaoStr = listaCtInstSalvar.join(' | ');
+            let respContratoObj = {};
+            if (state.osAtual && state.osAtual.contatos_responsaveis_contrato_json) {
+                try {
+                    respContratoObj = typeof state.osAtual.contatos_responsaveis_contrato_json === 'string'
+                        ? JSON.parse(state.osAtual.contatos_responsaveis_contrato_json || '{}')
+                        : { ...state.osAtual.contatos_responsaveis_contrato_json };
+                } catch (_) { respContratoObj = {}; }
+            }
+            respContratoObj.instalacao = contatoInstalacaoStr;
+            respContratoObj.instalacao_lista = listaCtInstSalvar;
+
             const listaEndSalvar = this.obterListaEnderecosOs();
             const enderecoAtualVal = listaEndSalvar.length > 0
                 ? listaEndSalvar.join(' | ')
@@ -4226,6 +4627,8 @@
                 os_comercial_dados_json: JSON.stringify(state.dadosOs || {}),
                 atendente: novoAtendVal,
                 contato_nome: contatoAtualVal,
+                contato_instalacao_contrato: contatoInstalacaoStr,
+                contatos_responsaveis_contrato_json: JSON.stringify(respContratoObj),
                 endereco_instalacao: enderecoAtualVal,
                 ...(!veioDeContrato ? {
                     modalidade_obra_evento: modAtual,
@@ -4292,23 +4695,25 @@
         },
 
         async enviarOsParaLogistica() {
-            if (!state.osAtual || !state.osAtual.id) return;
             const check = verificarCamposObrigatoriosOsPreenchidos();
             if (!check.ok) {
-                Swal.fire('Campos obrigatórios pendentes', `Preencha antes de enviar para a Logística:\n• ${check.pendencias.join('\n• ')}`, 'warning');
+                Swal.fire('Campos obrigatórios pendentes', `Preencha todos os campos obrigatórios antes de enviar para a Logística:\n• ${check.pendencias.join('\n• ')}`, 'warning');
+                atualizarVisibilidadeBotaoEnviarLogistica();
                 return;
             }
             if (!state.dadosOs) state.dadosOs = {};
             state.dadosOs.enviada_logistica = true;
-            state.osAtual.status_os = 'LIBERADO';
+            state.statusNovoDraft = 'LIBERADO';
+            if (state.osAtual) state.osAtual.status_os = 'LIBERADO';
             const inpSt = document.getElementById('cos-status-os');
             if (inpSt) inpSt.value = 'LIBERADO';
             const ok = await this.salvarAlteracoesOS(true);
             if (ok) {
+                const numExib = (state.osAtual && state.osAtual.numero_os) || '';
                 if (typeof mostrarToastSucesso === 'function') {
-                    mostrarToastSucesso(`OS Nº ${state.osAtual.numero_os} enviada para a Logística (Status: LIBERADO)!`);
+                    mostrarToastSucesso(`OS Nº ${numExib} enviada para a Logística (Status: LIBERADO)!`);
                 } else {
-                    Swal.fire('Enviada!', `OS Nº ${state.osAtual.numero_os} enviada para a Logística com status LIBERADO.`, 'success');
+                    Swal.fire('Enviada!', `OS Nº ${numExib} enviada para a Logística com status LIBERADO.`, 'success');
                 }
             }
         }
@@ -4320,6 +4725,7 @@
             ['cos-modalidade-custom-wrap', 'cos-modalidade-custom-menu'],
             ['cos-atendente-combo-wrap', 'cos-atendente-dropdown'],
             ['cos-contato-combo-wrap', 'cos-contato-dropdown'],
+            ['cos-contato-inst-combo-wrap', 'cos-contato-inst-dropdown'],
             ['cos-endereco-combo-wrap', 'cos-endereco-dropdown'],
             ['cos-prod-combo-wrap', 'cos-prod-dropdown'],
             ['cos-serv-combo-wrap', 'cos-serv-dropdown']
