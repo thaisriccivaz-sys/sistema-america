@@ -23203,11 +23203,14 @@ window.pesquisarPropostaPorCodigoInput = async function() {
         const termoDigits = termo.replace(/\D/g, '').replace(/^0+/, '');
 
         const localizarNaLista = (listaFonte) => {
-            const baseLista = (listaFonte || []).filter(p =>
-                isModoContrato
+            const baseLista = (listaFonte || []).filter(p => {
+                const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
+                const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
+                if (sitUp === 'OS AVULSA' || faseUp === 'OS AVULSA') return false;
+                return isModoContrato
                     ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO')
-                    : true
-            );
+                    : true;
+            });
             // 1) Busca correspondência exata pelo número do contrato (em modo contrato) ou pelo código da proposta (em modo proposta)
             let achada = baseLista.find(p => {
                 const cod = String((isModoContrato ? p.contrato : p.codigo) || '').trim();
@@ -23299,7 +23302,14 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
             return digits ? parseInt(digits, 10) : 0;
         };
         const mapearPropostasComCnpj = (listaBruta) => {
-            const filtrada = (listaBruta || []).filter(p => isModoContratoModal ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO') : true).map(p => {
+            const filtrada = (listaBruta || []).filter(p => {
+                const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
+                const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
+                if (sitUp === 'OS AVULSA' || faseUp === 'OS AVULSA') return false;
+                return isModoContratoModal
+                    ? (Boolean(String(p.contrato || '').trim()) && String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') !== 'ADITIVO')
+                    : true;
+            }).map(p => {
                 const key = p.cliente_nome ? p.cliente_nome.toLowerCase().trim() : '';
                 const cnpj = key ? (clientCnpjMap[key] || '') : '';
                 const icone = key ? (clientIconMap[key] || '') : '';

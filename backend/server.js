@@ -42440,8 +42440,10 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
       )`,
       [],
       () => {
-        db.all("SELECT id, codigo FROM propostas ORDER BY id ASC", [], (errAll, rowsAll) => {
+        db.all("SELECT id, codigo FROM propostas WHERE UPPER(TRIM(COALESCE(situacao_contrato, ''))) != 'OS AVULSA' AND UPPER(TRIM(COALESCE(fase_negociacao, ''))) != 'OS AVULSA' ORDER BY id ASC", [], (errAll, rowsAll) => {
           if (errAll || !Array.isArray(rowsAll)) return;
+          // Limpa qualquer codigo de proposta gerado acidentalmente em uma OS avulsa
+          db.run("UPDATE propostas SET codigo = '' WHERE UPPER(TRIM(COALESCE(situacao_contrato, ''))) = 'OS AVULSA' OR UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'OS AVULSA'", [], () => {});
           const precisaRenumerar = rowsAll.some(r => !/^\d+$/.test(String(r.codigo || '').trim()));
           if (!precisaRenumerar) return;
           rowsAll.forEach((r, idx) => {
@@ -42699,7 +42701,11 @@ function enriquecerAtendenteNomePropostas(lista, cb) {
 }
 
 app.get('/api/propostas', authenticateToken, (req, res) => {
-  db.all('SELECT * FROM propostas ORDER BY criado_em DESC', [], (err, rows) => {
+  const incluirOsAvulsa = String(req.query.incluir_os_avulsa || '').trim() === '1';
+  const sql = incluirOsAvulsa
+    ? 'SELECT * FROM propostas ORDER BY criado_em DESC'
+    : "SELECT * FROM propostas WHERE UPPER(TRIM(COALESCE(situacao_contrato, ''))) != 'OS AVULSA' AND UPPER(TRIM(COALESCE(fase_negociacao, ''))) != 'OS AVULSA' ORDER BY criado_em DESC";
+  db.all(sql, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     enriquecerAtendenteNomePropostas(rows || [], (enriched) => res.json(enriched));
   });

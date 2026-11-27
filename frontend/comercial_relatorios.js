@@ -310,8 +310,11 @@
                 });
                 st.dados = arr;
             } else {
+                const urlPropostasRel = tipo === 'os'
+                    ? `${apiBase}/propostas?incluir_os_avulsa=1`
+                    : `${apiBase}/propostas`;
                 const [rProp, rCli] = await Promise.all([
-                    fetch(`${apiBase}/propostas`, { headers: getAuthHeaders() }),
+                    fetch(urlPropostasRel, { headers: getAuthHeaders() }),
                     carregarAtendentesComercialRelatorios(),
                     (!Array.isArray(window._clientesCache) || !window._clientesCache.length)
                         ? fetch(`${apiBase}/comercial/relatorios/clientes`, { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : []).then(cl => { if (Array.isArray(cl) && cl.length) window._clientesCache = cl; }).catch(() => {})
@@ -320,7 +323,9 @@
                 if (!rProp.ok) throw new Error('Falha ao carregar registros do Comercial.');
                 const rows = await rProp.json();
                 const arr = Array.isArray(rows) ? rows : [];
-                window._propostasData = arr;
+                if (tipo !== 'os') {
+                    window._propostasData = arr;
+                }
 
                 if (tipo === 'propostas') {
                     st.dados = arr.filter(p => {
