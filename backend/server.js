@@ -42145,18 +42145,15 @@ app.post('/api/ia/classificar-tipo', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/ia/classificar-regiao - Identifica a região do endereço via IA com heurística robusta
-app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
-    const { endereco } = req.body;
-    if (!endereco) {
-        return res.status(400).json({ error: 'Endereço não informado.' });
-    }
+function classificarZonaEnderecoServer(endereco) {
+    const raw = String(endereco || '').trim();
+    if (!raw) return 'Outra';
 
     const normalizeStr = (str) => {
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        return String(str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
 
-    const e = normalizeStr(endereco);
+    const e = normalizeStr(raw);
     let regiao = 'Outra';
 
     const classes = [
@@ -42228,6 +42225,16 @@ app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
         }
     });
 
+    return regiao;
+}
+
+// POST /api/ia/classificar-regiao - Identifica a região do endereço via IA com heurística robusta
+app.post('/api/ia/classificar-regiao', authenticateToken, (req, res) => {
+    const { endereco } = req.body;
+    if (!endereco) {
+        return res.status(400).json({ error: 'Endereço não informado.' });
+    }
+    const regiao = classificarZonaEnderecoServer(endereco);
     res.json({ regiao });
 });
 
@@ -47480,6 +47487,7 @@ db.serialize(() => {
   db.run("ALTER TABLE clientes ADD COLUMN email TEXT", () => {});
   db.run("ALTER TABLE clientes ADD COLUMN ramo_atividade TEXT", () => {});
   db.run("ALTER TABLE clientes ADD COLUMN tipo_vinculo_grupo TEXT", () => {});
+  db.run("ALTER TABLE clientes ADD COLUMN atendente TEXT DEFAULT ''", () => {});
   // Migrar ramo_atividade já cadastrado em contatos para o respectivo cliente quando vazio
   db.run(`UPDATE clientes SET ramo_atividade = (
     SELECT ct.ramo_atividade FROM contatos ct
@@ -49310,15 +49318,15 @@ app.post('/api/clientes', authenticateToken, (req, res) => {
         nome_fantasia, cep, endereco, numero, complemento, bairro, uf, municipio,
         pais, telefone, ramal, telefone_2, ramal_2, fax, website, email, celular_ddi,
         celular, parametros, fiscal, contatos, validacao_dados, anexo_arquivos,
-        observacoes, ramo_atividade, criado_por, criado_em, atualizado_em
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        observacoes, ramo_atividade, atendente, criado_por, criado_em, atualizado_em
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         codigo, d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
         d.rg, d.data_nascimento, d.grupo_clientes, d.cliente_centralizador, d.tipo_vinculo_grupo || '', d.nome_razao_social,
         d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
         d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
         d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-        d.observacoes || '', d.ramo_atividade || '', d.criado_por, agora, agora
+        d.observacoes || '', d.ramo_atividade || '', String(d.atendente || '').trim(), d.criado_por, agora, agora
       ], function(err) {
         if (err) {
           return res.status(500).json({ error: err.message });
@@ -49386,7 +49394,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
   const docLimpo = String(d.cpf_cnpj || '').replace(/\D/g, '');
 
   db.get(
-    'SELECT id, codigo, cpf_cnpj, nome_razao_social, ramo_atividade, tipo_vinculo_grupo FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
+    'SELECT id, codigo, cpf_cnpj, nome_razao_social, ramo_atividade, tipo_vinculo_grupo, atendente FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1',
     [req.params.id, req.params.id, req.params.id],
     (curErr, curRow) => {
       if (curErr) return res.status(500).json({ error: curErr.message });
@@ -49400,7 +49408,7 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
           nome_fantasia=?, cep=?, endereco=?, numero=?, complemento=?, bairro=?, uf=?, municipio=?,
           pais=?, telefone=?, ramal=?, telefone_2=?, ramal_2=?, fax=?, website=?, email=?, celular_ddi=?,
           celular=?, parametros=?, fiscal=?, contatos=?, validacao_dados=?, anexo_arquivos=?,
-          observacoes=?, ramo_atividade=?, atualizado_em=?
+          observacoes=?, ramo_atividade=?, atendente=?, atualizado_em=?
           WHERE id=?`,
         [
           d.data_cadastro, d.inativo||0, d.cpf_cnpj, d.inscricao_estadual, d.inscricao_municipal,
@@ -49410,7 +49418,9 @@ app.put('/api/clientes/:id', authenticateToken, (req, res) => {
           d.nome_fantasia, d.cep, d.endereco, d.numero, d.complemento, d.bairro, d.uf, d.municipio,
           d.pais, d.telefone, d.ramal, d.telefone_2, d.ramal_2, d.fax, d.website, d.email || '', d.celular_ddi,
           d.celular, d.parametros, d.fiscal, d.contatos, d.validacao_dados, d.anexo_arquivos,
-          d.observacoes || '', d.ramo_atividade !== undefined ? (d.ramo_atividade || '') : (curRow.ramo_atividade || ''), agora, targetId
+          d.observacoes || '', d.ramo_atividade !== undefined ? (d.ramo_atividade || '') : (curRow.ramo_atividade || ''),
+          d.atendente !== undefined ? String(d.atendente || '').trim() : (curRow.atendente || ''),
+          agora, targetId
         ], function(err) {
           if (err) {
             return res.status(500).json({ error: err.message });
@@ -51536,19 +51546,53 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   });
 });
 
-// GET /api/comercial/relatorios/clientes - Consulta leve e rápida para Relação de Clientes
+// GET /api/comercial/relatorios/clientes - Consulta leve e rápida para Relação de Clientes com atendente e contagem de contratos ativos/inativos
 app.get('/api/comercial/relatorios/clientes', authenticateToken, (req, res) => {
   db.all(`
-    SELECT id, codigo, nome_razao_social, nome_fantasia, grupo_clientes, cpf_cnpj, celular, telefone, email, municipio, uf, criado_em
+    SELECT id, codigo, nome_razao_social, nome_fantasia, grupo_clientes, atendente, cpf_cnpj, celular, telefone, email, municipio, uf, criado_em
     FROM clientes
     ORDER BY CAST(codigo AS INTEGER) DESC, id DESC
   `, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows || []);
+    const clientesArr = Array.isArray(rows) ? rows : [];
+    db.all(
+      `SELECT cliente_nome, situacao_contrato, tipo, contrato
+       FROM propostas
+       WHERE LOWER(COALESCE(status, '')) != 'excluída'
+         AND TRIM(COALESCE(contrato, '')) != ''`,
+      [],
+      (errCtr, ctrRows) => {
+        if (errCtr) return res.json(clientesArr);
+        const mapaContratos = new Map();
+        (Array.isArray(ctrRows) ? ctrRows : []).forEach(r => {
+          const tipoUp = String(r.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+          if (tipoUp === 'ADITIVO') return;
+          const cliKey = normNomeClienteHist(r.cliente_nome);
+          if (!cliKey) return;
+          const sitNorm = normNomeClienteHist(r.situacao_contrato);
+          const ehInativo = sitNorm.includes('encerrad') || sitNorm.includes('concluid') || sitNorm.includes('cancelad') || sitNorm.includes('reprovad') || sitNorm.includes('estornad') || sitNorm.includes('inativ') || sitNorm.includes('finalizad');
+          if (!mapaContratos.has(cliKey)) mapaContratos.set(cliKey, { ativos: 0, inativos: 0 });
+          const cur = mapaContratos.get(cliKey);
+          if (ehInativo) cur.inativos++;
+          else cur.ativos++;
+        });
+        const enriquecidos = clientesArr.map(c => {
+          const kRaz = normNomeClienteHist(c.nome_razao_social);
+          const kFan = normNomeClienteHist(c.nome_fantasia);
+          const stat = mapaContratos.get(kRaz) || (kFan ? mapaContratos.get(kFan) : null) || { ativos: 0, inativos: 0 };
+          return {
+            ...c,
+            contratos_ativos: stat.ativos,
+            contratos_inativos: stat.inativos
+          };
+        });
+        res.json(enriquecidos);
+      }
+    );
   });
 });
 
-// GET /api/comercial/relatorios/enderecos - Consulta leve e rápida para Relação de Endereços com nome e grupo do cliente
+// GET /api/comercial/relatorios/enderecos - Consulta leve e rápida para Relação de Endereços com nome, grupo do cliente e zona
 app.get('/api/comercial/relatorios/enderecos', authenticateToken, (req, res) => {
   db.all(`
     SELECT e.id, e.sequencia, e.cliente_id,
@@ -51560,7 +51604,11 @@ app.get('/api/comercial/relatorios/enderecos', authenticateToken, (req, res) => 
     ORDER BY e.sequencia ASC, e.id ASC
   `, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows || []);
+    const lista = (Array.isArray(rows) ? rows : []).map(e => ({
+      ...e,
+      zona: classificarZonaEnderecoServer([e.endereco, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean).join(' '))
+    }));
+    res.json(lista);
   });
 });
 

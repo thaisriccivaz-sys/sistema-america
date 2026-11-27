@@ -51,43 +51,38 @@
         clientes: {
             target: 'comercial-rel-clientes',
             titulo: 'Relação de Clientes',
-            subtitulo: 'Consulte todos os clientes cadastrados, filtre em tempo real e exporte para Excel.',
             icone: 'ph-users',
             nomeArquivo: 'Relacao_Clientes_Comercial'
         },
         enderecos: {
             target: 'comercial-rel-enderecos',
             titulo: 'Relação de Endereços',
-            subtitulo: 'Consulte todos os endereços de instalação e faturamento cadastrados com filtro e exportação Excel.',
             icone: 'ph-map-pin',
             nomeArquivo: 'Relacao_Enderecos_Comercial'
         },
         propostas: {
             target: 'comercial-rel-propostas',
             titulo: 'Relação de Propostas',
-            subtitulo: 'Listagem completa de propostas comerciais com filtros dinâmicos, produtos e exportação em Excel.',
             icone: 'ph-file-text',
             nomeArquivo: 'Relacao_Propostas_Comercial'
         },
         contratos: {
             target: 'comercial-rel-contratos',
             titulo: 'Relação de Contratos',
-            subtitulo: 'Acompanhe todos os contratos gerados, situações, valores, propostas e OS vinculadas.',
             icone: 'ph-files',
             nomeArquivo: 'Relacao_Contratos_Comercial'
         },
         os: {
             target: 'comercial-rel-os',
             titulo: 'Relação de OS',
-            subtitulo: 'Consulte todas as OS do Comercial por modalidade, equipamentos, serviços, contratos e datas.',
             icone: 'ph-clipboard-text',
             nomeArquivo: 'Relacao_OS_Comercial'
         }
     };
 
     const stateByTipo = {
-        clientes:  { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', cidade: '' } },
-        enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', municipioUf: '' } },
+        clientes:  { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', atendentes: [], atendBusca: '', contratosAtivos: '', cidade: '' } },
+        enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', zona: '', municipioUf: '' } },
         propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fase: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
         contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
         os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
@@ -279,7 +274,10 @@
 
         try {
             if (tipo === 'clientes') {
-                const resp = await fetch(`${apiBase}/comercial/relatorios/clientes`, { headers: getAuthHeaders() });
+                const [resp] = await Promise.all([
+                    fetch(`${apiBase}/comercial/relatorios/clientes`, { headers: getAuthHeaders() }),
+                    carregarAtendentesComercialRelatorios()
+                ]);
                 if (!resp.ok) throw new Error('Falha ao carregar clientes cadastrados.');
                 const rows = await resp.json();
                 const arr = Array.isArray(rows) ? rows : [];
@@ -288,7 +286,10 @@
                     c._grupoNorm = normStr(grupo);
                     c._cidadeNorm = normStr(`${c.municipio || ''} ${c.uf || ''}`);
                     c._nomeExib = formatarNomeComGrupoRapido(c.nome_razao_social || c.nome_fantasia || '—', grupo);
-                    c._search = normStr(`${c.codigo || ''} ${c.nome_razao_social || ''} ${c.nome_fantasia || ''} ${c.cpf_cnpj || ''} ${c.email || ''} ${c.celular || ''} ${c.telefone || ''} ${c.municipio || ''} ${c.uf || ''}`);
+                    c._atendExib = c.atendente ? resolverAtendenteNome(c.atendente) : '';
+                    c._contratosAtivos = Number(c.contratos_ativos) || 0;
+                    c._contratosInativos = Number(c.contratos_inativos) || 0;
+                    c._search = normStr(`${c.codigo || ''} ${c.nome_razao_social || ''} ${c.nome_fantasia || ''} ${c.cpf_cnpj || ''} ${c._atendExib || ''} ${c.municipio || ''} ${c.uf || ''}`);
                 });
                 st.dados = arr;
             } else if (tipo === 'enderecos') {
@@ -302,7 +303,9 @@
                     e._cliNorm = normStr(cliRaw);
                     e._cliExib = cliRaw ? formatarNomeComGrupoRapido(cliRaw, e.grupo_clientes || '') : '—';
                     e._munNorm = normStr(`${e.municipio || ''} ${e.uf || ''}`);
-                    e._search = normStr(`${cliRaw} ${e.nome_local || ''} ${e.endereco || ''} ${e.numero || ''} ${e.bairro || ''} ${e.municipio || ''} ${e.uf || ''} ${e.cep || ''}`);
+                    e._zona = String(e.zona || 'Outra').trim();
+                    e._zonaNorm = normStr(e._zona);
+                    e._search = normStr(`${cliRaw} ${e.nome_local || ''} ${e.endereco || ''} ${e.numero || ''} ${e.bairro || ''} ${e.municipio || ''} ${e.uf || ''} ${e.cep || ''} ${e._zona}`);
                 });
                 st.dados = arr;
             } else {
@@ -377,6 +380,7 @@
         if (tipo === 'clientes') {
             const qCid = normStr(f.cidade);
             const gSel = normStr(f.grupo);
+            const ctrAtSel = String(f.contratosAtivos || '').trim();
             return dados.filter(c => {
                 if (q && !c._search.includes(q)) return false;
                 if (qCid && !c._cidadeNorm.includes(qCid)) return false;
@@ -387,6 +391,10 @@
                         return false;
                     }
                 }
+                if (!atendentePassaFiltro(c, f.atendentes)) return false;
+                if (ctrAtSel === 'sim' && !(c._contratosAtivos > 0)) return false;
+                if (ctrAtSel === 'nao' && !(c._contratosAtivos === 0 && c._contratosInativos > 0)) return false;
+                if (ctrAtSel === 'sem' && !(c._contratosAtivos === 0 && c._contratosInativos === 0)) return false;
                 return true;
             });
         }
@@ -394,9 +402,11 @@
         if (tipo === 'enderecos') {
             const qCli = normStr(f.cliente);
             const qMun = normStr(f.municipioUf);
+            const qZona = normStr(f.zona);
             return dados.filter(e => {
                 if (q && !e._search.includes(q)) return false;
                 if (qCli && !e._cliNorm.includes(qCli)) return false;
+                if (qZona && e._zonaNorm !== qZona) return false;
                 if (qMun && !e._munNorm.includes(qMun)) return false;
                 return true;
             });
@@ -468,41 +478,47 @@
     function montarConfiguracaoTabelaEExcel(tipo, filtrados) {
         if (tipo === 'clientes') {
             const colunas = [
-                { key: 'codigo', label: 'Código', width: 12 },
-                { key: 'razao_social', label: 'Razão Social / Nome', width: 38 },
-                { key: 'fantasia', label: 'Nome Fantasia', width: 30 },
-                { key: 'grupo', label: 'Grupo', width: 14 },
-                { key: 'cpf_cnpj', label: 'CPF / CNPJ', width: 20 },
-                { key: 'telefone', label: 'Telefone / Celular', width: 20 },
-                { key: 'email', label: 'E-mail', width: 30 },
-                { key: 'cidade_uf', label: 'Município / UF', width: 24 },
-                { key: 'criado_em', label: 'Cadastro', width: 14 }
+                { key: 'codigo', label: 'Código', width: 12, widthPx: 80 },
+                { key: 'razao_social', label: 'Razão Social / Nome Fantasia', width: 42, widthPx: 310, tipo: 'multilinha' },
+                { key: 'grupo', label: 'Grupo', width: 15, widthPx: 120 },
+                { key: 'cpf_cnpj', label: 'CPF / CNPJ', width: 20, widthPx: 155 },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 165 },
+                { key: 'contratos_ativos', label: 'Ctr. Ativos', width: 14, widthPx: 115 },
+                { key: 'contratos_inativos', label: 'Ctr. Inativos', width: 14, widthPx: 120 },
+                { key: 'cidade_uf', label: 'Município / UF', width: 24, widthPx: 165 },
+                { key: 'criado_em', label: 'Cadastro', width: 14, widthPx: 105 }
             ];
-            const linhasExcel = filtrados.map(c => ({
-                codigo: c.codigo || c.id || '',
-                razao_social: limparNomeClienteParaExcel(c.nome_razao_social || c.nome_fantasia || ''),
-                fantasia: c.nome_fantasia || '',
-                grupo: c.grupo_clientes || c.classificacao || 'Sem Grupo',
-                cpf_cnpj: c.cpf_cnpj || '',
-                telefone: c.celular || c.telefone || '',
-                email: c.email || '',
-                cidade_uf: [c.municipio, c.uf].filter(Boolean).join('/') || '',
-                criado_em: fmtDataBr(c.criado_em)
-            }));
+            const linhasExcel = filtrados.map(c => {
+                const razao = limparNomeClienteParaExcel(c.nome_razao_social || c.nome_fantasia || '');
+                const fant = String(c.nome_fantasia || '').trim();
+                const razaoFant = (fant && normStr(fant) !== normStr(razao)) ? `${razao}\nFantasia: ${fant}` : razao;
+                return {
+                    codigo: c.codigo || c.id || '',
+                    razao_social: razaoFant,
+                    grupo: c.grupo_clientes || c.classificacao || 'Sem Grupo',
+                    cpf_cnpj: c.cpf_cnpj || '',
+                    atendente: c._atendExib || '—',
+                    contratos_ativos: c._contratosAtivos || 0,
+                    contratos_inativos: c._contratosInativos || 0,
+                    cidade_uf: [c.municipio, c.uf].filter(Boolean).join('/') || '',
+                    criado_em: fmtDataBr(c.criado_em)
+                };
+            });
             return { colunas, linhasExcel };
         }
 
         if (tipo === 'enderecos') {
             const colunas = [
-                { key: 'sequencia', label: 'Seq.', width: 10 },
-                { key: 'cliente', label: 'Cliente', width: 38 },
-                { key: 'nome_local', label: 'Nome do Local', width: 26 },
-                { key: 'endereco', label: 'Logradouro', width: 36 },
-                { key: 'numero', label: 'Nº', width: 10 },
-                { key: 'bairro', label: 'Bairro', width: 22 },
-                { key: 'municipio', label: 'Município', width: 22 },
-                { key: 'uf', label: 'UF', width: 8 },
-                { key: 'cep', label: 'CEP', width: 14 }
+                { key: 'sequencia', label: 'Seq.', width: 10, widthPx: 65 },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 260 },
+                { key: 'nome_local', label: 'Nome do Local', width: 26, widthPx: 180 },
+                { key: 'endereco', label: 'Logradouro', width: 36, widthPx: 250 },
+                { key: 'numero', label: 'Nº', width: 10, widthPx: 75 },
+                { key: 'bairro', label: 'Bairro', width: 22, widthPx: 150 },
+                { key: 'municipio', label: 'Município', width: 22, widthPx: 145 },
+                { key: 'uf', label: 'UF', width: 8, widthPx: 60 },
+                { key: 'cep', label: 'CEP', width: 14, widthPx: 105 },
+                { key: 'zona', label: 'Zona', width: 18, widthPx: 135 }
             ];
             const linhasExcel = filtrados.map((e, idx) => ({
                 sequencia: e.sequencia || (idx + 1),
@@ -513,24 +529,25 @@
                 bairro: e.bairro || '',
                 municipio: e.municipio || '',
                 uf: e.uf || '',
-                cep: e.cep || ''
+                cep: e.cep || '',
+                zona: e._zona || 'Outra'
             }));
             return { colunas, linhasExcel };
         }
 
         if (tipo === 'propostas') {
             const colunas = [
-                { key: 'codigo', label: 'Nº Proposta', width: 14 },
-                { key: 'data_cadastro', label: 'Data Cadastro', width: 14 },
-                { key: 'tipo', label: 'Tipo', width: 18 },
-                { key: 'cliente', label: 'Cliente', width: 38 },
-                { key: 'contato', label: 'Contato', width: 24 },
-                { key: 'atendente', label: 'Atendente', width: 22 },
-                { key: 'fase', label: 'Fase de Negociação', width: 24 },
-                { key: 'periodo', label: 'Período (Início / Fim)', width: 25 },
-                { key: 'produtos', label: 'Produtos', width: 42, tipo: 'multilinha' },
-                { key: 'valor_total', label: 'Valor Total', width: 18, tipo: 'moeda' },
-                { key: 'contrato', label: 'Contrato', width: 14 }
+                { key: 'codigo', label: 'Nº Proposta', width: 14, widthPx: 95 },
+                { key: 'data_cadastro', label: 'Data Cadastro', width: 14, widthPx: 105 },
+                { key: 'tipo', label: 'Tipo', width: 18, widthPx: 125 },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 250 },
+                { key: 'contato', label: 'Contato', width: 24, widthPx: 155 },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 150 },
+                { key: 'fase', label: 'Fase de Negociação', width: 24, widthPx: 170 },
+                { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 175 },
+                { key: 'produtos', label: 'Produtos', width: 42, widthPx: 260, tipo: 'multilinha' },
+                { key: 'valor_total', label: 'Valor Total', width: 18, widthPx: 125, tipo: 'moeda' },
+                { key: 'contrato', label: 'Contrato', width: 14, widthPx: 95 }
             ];
             const linhasExcel = filtrados.map(p => ({
                 codigo: p.codigo || '',
@@ -550,18 +567,18 @@
 
         if (tipo === 'contratos') {
             const colunas = [
-                { key: 'contrato', label: 'Nº Contrato', width: 14 },
-                { key: 'codigo', label: 'Nº Proposta', width: 14 },
-                { key: 'data_emissao', label: 'Data Emissão', width: 14 },
-                { key: 'tipo', label: 'Tipo', width: 18 },
-                { key: 'titulo', label: 'Título', width: 30 },
-                { key: 'cliente', label: 'Cliente', width: 38 },
-                { key: 'contato', label: 'Contato', width: 24 },
-                { key: 'atendente', label: 'Atendente', width: 22 },
-                { key: 'situacao', label: 'Situação do Contrato', width: 26 },
-                { key: 'periodo', label: 'Período (Início / Fim)', width: 25 },
-                { key: 'valor_total', label: 'Valor Total', width: 18, tipo: 'moeda' },
-                { key: 'numero_os', label: 'Nº OS', width: 12 }
+                { key: 'contrato', label: 'Nº Contrato', width: 14, widthPx: 95 },
+                { key: 'codigo', label: 'Nº Proposta', width: 14, widthPx: 95 },
+                { key: 'data_emissao', label: 'Data Emissão', width: 14, widthPx: 105 },
+                { key: 'tipo', label: 'Tipo', width: 18, widthPx: 120 },
+                { key: 'titulo', label: 'Título', width: 30, widthPx: 190 },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 240 },
+                { key: 'contato', label: 'Contato', width: 24, widthPx: 150 },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145 },
+                { key: 'situacao', label: 'Situação do Contrato', width: 26, widthPx: 205 },
+                { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 175 },
+                { key: 'valor_total', label: 'Valor Total', width: 18, widthPx: 125, tipo: 'moeda' },
+                { key: 'numero_os', label: 'Nº OS', width: 12, widthPx: 85 }
             ];
             const linhasExcel = filtrados.map(p => ({
                 contrato: p.contrato || '',
@@ -581,20 +598,20 @@
         }
 
         const colunas = [
-            { key: 'numero_os', label: 'Nº OS', width: 12 },
-            { key: 'modalidade', label: 'Obra / Evento', width: 14 },
-            { key: 'tipo_os', label: 'Tipo de OS', width: 18 },
-            { key: 'data_cadastro', label: 'Data Cadastro', width: 14 },
-            { key: 'contrato', label: 'Contrato', width: 14 },
-            { key: 'cliente', label: 'Cliente', width: 38 },
-            { key: 'contato', label: 'Contato', width: 24 },
-            { key: 'atendente', label: 'Atendente', width: 22 },
-            { key: 'status_os', label: 'Status da OS', width: 26 },
-            { key: 'equipamentos', label: 'Equipamentos', width: 40, tipo: 'multilinha' },
-            { key: 'servicos', label: 'Serviços', width: 34, tipo: 'multilinha' },
-            { key: 'data_entrega', label: 'Data Entrega', width: 14 },
-            { key: 'data_retirada', label: 'Data Retirada', width: 14 },
-            { key: 'endereco', label: 'Endereço(s) de Instalação', width: 45 }
+            { key: 'numero_os', label: 'Nº OS', width: 12, widthPx: 85 },
+            { key: 'modalidade', label: 'Obra / Evento', width: 14, widthPx: 105 },
+            { key: 'tipo_os', label: 'Tipo de OS', width: 18, widthPx: 125 },
+            { key: 'data_cadastro', label: 'Data Cadastro', width: 14, widthPx: 105 },
+            { key: 'contrato', label: 'Contrato', width: 14, widthPx: 95 },
+            { key: 'cliente', label: 'Cliente', width: 38, widthPx: 240 },
+            { key: 'contato', label: 'Contato', width: 24, widthPx: 150 },
+            { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145 },
+            { key: 'status_os', label: 'Status da OS', width: 26, widthPx: 195 },
+            { key: 'equipamentos', label: 'Equipamentos', width: 40, widthPx: 240, tipo: 'multilinha' },
+            { key: 'servicos', label: 'Serviços', width: 34, widthPx: 210, tipo: 'multilinha' },
+            { key: 'data_entrega', label: 'Data Entrega', width: 14, widthPx: 105 },
+            { key: 'data_retirada', label: 'Data Retirada', width: 14, widthPx: 105 },
+            { key: 'endereco', label: 'Endereço(s) de Instalação', width: 45, widthPx: 280 }
         ];
         const linhasExcel = filtrados.map(p => {
             const dts = p._dtsOs || extrairDatasOs(p);
@@ -620,9 +637,23 @@
 
     function renderListaCompactaHtml(itens, corBg = '#f1f5f9', corTxt = '#334155', corBorda = '#cbd5e1') {
         if (!Array.isArray(itens) || !itens.length) return '<span style="color:#94a3b8;">—</span>';
-        return `<div style="display:flex; flex-direction:column; gap:3px; min-width:190px; max-width:340px;">
-            ${itens.map(item => `<div style="background:${corBg}; color:${corTxt}; border:1px solid ${corBorda}; border-radius:6px; padding:2px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal;">${esc(item)}</div>`).join('')}
+        return `<div style="display:flex; flex-direction:column; gap:3px; min-width:0; max-width:100%;">
+            ${itens.map(item => `<div style="background:${corBg}; color:${corTxt}; border:1px solid ${corBorda}; border-radius:6px; padding:2px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal; overflow-wrap:break-word;">${esc(item)}</div>`).join('')}
         </div>`;
+    }
+
+    function renderBadgeZonaHtml(zonaRaw) {
+        const z = String(zonaRaw || 'Outra').trim() || 'Outra';
+        const zn = normStr(z);
+        let bg = '#f1f5f9', txt = '#475569', bd = '#cbd5e1';
+        if (zn.includes('central')) {
+            bg = '#dbeafe'; txt = '#1d4ed8'; bd = '#bfdbfe';
+        } else if (zn.includes('amarela')) {
+            bg = '#fef9c3'; txt = '#a16207'; bd = '#fde047';
+        } else if (zn.includes('vermelha')) {
+            bg = '#fee2e2'; txt = '#b91c1c'; bd = '#fecaca';
+        }
+        return `<span style="background:${bg}; color:${txt}; border:1px solid ${bd}; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-block;">${esc(z)}</span>`;
     }
 
     function renderNomeClienteClicavelHtml(nomeExib, { clienteId = '', clienteNomeLimpo = '', grupo = '' } = {}) {
@@ -632,34 +663,46 @@
         return `<button type="button" data-cli-id="${esc(clienteId || '')}" data-cli-nome="${esc(nomeLimpoFinal)}" data-cli-grupo="${esc(grupo || '')}"
             onclick="window._comercialRelatorios.abrirHistoricoPorElemento(this)"
             title="Clique para ver o histórico de movimentações deste cliente (Propostas, Contratos, OS e Faturamento)"
-            style="background:none; border:none; padding:0; margin:0; text-align:left; font:inherit; font-weight:700; color:#1e293b; cursor:pointer; text-decoration:underline; text-decoration-color:#cbd5e1; text-underline-offset:3px;"
+            style="background:none; border:none; padding:0; margin:0; text-align:left; font:inherit; font-weight:700; color:#1e293b; cursor:pointer; text-decoration:underline; text-decoration-color:#cbd5e1; text-underline-offset:3px; max-width:100%; white-space:normal; overflow-wrap:break-word;"
             onmouseover="this.style.color='#5f3dc4'; this.style.textDecorationColor='#7048e8';"
             onmouseout="this.style.color='#1e293b'; this.style.textDecorationColor='#cbd5e1';">${esc(txt)}</button>`;
     }
 
-    function renderLinhasHtml(tipo, paginaLinhas) {
+    function renderLinhasHtml(tipo, paginaLinhas, totalCols = 10) {
         if (!paginaLinhas.length) {
-            return `<tr><td colspan="14" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
+            return `<tr><td colspan="${totalCols}" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
         }
 
         if (tipo === 'clientes') {
             return paginaLinhas.map(c => {
                 const grupo = c.grupo_clientes || c.classificacao || '';
+                const razaoLimpa = limparNomeClienteParaExcel(c.nome_razao_social || c.nome_fantasia || '');
                 const nomeExibCli = c._nomeExib || c.nome_razao_social || '—';
+                const fantTxt = String(c.nome_fantasia || '').trim();
+                const mostrarFantasiaAbaixo = Boolean(fantTxt && normStr(fantTxt) !== normStr(razaoLimpa));
                 const nomeHtml = renderNomeClienteClicavelHtml(nomeExibCli, {
                     clienteId: c.id || '',
-                    clienteNomeLimpo: limparNomeClienteParaExcel(c.nome_razao_social || c.nome_fantasia || ''),
+                    clienteNomeLimpo: razaoLimpa,
                     grupo
                 });
+                const cAtivos = Number(c._contratosAtivos) || 0;
+                const cInativos = Number(c._contratosInativos) || 0;
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                     <td style="padding:7px 10px; font-weight:700; color:#7048e8; white-space:nowrap;">${esc(c.codigo || c.id || '—')}</td>
-                    <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${nomeHtml}</td>
-                    <td style="padding:7px 10px; color:#475569;">${esc(c.nome_fantasia || '—')}</td>
+                    <td style="padding:7px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">
+                        <div>${nomeHtml}</div>
+                        ${mostrarFantasiaAbaixo ? `<div style="margin-top:2px; font-size:0.73rem; font-weight:500; color:#64748b; overflow-wrap:break-word;">${esc(fantTxt)}</div>` : ''}
+                    </td>
                     <td style="padding:7px 10px; white-space:nowrap;">${grupo ? `<span style="background:#f3f0ff; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">${esc(grupo)}</span>` : '<span style="color:#94a3b8;">—</span>'}</td>
-                    <td style="padding:7px 10px; white-space:nowrap; color:#334155;">${esc(c.cpf_cnpj || '—')}</td>
-                    <td style="padding:7px 10px; white-space:nowrap; color:#334155;">${esc(c.celular || c.telefone || '—')}</td>
-                    <td style="padding:7px 10px; color:#475569;">${esc(c.email || '—')}</td>
-                    <td style="padding:7px 10px; white-space:nowrap; color:#475569;">${esc([c.municipio, c.uf].filter(Boolean).join('/') || '—')}</td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#334155; overflow:hidden; text-overflow:ellipsis;" title="${esc(c.cpf_cnpj || '')}">${esc(c.cpf_cnpj || '—')}</td>
+                    <td style="padding:7px 10px; color:#334155; overflow-wrap:break-word;">${esc(c._atendExib || '—')}</td>
+                    <td style="padding:7px 10px; text-align:center; white-space:nowrap;">
+                        <span style="background:${cAtivos > 0 ? '#dcfce7' : '#f1f5f9'}; color:${cAtivos > 0 ? '#15803d' : '#64748b'}; border:1px solid ${cAtivos > 0 ? '#86efac' : '#cbd5e1'}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800;">${cAtivos}</span>
+                    </td>
+                    <td style="padding:7px 10px; text-align:center; white-space:nowrap;">
+                        <span style="background:${cInativos > 0 ? '#ffedd5' : '#f1f5f9'}; color:${cInativos > 0 ? '#c2410c' : '#64748b'}; border:1px solid ${cInativos > 0 ? '#fed7aa' : '#cbd5e1'}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800;">${cInativos}</span>
+                    </td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#475569; overflow:hidden; text-overflow:ellipsis;" title="${esc([c.municipio, c.uf].filter(Boolean).join('/'))}">${esc([c.municipio, c.uf].filter(Boolean).join('/') || '—')}</td>
                     <td style="padding:7px 10px; white-space:nowrap; color:#64748b;">${esc(fmtDataBr(c.criado_em))}</td>
                 </tr>`;
             }).join('');
@@ -674,14 +717,15 @@
                 });
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                 <td style="padding:7px 10px; font-weight:700; color:#64748b; text-align:center;">${esc(e.sequencia || (idx + 1))}</td>
-                <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${nomeHtml}</td>
-                <td style="padding:7px 10px; font-weight:600; color:#5f3dc4;">${esc(e.nome_local || '—')}</td>
-                <td style="padding:7px 10px; color:#334155;">${esc(e.endereco || '—')}</td>
-                <td style="padding:7px 10px; color:#334155; white-space:nowrap;">${esc(e.numero || 'S/N')}</td>
-                <td style="padding:7px 10px; color:#475569;">${esc(e.bairro || '—')}</td>
-                <td style="padding:7px 10px; color:#475569;">${esc(e.municipio || '—')}</td>
+                <td style="padding:7px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${nomeHtml}</td>
+                <td style="padding:7px 10px; font-weight:600; color:#5f3dc4; overflow-wrap:break-word;">${esc(e.nome_local || '—')}</td>
+                <td style="padding:7px 10px; color:#334155; overflow-wrap:break-word;">${esc(e.endereco || '—')}</td>
+                <td style="padding:7px 10px; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(e.numero || 'S/N')}</td>
+                <td style="padding:7px 10px; color:#475569; overflow-wrap:break-word;">${esc(e.bairro || '—')}</td>
+                <td style="padding:7px 10px; color:#475569; overflow-wrap:break-word;">${esc(e.municipio || '—')}</td>
                 <td style="padding:7px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(e.uf || '—')}</td>
                 <td style="padding:7px 10px; white-space:nowrap; color:#64748b;">${esc(e.cep || '—')}</td>
+                <td style="padding:7px 10px; white-space:nowrap;">${renderBadgeZonaHtml(e._zona || e.zona)}</td>
             </tr>`;
             }).join('');
         }
@@ -875,12 +919,12 @@
 
         if (tipo === 'clientes') {
             return `
-                <div style="flex:2 1 260px;">
+                <div style="flex:2 1 240px;">
                     <label style="${lblSt}">Pesquisar</label>
                     <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
-                        placeholder="Digite código, razão social, fantasia, CNPJ/CPF, e-mail..." style="width:100%; ${inpSt}">
+                        placeholder="Digite código, razão social, fantasia, CNPJ/CPF, atendente..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:1 1 160px;">
+                <div style="flex:0.9 1 140px;">
                     <label style="${lblSt}">Grupo de Clientes</label>
                     <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'grupo', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todos</option>
@@ -888,7 +932,17 @@
                         <option value="__sem__" ${f.grupo === '__sem__' ? 'selected' : ''}>Sem Grupo</option>
                     </select>
                 </div>
-                <div style="flex:1 1 180px;">
+                ${renderAtendenteMultiHtml('clientes', 'flex:1.1 1 190px;')}
+                <div style="flex:1 1 170px;">
+                    <label style="${lblSt}">Contratos Ativos</label>
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'contratosAtivos', this.value, false)" style="width:100%; ${inpSt}">
+                        <option value="">Todos</option>
+                        <option value="sim" ${f.contratosAtivos === 'sim' ? 'selected' : ''}>Sim (Com contrato ativo)</option>
+                        <option value="nao" ${f.contratosAtivos === 'nao' ? 'selected' : ''}>Não (Apenas inativos)</option>
+                        <option value="sem" ${f.contratosAtivos === 'sem' ? 'selected' : ''}>Sem contratos</option>
+                    </select>
+                </div>
+                <div style="flex:1 1 165px;">
                     <label style="${lblSt}">Município / UF</label>
                     <input type="text" data-filtro="cidade" value="${esc(f.cidade)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cidade', this.value, true)"
                         placeholder="Filtrar cidade ou UF..." style="width:100%; ${inpSt}">
@@ -898,17 +952,24 @@
 
         if (tipo === 'enderecos') {
             return `
-                <div style="flex:2 1 280px;">
+                <div style="flex:2 1 260px;">
                     <label style="${lblSt}">Pesquisar</label>
                     <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
-                        placeholder="Digite endereço, local, bairro, CEP..." style="width:100%; ${inpSt}">
+                        placeholder="Digite endereço, local, bairro, CEP, zona..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:1.4 1 200px;">
+                <div style="flex:1.3 1 190px;">
                     <label style="${lblSt}">Cliente</label>
                     <input type="text" data-filtro="cliente" value="${esc(f.cliente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cliente', this.value, true)"
                         placeholder="Filtrar por cliente..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:1 1 180px;">
+                <div style="flex:0.9 1 145px;">
+                    <label style="${lblSt}">Zona</label>
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'zona', this.value, false)" style="width:100%; ${inpSt}">
+                        <option value="">Todas</option>
+                        ${['Zona Central', 'Zona Amarela', 'Zona Vermelha', 'Outra'].map(z => `<option value="${esc(z)}" ${f.zona === z ? 'selected' : ''}>${esc(z)}</option>`).join('')}
+                    </select>
+                </div>
+                <div style="flex:1 1 170px;">
                     <label style="${lblSt}">Município / UF</label>
                     <input type="text" data-filtro="municipioUf" value="${esc(f.municipioUf)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'municipioUf', this.value, true)"
                         placeholder="Filtrar cidade ou UF..." style="width:100%; ${inpSt}">
@@ -1123,10 +1184,22 @@
             valorTotalEl.textContent = fmtMoeda(soma);
         }
 
+        const tableEl = document.getElementById(`comrel-${tipo}-table`);
+        const colgroupEl = document.getElementById(`comrel-${tipo}-colgroup`);
+        const totalWidthPx = cfg.colunas.reduce((acc, col) => acc + (Number(col.widthPx) || 140), 0);
+        if (colgroupEl) {
+            colgroupEl.innerHTML = cfg.colunas.map(col => `<col style="width:${Number(col.widthPx) || 140}px;">`).join('');
+        }
+        if (tableEl) {
+            tableEl.style.width = `${totalWidthPx}px`;
+            tableEl.style.minWidth = '100%';
+            tableEl.style.tableLayout = 'fixed';
+        }
+
         const theadEl = document.getElementById(`comrel-${tipo}-thead`);
         if (theadEl) {
             theadEl.innerHTML = `<tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                ${cfg.colunas.map(col => `<th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:10px; text-align:${col.tipo === 'moeda' ? 'right' : 'left'}; white-space:nowrap;">${esc(col.label)}</th>`).join('')}
+                ${cfg.colunas.map(col => `<th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:10px; text-align:${col.tipo === 'moeda' ? 'right' : (col.key === 'contratos_ativos' || col.key === 'contratos_inativos' ? 'center' : 'left')}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(col.label)}</th>`).join('')}
             </tr>`;
         }
 
@@ -1143,7 +1216,7 @@
             } else if (st.erro) {
                 tbodyEl.innerHTML = `<tr><td colspan="${cfg.colunas.length}" style="text-align:center; padding:2rem; color:#dc2626; font-weight:700;">${esc(st.erro)}</td></tr>`;
             } else {
-                tbodyEl.innerHTML = renderLinhasHtml(tipo, paginaLinhas);
+                tbodyEl.innerHTML = renderLinhasHtml(tipo, paginaLinhas, cfg.colunas.length);
             }
         }
         renderPaginacaoBarra(tipo, filtrados.length);
@@ -1167,13 +1240,10 @@
                         <div style="width:42px; height:42px; border-radius:10px; background:#f3f0ff; color:#7048e8; display:flex; align-items:center; justify-content:center; font-size:1.4rem;">
                             <i class="ph ${meta.icone}"></i>
                         </div>
-                        <div>
-                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <h2 style="margin:0; font-size:1.15rem; font-weight:800; color:#1e293b;">${esc(meta.titulo)}</h2>
-                                <span id="comrel-${tipo}-count" style="background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 10px; border-radius:999px; font-size:0.74rem; font-weight:800;">${filtrados.length} registro(s)</span>
-                                ${mostrarTotalMoeda ? `<span id="comrel-${tipo}-total-valor" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 10px; border-radius:999px; font-size:0.74rem; font-weight:800;">${esc(fmtMoeda(0))}</span>` : ''}
-                            </div>
-                            <p style="margin:2px 0 0; font-size:0.8rem; color:#64748b;">${esc(meta.subtitulo)}</p>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <h2 style="margin:0; font-size:1.15rem; font-weight:800; color:#1e293b;">${esc(meta.titulo)}</h2>
+                            <span id="comrel-${tipo}-count" style="background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 10px; border-radius:999px; font-size:0.74rem; font-weight:800;">${filtrados.length} registro(s)</span>
+                            ${mostrarTotalMoeda ? `<span id="comrel-${tipo}-total-valor" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 10px; border-radius:999px; font-size:0.74rem; font-weight:800;">${esc(fmtMoeda(0))}</span>` : ''}
                         </div>
                     </div>
 
@@ -1198,10 +1268,11 @@
                     ${renderFiltrosHtml(tipo)}
                 </div>
 
-                <!-- Tabela + Paginação -->
+                <!-- Tabela (largura fixa independente do filtro) + Paginação -->
                 <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(15,23,42,0.03);">
                     <div style="max-height:62vh; overflow:auto;">
-                        <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
+                        <table id="comrel-${tipo}-table" style="table-layout:fixed; width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
+                            <colgroup id="comrel-${tipo}-colgroup"></colgroup>
                             <thead id="comrel-${tipo}-thead"></thead>
                             <tbody id="comrel-${tipo}-tbody"></tbody>
                         </table>
@@ -1403,7 +1474,7 @@
     };
 
     document.addEventListener('click', (e) => {
-        ['propostas', 'contratos', 'os'].forEach(tipo => {
+        ['clientes', 'propostas', 'contratos', 'os'].forEach(tipo => {
             const wrap = document.getElementById(`comrel-${tipo}-atend-wrap`);
             const drop = document.getElementById(`comrel-${tipo}-atend-dropdown`);
             if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {

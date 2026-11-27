@@ -657,6 +657,67 @@ window.resolverNomeExibicaoAtendenteComercial = function(rawVal, usarLogadoSeVaz
     return val;
 };
 
+window.filtrarDropdownAtendenteCliente = async function(prefixo = 'cli', termo = '', abrir = true) {
+    const drop = document.getElementById(`${prefixo}-atendente-dropdown`);
+    if (!drop) return;
+    const lista = (typeof window.carregarAtendentesComercial === 'function')
+        ? await window.carregarAtendentesComercial()
+        : (window._atendentesComercialCache || []);
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const q = norm(termo);
+    const ativos = (Array.isArray(lista) ? lista : []).filter(a => !a.desligado && String(a.status || '').toLowerCase() !== 'desligado');
+    const filtrados = q
+        ? ativos.filter(a => norm(a.nome).includes(q) || norm(a.username).includes(q))
+        : ativos;
+    if (!filtrados.length) {
+        drop.innerHTML = `<div style="padding:7px 10px; font-size:0.78rem; color:#94a3b8;">Nenhum atendente ativo do Comercial encontrado.</div>`;
+    } else {
+        drop.innerHTML = filtrados.map(a => {
+            const nome = String(a.nome || '').trim();
+            const nomeEsc = nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<div onmousedown="event.preventDefault(); window.selecionarAtendenteCliente('${prefixo}', '${nomeEsc}')"
+                style="padding:6px 10px; font-size:0.82rem; color:#1e293b; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                <strong>${_escHtmlProp(nome)}</strong>
+            </div>`;
+        }).join('');
+    }
+    if (abrir) drop.style.display = 'block';
+};
+
+window.toggleDropdownAtendenteCliente = function(prefixo = 'cli', event) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    const drop = document.getElementById(`${prefixo}-atendente-dropdown`);
+    const inp = document.getElementById(`${prefixo}-atendente`);
+    if (!drop || !inp) return;
+    if (drop.style.display === 'block') {
+        drop.style.display = 'none';
+    } else {
+        window.filtrarDropdownAtendenteCliente(prefixo, '', true);
+        inp.focus();
+    }
+};
+
+window.selecionarAtendenteCliente = function(prefixo = 'cli', nome = '') {
+    const inp = document.getElementById(`${prefixo}-atendente`);
+    const drop = document.getElementById(`${prefixo}-atendente-dropdown`);
+    if (inp) inp.value = nome;
+    if (drop) drop.style.display = 'none';
+};
+
+if (!window._listenerDropdownAtendenteClienteRegistrado) {
+    window._listenerDropdownAtendenteClienteRegistrado = true;
+    document.addEventListener('click', (e) => {
+        ['cli', 'modal-cli'].forEach(prefixo => {
+            const wrap = document.getElementById(`${prefixo}-atendente-wrap`);
+            const drop = document.getElementById(`${prefixo}-atendente-dropdown`);
+            if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+                drop.style.display = 'none';
+            }
+        });
+    });
+}
+
 window.usuarioLogadoPodeEditarAtendenteComercial = function() {
     if (window.usuarioLogadoEhThais && window.usuarioLogadoEhThais()) return true;
     const ctx = window._contextoUsuarioComercial;
@@ -7573,8 +7634,8 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             </div>
                         </div>
 
-                        <!-- Linha 2: Razão Social e Nome Fantasia lado a lado -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <!-- Linha 2: Razão Social, Nome Fantasia e Atendente -->
+                        <div style="display:grid; grid-template-columns:1.3fr 1.1fr 0.9fr; gap:0.75rem;">
                             <div class="mcli-field">
                                 <label>Nome / Razão Social *</label>
                                 <input type="text" id="modal-cli-razao-social" value="${client ? (client.nome_razao_social || '') : prefilledName}" class="mcli-input${bloqInputClass}">
@@ -7582,6 +7643,22 @@ window.abrirModalCadastroCliente = async function(clientId = null, prefilledName
                             <div class="mcli-field">
                                 <label>Nome Fantasia *</label>
                                 <input type="text" id="modal-cli-nome-fantasia" value="${client ? (client.nome_fantasia || client.nome_razao_social || '') : ''}" class="mcli-input${bloqInputClass}">
+                            </div>
+                            <div class="mcli-field">
+                                <label>Atendente</label>
+                                <div id="modal-cli-atendente-wrap" style="position:relative; width:100%;">
+                                    <input type="text" id="modal-cli-atendente" value="${_escHtmlProp(client ? (window.resolverNomeExibicaoAtendenteComercial ? window.resolverNomeExibicaoAtendenteComercial(client.atendente || '', false) : (client.atendente || '')) : '')}"
+                                        autocomplete="off" placeholder="Selecionar atendente..." class="mcli-input"
+                                        style="width:100%; padding-right:1.6rem; text-transform:none;"
+                                        onfocus="window.filtrarDropdownAtendenteCliente('modal-cli', '', true);"
+                                        onclick="window.filtrarDropdownAtendenteCliente('modal-cli', '', true);"
+                                        oninput="window.filtrarDropdownAtendenteCliente('modal-cli', this.value, true);">
+                                    <button type="button" tabindex="-1" onclick="window.toggleDropdownAtendenteCliente('modal-cli', event)"
+                                        style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; width:22px; height:22px; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-caret-down"></i>
+                                    </button>
+                                    <div id="modal-cli-atendente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1200;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -8547,6 +8624,7 @@ window.modalSalvarCliente = async function(clientId) {
         tipo_vinculo_grupo: tipoVinculoModal || undefined,
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('modal-cli-nome-fantasia')?.value || '',
+        atendente: (document.getElementById('modal-cli-atendente')?.value || '').trim(),
         cep: document.getElementById('modal-cli-cep')?.value || '',
         endereco: (() => {
             const rawEnd = (document.getElementById('modal-cli-endereco')?.value || '').trim();
@@ -13558,8 +13636,8 @@ function _renderCadastroClienteInt() {
                             </div>
                         </div>
 
-                        <!-- Linha 2: Razão Social e Nome Fantasia lado a lado -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+                        <!-- Linha 2: Razão Social, Nome Fantasia e Atendente -->
+                        <div style="display:grid; grid-template-columns:1.3fr 1.1fr 0.9fr; gap:0.75rem;">
                             <div>
                                 <label class="prop-lbl">Nome / Razão Social *</label>
                                 <input type="text" id="cli-razao-social" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
@@ -13567,6 +13645,21 @@ function _renderCadastroClienteInt() {
                             <div>
                                 <label class="prop-lbl">Nome Fantasia *</label>
                                 <input type="text" id="cli-nome-fantasia" style="width:100%;padding:0.45rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.85rem;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label class="prop-lbl">Atendente</label>
+                                <div id="cli-atendente-wrap" style="position:relative; width:100%;">
+                                    <input type="text" id="cli-atendente" autocomplete="off" placeholder="Selecionar atendente..."
+                                        style="width:100%; padding:0.45rem 1.7rem 0.45rem 0.45rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box; text-transform:none;"
+                                        onfocus="window.filtrarDropdownAtendenteCliente('cli', '', true);"
+                                        onclick="window.filtrarDropdownAtendenteCliente('cli', '', true);"
+                                        oninput="window.filtrarDropdownAtendenteCliente('cli', this.value, true);">
+                                    <button type="button" tabindex="-1" onclick="window.toggleDropdownAtendenteCliente('cli', event)"
+                                        style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:#64748b; width:24px; height:24px; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                                        <i class="ph ph-caret-down"></i>
+                                    </button>
+                                    <div id="cli-atendente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1200;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -14630,6 +14723,12 @@ window.carregarClienteParaEdicao = async function(id, silentToast = false) {
         if (typeof window.aplicarVisualGrupoCliente === 'function') window.aplicarVisualGrupoCliente(normGrupo, 'main');
         await atualizarClienteCentralizadorOptions(c.cliente_centralizador || '');
         document.getElementById('cli-nome-fantasia').value = c.nome_fantasia || c.nome_razao_social || '';
+        const elAtCli = document.getElementById('cli-atendente');
+        if (elAtCli) {
+            elAtCli.value = (window.resolverNomeExibicaoAtendenteComercial && c.atendente)
+                ? window.resolverNomeExibicaoAtendenteComercial(c.atendente, false)
+                : (c.atendente || '');
+        }
         document.getElementById('cli-cep').value = c.cep || '';
         document.getElementById('cli-endereco').value = (c.endereco || '') + (c.numero && !(c.endereco || '').includes(c.numero) ? ', ' + c.numero : '');
         document.getElementById('cli-numero').value = c.numero || '';
@@ -14756,6 +14855,7 @@ window.limparFormCliente = function() {
     
     document.getElementById('cli-codigo').value = '';
     document.getElementById('cli-inativo').checked = false;
+    if (document.getElementById('cli-atendente')) document.getElementById('cli-atendente').value = '';
     if (document.getElementById('cli-website')) document.getElementById('cli-website').value = '';
     if (document.getElementById('cli-email')) document.getElementById('cli-email').value = '';
     const chkBloqFat = document.getElementById('cli-bloquear-faturamento');
@@ -16564,6 +16664,7 @@ window.salvarCliente = async function() {
         tipo_vinculo_grupo: tipoVinculoMain || undefined,
         nome_razao_social: razaoSocial,
         nome_fantasia: document.getElementById('cli-nome-fantasia')?.value || '',
+        atendente: (document.getElementById('cli-atendente')?.value || '').trim(),
         cep: document.getElementById('cli-cep')?.value || '',
         endereco: (() => {
             const rawEnd = (document.getElementById('cli-endereco')?.value || '').trim();
