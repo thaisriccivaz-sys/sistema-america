@@ -1189,28 +1189,15 @@ window.carregarHistoricoCredenciamento = async function() {
 };
 
 window.excluirCredenciamento = async function(id) {
-    let senha = '';
-    if (typeof Swal !== 'undefined') {
-        const result = await Swal.fire({
-            title: 'Excluir Credenciamento',
-            text: 'Digite a senha para autorizar a exclusão deste credenciamento:',
-            input: 'password',
-            inputPlaceholder: 'Senha de autorização',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Excluir',
-            cancelButtonText: 'Cancelar'
-        });
-        if (!result.isConfirmed) return;
-        senha = (result.value || '').trim();
-    } else {
-        if (!confirm('Deseja realmente excluir este credenciamento?')) return;
-        const val = prompt('Digite a senha para autorizar a exclusão:');
-        if (val === null) return;
-        senha = (val || '').trim();
-    }
+    const val = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Credenciamento',
+        mensagem: 'Digite a senha para autorizar a exclusão deste credenciamento:',
+        placeholder: 'Senha de autorização',
+        confirmButtonText: 'Excluir',
+        confirmButtonColor: '#dc2626'
+    });
+    if (val === null) return;
+    const senha = String(val || '').trim();
 
     if (senha !== 'log123') {
         if (typeof Swal !== 'undefined') {

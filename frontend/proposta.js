@@ -8120,7 +8120,11 @@ window.modalSalvarContatoInline = function() {
 };
 
 window.modalRemoverContato = async function(idx) {
-    const senha = window.prompt('Digite a senha para excluir o contato:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Contato',
+        mensagem: 'Digite a senha para excluir o contato:',
+        confirmButtonText: 'Excluir'
+    });
     if (senha === null) return;
     if (senha !== 'comerc123') {
         if (typeof Swal !== 'undefined') {
@@ -8777,7 +8781,11 @@ window.modalExcluirCliente = async function(clientId) {
         return;
     }
     
-    const senhaDigitada = window.prompt('Digite a senha para excluir o cliente:');
+    const senhaDigitada = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Cliente',
+        mensagem: 'Digite a senha para excluir o cliente:',
+        confirmButtonText: 'Excluir'
+    });
     if (senhaDigitada === null) return;
     if (senhaDigitada !== 'comerc123') {
         Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
@@ -13202,7 +13210,11 @@ window.verDocumentoHistoricoProposta = async function(propId, logId, ehLogContra
 /* ── Excluir proposta ───────────────────────────────────────────────── */
 async function excluirProposta(id) {
     const isModoContrato = window._modoTelaComercial === 'contrato';
-    const senha = window.prompt(isModoContrato ? 'Digite a senha para excluir o contrato:' : 'Digite a senha para excluir a proposta:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: isModoContrato ? 'Excluir Contrato' : 'Excluir Proposta',
+        mensagem: isModoContrato ? 'Digite a senha para excluir o contrato:' : 'Digite a senha para excluir a proposta:',
+        confirmButtonText: 'Continuar'
+    });
     if (senha === null) return;
     if (String(senha).trim() !== 'comerc123') {
         if (typeof Swal !== 'undefined') {
@@ -16440,7 +16452,11 @@ window.filtrarContatosModal = function(term = '') {
 };
 
 window.removerContato = async function(idx) {
-    const senha = window.prompt('Digite a senha para excluir o contato:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Contato',
+        mensagem: 'Digite a senha para excluir o contato:',
+        confirmButtonText: 'Excluir'
+    });
     if (senha === null) return;
     if (senha !== 'comerc123') {
         if (typeof Swal !== 'undefined') {
@@ -16777,7 +16793,11 @@ window.excluirCliente = async function() {
         alert('Selecione um cliente cadastrado para poder excluir.');
         return;
     }
-    const senha = window.prompt('Digite a senha para excluir o cliente:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Cliente',
+        mensagem: 'Digite a senha para excluir o cliente:',
+        confirmButtonText: 'Continuar'
+    });
     if (senha === null) return;
     if (senha !== 'comerc123') {
         alert('Senha incorreta! Exclusão cancelada.');
@@ -18192,7 +18212,11 @@ window.excluirContato = async function() {
         alert('Selecione um contato cadastrado para poder excluir.');
         return;
     }
-    const senha = window.prompt('Digite a senha para excluir o contato:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Contato',
+        mensagem: 'Digite a senha para excluir o contato:',
+        confirmButtonText: 'Excluir'
+    });
     if (senha === null) return;
     if (senha !== 'comerc123') {
         alert('Senha incorreta! Exclusão cancelada.');
@@ -23533,7 +23557,11 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
             const cod = isContrato
                 ? ((pObj && pObj.contrato) ? pObj.contrato : ((pObj && pObj.codigo) ? pObj.codigo : id))
                 : ((pObj && pObj.codigo) ? pObj.codigo : id);
-            const senha = window.prompt(`Digite a senha para excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}:`);
+            const senha = await window.solicitarSenhaAcaoComMascaraX({
+                titulo: isContrato ? `Excluir Contrato Nº ${cod}` : `Excluir Proposta Nº ${cod}`,
+                mensagem: `Digite a senha para excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}:`,
+                confirmButtonText: 'Continuar'
+            });
             if (senha === null) return;
             if (String(senha).trim() !== 'comerc123') {
                 alert('Senha incorreta! Exclusão cancelada.');
@@ -37750,7 +37778,7 @@ window.solicitarSenhaGestorCondicaoPagamentoProposta = async function(condPagEsc
                     Apenas condições de <strong>PIX Antecipado</strong> (<strong>PIX 100% ANTECIPADO</strong> ou <strong>PIX 50% RESERVA + 50% ANTES DA ENTREGA</strong>) são liberadas sem senha. Informe a senha abaixo para autorizar <strong>${esc(condPagEscolhida)}</strong>:
                 </p>
                 <label style="display:block;font-size:0.78rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Senha do Gestor Comercial *</label>
-                <input type="password" id="swal-input-senha-gestor-proposta" placeholder="Digite a senha do gestor para autorizar..." autocomplete="new-password" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
+                <input type="text" id="swal-input-senha-gestor-proposta" data-senha-x="1" placeholder="Digite a senha do gestor para autorizar..." autocomplete="off" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
             </div>
         `,
         showCancelButton: true,
@@ -37762,6 +37790,7 @@ window.solicitarSenhaGestorCondicaoPagamentoProposta = async function(condPagEsc
         didOpen: () => {
             const inp = document.getElementById('swal-input-senha-gestor-proposta');
             if (inp) {
+                if (typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
                 inp.focus();
                 inp.addEventListener('keydown', (ev) => {
                     if (ev.key === 'Enter') {
@@ -37772,7 +37801,8 @@ window.solicitarSenhaGestorCondicaoPagamentoProposta = async function(condPagEsc
             }
         },
         preConfirm: () => {
-            const digitada = (document.getElementById('swal-input-senha-gestor-proposta')?.value || '').trim();
+            const inp = document.getElementById('swal-input-senha-gestor-proposta');
+            const digitada = (typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : (inp?.value || '')).trim();
             if (!digitada) {
                 Swal.showValidationMessage('Informe a Senha do Gestor para autorizar esta condição de pagamento.');
                 return false;
@@ -38050,7 +38080,7 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
                         ${orientacaoAlternativaSemSenha}
                     </p>
                     <label style="display:block;font-size:0.78rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Senha do Gestor Comercial *</label>
-                    <input type="password" id="swal-input-senha-gestor-credithub" placeholder="Digite a senha do gestor para autorizar..." autocomplete="new-password" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
+                    <input type="text" id="swal-input-senha-gestor-credithub" data-senha-x="1" placeholder="Digite a senha do gestor para autorizar..." autocomplete="off" style="width:100%;padding:0.55rem 0.75rem;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;text-transform:none;">
                 </div>
             `,
             showCancelButton: true,
@@ -38062,6 +38092,7 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
             didOpen: () => {
                 const inp = document.getElementById('swal-input-senha-gestor-credithub');
                 if (inp) {
+                    if (typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
                     inp.focus();
                     inp.addEventListener('keydown', (ev) => {
                         if (ev.key === 'Enter') {
@@ -38072,7 +38103,8 @@ window.validarRegrasCreditoEEnvioContrato = async function(propIdOpcional = null
                 }
             },
             preConfirm: () => {
-                const digitada = (document.getElementById('swal-input-senha-gestor-credithub')?.value || '').trim();
+                const inp = document.getElementById('swal-input-senha-gestor-credithub');
+                const digitada = (typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : (inp?.value || '')).trim();
                 if (!digitada) {
                     Swal.showValidationMessage('Informe a Senha do Gestor para autorizar o envio nesta condição de pagamento.');
                     return false;

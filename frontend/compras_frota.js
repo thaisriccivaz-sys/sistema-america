@@ -449,7 +449,13 @@
         }
     };
     window.comprasFrotaMarcarRegistrado = async function (tipo, id, btnEl) {
-        const senhaCf = window.prompt('Digite a senha para marcar como Registrado:');
+        const senhaCf = await window.solicitarSenhaAcaoComMascaraX({
+            titulo: 'Marcar como Registrado',
+            mensagem: 'Digite a senha para marcar como Registrado:',
+            icon: 'lock',
+            confirmButtonText: 'Confirmar',
+            confirmButtonColor: '#16a34a'
+        });
         if (senhaCf === null) return;
         if (String(senhaCf).trim() !== 'comp123') { alert('Senha incorreta.'); return; }
         if (btnEl) {

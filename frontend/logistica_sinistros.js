@@ -1475,7 +1475,7 @@ window._logSinEditExcluirMidiaExistente = async function(localIdx) {
     var m = midias[localIdx];
     var nomeExib = m.nome || ('Mídia ' + (localIdx + 1));
     if (!confirm('Excluir "' + nomeExib + '"? Esta ação não pode ser desfeita.')) return;
-    var _sen = window._sinPedirSenha(); if (!_sen) return;
+    var _sen = await window._sinPedirSenha(); if (!_sen) return;
 
     // Desabilitar o grid durante a operação
     var grid = document.getElementById('edit-sin-midias-grid');
@@ -1829,7 +1829,12 @@ window.logSinSalvarEdicao = async function() {
 window.logSinExcluirSinistro = async function(sinId, colabId) {
     if (!confirm('Tem certeza que deseja excluir este sinistro permanentemente?')) return;
     
-    const senha = prompt('Para excluir o sinistro, digite a senha de autorização:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Sinistro',
+        mensagem: 'Para excluir o sinistro, digite a senha de autorização:',
+        confirmButtonText: 'Excluir'
+    });
+    if (senha === null) return;
     if (senha !== 'EXL2499!' && senha !== 'log123') {
         return alert('Senha incorreta. Exclusão cancelada.');
     }
@@ -1932,8 +1937,12 @@ if (!window._sinOrcUrl) {
 
 /* ── Exclusão de anexos com senha ── */
 if (!window._sinExcluirOrc) {
-    window._sinPedirSenha = function() {
-        var s = prompt('Digite a senha para excluir:');
+    window._sinPedirSenha = async function() {
+        var s = await window.solicitarSenhaAcaoComMascaraX({
+            titulo: 'Excluir Anexo',
+            mensagem: 'Digite a senha para excluir:',
+            confirmButtonText: 'Excluir'
+        });
         if (s === null) return null;
         if (s !== 'log123' && s !== 'EXL2499!') { alert('Senha incorreta. Exclusão cancelada.'); return null; }
         return s;
@@ -1941,7 +1950,7 @@ if (!window._sinExcluirOrc) {
     window._sinExcluirOrc = async function(btn, p, sinId) {
         if (!sinId) return;
         if (!confirm('Excluir este orçamento? Esta ação não pode ser desfeita.')) return;
-        var s = window._sinPedirSenha();
+        var s = await window._sinPedirSenha();
         if (!s) return;
         try {
             var res = await fetch(API_URL + '/sinistros/' + sinId + '/orcamento?path=' + encodeURIComponent(p), {

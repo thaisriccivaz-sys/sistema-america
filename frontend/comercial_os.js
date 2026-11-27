@@ -539,6 +539,44 @@
         return raw.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
     }
 
+    function obterMapaLinksMapsEnderecosOs(dadosOs) {
+        if (!dadosOs) return {};
+        if (!dadosOs.links_maps_por_endereco || typeof dadosOs.links_maps_por_endereco !== 'object' || Array.isArray(dadosOs.links_maps_por_endereco)) {
+            dadosOs.links_maps_por_endereco = {};
+        }
+        if (Array.isArray(dadosOs.enderecos_instalacao_detalhes)) {
+            dadosOs.enderecos_instalacao_detalhes.forEach(item => {
+                if (!item || !item.endereco) return;
+                const k = normStr(item.endereco);
+                const lnk = String(item.link_maps || item.google_maps_link || '').trim();
+                if (k && lnk && !dadosOs.links_maps_por_endereco[k]) {
+                    dadosOs.links_maps_por_endereco[k] = lnk;
+                }
+            });
+        }
+        return dadosOs.links_maps_por_endereco;
+    }
+
+    function obterLinkMapsDoEnderecoOs(enderecoTexto, dadosOs) {
+        const k = normStr(enderecoTexto);
+        if (!k || !dadosOs) return '';
+        const mapa = obterMapaLinksMapsEnderecosOs(dadosOs);
+        return String(mapa[k] || '').trim();
+    }
+
+    function linkGoogleMapsValidoOs(urlRaw) {
+        const u = String(urlRaw || '').trim();
+        if (!u) return false;
+        return /^https?:\/\/\S+/i.test(u) || /^(maps\.app\.goo\.gl|goo\.gl\/maps|www\.google\.[a-z.]+\/maps|google\.[a-z.]+\/maps)\/\S*/i.test(u);
+    }
+
+    function normalizarUrlAbrirMapsOs(urlRaw) {
+        const u = String(urlRaw || '').trim();
+        if (!u) return '';
+        if (/^https?:\/\//i.test(u)) return u;
+        return 'https://' + u;
+    }
+
     function obterRegrasProdutosEServicosOs(prop, dadosOs) {
         const tipoOsVal = resolverTipoOsComercial(prop);
         const tNorm = normStr(tipoOsVal);
@@ -739,6 +777,10 @@
 
             contatos_instalacao: extrairContatosInstalacaoIniciaisOs(prop, salvo),
             distribuicao_enderecos: Array.isArray(salvo.distribuicao_enderecos) ? salvo.distribuicao_enderecos : [],
+            links_maps_por_endereco: (salvo.links_maps_por_endereco && typeof salvo.links_maps_por_endereco === 'object' && !Array.isArray(salvo.links_maps_por_endereco))
+                ? { ...salvo.links_maps_por_endereco }
+                : {},
+            enderecos_instalacao_detalhes: Array.isArray(salvo.enderecos_instalacao_detalhes) ? salvo.enderecos_instalacao_detalhes : [],
             informacoes_importantes: String(salvo.informacoes_importantes || '').trim(),
 
             enviada_logistica: Boolean(salvo.enviada_logistica)
@@ -825,6 +867,22 @@
         const listaEndsCheck = obterListaEnderecosEstadoAtualOs(prop, d);
         if (listaEndsCheck.length === 0) {
             pendencias.push('Endereço de Instalação *');
+        } else {
+            listaEndsCheck.forEach((endTxt, iEnd) => {
+                const inpDomMaps = document.getElementById(`cos-end-maps-link-${iEnd}`);
+                const linkMapsVal = inpDomMaps
+                    ? String(inpDomMaps.value || '').trim()
+                    : obterLinkMapsDoEnderecoOs(endTxt, d);
+                if (!linkMapsVal) {
+                    pendencias.push(listaEndsCheck.length > 1
+                        ? `Link do Google Maps do Endereço #${iEnd + 1} *`
+                        : 'Link do Google Maps do Endereço de Instalação *');
+                } else if (!linkGoogleMapsValidoOs(linkMapsVal)) {
+                    pendencias.push(listaEndsCheck.length > 1
+                        ? `Link do Google Maps válido (https://...) no Endereço #${iEnd + 1} *`
+                        : 'Link do Google Maps válido (https://...) no Endereço de Instalação *');
+                }
+            });
         }
 
         const checkDist = regrasPS.mostrarQuadroProdutos
@@ -1335,6 +1393,8 @@
             fob_modelo_veiculo: '',
             fob_placa_veiculo: '',
             fob_nome_motorista: '',
+            links_maps_por_endereco: {},
+            enderecos_instalacao_detalhes: [],
             informacoes_importantes: ''
         };
 
@@ -1936,7 +1996,7 @@
                                             ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
                                         </div>
                                     </div>
-                                    <div id="cos-enderecos-chips" style="display:none; flex-wrap:wrap; gap:5px; align-items:center;"></div>
+                                    <div id="cos-enderecos-chips" style="display:none; flex-direction:column; gap:6px; align-items:stretch;"></div>
                                 </div>
 
                                 <!-- Bloco Manutenções (abaixo de Instalação — sem o campo Quantidade de Manutenções Proposta) -->
@@ -3553,6 +3613,8 @@
             if (!chipsEl || !inp) return;
             const tipoOk = Boolean(String(resolverTipoOsComercial(state.osAtual) || '').trim());
             const lista = this.obterListaEnderecosOs(inp.value);
+            if (!state.dadosOs) state.dadosOs = {};
+            obterMapaLinksMapsEnderecosOs(state.dadosOs);
             if (lista.length === 0) {
                 chipsEl.innerHTML = '';
                 chipsEl.style.display = 'none';
@@ -3560,21 +3622,92 @@
                 return;
             }
             chipsEl.style.display = 'flex';
-            chipsEl.innerHTML = lista.map((end, idx) => `
-                <span style="display:inline-flex; align-items:center; gap:5px; background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:700; max-width:100%;">
-                    <span style="background:#10b981; color:#fff; border-radius:999px; padding:0 5px; font-size:0.65rem; font-weight:800;">${idx + 1}</span>
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:440px;" title="${esc(end)}">${esc(end)}</span>
-                    ${tipoOk ? `<button type="button" onclick="window._comercialOS.removerEnderecoOsChip(${idx})" title="Remover este endereço de instalação"
-                        style="border:none !important; background:transparent !important; color:#dc2626 !important; cursor:pointer; font-weight:900 !important; font-size:0.84rem !important; padding:0 2px !important; height:auto !important; line-height:1;">&times;</button>` : ''}
-                </span>
-            `).join('') + (tipoOk ? `
-                <button type="button" onclick="window._comercialOS.iniciarAdicaoOutroEnderecoOs(event)"
-                    title="Clique para adicionar mais um endereço de instalação na OS"
-                    style="display:inline-flex !important; align-items:center !important; gap:4px !important; background:#eff6ff !important; border:1px dashed #3b82f6 !important; color:#1d4ed8 !important; padding:2px 9px !important; height:22px !important; border-radius:999px !important; font-size:0.71rem !important; font-weight:800 !important; cursor:pointer;">
-                    <i class="ph ph-plus-circle" style="font-size:0.85rem;"></i> Adicionar outro endereço
-                </button>
+            chipsEl.innerHTML = lista.map((end, idx) => {
+                const linkAtual = obterLinkMapsDoEnderecoOs(end, state.dadosOs);
+                const linkValido = linkGoogleMapsValidoOs(linkAtual);
+                const endSafeJs = String(end || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:5px 8px;">
+                    <div style="display:inline-flex; align-items:center; gap:5px; flex:1.2 1 280px; min-width:220px;">
+                        <span style="background:#10b981; color:#fff; border-radius:999px; padding:1px 6px; font-size:0.66rem; font-weight:800; flex-shrink:0;">#${idx + 1}</span>
+                        <span style="font-size:0.73rem; font-weight:700; color:#065f46; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(end)}">${esc(end)}</span>
+                        ${tipoOk ? `<button type="button" onclick="window._comercialOS.removerEnderecoOsChip(${idx})" title="Remover este endereço de instalação"
+                            style="border:none !important; background:#fee2e2 !important; color:#dc2626 !important; cursor:pointer; font-weight:900 !important; font-size:0.8rem !important; padding:0 5px !important; height:19px !important; width:auto !important; border-radius:999px !important; line-height:1; flex-shrink:0;">&times;</button>` : ''}
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px; flex:1.4 1 320px; min-width:250px;">
+                        <span style="font-size:0.7rem; font-weight:800; color:#1e293b; white-space:nowrap; display:inline-flex; align-items:center; gap:3px;">
+                            <i class="ph ph-map-pin-line" style="color:#dc2626; font-size:0.85rem;"></i> Google Maps <span style="color:#dc2626;">*</span>:
+                        </span>
+                        <input type="url" id="cos-end-maps-link-${idx}" value="${esc(linkAtual)}"
+                            ${!tipoOk ? 'disabled' : ''}
+                            placeholder="Cole aqui o link do Google Maps do local de instalação..."
+                            autocomplete="off" spellcheck="false"
+                            oninput="window._comercialOS.atualizarLinkMapsEnderecoOs(${idx}, '${endSafeJs}', this.value)"
+                            style="flex:1; min-width:150px; height:25px !important; padding:2px 8px !important; font-size:0.73rem !important; border:1px solid ${linkValido ? '#86efac' : '#cbd5e1'} !important; border-radius:6px !important; background:#fff !important; text-transform:none !important;">
+                        <button type="button" id="cos-end-maps-open-${idx}"
+                            onclick="window._comercialOS.abrirLinkMapsEnderecoOs(${idx}, '${endSafeJs}')"
+                            title="${linkValido ? 'Abrir localização no Google Maps em nova aba' : 'Informe um link do Google Maps para abrir'}"
+                            style="display:inline-flex !important; align-items:center !important; gap:3px !important; height:25px !important; padding:0 8px !important; border-radius:6px !important; font-size:0.7rem !important; font-weight:700 !important; border:1px solid ${linkValido ? '#93c5fd' : '#e2e8f0'} !important; background:${linkValido ? '#eff6ff' : '#f8fafc'} !important; color:${linkValido ? '#1d4ed8' : '#94a3b8'} !important; cursor:pointer; flex-shrink:0; white-space:nowrap;">
+                            <i class="ph ph-arrow-square-out" style="font-size:0.82rem;"></i> Mapa
+                        </button>
+                    </div>
+                </div>`;
+            }).join('') + (tipoOk ? `
+                <div style="display:flex; justify-content:flex-start;">
+                    <button type="button" onclick="window._comercialOS.iniciarAdicaoOutroEnderecoOs(event)"
+                        title="Clique para adicionar mais um endereço de instalação na OS"
+                        style="display:inline-flex !important; align-items:center !important; gap:4px !important; background:#eff6ff !important; border:1px dashed #3b82f6 !important; color:#1d4ed8 !important; padding:2px 10px !important; height:23px !important; border-radius:999px !important; font-size:0.71rem !important; font-weight:800 !important; cursor:pointer;">
+                        <i class="ph ph-plus-circle" style="font-size:0.85rem;"></i> Adicionar outro endereço
+                    </button>
+                </div>
             ` : '');
             this.sincronizarPainelDistribuicaoEnderecos();
+        },
+
+        atualizarLinkMapsEnderecoOs(idx, enderecoTexto, valor) {
+            if (!state.dadosOs) state.dadosOs = {};
+            const mapa = obterMapaLinksMapsEnderecosOs(state.dadosOs);
+            const k = normStr(enderecoTexto);
+            const limpo = String(valor || '').trim();
+            if (k) {
+                if (limpo) mapa[k] = limpo;
+                else delete mapa[k];
+            }
+            const lista = this.obterListaEnderecosOs();
+            state.dadosOs.enderecos_instalacao_detalhes = lista.map(e => ({
+                endereco: e,
+                link_maps: obterLinkMapsDoEnderecoOs(e, state.dadosOs)
+            }));
+
+            const inpLink = document.getElementById(`cos-end-maps-link-${idx}`);
+            const btnOpen = document.getElementById(`cos-end-maps-open-${idx}`);
+            const valido = linkGoogleMapsValidoOs(limpo);
+            if (inpLink) {
+                inpLink.style.borderColor = valido ? '#86efac' : '#cbd5e1';
+            }
+            if (btnOpen) {
+                btnOpen.style.borderColor = valido ? '#93c5fd' : '#e2e8f0';
+                btnOpen.style.background = valido ? '#eff6ff' : '#f8fafc';
+                btnOpen.style.color = valido ? '#1d4ed8' : '#94a3b8';
+                btnOpen.title = valido ? 'Abrir localização no Google Maps em nova aba' : 'Informe um link do Google Maps para abrir';
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        abrirLinkMapsEnderecoOs(idx, enderecoTexto) {
+            const inpLink = document.getElementById(`cos-end-maps-link-${idx}`);
+            const raw = inpLink ? inpLink.value : obterLinkMapsDoEnderecoOs(enderecoTexto, state.dadosOs);
+            if (!linkGoogleMapsValidoOs(raw)) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Link do Google Maps', 'Insira primeiro um link válido do Google Maps (ex: https://maps.app.goo.gl/...) para este endereço.', 'info');
+                }
+                inpLink?.focus();
+                return;
+            }
+            const urlFinal = normalizarUrlAbrirMapsOs(raw);
+            if (urlFinal) window.open(urlFinal, '_blank', 'noopener,noreferrer');
         },
 
         sincronizarPainelDistribuicaoEnderecos() {
@@ -4831,6 +4964,22 @@
                 ? listaEndSalvar.join(' | ')
                 : String(document.getElementById('cos-endereco-instalacao')?.value || (state.osAtual && state.osAtual.endereco_instalacao) || '').trim().replace(/\s*\|\s*$/, '');
             state.dadosOs.enderecos_instalacao = listaEndSalvar;
+            const mapaMapsSalvar = obterMapaLinksMapsEnderecosOs(state.dadosOs);
+            listaEndSalvar.forEach((endTxt, iEnd) => {
+                const inpDomMaps = document.getElementById(`cos-end-maps-link-${iEnd}`);
+                if (inpDomMaps) {
+                    const k = normStr(endTxt);
+                    const vLnk = String(inpDomMaps.value || '').trim();
+                    if (k) {
+                        if (vLnk) mapaMapsSalvar[k] = vLnk;
+                        else delete mapaMapsSalvar[k];
+                    }
+                }
+            });
+            state.dadosOs.enderecos_instalacao_detalhes = listaEndSalvar.map(endTxt => ({
+                endereco: endTxt,
+                link_maps: obterLinkMapsDoEnderecoOs(endTxt, state.dadosOs)
+            }));
             normalizarEstruturaDistribuicaoEnderecos(state.osAtual, state.dadosOs);
 
             // Valida regras obrigatórias de Produtos, Serviços, Informações de Compras e Distribuição Fracionada por Endereço

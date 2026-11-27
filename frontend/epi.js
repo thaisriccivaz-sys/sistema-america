@@ -919,7 +919,11 @@ window.fecharTodasFichasEpi = async function() {
 };
 
 window.excluirFichasEpiFechadas = async function() {
-    const senha = prompt('Digite a senha para autorizar a exclusão de TODAS as fichas fechadas:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Fichas Fechadas',
+        mensagem: 'Digite a senha para autorizar a exclusão de TODAS as fichas fechadas:',
+        confirmButtonText: 'Continuar'
+    });
     if (!senha) return;
     if (senha !== 'EXEPI2499!') return alert('Senha incorreta.');
     if (!confirm('ATENÇÃO: Esta ação é irreversível e excluirá todas as fichas fechadas do sistema. Deseja continuar?')) return;

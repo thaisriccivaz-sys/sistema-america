@@ -3918,7 +3918,7 @@ window._mnPedirSenhaExclusao = function(titulo, cb) {
       + '</div>'
       + '<div style="padding:18px 20px;">'
       +   '<p style="margin:0 0 12px;font-size:0.84rem;color:#475569;">Digite a senha de autorização para excluir esta manutenção:</p>'
-      +   '<input type="password" id="mned-senha-inp" placeholder="Senha..." autocomplete="off" style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.92rem;font-family:inherit;box-sizing:border-box;outline:none;">'
+      +   '<input type="text" id="mned-senha-inp" data-senha-x="1" placeholder="Senha..." autocomplete="off" style="width:100%;padding:10px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.92rem;font-family:inherit;box-sizing:border-box;outline:none;text-transform:none;">'
       +   '<div id="mned-senha-err" style="display:none;color:#dc2626;font-size:0.78rem;font-weight:700;margin-top:6px;">Senha incorreta!</div>'
       +   '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">'
       +     '<button type="button" id="mned-senha-cancel" style="padding:9px 18px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-weight:600;">Cancelar</button>'
@@ -3931,10 +3931,11 @@ window._mnPedirSenhaExclusao = function(titulo, cb) {
     document.getElementById('mned-senha-cancel').onclick = fechar;
     pop.addEventListener('mousedown', function(e) { if (e.target === pop) fechar(); });
     var inp = document.getElementById('mned-senha-inp');
+    if (inp && typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
     var err = document.getElementById('mned-senha-err');
     setTimeout(function() { if (inp) inp.focus(); }, 50);
     var confirmar = function() {
-        var val = inp ? inp.value.trim() : '';
+        var val = inp ? (typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : inp.value).trim() : '';
         if (val !== 'log123') {
             if (err) err.style.display = 'block';
             if (inp) { inp.style.borderColor = '#dc2626'; inp.focus(); inp.select(); }
@@ -8814,7 +8815,11 @@ window.mnEditarIntervaloObsSelecionados = function() {
 
 
 window.mnExcluirServicoModal = async function(id, idx) {
-    const s = prompt('Digite a senha para confirmar a exclusão:');
+    const s = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Serviço do Catálogo',
+        mensagem: 'Digite a senha para confirmar a exclusão:',
+        confirmButtonText: 'Continuar'
+    });
     if (s !== 'EXu2499!') {
         if (s !== null) alert('Senha incorreta!');
         return;

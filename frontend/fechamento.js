@@ -4523,15 +4523,26 @@ function abrirLegenda() {
     async function excluirComparativo(id) {
         var res = await Swal.fire({
             title: 'Excluir comparativo?',
-            text: 'Digite a senha para excluir este item do histórico (o PDF também será apagado).',
-            input: 'password',
-            inputPlaceholder: 'Senha',
+            html: '<p style="margin:0 0 10px 0;color:#475569;font-size:0.9rem;">Digite a senha para excluir este item do histórico (o PDF também será apagado).</p>' +
+                  '<input type="text" id="swal-senha-excluir-comparativo" data-senha-x="1" class="swal2-input" placeholder="Senha" autocomplete="off" style="margin:0;width:100%;box-sizing:border-box;text-transform:none;">',
             showCancelButton: true,
             confirmButtonText: 'Excluir',
             cancelButtonText: 'Cancelar',
             confirmButtonColor: '#dc2626',
             showLoaderOnConfirm: true,
-            preConfirm: async function(senha) {
+            didOpen: function() {
+                var inp = document.getElementById('swal-senha-excluir-comparativo');
+                if (inp) {
+                    if (typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
+                    inp.focus();
+                    inp.addEventListener('keydown', function(ev) {
+                        if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
+                    });
+                }
+            },
+            preConfirm: async function() {
+                var inp = document.getElementById('swal-senha-excluir-comparativo');
+                var senha = typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : (inp ? inp.value : '');
                 try {
                     var r = await fetch('/api/fechamento/comparativos/' + id, {
                         method: 'DELETE',

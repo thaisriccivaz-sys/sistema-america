@@ -2746,7 +2746,7 @@
     let lastUser = '';
 
     if (src && src.id === 'concluido' && targetStageId !== 'concluido') {
-        const pass = prompt('Por segurança, insira a senha para remover o card da coluna "Concluído":');
+        const pass = await window.solicitarSenhaAcaoComMascaraX({ titulo: 'Remover de Concluído', mensagem: 'Por segurança, insira a senha para remover o card da coluna "Concluído":', confirmButtonText: 'Confirmar' });
         if (pass !== 'abc') {
             if (pass !== null) alert('Senha incorreta.');
             try { _draggedId = null; } catch(e){}
@@ -3630,8 +3630,8 @@
         }).catch(e => console.error('[SAC] Erro ao notificar atribuicao:', e));
       }
     },
-    deleteTicket(id) {
-      const pwd = prompt('Digite a senha para excluir permanentemente este chamado:');
+    async deleteTicket(id) {
+      const pwd = await window.solicitarSenhaAcaoComMascaraX({ titulo: 'Excluir Chamado', mensagem: 'Digite a senha para excluir permanentemente este chamado:', confirmButtonText: 'Excluir' });
       if (pwd !== 'proc123') {
           if (pwd !== null) showToast('Senha incorreta.', 'error');
           return;

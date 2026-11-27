@@ -9968,9 +9968,14 @@ window.deleteDoc = async function (docId, btnEl) {
     const isAtestadoList = btnEl && btnEl.closest('#atestados-list-container');
     
     if (isAtestadosTab || isAtestadoList) {
-        const pwd = prompt("Para excluir este atestado, informe a senha:");
+        const pwd = await window.solicitarSenhaAcaoComMascaraX({
+            titulo: 'Excluir Atestado',
+            mensagem: 'Para excluir este atestado, informe a senha:',
+            confirmButtonText: 'Excluir'
+        });
+        if (pwd === null) return;
         if (pwd !== 'cba') {
-            if (pwd !== null) alert("Senha incorreta.");
+            alert("Senha incorreta.");
             return;
         }
     } else {
@@ -14157,7 +14162,11 @@ window.buildContratosSignatureRows = function (assinaturas, docs, colab) {
 
 // Excluir contrato com proteção por senha (funciona para assinados e não-assinados)
 window.excluirContratoComSenha = async function (docId, tipo) {
-    const senha = prompt('⚠️ Esta ação é irreversível.\n\nDigite a senha para excluir o contrato:');
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir Contrato',
+        mensagem: '⚠️ Esta ação é irreversível.\n\nDigite a senha para excluir o contrato:',
+        confirmButtonText: 'Continuar'
+    });
     if (senha === null) return; // cancelado
     const s = senha ? senha.trim() : '';
     if (s !== 'rh123!' && s !== 'EXc2499!') {
@@ -18905,8 +18914,12 @@ window.previewFichaEpi = async function (fichaId) {
 
 window._excluirEpiEntrega = async function(id, nome, btnEl, ficha_id) {
     if (!confirm(`Deseja realmente excluir o EPI "${nome}" da ficha?`)) return;
-    const senha = prompt('Digite a senha para autorizar a exclusão:');
-    if (!senha && senha !== '') return;
+    const senha = await window.solicitarSenhaAcaoComMascaraX({
+        titulo: 'Excluir EPI da Ficha',
+        mensagem: 'Digite a senha para autorizar a exclusão:',
+        confirmButtonText: 'Excluir'
+    });
+    if (senha === null) return;
     try {
         btnEl.disabled = true;
         btnEl.innerHTML = '<i class="ph ph-spinner" style="font-size:0.85rem;"></i>';

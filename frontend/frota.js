@@ -1866,7 +1866,7 @@ window.excluirVeiculoFrota=async function(id,placa){
         </div>
       </div>
       <label style="display:block;font-size:0.78rem;font-weight:700;color:#475569;margin:0.8rem 0 0.35rem;">Digite a senha da Logística para excluir:</label>
-      <input id="frota-inp-senha-excl" type="password" placeholder="Senha..." style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;">
+      <input id="frota-inp-senha-excl" type="text" data-senha-x="1" autocomplete="off" placeholder="Senha..." style="width:100%;padding:0.6rem 0.75rem;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.9rem;box-sizing:border-box;outline:none;text-transform:none;">
       <div id="frota-err-senha-excl" style="color:#dc2626;font-size:0.76rem;font-weight:700;margin-top:6px;display:none;">Senha incorreta.</div>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:1.1rem;">
         <button type="button" id="frota-btn-cancel-excl" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;padding:0.5rem 1rem;border-radius:8px;font-weight:700;font-size:0.84rem;cursor:pointer;">Cancelar</button>
@@ -1875,11 +1875,12 @@ window.excluirVeiculoFrota=async function(id,placa){
     </div>`;
     document.body.appendChild(ov);
     const inp = document.getElementById('frota-inp-senha-excl');
+    if (inp && typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
     const err = document.getElementById('frota-err-senha-excl');
     const fechar = (val) => { ov.remove(); resolve(val); };
     document.getElementById('frota-btn-cancel-excl').onclick = () => fechar(null);
     const confirmar = () => {
-      const val = (inp.value || '').trim();
+      const val = (typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : (inp.value || '')).trim();
       if (val !== 'log123') {
         err.style.display = 'block';
         inp.style.borderColor = '#dc2626';

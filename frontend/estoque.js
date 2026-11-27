@@ -1795,7 +1795,7 @@ window.excluirEstoque = async function(id) {
     const ok = await Swal.fire({
         title: "Excluir produto?",
         html: '<p style="color:#475569;font-size:0.9rem;margin-bottom:10px;">Esta ação não pode ser desfeita.<br>Digite a senha para confirmar a exclusão:</p>' +
-              '<input type="password" id="swal-senha-excluir-estoque" class="swal2-input" placeholder="Digite a senha..." style="margin:0;width:100%;box-sizing:border-box;">',
+              '<input type="text" id="swal-senha-excluir-estoque" data-senha-x="1" class="swal2-input" placeholder="Digite a senha..." autocomplete="off" style="margin:0;width:100%;box-sizing:border-box;text-transform:none;">',
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#ef4444",
@@ -1804,10 +1804,17 @@ window.excluirEstoque = async function(id) {
         cancelButtonText: "Cancelar",
         didOpen: () => {
             const inp = document.getElementById('swal-senha-excluir-estoque');
-            if (inp) inp.focus();
+            if (inp) {
+                if (typeof window.aplicarMascaraSenhaX === 'function') window.aplicarMascaraSenhaX(inp, '');
+                inp.focus();
+                inp.addEventListener('keydown', (ev) => {
+                    if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
+                });
+            }
         },
         preConfirm: () => {
-            const senha = (document.getElementById('swal-senha-excluir-estoque')?.value || '').trim();
+            const inp = document.getElementById('swal-senha-excluir-estoque');
+            const senha = (typeof window.obterValorRealSenhaX === 'function' ? window.obterValorRealSenhaX(inp) : (inp?.value || '')).trim();
             if (senha !== 'admin123') {
                 Swal.showValidationMessage('Senha incorreta!');
                 return false;

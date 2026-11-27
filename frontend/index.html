@@ -25,6 +25,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="senha_mascara_x.js?v=20261127v1"></script>
     <link rel="stylesheet" href="style.css?v=20261126v2">
     <link rel="stylesheet" href="app_mobile.css?v=20261113v5">
     <link rel="manifest" href="/manifest-app-lideranca.webmanifest">
@@ -39,15 +40,16 @@
     <script src="rh_agenda.js?v=1778869020176" defer></script>
     <script src="notificacoes.js?v=20261127v1" defer></script>
     <script src="rota_sucesso.js?v=20260825v9" defer></script>
-    <script src="estoque.js?v=20261126v4" defer></script>
+    <script src="estoque.js?v=20261127v5" defer></script>
     <script src="chamados.js?v=20260730v1" defer></script>
     <script src="controlid.js" defer></script>
     <script src="recibos.js?v=20261104v2" defer></script>
-    <script src="fechamento.js?v=20261104v1" defer></script>
+    <script src="fechamento.js?v=20261127v2" defer></script>
     <style>
 .bottom-nav, .mobile-bottom-nav, #bottom-navbar { display: none !important; }
 .fav-btn, .btn-favorite { display: none !important; }
-.swal2-container { z-index: 99999 !important; }</style>
+.swal2-container { z-index: 99999 !important; }
+input[data-senha-x="1"]::-ms-reveal, input[data-senha-x="1"]::-ms-clear, input[type="password"]::-ms-reveal, input[type="password"]::-ms-clear { display: none !important; }</style>
 </head>
 
 <body>
@@ -6991,8 +6993,8 @@
     <script src="feedback_gestor.js?v=20261112v4"></script>
     <script src="avaliacoes.js?v=20261112v1"></script>
     <script src="gerenciar_avaliacoes.js?v=20261110v2"></script>
-    <script src="epi.js?v=1778869020178"></script>
-    <script src="sinistros.js?v=1791925000000"></script>
+    <script src="epi.js?v=20261127v2"></script>
+    <script src="sinistros.js?v=20261127v2"></script>
     <script src="usuarios.js?v=20261127v2"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
@@ -7013,14 +7015,14 @@
     <script src="multas_logistica.js?v=20261114v1"></script>
     <script src="multas_monaco.js?v=1778869020176"></script>
     <script src="equipes.js?v=1787064033000"></script>
-    <script src="frota.js?v=20261022v8"></script>
-    <script src="sac.js?v=20261127v2"></script>
+    <script src="frota.js?v=20261127v9"></script>
+    <script src="sac.js?v=20261127v3"></script>
     <script src="logistica_senhas.js?v=20260801v1"></script>
     <script src="administrativo_senhas.js?v=20260731v10"></script>
     <script src="protocolos.js?v=2"></script>
-    <script src="credenciamento.js?v=20261126v2"></script>
+    <script src="credenciamento.js?v=20261127v3"></script>
     <script src="comercial_credenciamento.js?v=20261126v2"></script>
-    <script src="proposta.js?v=20261127v10"></script>
+    <script src="proposta.js?v=20261127v11"></script>
     <script src="proposta_dias_produto.js?v=20261122v15"></script>
     <script src="proposta_zonas.js?v=20261117v2"></script>
     <script src="comercial_eventos.js?v=20261102v1"></script>
@@ -7029,10 +7031,10 @@
     <script src="comercial_comissao.js?v=12"></script>
     <script src="comercial_dashboard.js?v=20261127v1"></script>
     <script src="comercial_relatorios.js?v=20261127v8"></script>
-    <script src="comercial_os.js?v=20261127v11"></script>
+    <script src="comercial_os.js?v=20261127v12"></script>
     <script src="comercial_aprovacao.js?v=20261126v7"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
-    <script src="logistica_sinistros.js?v=20261021v2"></script>
+    <script src="logistica_sinistros.js?v=20261127v3"></script>
     <script src="logistica_estoque.js?v=20261126v11"></script>
     <script src="rh_logistica.js?v=1791923000000"></script>
     <script src="licencas.js?v=1791577700000"></script>
@@ -7043,7 +7045,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=20261119v1"></script>
-    <script src="app.js?v=20261127v6"></script>
+    <script src="app.js?v=20261127v7"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->
@@ -7297,8 +7299,8 @@
     <script src="config-sigor.js"></script>
     <script src="/frota_cards.js?v=20261022v3"></script>
     <script src="/estoque_nf_vinculo.js?v=20261023v2"></script>
-<script src="/frota_manutencao.js?v=20261117v1"></script>
-    <script src="/compras_frota.js?v=20261022v11"></script>
+<script src="/frota_manutencao.js?v=20261127v2"></script>
+    <script src="/compras_frota.js?v=20261127v12"></script>
 <script src="/compras_estoque.js?v=20261118v1"></script>
     <script src="/sort_table.js?v=20261023v1"></script>
 
