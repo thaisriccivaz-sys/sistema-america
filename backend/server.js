@@ -45753,38 +45753,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       }
     };
 
-    const tentandoAprovarParaGerarContrato = !d.modo_contrato
-      && !ehFluxoAssinafyPut
-      && String(d.fase_negociacao || '').trim().toUpperCase() === 'APROVADA'
-      && oldFaseUpper !== 'APROVADA';
-
-    if (tentandoAprovarParaGerarContrato) {
-      db.get(
-        `SELECT * FROM comercial_aprovacoes
-         WHERE (id = ? AND ? IS NOT NULL) OR proposta_id = ?
-         ORDER BY id DESC LIMIT 1`,
-        [oldRow.aprovacao_id || null, oldRow.aprovacao_id || null, proposalId],
-        (errApr, rowApr) => {
-          if (errApr) return res.status(500).json({ error: errApr.message });
-          if (!rowApr) {
-            return res.status(400).json({
-              error: 'Para aprovar a proposta e gerar um contrato, a proposta precisa estar vinculada a uma Aprovação com status "Aprovado".'
-            });
-          }
-          const colNorm = String(rowApr.coluna || '')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase().trim();
-          if (colNorm !== 'APROVADO') {
-            return res.status(400).json({
-              error: `A Aprovação Nº ${rowApr.numero_aprovacao} está como "${rowApr.coluna || 'Solicitação'}". Um contrato apenas pode ser gerado quando a aprovação estiver como "Aprovado".`
-            });
-          }
-          prosseguirAposValidarAprovacao();
-        }
-      );
-    } else {
-      prosseguirAposValidarAprovacao();
-    }
+    prosseguirAposValidarAprovacao();
   });
 });
 

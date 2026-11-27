@@ -10687,28 +10687,6 @@ window.confirmarSalvarProposta = async function(shouldPrint = false) {
             if (finalId) {
                 _propostasEditandoId = finalId;
                 await abrirFormProposta(finalId);
-                if (!ehModoContratoSalvar && window._comercialAprovacao && typeof window._comercialAprovacao.verificarAprovacaoCompativelPorClienteEndereco === 'function') {
-                    const pSalva = (_propostasData || []).find(p => Number(p.id) === Number(finalId));
-                    if (pSalva && !pSalva.aprovacao_id && !pSalva.numero_aprovacao) {
-                        const aprvComp = await window._comercialAprovacao.verificarAprovacaoCompativelPorClienteEndereco(pSalva);
-                        if (aprvComp) {
-                            const numComp = String(aprvComp.numero_aprovacao || aprvComp.id).padStart(2, '0');
-                            Swal.fire({
-                                icon: 'question',
-                                title: `Aprovação encontrada (Nº ${numComp})`,
-                                html: `Existe a <strong>Aprovação Nº ${_escHtmlProp(numComp)}</strong> para este cliente no mesmo endereço de instalação.<br><br>Gostaria de vincular esta proposta a essa aprovação?`,
-                                showCancelButton: true,
-                                confirmButtonText: `<i class="ph ph-link"></i> Sim, vincular à Aprovação Nº ${numComp}`,
-                                confirmButtonColor: '#7c3aed',
-                                cancelButtonText: 'Agora não'
-                            }).then(resV => {
-                                if (resV && resV.isConfirmed) {
-                                    window._comercialAprovacao.vincularAprovacaoComProposta(aprvComp.id, finalId);
-                                }
-                            });
-                        }
-                    }
-                }
             }
             if (typeof mostrarToastSucesso === 'function') {
                 mostrarToastSucesso(ehModoContratoSalvar
@@ -10953,11 +10931,6 @@ window.aprovarPropostaEdicao = async function() {
     if (!_propostasEditandoId || window._propFormEditadoNaoSalvo) {
         Swal.fire('Aviso', 'Salve a proposta antes de aprovar.', 'warning');
         return;
-    }
-    // Regra obrigatória: Uma proposta para ser aprovada tem que estar vinculada a uma aprovação
-    if (window._modoTelaComercial !== 'contrato' && window._comercialAprovacao && typeof window._comercialAprovacao.garantirAprovacaoVinculadaAntesDeAprovarProposta === 'function') {
-        const okAprov = await window._comercialAprovacao.garantirAprovacaoVinculadaAntesDeAprovarProposta(_propostasEditandoId);
-        if (!okAprov) return;
     }
     if (typeof window.carregarCacheDadosQuadroEvento === 'function') {
         await window.carregarCacheDadosQuadroEvento(false);
@@ -23165,15 +23138,13 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
     }
 
     try {
-        const [propostasResp, clientesResp, aprovacoesResp] = await Promise.all([
+        const [propostasResp, clientesResp] = await Promise.all([
             apiGet('/propostas').catch(() => _propostasData),
             temClientesEmCache ? Promise.resolve(_clientesData) : apiGet('/clientes'),
-            apiGet('/comercial/aprovacoes').catch(() => (window._comercialAprovacoesCache || [])),
             (async () => { try { await window.carregarContextoUsuarioComercial(); } catch (e) {} })()
         ]);
         if (Array.isArray(propostasResp)) _propostasData = propostasResp;
         if (Array.isArray(clientesResp)) _clientesData = clientesResp;
-        if (Array.isArray(aprovacoesResp)) window._comercialAprovacoesCache = aprovacoesResp;
         if (!temClientesEmCache) Swal.close();
         const clientes = Array.isArray(_clientesData) ? _clientesData : [];
 
