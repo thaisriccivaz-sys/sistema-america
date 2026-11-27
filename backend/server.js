@@ -43886,11 +43886,11 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const novosDadosOsComercialJson = b.os_comercial_dados_json !== undefined
         ? (typeof b.os_comercial_dados_json === 'string' ? b.os_comercial_dados_json : JSON.stringify(b.os_comercial_dados_json || {}))
         : (prop.os_comercial_dados_json || '');
-      const podeEditarAtendente = Boolean(ctxUser && ctxUser.is_gestor_departamento);
+      const ehAvulsaSemCtr = !String(prop.contrato || '').trim() && !String(prop.codigo || '').trim();
+      const podeEditarAtendente = ehAvulsaSemCtr || Boolean(ctxUser && ctxUser.is_gestor_departamento);
       const novoAtendente = (podeEditarAtendente && b.atendente !== undefined && String(b.atendente || '').trim())
         ? String(b.atendente).trim()
         : (prop.atendente || '');
-      const ehAvulsaSemCtr = !String(prop.contrato || '').trim() && !String(prop.codigo || '').trim();
       const novoTipoModalidade = (ehAvulsaSemCtr && b.tipo !== undefined) ? String(b.tipo || prop.tipo || '').trim() : (prop.tipo || '');
       const novoClienteNome = (ehAvulsaSemCtr && b.cliente_nome !== undefined) ? String(b.cliente_nome || '').trim() : (prop.cliente_nome || '');
       const novoContatoNome = b.contato_nome !== undefined ? String(b.contato_nome || '').trim() : (prop.contato_nome || '');

@@ -442,6 +442,12 @@
         const ehObra = modResolvida === 'Obra';
         const ehEvento = modResolvida === 'Evento';
 
+        const temRetiradaSalva = Boolean(
+            String(salvo.data_retirada || '').trim() ||
+            String(salvo.hora_retirada || '').trim() ||
+            salvo.retirada_horario_comercial
+        );
+
         return {
             modalidade_os: modResolvida,
             modalidade_obra_evento: modResolvida,
@@ -449,6 +455,7 @@
             hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : '',
             entrega_horario_comercial: ehEvento ? false : Boolean(salvo.entrega_horario_comercial),
 
+            agendar_retirada: ehObra ? (salvo.agendar_retirada !== undefined ? Boolean(salvo.agendar_retirada) : temRetiradaSalva) : false,
             data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : '',
             hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : '',
             retirada_horario_comercial: ehEvento ? false : Boolean(salvo.retirada_horario_comercial),
@@ -494,8 +501,8 @@
             pendencias.push('Horário da Entrega');
         }
 
-        // Para contratos do tipo OBRA, Data de Retirada e Horário da Retirada NÃO são obrigatórios
-        if (ehEvento) {
+        const retiradaObrigatoria = ehEvento || Boolean(d.agendar_retirada);
+        if (retiradaObrigatoria) {
             if (!String(d.data_retirada || '').trim()) pendencias.push('Data de Retirada');
             if (!d.retirada_horario_comercial && !String(d.hora_retirada || '').trim()) {
                 pendencias.push('Horário da Retirada');
@@ -730,6 +737,7 @@
             data_entrega: '',
             hora_entrega: '',
             entrega_horario_comercial: false,
+            agendar_retirada: false,
             data_retirada: '',
             hora_retirada: '',
             retirada_horario_comercial: false,
@@ -777,7 +785,7 @@
         container.innerHTML = `
             <style>
                 #view-comercial-os .prop-lbl,
-                #view-comercial-os label:not(.prop-chk-inline-lbl) {
+                #view-comercial-os label:not(.prop-chk-inline-lbl):not(.prop-chk-inline-lbl-blue) {
                     font-weight: 600 !important;
                     font-size: 0.7rem !important;
                     color: #475569 !important;
@@ -810,6 +818,30 @@
                     width: 13px !important;
                     height: 13px !important;
                     accent-color: #16a34a !important;
+                }
+                #view-comercial-os label.prop-chk-inline-lbl-blue {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 5px !important;
+                    height: 26px !important;
+                    padding: 0 8px !important;
+                    margin-bottom: 0 !important;
+                    border: 1px solid #60a5fa !important;
+                    border-radius: 4px !important;
+                    background: #dbeafe !important;
+                    color: #1d4ed8 !important;
+                    font-size: 0.72rem !important;
+                    font-weight: 700 !important;
+                    cursor: pointer !important;
+                    white-space: nowrap !important;
+                    user-select: none !important;
+                    box-sizing: border-box !important;
+                }
+                #view-comercial-os label.prop-chk-inline-lbl-blue input[type="checkbox"] {
+                    margin: 0 !important;
+                    width: 13px !important;
+                    height: 13px !important;
+                    accent-color: #2563eb !important;
                 }
                 #view-comercial-os h4 {
                     font-size: 0.8rem !important;
@@ -887,7 +919,8 @@
                     padding: 0 8px !important;
                     width: 100% !important;
                 }
-                #view-comercial-os form button[title*="Pesquisar"] {
+                #view-comercial-os form button[title*="Pesquisar"],
+                #view-comercial-os form button[title*="Selecionar Cliente"] {
                     width: 26px !important;
                     padding: 0 !important;
                 }
@@ -1103,12 +1136,13 @@
                                     <div style="display:flex; gap:0.35rem; align-items:center;">
                                         <input type="text" id="cos-cliente" value="${esc(clienteNomeFormatado)}"
                                             ${!tipoOsPreenchido ? 'disabled' : (veioDeContrato ? 'readonly' : '')}
-                                            placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : (veioDeContrato ? 'Pressione Enter ou clique na lupa para pesquisar OS por cliente...' : 'Informe o nome do cliente ou clique na lupa para pesquisar...')}"
+                                            placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : (veioDeContrato ? 'Cliente vinculado ao contrato' : 'Digite o nome do cliente ou clique na lupa para selecionar...')}"
                                             oninput="${!veioDeContrato ? "window._comercialOS.onChangeCampoOsAvulsa('cliente_nome', this.value)" : ''}"
-                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.pesquisarPorCampoClienteInput(); }"
+                                            onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); if(${(!veioDeContrato && tipoOsPreenchido) ? 'true' : 'false'}) window._comercialOS.pesquisarPorCampoClienteInput(); }"
                                             style="width:100%;">
-                                        <button type="button" onclick="window._comercialOS.pesquisarPorCampoClienteInput()"
-                                            style="background:#2563eb; color:white; border:none; flex-shrink:0;" title="Pesquisar OS por Cliente">
+                                        <button type="button" ${(!tipoOsPreenchido || veioDeContrato) ? 'disabled' : ''} onclick="window._comercialOS.pesquisarPorCampoClienteInput()"
+                                            style="background:#2563eb; color:white; border:none; flex-shrink:0; opacity:${(!tipoOsPreenchido || veioDeContrato) ? '0.5' : '1'}; cursor:${(!tipoOsPreenchido || veioDeContrato) ? 'not-allowed' : 'pointer'};"
+                                            title="${veioDeContrato ? 'O cliente vem do Contrato vinculado e não pode ser alterado.' : 'Selecionar Cliente'}">
                                             <i class="ph ph-magnifying-glass"></i>
                                         </button>
                                     </div>
@@ -1150,62 +1184,76 @@
                                 </button>
                             </div>
                             <div id="cos-secao-periodo-body" style="display:${state.secoesAbertas.periodo ? 'block' : 'none'}; margin-top:0.45rem;">
-                                <!-- Linha Entrega e Retirada + Horários + Checkbox Horário Comercial (exceto quando for Evento) -->
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin-bottom:0.45rem;">
-                                    <!-- Bloco Entrega -->
-                                    <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
-                                        <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
-                                            <div>
-                                                <label class="prop-lbl">Data de Entrega <span style="color:#dc2626;">*</span></label>
-                                                <input type="date" id="cos-data-entrega" value="${esc(d.data_entrega || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
-                                                    onchange="window._comercialOS.onChangeCampoDadosOs('data_entrega', this.value)" style="width:100%;">
-                                            </div>
-                                            <div>
-                                                <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
-                                                <input type="text" id="cos-hora-entrega" value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
-                                                    placeholder="Ex: 08:00 às 12:00"
-                                                    ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
-                                                    oninput="window._comercialOS.onChangeCampoDadosOs('hora_entrega', this.value)" style="width:100%;">
-                                            </div>
-                                            ${!ehEvento ? `
-                                                <div>
-                                                    <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a entrega">
-                                                        <input type="checkbox" id="cos-chk-entrega-comercial" ${d.entrega_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
-                                                            onchange="window._comercialOS.onToggleHorarioComercial('entrega', this.checked)">
-                                                        <span>Horário comercial</span>
-                                                    </label>
+                                <!-- Linha Entrega e Retirada + Horários + Checkbox Horário Comercial / Agendar retirada -->
+                                ${(() => {
+                                    const mostrarBlocoRetirada = ehEvento || Boolean(d.agendar_retirada);
+                                    return `
+                                        <div style="display:grid; grid-template-columns:${mostrarBlocoRetirada ? (ehObra ? '1.25fr 1fr' : '1fr 1fr') : '1fr'}; gap:0.6rem; margin-bottom:0.45rem;">
+                                            <!-- Bloco Entrega -->
+                                            <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
+                                                <div style="display:grid; grid-template-columns:${ehEvento ? '1fr 1fr' : '1fr 1fr auto auto'}; gap:0.45rem; align-items:end;">
+                                                    <div>
+                                                        <label class="prop-lbl">Data de Entrega <span style="color:#dc2626;">*</span></label>
+                                                        <input type="date" id="cos-data-entrega" value="${esc(d.data_entrega || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                            onchange="window._comercialOS.onChangeCampoDadosOs('data_entrega', this.value)" style="width:100%;">
+                                                    </div>
+                                                    <div>
+                                                        <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
+                                                        <input type="text" id="cos-hora-entrega" value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
+                                                            placeholder="Ex: 08:00 às 12:00"
+                                                            ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
+                                                            oninput="window._comercialOS.onChangeCampoDadosOs('hora_entrega', this.value)" style="width:100%;">
+                                                    </div>
+                                                    ${!ehEvento ? `
+                                                        <div>
+                                                            <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a entrega">
+                                                                <input type="checkbox" id="cos-chk-entrega-comercial" ${d.entrega_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                                    onchange="window._comercialOS.onToggleHorarioComercial('entrega', this.checked)">
+                                                                <span>Horário comercial</span>
+                                                            </label>
+                                                        </div>
+                                                        <div>
+                                                            <label class="prop-chk-inline-lbl-blue" title="Marque para agendar e informar os dados obrigatórios de Retirada">
+                                                                <input type="checkbox" id="cos-chk-agendar-retirada" ${d.agendar_retirada ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                                    onchange="window._comercialOS.onToggleAgendarRetirada(this.checked)">
+                                                                <span>Agendar retirada</span>
+                                                            </label>
+                                                        </div>
+                                                    ` : ''}
                                                 </div>
-                                            ` : ''}
-                                        </div>
-                                    </div>
+                                            </div>
 
-                                    <!-- Bloco Retirada -->
-                                    <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
-                                        <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
-                                            <div>
-                                                <label class="prop-lbl">Data de Retirada ${ehEvento ? '<span style="color:#dc2626;">*</span>' : ''}</label>
-                                                <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
-                                                    onchange="window._comercialOS.onChangeCampoDadosOs('data_retirada', this.value)" style="width:100%;">
-                                            </div>
-                                            <div>
-                                                <label class="prop-lbl">Horário da Retirada ${ehEvento ? '<span style="color:#dc2626;">*</span>' : ''}</label>
-                                                <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
-                                                    placeholder="Ex: 14:00 às 18:00"
-                                                    ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
-                                                    oninput="window._comercialOS.onChangeCampoDadosOs('hora_retirada', this.value)" style="width:100%;">
-                                            </div>
-                                            ${!ehEvento ? `
-                                                <div>
-                                                    <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a retirada">
-                                                        <input type="checkbox" id="cos-chk-retirada-comercial" ${d.retirada_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
-                                                            onchange="window._comercialOS.onToggleHorarioComercial('retirada', this.checked)">
-                                                        <span>Horário comercial</span>
-                                                    </label>
+                                            ${mostrarBlocoRetirada ? `
+                                                <!-- Bloco Retirada -->
+                                                <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
+                                                    <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
+                                                        <div>
+                                                            <label class="prop-lbl">Data de Retirada <span style="color:#dc2626;">*</span></label>
+                                                            <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                                onchange="window._comercialOS.onChangeCampoDadosOs('data_retirada', this.value)" style="width:100%;">
+                                                        </div>
+                                                        <div>
+                                                            <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
+                                                            <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
+                                                                placeholder="Ex: 14:00 às 18:00"
+                                                                ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
+                                                                oninput="window._comercialOS.onChangeCampoDadosOs('hora_retirada', this.value)" style="width:100%;">
+                                                        </div>
+                                                        ${!ehEvento ? `
+                                                            <div>
+                                                                <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a retirada">
+                                                                    <input type="checkbox" id="cos-chk-retirada-comercial" ${d.retirada_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                                        onchange="window._comercialOS.onToggleHorarioComercial('retirada', this.checked)">
+                                                                    <span>Horário comercial</span>
+                                                                </label>
+                                                            </div>
+                                                        ` : ''}
+                                                    </div>
                                                 </div>
                                             ` : ''}
                                         </div>
-                                    </div>
-                                </div>
+                                    `;
+                                })()}
 
                                 <!-- Bloco Manutenções (automático da proposta + horário comercial automático para obras + dias da semana) -->
                                 ${!ehEvento ? `
@@ -1676,6 +1724,174 @@
         });
     }
 
+    async function abrirModalSelecionarClienteOs(termoInicial = '') {
+        let clientesBrutos = (Array.isArray(window._cosTodosClientesCache) && window._cosTodosClientesCache.length > 0)
+            ? window._cosTodosClientesCache
+            : [];
+
+        if (!clientesBrutos.length && typeof window.apiGet === 'function') {
+            Swal.fire({
+                title: 'Carregando clientes...',
+                allowOutsideClick: false,
+                didOpen: () => { if (typeof Swal.showLoading === 'function') Swal.showLoading(); }
+            });
+            try {
+                clientesBrutos = await window.apiGet('/comercial/relatorios/clientes');
+            } catch (_) {
+                clientesBrutos = [];
+            }
+            if (!Array.isArray(clientesBrutos) || !clientesBrutos.length) {
+                try {
+                    clientesBrutos = await window.apiGet('/clientes');
+                } catch (_) {
+                    clientesBrutos = [];
+                }
+            }
+            Swal.close();
+            if (Array.isArray(clientesBrutos) && clientesBrutos.length > 0) {
+                window._cosTodosClientesCache = clientesBrutos;
+                if (!Array.isArray(window._clientesCache) || !window._clientesCache.length) {
+                    window._clientesCache = clientesBrutos;
+                }
+            }
+        } else if (!clientesBrutos.length && Array.isArray(window._clientesCache) && window._clientesCache.length > 0) {
+            clientesBrutos = window._clientesCache;
+        }
+
+        const resolverIcoGrupo = (grp) => {
+            if (typeof window.obterIconeApenasGrupoCliente === 'function') {
+                return window.obterIconeApenasGrupoCliente(grp);
+            }
+            const g = normStr(grp);
+            if (g.includes('diamante')) return '💎';
+            if (g.includes('ouro')) return '🥇';
+            if (g.includes('prata')) return '🥈';
+            if (g.includes('bronze')) return '🥉';
+            return '';
+        };
+
+        const listaClientes = (Array.isArray(clientesBrutos) ? clientesBrutos : [])
+            .map(c => {
+                const nomeRaw = String(c.nome_razao_social || c.razao_social || c.cliente_nome || '').trim();
+                const nomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
+                    ? window.limparPrefixoGrupoCliente(nomeRaw)
+                    : nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+                const grupo = String(c.grupo_clientes || c.grupo || '').trim();
+                const icone = resolverIcoGrupo(grupo);
+                const nomeExib = (typeof window.formatarNomeClienteComIcone === 'function')
+                    ? window.formatarNomeClienteComIcone(nomeLimpo, grupo)
+                    : (icone ? `${icone} ${nomeLimpo}` : nomeLimpo);
+                return {
+                    nome_limpo: nomeLimpo,
+                    grupo,
+                    icone,
+                    nome_exib: nomeExib,
+                    cpf_cnpj: String(c.cpf_cnpj || c.cnpj || '').trim(),
+                    search_norm: normStr(nomeLimpo + ' ' + String(c.nome_fantasia || ''))
+                };
+            })
+            .filter(c => Boolean(c.nome_limpo))
+            .sort((a, b) => a.nome_limpo.localeCompare(b.nome_limpo, 'pt-BR', { sensitivity: 'base' }));
+
+        const LIMITE_VISIVEL = 150;
+        let listaAtualRenderizada = listaClientes;
+
+        window._cosSelecionarClienteModalIdx = (idx) => {
+            const item = listaAtualRenderizada[idx];
+            if (!item) return;
+            Swal.close();
+            window._comercialOS.selecionarClienteNaOs(item.nome_limpo, item.grupo);
+        };
+
+        const renderRows = (list) => {
+            listaAtualRenderizada = list;
+            if (!list.length) {
+                return `<tr><td colspan="2" style="text-align:center; color:#94a3b8; padding:1.5rem; font-size:0.85rem;">Nenhum cliente encontrado.</td></tr>`;
+            }
+            return list.slice(0, LIMITE_VISIVEL).map((c, idx) => `
+                <tr onclick="window._cosSelecionarClienteModalIdx(${idx})"
+                    style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition:background 0.15s;"
+                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                    <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(c.nome_exib)}</td>
+                    <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${esc(c.cpf_cnpj || '—')}</td>
+                </tr>
+            `).join('');
+        };
+
+        const qIni = normStr(termoInicial);
+        const iniciaisFiltrados = qIni ? listaClientes.filter(c => c.search_norm.includes(qIni)) : listaClientes;
+
+        Swal.fire({
+            title: '',
+            width: '900px',
+            showConfirmButton: false,
+            customClass: { popup: 'custom-swal-padding-zero' },
+            html: `
+                <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
+                    <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-buildings" style="color:#2563eb; font-size:1.3rem;"></i> Selecionar Cliente</span>
+                        <button type="button" onclick="Swal.close()" style="background:none; border:none; color:#64748b; font-size:1.3rem; cursor:pointer; line-height:1;">&times;</button>
+                    </div>
+
+                    <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
+                        <div>
+                            <label style="display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:4px;">Cliente / Razão Social</label>
+                            <input type="text" id="modal-cos-cli-search" value="${esc(termoInicial || '')}" placeholder="Digite o nome do cliente..."
+                                style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; box-sizing:border-box; height:38px; text-transform:none;">
+                        </div>
+
+                        <div style="max-height:55vh; min-height:38vh; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <thead>
+                                    <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
+                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc;">Razão Social / Cliente</th>
+                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; width:190px;">CNPJ / CPF</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-cos-cli-tbody">
+                                    ${renderRows(iniciaisFiltrados)}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="font-size:0.75rem; color:#64748b; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span>Clique em um cliente para vinculá-lo à OS.</span>
+                            <span id="modal-cos-cli-count" style="font-weight:700; color:#475569;">${iniciaisFiltrados.length > LIMITE_VISIVEL ? `Exibindo ${LIMITE_VISIVEL} de ${iniciaisFiltrados.length} cliente(s)` : `Total: ${iniciaisFiltrados.length} cliente(s)`}</span>
+                        </div>
+                    </div>
+                </div>
+            `,
+            didOpen: () => {
+                const swalPopup = typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+                if (swalPopup) {
+                    swalPopup.style.maxWidth = '96vw';
+                }
+                const inpCli = document.getElementById('modal-cos-cli-search');
+                const tbody = document.getElementById('modal-cos-cli-tbody');
+                const countEl = document.getElementById('modal-cos-cli-count');
+                let timerDeb = null;
+
+                const aplicarFiltro = () => {
+                    const q = normStr(inpCli?.value || '');
+                    const filtrados = q ? listaClientes.filter(c => c.search_norm.includes(q)) : listaClientes;
+                    if (tbody) tbody.innerHTML = renderRows(filtrados);
+                    if (countEl) {
+                        countEl.textContent = filtrados.length > LIMITE_VISIVEL
+                            ? `Exibindo ${LIMITE_VISIVEL} de ${filtrados.length} cliente(s)`
+                            : `Total: ${filtrados.length} cliente(s)`;
+                    }
+                };
+
+                inpCli?.addEventListener('input', () => {
+                    clearTimeout(timerDeb);
+                    timerDeb = setTimeout(aplicarFiltro, 80);
+                });
+                aplicarFiltro();
+                inpCli?.focus();
+            }
+        });
+    }
+
     window._comercialOS = {
         async init() {
             if (window._comercialOsAbrirPropostaId) {
@@ -1825,15 +2041,74 @@
         },
 
         async pesquisarPorCampoClienteInput() {
-            if (state.osAtual && state.osAtual.id) {
-                await abrirModalPesquisaOS({ foco: 'cliente' });
+            if (osVeioDeContrato(state.osAtual)) return;
+            if (!String(resolverTipoOsComercial(state.osAtual) || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs();
                 return;
             }
             const raw = String(document.getElementById('cos-cliente')?.value || '').trim();
             const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(raw)
                 : raw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
-            await abrirModalPesquisaOS({ cliente: limpo, foco: 'cliente' });
+            await abrirModalSelecionarClienteOs(limpo);
+        },
+
+        selecionarClienteNaOs(nomeLimpo, grupoOpcional = '') {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
+                ? window.limparPrefixoGrupoCliente(nomeLimpo || '')
+                : String(nomeLimpo || '').replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            if (!state.dadosOs) state.dadosOs = {};
+            const anterior = this._obterNomeClienteAtualOs();
+            if (normStr(anterior) !== normStr(limpo)) {
+                this._contatosCacheAtualOs = null;
+                this._enderecosCacheAtualOs = null;
+                if (!state.osAtual || !state.osAtual.id) {
+                    state.dadosOs.contato_nome_draft = '';
+                    state.dadosOs.endereco_instalacao_draft = '';
+                } else {
+                    state.osAtual.contato_nome = '';
+                    state.osAtual.endereco_instalacao = '';
+                }
+                const inpCt = document.getElementById('cos-contato');
+                if (inpCt) inpCt.value = '';
+                const inpEnd = document.getElementById('cos-endereco-instalacao');
+                if (inpEnd) inpEnd.value = '';
+                this.sincronizarChipsEnderecosOs();
+            }
+            const inpCli = document.getElementById('cos-cliente');
+            if (inpCli) {
+                let exib = limpo;
+                if (typeof window.formatarNomeClienteComIcone === 'function') {
+                    exib = window.formatarNomeClienteComIcone(limpo, grupoOpcional);
+                } else if (grupoOpcional) {
+                    const g = normStr(grupoOpcional);
+                    const ico = g.includes('diamante') ? '💎' : (g.includes('ouro') ? '🥇' : (g.includes('prata') ? '🥈' : (g.includes('bronze') ? '🥉' : '')));
+                    if (ico) exib = `${ico} ${limpo}`;
+                }
+                inpCli.value = exib;
+            }
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.cliente_nome = limpo;
+            } else {
+                state.dadosOs.cliente_nome_draft = limpo;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        onToggleAgendarRetirada(checked) {
+            if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.agendar_retirada = Boolean(checked);
+            if (!checked) {
+                state.dadosOs.data_retirada = '';
+                state.dadosOs.hora_retirada = '';
+                state.dadosOs.retirada_horario_comercial = false;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            renderFormOS();
         },
 
         toggleSecao(chave, event) {
@@ -1888,6 +2163,7 @@
                         data_entrega: '',
                         hora_entrega: '',
                         entrega_horario_comercial: false,
+                        agendar_retirada: false,
                         data_retirada: '',
                         hora_retirada: '',
                         retirada_horario_comercial: false,
@@ -2580,6 +2856,30 @@
             const clienteLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(clienteRawInput)
                 : clienteRawInput.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+
+            if ((!state.osAtual || !state.osAtual.id) && !clienteLimpo) {
+                if (!silencioso) Swal.fire('Cliente obrigatório', 'Selecione um Cliente antes de salvar a OS.', 'warning');
+                return false;
+            }
+
+            if (normStr(modAtual) !== 'evento' && state.dadosOs.agendar_retirada) {
+                const faltaDataRet = !String(state.dadosOs.data_retirada || '').trim();
+                const faltaHoraRet = !state.dadosOs.retirada_horario_comercial && !String(state.dadosOs.hora_retirada || '').trim();
+                if (faltaDataRet || faltaHoraRet) {
+                    if (!silencioso) {
+                        Swal.fire(
+                            'Retirada obrigatória',
+                            'Como a opção "Agendar retirada" está selecionada, preencha a Data de Retirada e o Horário da Retirada (ou marque Horário comercial).',
+                            'warning'
+                        );
+                    }
+                    return false;
+                }
+            } else if (!veioDeContrato && normStr(modAtual) !== 'evento' && !state.dadosOs.agendar_retirada) {
+                state.dadosOs.data_retirada = '';
+                state.dadosOs.hora_retirada = '';
+                state.dadosOs.retirada_horario_comercial = false;
+            }
 
             const contatoAtualVal = String(document.getElementById('cos-contato')?.value || (state.osAtual && state.osAtual.contato_nome) || (state.dadosOs && state.dadosOs.contato_nome_draft) || '').trim();
             const listaEndSalvar = this.obterListaEnderecosOs();
