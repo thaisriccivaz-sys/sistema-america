@@ -154,10 +154,14 @@
             if (dadosOs && (dadosOs.modalidade_os === 'Obra' || dadosOs.modalidade_os === 'Evento')) {
                 return dadosOs.modalidade_os;
             }
+            if (dadosOs && (dadosOs.modalidade_obra_evento === 'Obra' || dadosOs.modalidade_obra_evento === 'Evento')) {
+                return dadosOs.modalidade_obra_evento;
+            }
             return 'Obra';
         }
-        if (dadosOs && (dadosOs.modalidade_os === 'Obra' || dadosOs.modalidade_os === 'Evento')) {
-            return dadosOs.modalidade_os;
+        const modSalva = (dadosOs && (dadosOs.modalidade_os || dadosOs.modalidade_obra_evento)) || '';
+        if (modSalva === 'Obra' || modSalva === 'Evento') {
+            return modSalva;
         }
         if (prop && prop.tipo) {
             const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -434,22 +438,11 @@
         }
 
         const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const modResolvida = salvo.modalidade_os || (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO') ? 'Evento' : 'Obra');
+        const modResolvida = salvo.modalidade_os || salvo.modalidade_obra_evento || (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO') ? 'Evento' : 'Obra');
         const ehObra = modResolvida === 'Obra';
         const ehEvento = modResolvida === 'Evento';
 
-        // Datas de entrega/retirada do contrato (quando houver) ou período início/fim
-        let dtEntPad = String(prop.periodo_inicio || '').trim().substring(0, 10);
-        let dtRetPad = String(prop.periodo_fim || '').trim().substring(0, 10);
-        try {
-            const arrE = JSON.parse(prop.datas_entrega_equipamentos || '[]');
-            if (Array.isArray(arrE) && arrE[0]) dtEntPad = String(arrE[0]).trim().substring(0, 10);
-        } catch (_) {}
-        try {
-            const arrR = JSON.parse(prop.datas_retirada_equipamentos || '[]');
-            if (Array.isArray(arrR) && arrR[0]) dtRetPad = String(arrR[0]).trim().substring(0, 10);
-        } catch (_) {}
-
+        // Quando a OS é criada a partir de um contrato, Data de Entrega e Data de Retirada devem iniciar em branco
         // Regra solicitada:
         // - Quando for um contrato do tipo OBRA: selecionar automaticamente o Horário Comercial (entrega, retirada e manutenção).
         // - Quando for outro tipo de contrato: o checkbox do horário comercial NÃO deve estar pré-selecionado.
@@ -458,24 +451,26 @@
 
         return {
             modalidade_os: modResolvida,
-            data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : dtEntPad,
+            modalidade_obra_evento: modResolvida,
+            data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : '',
             hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : (ehObra ? '08:00 às 18:00' : (String(prop.hora_inicio || '').trim() || '')),
             entrega_horario_comercial: ehEvento ? false : (salvo.entrega_horario_comercial !== undefined ? Boolean(salvo.entrega_horario_comercial) : horarioComercialPadrao),
 
-            data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : dtRetPad,
+            data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : '',
             hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : (ehObra ? '08:00 às 18:00' : (String(prop.hora_fim || '').trim() || '')),
             retirada_horario_comercial: ehEvento ? false : (salvo.retirada_horario_comercial !== undefined ? Boolean(salvo.retirada_horario_comercial) : horarioComercialPadrao),
 
             qtd_manutencoes: salvo.qtd_manutencoes || extrairQuantidadeManutencoesProposta(prop),
             horario_manutencao: salvo.horario_manutencao || (ehObra ? 'Horário Comercial (08:00 às 18:00)' : ''),
             manutencao_horario_comercial: ehObra ? true : Boolean(salvo.manutencao_horario_comercial),
+            dias_semana_manutencao: Array.isArray(salvo.dias_semana_manutencao) ? salvo.dias_semana_manutencao : [],
 
             dias_evento: Array.isArray(salvo.dias_evento) && salvo.dias_evento.length > 0
                 ? salvo.dias_evento
                 : extrairDiasEventoInicialDaProposta(prop),
 
-            fob_data_entrega: salvo.fob_data_entrega !== undefined ? salvo.fob_data_entrega : dtEntPad,
-            fob_data_retirada: salvo.fob_data_retirada !== undefined ? salvo.fob_data_retirada : dtRetPad,
+            fob_data_entrega: salvo.fob_data_entrega !== undefined ? salvo.fob_data_entrega : '',
+            fob_data_retirada: salvo.fob_data_retirada !== undefined ? salvo.fob_data_retirada : '',
             fob_modelo_veiculo: salvo.fob_modelo_veiculo || '',
             fob_placa_veiculo: salvo.fob_placa_veiculo || '',
             fob_nome_motorista: salvo.fob_nome_motorista || '',
@@ -506,12 +501,16 @@
             pendencias.push('Horário da Entrega');
         }
 
-        if (!String(d.data_retirada || '').trim()) pendencias.push('Data de Retirada');
-        if (!d.retirada_horario_comercial && !String(d.hora_retirada || '').trim()) {
-            pendencias.push('Horário da Retirada');
+        // Para contratos do tipo OBRA, Data de Retirada e Horário da Retirada NÃO são obrigatórios
+        if (ehEvento) {
+            if (!String(d.data_retirada || '').trim()) pendencias.push('Data de Retirada');
+            if (!d.retirada_horario_comercial && !String(d.hora_retirada || '').trim()) {
+                pendencias.push('Horário da Retirada');
+            }
         }
 
-        if (!String(prop.endereco_instalacao || '').trim()) {
+        const listaEndsCheck = String(prop.endereco_instalacao || '').split(/\s*\|\s*/).map(x => x.trim()).filter(Boolean);
+        if (listaEndsCheck.length === 0) {
             pendencias.push('Endereço de Instalação');
         }
 
@@ -614,47 +613,77 @@
         }
     }
 
-    function renderProdutosGridHtml(prop) {
-        let itens = [];
+    function obterProdutosMescladosOs(prop) {
+        let itensBase = [];
         try {
-            itens = typeof prop?.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop?.itens) ? prop.itens : []);
-        } catch (_) { itens = []; }
-        itens = (Array.isArray(itens) ? itens : []).filter(it => it && !it._substituido_por_aditivo);
+            itensBase = typeof prop?.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop?.itens) ? prop.itens : []);
+        } catch (_) { itensBase = []; }
+        itensBase = Array.isArray(itensBase) ? itensBase.filter(Boolean) : [];
+        if (prop && prop.id && osVeioDeContrato(prop) && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+            try {
+                const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(prop, itensBase, []);
+                if (mesclados && Array.isArray(mesclados.produtos)) {
+                    return mesclados.produtos.filter(Boolean);
+                }
+            } catch (_) {}
+        }
+        return itensBase;
+    }
+
+    function renderProdutosGridHtml(prop) {
+        const itensTodos = obterProdutosMescladosOs(prop);
+        const itensAtivos = itensTodos.filter(it => it && !it._substituido_por_aditivo);
 
         const badge = document.getElementById('cos-produtos-count-badge');
-        const somaQtd = itens.reduce((acc, it) => acc + (Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1)), 0);
+        const somaQtd = itensAtivos.reduce((acc, it) => acc + (Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1)), 0);
         if (badge) {
-            if (itens.length > 0) {
+            if (itensAtivos.length > 0) {
                 badge.style.display = 'inline-flex';
-                badge.textContent = `${itens.length} item(ns) · Qtd. total: ${somaQtd}`;
+                badge.textContent = `${itensAtivos.length} item(ns) · Qtd. total: ${somaQtd}`;
             } else {
                 badge.style.display = 'none';
             }
         }
 
-        if (itens.length === 0) {
+        if (itensTodos.length === 0) {
             return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
         }
 
         const tipoUp = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         const ehEv = ['EVENTO', 'EQUIPAMENTOS', 'EQUIPAMENTO'].includes(tipoUp);
+        const temAditivosMesclados = itensTodos.some(it => it && (it._from_aditivo_dinamico || it._substituido_por_aditivo));
 
-        return itens.map(it => {
+        return itensTodos.map(it => {
             const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
             const obs = String(it.observacao || '').trim();
             const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
             const nDiarias = ehEv ? (diasArr.length > 0 ? diasArr.length : Math.max(1, parseInt(prop?.dias_contrato || 1, 10) || 1)) : 1;
             const manutStr = ehEv ? `${nDiarias} diária(s)` : (it.manut_semana ? `${it.manut_semana}x/sem.` : '—');
+            const substPorCod = it._substituido_por_aditivo ? String(it._substituido_por_aditivo) : '';
+            const ehFromAditivo = Boolean(it._from_aditivo_dinamico);
+            const badgeOrigTxt = it._badge_origem ? String(it._badge_origem) : 'Contrato Base';
+            const badgeOrigHtml = temAditivosMesclados
+                ? `<span style="background:${ehFromAditivo ? '#fef9c3' : '#e0f2fe'}; color:${ehFromAditivo ? '#854d0e' : '#0369a1'}; border:1px solid ${ehFromAditivo ? '#eab308' : '#7dd3fc'}; padding:1px 7px; border-radius:999px; font-size:0.65rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">${esc(badgeOrigTxt)}</span>`
+                : '';
+            const badgeSubHtml = substPorCod
+                ? `<span style="background:#e2e8f0; color:#475569; border:1px solid #cbd5e1; padding:1px 7px; border-radius:999px; font-size:0.65rem; font-weight:800; white-space:nowrap; display:inline-block; text-decoration:none;">Substituído pelo Aditivo Nº ${esc(substPorCod)}</span>`
+                : '';
+            const rowStyle = substPorCod ? 'border-bottom:1px solid #e2e8f0; background:#f8fafc; opacity:0.68;' : 'border-bottom:1px solid #e2e8f0;';
+            const strikeStyle = substPorCod ? 'text-decoration:line-through; color:#94a3b8;' : '';
 
             return `
-                <tr style="border-bottom:1px solid #e2e8f0;">
+                <tr style="${rowStyle}">
                     <td style="padding:6px 8px; font-weight:700; color:#1e293b;">
-                        ${assoc.icone ? `<span style="font-size:0.92rem; margin-right:4px;">${assoc.icone}</span>` : ''}<span>${esc(assoc.nome)}</span>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span style="${strikeStyle}">${assoc.icone ? `<span style="font-size:0.92rem; margin-right:4px;">${assoc.icone}</span>` : ''}${esc(assoc.nome)}</span>
+                            ${badgeOrigHtml}
+                            ${badgeSubHtml}
+                        </div>
                     </td>
-                    <td style="padding:6px 8px; color:#475569;">${esc(obs || '—')}</td>
-                    <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a;">${qtd}</td>
-                    <td style="padding:6px 6px; text-align:center; color:#475569; font-weight:600;">${esc(manutStr)}</td>
+                    <td style="padding:6px 8px; color:#475569; ${strikeStyle}">${esc(obs || '—')}</td>
+                    <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a; ${strikeStyle}">${qtd}</td>
+                    <td style="padding:6px 6px; text-align:center; color:#475569; font-weight:600; ${strikeStyle}">${esc(manutStr)}</td>
                 </tr>
             `;
         }).join('');
@@ -1094,11 +1123,24 @@
 
                                 <div>
                                     <label class="prop-lbl">Contato <span style="color:#ef4444;">*</span></label>
-                                    <input type="text" id="cos-contato" value="${esc(isNovo ? (d.contato_nome_draft || '') : v('contato_nome'))}"
-                                        ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
-                                        placeholder="${(!veioDeContrato && tipoOsPreenchido) ? 'Informe o contato...' : ''}"
-                                        oninput="window._comercialOS.onChangeCampoOsAvulsa('contato_nome', this.value)"
-                                        style="width:100%;">
+                                    <div id="cos-contato-combo-wrap" style="position:relative; width:100%;">
+                                        <input type="text" id="cos-contato" value="${esc(isNovo ? (d.contato_nome_draft || '') : v('contato_nome'))}"
+                                            ${!tipoOsPreenchido ? 'disabled' : ''}
+                                            autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+                                            placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite o contato do cliente...'}"
+                                            onfocus="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
+                                            onclick="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
+                                            oninput="window._comercialOS.onInputContatoOs(this.value);"
+                                            onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-contato-dropdown'); if(dd) dd.style.display='none'; }"
+                                            style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
+                                        ${tipoOsPreenchido ? `
+                                            <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownContatosOs(event)" title="Selecionar contato do cliente"
+                                                style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                <i class="ph ph-caret-down"></i>
+                                            </button>
+                                        ` : ''}
+                                        <div id="cos-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1148,12 +1190,12 @@
                                     <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
                                         <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
                                             <div>
-                                                <label class="prop-lbl">Data de Retirada <span style="color:#dc2626;">*</span></label>
+                                                <label class="prop-lbl">Data de Retirada ${ehEvento ? '<span style="color:#dc2626;">*</span>' : ''}</label>
                                                 <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
                                                     onchange="window._comercialOS.onChangeCampoDadosOs('data_retirada', this.value)" style="width:100%;">
                                             </div>
                                             <div>
-                                                <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
+                                                <label class="prop-lbl">Horário da Retirada ${ehEvento ? '<span style="color:#dc2626;">*</span>' : ''}</label>
                                                 <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
                                                     placeholder="Ex: 14:00 às 18:00"
                                                     ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
@@ -1172,10 +1214,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Bloco Manutenções (automático da proposta + horário comercial automático para obras) -->
+                                <!-- Bloco Manutenções (automático da proposta + horário comercial automático para obras + dias da semana) -->
                                 ${!ehEvento ? `
-                                    <div style="display:grid; grid-template-columns:1fr 1.4fr auto; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem; margin-bottom:0.45rem;">
-                                        <div>
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem; margin-bottom:0.45rem;">
+                                        <div style="flex:1 1 170px;">
                                             <label class="prop-lbl">Quantidade de Manutenções (Proposta)</label>
                                             <input type="text" id="cos-qtd-manutencoes" value="${esc(d.qtd_manutencoes || (veioDeContrato ? '—' : ''))}"
                                                 ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
@@ -1183,7 +1225,7 @@
                                                 oninput="${!veioDeContrato ? "window._comercialOS.onChangeCampoDadosOs('qtd_manutencoes', this.value)" : ''}"
                                                 style="width:100%; font-weight:700;">
                                         </div>
-                                        <div>
+                                        <div style="flex:1.3 1 210px;">
                                             <label class="prop-lbl">Horário da Manutenção</label>
                                             <input type="text" id="cos-horario-manutencao" value="${esc(d.manutencao_horario_comercial ? '08:00 às 18:00 (Horário Comercial)' : (d.horario_manutencao || ''))}"
                                                 placeholder="Informe o horário da manutenção..."
@@ -1196,6 +1238,29 @@
                                                     onchange="window._comercialOS.onToggleHorarioComercial('manutencao', this.checked)">
                                                 <span>Horário comercial</span>
                                             </label>
+                                        </div>
+                                        <!-- Dias da Semana (ao lado direito do Horário comercial da Manutenção, padrão OS da Logística) -->
+                                        <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; padding-left:4px; border-left:1px solid #cbd5e1;">
+                                            <span title="Dias da semana da manutenção" style="background:#f59e0b; color:#fff; width:26px; height:26px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                                <i class="ph ph-calendar-check" style="font-size:1rem;"></i>
+                                            </span>
+                                            ${[
+                                                { d: 'Seg', id: 'cos-chk-manut-seg', c: '#ef4444' },
+                                                { d: 'Ter', id: 'cos-chk-manut-ter', c: '#f97316' },
+                                                { d: 'Qua', id: 'cos-chk-manut-qua', c: '#ca8a04' },
+                                                { d: 'Qui', id: 'cos-chk-manut-qui', c: '#16a34a' },
+                                                { d: 'Sex', id: 'cos-chk-manut-sex', c: '#3b82f6' },
+                                                { d: 'Sáb', id: 'cos-chk-manut-sab', c: '#8b5cf6' },
+                                                { d: 'Dom', id: 'cos-chk-manut-dom', c: '#ec4899' }
+                                            ].map(item => {
+                                                const marcado = Array.isArray(d.dias_semana_manutencao) && d.dias_semana_manutencao.some(x => normStr(x) === normStr(item.d));
+                                                return `<label id="lbl-${item.id}" data-cor="${item.c}" style="display:inline-flex !important; align-items:center !important; gap:3px !important; height:26px !important; padding:0 7px !important; margin-bottom:0 !important; font-size:0.72rem !important; font-weight:700 !important; border-radius:4px !important; border:1.5px solid ${item.c} !important; background:${marcado ? item.c : '#fff'} !important; color:${marcado ? '#fff' : item.c} !important; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'} !important; user-select:none !important; box-sizing:border-box !important;">
+                                                    <input type="checkbox" id="${item.id}" ${marcado ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                        onchange="window._comercialOS.toggleDiaSemanaManutencao('${item.d}', this.checked, this.closest('label'))"
+                                                        style="margin:0 !important; width:13px !important; height:13px !important; accent-color:${item.c}; cursor:pointer;">
+                                                    <span>${item.d}</span>
+                                                </label>`;
+                                            }).join('')}
                                         </div>
                                     </div>
                                 ` : ''}
@@ -1219,25 +1284,41 @@
                                 ` : ''}
 
                                 <!-- Endereço de Instalação / Nome do Evento -->
-                                <div style="display:flex; gap:0.75rem; align-items:center; background:rgba(255,255,255,0.75); padding:0.45rem 0.6rem; border:1px solid #bbf7d0; border-radius:6px; flex-wrap:wrap;">
-                                    ${ehEvento ? `
-                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
-                                            <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
-                                            <input type="text" id="cos-nome-evento" value="${esc(isNovo ? (d.nome_evento_draft || '') : v('nome_evento'))}"
-                                                ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
-                                                oninput="window._comercialOS.onChangeCampoOsAvulsa('nome_evento', this.value)"
-                                                style="width:100%;">
+                                <div style="display:flex; flex-direction:column; gap:0.4rem; background:rgba(255,255,255,0.75); padding:0.45rem 0.6rem; border:1px solid #bbf7d0; border-radius:6px;">
+                                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                                        ${ehEvento ? `
+                                            <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
+                                                <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
+                                                <input type="text" id="cos-nome-evento" value="${esc(isNovo ? (d.nome_evento_draft || '') : v('nome_evento'))}"
+                                                    ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                                    oninput="window._comercialOS.onChangeCampoOsAvulsa('nome_evento', this.value)"
+                                                    style="width:100%;">
+                                            </div>
+                                        ` : ''}
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
+                                            <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
+                                            <div id="cos-endereco-combo-wrap" style="position:relative; flex:1;">
+                                                <input type="text" id="cos-endereco-instalacao" value="${esc(isNovo ? (d.endereco_instalacao_draft || '') : v('endereco_instalacao'))}"
+                                                    ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                    autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+                                                    placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite um ou mais endereços de instalação...'}"
+                                                    onfocus="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
+                                                    onclick="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
+                                                    oninput="window._comercialOS.onInputEnderecoOs(this.value);"
+                                                    onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-endereco-dropdown'); if(dd) dd.style.display='none'; }"
+                                                    style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
+                                                ${tipoOsPreenchido ? `
+                                                    <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownEnderecosOs(event)" title="Listar endereços do cliente"
+                                                        style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                        <i class="ph ph-caret-down"></i>
+                                                    </button>
+                                                ` : ''}
+                                                <div id="cos-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                            </div>
+                                            ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
                                         </div>
-                                    ` : ''}
-                                    <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
-                                        <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
-                                        <input type="text" id="cos-endereco-instalacao" value="${esc(isNovo ? (d.endereco_instalacao_draft || '') : v('endereco_instalacao'))}"
-                                            ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
-                                            placeholder="${(!veioDeContrato && tipoOsPreenchido) ? 'Informe o endereço de instalação...' : ''}"
-                                            oninput="window._comercialOS.onChangeCampoOsAvulsa('endereco_instalacao', this.value)"
-                                            style="width:100%;">
-                                        ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
                                     </div>
+                                    <div id="cos-enderecos-chips" style="display:none; flex-wrap:wrap; gap:5px; align-items:center;"></div>
                                 </div>
                             </div>
                         </div>
@@ -1368,6 +1449,9 @@
         `;
 
         renderProdutosGridHtml(prop);
+        if (window._comercialOS && typeof window._comercialOS.sincronizarChipsEnderecosOs === 'function') {
+            window._comercialOS.sincronizarChipsEnderecosOs();
+        }
         atualizarVisibilidadeBotaoEnviarLogistica();
         if (!isNovo) {
             carregarAnexosOs(prop.id);
@@ -1674,6 +1758,13 @@
                     Swal.fire('Aviso', 'Uma OS só pode existir para contratos assinados.', 'warning');
                     return;
                 }
+                // Atualiza a lista de propostas em memória para mesclar aditivos aprovados (Contrato Base / Aditivo / riscado)
+                if (typeof window.apiGet === 'function') {
+                    const todasProps = await window.apiGet('/propostas').catch(() => null);
+                    if (Array.isArray(todasProps) && todasProps.length > 0) {
+                        window._propostasData = todasProps;
+                    }
+                }
                 p.os_tipo_operacao = resolverTipoOsComercial(p);
                 if (!p.status_os) p.status_os = 'EM ELABORAÇÃO';
                 state.propostaIdAtiva = p.id;
@@ -1844,6 +1935,7 @@
             const modNorm = normStr(modalidade) === 'evento' ? 'Evento' : 'Obra';
             state.modalidadeDraft = modNorm;
             if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.modalidade_os = modNorm;
             state.dadosOs.modalidade_obra_evento = modNorm;
             if (state.osAtual) {
                 state.osAtual.tipo = modNorm === 'Evento' ? 'Proposta Evento' : 'Proposta Obra';
@@ -1853,6 +1945,307 @@
             this.marcarEditado();
             this.salvarSnapshotAba();
             renderFormOS();
+        },
+
+        toggleDiaSemanaManutencao(dia, checked, lblEl) {
+            if (!state.dadosOs) state.dadosOs = {};
+            const atuais = Array.isArray(state.dadosOs.dias_semana_manutencao) ? [...state.dadosOs.dias_semana_manutencao] : [];
+            const idx = atuais.findIndex(x => normStr(x) === normStr(dia));
+            if (checked && idx === -1) atuais.push(dia);
+            if (!checked && idx >= 0) atuais.splice(idx, 1);
+            state.dadosOs.dias_semana_manutencao = atuais;
+            if (lblEl && lblEl.dataset && lblEl.dataset.cor) {
+                lblEl.style.setProperty('background', checked ? lblEl.dataset.cor : '#fff', 'important');
+                lblEl.style.setProperty('color', checked ? '#fff' : lblEl.dataset.cor, 'important');
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
+        _obterNomeClienteAtualOs() {
+            const rawCli = String(document.getElementById('cos-cliente')?.value || (state.osAtual && state.osAtual.cliente_nome) || (state.dadosOs && state.dadosOs.cliente_nome_draft) || '').trim();
+            return typeof window.limparPrefixoGrupoCliente === 'function'
+                ? window.limparPrefixoGrupoCliente(rawCli)
+                : rawCli.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+        },
+
+        onInputContatoOs(valor) {
+            this.onChangeCampoOsAvulsa('contato_nome', valor);
+            this.filtrarDropdownContatosOs(valor);
+        },
+
+        async abrirDropdownContatosOs(mostrarTodos = true) {
+            const drop = document.getElementById('cos-contato-dropdown');
+            const inp = document.getElementById('cos-contato');
+            if (!drop || !inp || inp.disabled) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os contatos vinculados.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            let contatos = [];
+            if (typeof window._obterDadosContatosClienteProposta === 'function') {
+                const res = await window._obterDadosContatosClienteProposta(cliNome).catch(() => ({ contatosDoCliente: [] }));
+                contatos = Array.isArray(res?.contatosDoCliente) ? res.contatosDoCliente : [];
+            }
+            this._contatosCacheAtualOs = contatos;
+            this.renderDropdownContatosOs(inp.value, mostrarTodos);
+        },
+
+        async toggleDropdownContatosOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('cos-contato-dropdown');
+            if (drop && drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            await this.abrirDropdownContatosOs(true);
+            document.getElementById('cos-contato')?.focus();
+        },
+
+        async filtrarDropdownContatosOs(termo) {
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!Array.isArray(this._contatosCacheAtualOs) && cliNome && typeof window._obterDadosContatosClienteProposta === 'function') {
+                const res = await window._obterDadosContatosClienteProposta(cliNome).catch(() => ({ contatosDoCliente: [] }));
+                this._contatosCacheAtualOs = Array.isArray(res?.contatosDoCliente) ? res.contatosDoCliente : [];
+            }
+            this.renderDropdownContatosOs(termo, false);
+        },
+
+        renderDropdownContatosOs(termoFiltro = '', mostrarTodos = false) {
+            const drop = document.getElementById('cos-contato-dropdown');
+            if (!drop) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os contatos vinculados.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            const base = Array.isArray(this._contatosCacheAtualOs) ? this._contatosCacheAtualOs : [];
+            const q = mostrarTodos ? '' : normStr(termoFiltro);
+            const filtrados = !q
+                ? base
+                : base.filter(c =>
+                    normStr(c.nome).includes(q) ||
+                    normStr(c.cargo).includes(q) ||
+                    normStr(c.celular).includes(q) ||
+                    normStr(c.telefone).includes(q) ||
+                    normStr(c.telefone_ramal).includes(q) ||
+                    normStr(c.email).includes(q)
+                );
+            if (!filtrados.length) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Nenhum contato vinculado encontrado (você pode digitar manualmente).</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            drop.innerHTML = filtrados.slice(0, 60).map(c => {
+                const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const telsFmt = typeof window.formatarTelefonesContatoDropdown === 'function'
+                    ? window.formatarTelefonesContatoDropdown(c).map(t => `📞 ${t}`)
+                    : ([c.celular, c.telefone].filter(Boolean).map(t => `📞 ${t}`));
+                const subInfo = [c.cargo, ...telsFmt, c.email].filter(Boolean).join(' • ');
+                const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
+                return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarContatoOs('${safeNome}')"
+                    style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:0.78rem; font-weight:700; color:#1e293b;">${esc(c.nome)}</span>
+                        ${badgesHtml}
+                    </div>
+                    ${subInfo ? `<div style="font-size:0.7rem; color:#64748b; margin-top:2px;">${esc(subInfo)}</div>` : ''}
+                </div>`;
+            }).join('');
+            drop.style.display = 'block';
+        },
+
+        selecionarContatoOs(nome) {
+            const inp = document.getElementById('cos-contato');
+            const drop = document.getElementById('cos-contato-dropdown');
+            if (inp) inp.value = nome;
+            if (drop) drop.style.display = 'none';
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.contato_nome = nome;
+            } else {
+                if (!state.dadosOs) state.dadosOs = {};
+                state.dadosOs.contato_nome_draft = nome;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        obterListaEnderecosOs(valOpcional = undefined) {
+            const raw = valOpcional !== undefined
+                ? String(valOpcional || '')
+                : String(document.getElementById('cos-endereco-instalacao')?.value || '');
+            return raw.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
+        },
+
+        sincronizarChipsEnderecosOs() {
+            const chipsEl = document.getElementById('cos-enderecos-chips');
+            const inp = document.getElementById('cos-endereco-instalacao');
+            if (!chipsEl || !inp) return;
+            const tipoOk = Boolean(String(resolverTipoOsComercial(state.osAtual) || '').trim());
+            const lista = this.obterListaEnderecosOs(inp.value);
+            if (lista.length === 0) {
+                chipsEl.innerHTML = '';
+                chipsEl.style.display = 'none';
+                return;
+            }
+            chipsEl.style.display = 'flex';
+            chipsEl.innerHTML = lista.map((end, idx) => `
+                <span style="display:inline-flex; align-items:center; gap:5px; background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:700; max-width:100%;">
+                    <span style="background:#10b981; color:#fff; border-radius:999px; padding:0 5px; font-size:0.65rem; font-weight:800;">${idx + 1}</span>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:440px;" title="${esc(end)}">${esc(end)}</span>
+                    ${tipoOk ? `<button type="button" onclick="window._comercialOS.removerEnderecoOsChip(${idx})" title="Remover este endereço de instalação"
+                        style="border:none !important; background:transparent !important; color:#dc2626 !important; cursor:pointer; font-weight:900 !important; font-size:0.84rem !important; padding:0 2px !important; height:auto !important; line-height:1;">&times;</button>` : ''}
+                </span>
+            `).join('') + (tipoOk ? `
+                <button type="button" onclick="window._comercialOS.iniciarAdicaoOutroEnderecoOs(event)"
+                    title="Clique para adicionar mais um endereço de instalação na OS"
+                    style="display:inline-flex !important; align-items:center !important; gap:4px !important; background:#eff6ff !important; border:1px dashed #3b82f6 !important; color:#1d4ed8 !important; padding:2px 9px !important; height:22px !important; border-radius:999px !important; font-size:0.71rem !important; font-weight:800 !important; cursor:pointer;">
+                    <i class="ph ph-plus-circle" style="font-size:0.85rem;"></i> Adicionar outro endereço
+                </button>
+            ` : '');
+        },
+
+        async iniciarAdicaoOutroEnderecoOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const inp = document.getElementById('cos-endereco-instalacao');
+            if (inp && !inp.disabled) {
+                const lista = this.obterListaEnderecosOs(inp.value);
+                if (lista.length > 0 && !/\|\s*$/.test(inp.value)) {
+                    inp.value = lista.join(' | ') + ' | ';
+                }
+                inp.focus();
+                try {
+                    const len = inp.value.length;
+                    inp.setSelectionRange(len, len);
+                } catch (_) {}
+            }
+            await this.abrirDropdownEnderecosOs(true);
+        },
+
+        removerEnderecoOsChip(idx) {
+            const inp = document.getElementById('cos-endereco-instalacao');
+            if (!inp) return;
+            const lista = this.obterListaEnderecosOs(inp.value);
+            if (idx < 0 || idx >= lista.length) return;
+            lista.splice(idx, 1);
+            const novoVal = lista.join(' | ');
+            inp.value = novoVal;
+            this.onChangeCampoOsAvulsa('endereco_instalacao', novoVal);
+            this.sincronizarChipsEnderecosOs();
+        },
+
+        onInputEnderecoOs(valor) {
+            this.onChangeCampoOsAvulsa('endereco_instalacao', valor);
+            this.sincronizarChipsEnderecosOs();
+            this.filtrarDropdownEnderecosOs(valor);
+        },
+
+        async abrirDropdownEnderecosOs(mostrarTodos = true) {
+            const drop = document.getElementById('cos-endereco-dropdown');
+            const inp = document.getElementById('cos-endereco-instalacao');
+            if (!drop || !inp || inp.disabled) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os endereços cadastrados.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            let ends = [];
+            if (typeof window._obterDadosEnderecosClienteProposta === 'function') {
+                const res = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
+                ends = Array.isArray(res?.enderecosDoCliente) ? res.enderecosDoCliente : [];
+            }
+            this._enderecosCacheAtualOs = ends;
+            this.renderDropdownEnderecosOs(inp.value, mostrarTodos);
+        },
+
+        async toggleDropdownEnderecosOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('cos-endereco-dropdown');
+            if (drop && drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            await this.abrirDropdownEnderecosOs(true);
+            document.getElementById('cos-endereco-instalacao')?.focus();
+        },
+
+        async filtrarDropdownEnderecosOs(termo) {
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!Array.isArray(this._enderecosCacheAtualOs) && cliNome && typeof window._obterDadosEnderecosClienteProposta === 'function') {
+                const res = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
+                this._enderecosCacheAtualOs = Array.isArray(res?.enderecosDoCliente) ? res.enderecosDoCliente : [];
+            }
+            this.renderDropdownEnderecosOs(termo, false);
+        },
+
+        renderDropdownEnderecosOs(termoFiltro = '', mostrarTodos = false) {
+            const drop = document.getElementById('cos-endereco-dropdown');
+            if (!drop) return;
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Selecione ou informe o Cliente primeiro para listar os endereços cadastrados.</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            const base = Array.isArray(this._enderecosCacheAtualOs) ? this._enderecosCacheAtualOs : [];
+            const listaAtuais = this.obterListaEnderecosOs();
+            const ultimoSeg = String(termoFiltro || '').split('|').pop().trim();
+            const ultimoJaSel = listaAtuais.some(x => normStr(x) === normStr(ultimoSeg));
+            const q = (mostrarTodos || ultimoJaSel) ? '' : normStr(ultimoSeg);
+            const filtrados = !q
+                ? base
+                : base.filter(e =>
+                    normStr(e.texto_completo).includes(q) ||
+                    normStr(e.nome_local).includes(q) ||
+                    normStr(e.endereco).includes(q) ||
+                    normStr(e.bairro).includes(q) ||
+                    normStr(e.municipio).includes(q) ||
+                    normStr(e.cep).includes(q)
+                );
+            if (!filtrados.length) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Nenhum endereço cadastrado encontrado para este filtro (você pode digitar manualmente).</div>`;
+                drop.style.display = 'block';
+                return;
+            }
+            drop.innerHTML = filtrados.slice(0, 60).map(e => {
+                const txt = String(e.texto_completo || '').trim();
+                const safeTxt = txt.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const jaAdic = listaAtuais.some(x => normStr(x) === normStr(txt));
+                return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarEnderecoDropdownOs('${safeTxt}')"
+                    style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; background:${jaAdic ? '#f0fdf4' : '#fff'};"
+                    onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${jaAdic ? '#f0fdf4' : '#fff'}'">
+                    <div style="font-size:0.76rem; font-weight:700; color:#1e293b; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                        <span>${esc(e.nome_local || e.endereco || 'Endereço')}</span>
+                        ${jaAdic ? '<span style="font-size:0.65rem; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 6px; border-radius:999px; font-weight:800;">✓ Selecionado</span>' : ''}
+                    </div>
+                    <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">${esc(txt)}</div>
+                </div>`;
+            }).join('');
+            drop.style.display = 'block';
+        },
+
+        selecionarEnderecoDropdownOs(textoCompleto) {
+            const inp = document.getElementById('cos-endereco-instalacao');
+            const drop = document.getElementById('cos-endereco-dropdown');
+            const txtNovo = String(textoCompleto || '').trim();
+            if (inp && txtNovo) {
+                const lista = this.obterListaEnderecosOs(inp.value);
+                const jaTem = lista.some(x => normStr(x) === normStr(txtNovo));
+                let novoVal = txtNovo;
+                if (lista.length > 0) {
+                    novoVal = jaTem ? lista.join(' | ') : [...lista, txtNovo].join(' | ');
+                }
+                inp.value = novoVal;
+                this.onChangeCampoOsAvulsa('endereco_instalacao', novoVal);
+                this.sincronizarChipsEnderecosOs();
+            }
+            if (drop) drop.style.display = 'none';
         },
 
         onChangeCampoOsAvulsa(campo, valor) {
@@ -2108,12 +2501,20 @@
 
             const modAtual = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
             if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.modalidade_os = modAtual;
             state.dadosOs.modalidade_obra_evento = modAtual;
 
             const clienteRawInput = String(document.getElementById('cos-cliente')?.value || (state.osAtual && state.osAtual.cliente_nome) || (state.dadosOs && state.dadosOs.cliente_nome_draft) || '').trim();
             const clienteLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(clienteRawInput)
                 : clienteRawInput.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+
+            const contatoAtualVal = String(document.getElementById('cos-contato')?.value || (state.osAtual && state.osAtual.contato_nome) || (state.dadosOs && state.dadosOs.contato_nome_draft) || '').trim();
+            const listaEndSalvar = this.obterListaEnderecosOs();
+            const enderecoAtualVal = listaEndSalvar.length > 0
+                ? listaEndSalvar.join(' | ')
+                : String(document.getElementById('cos-endereco-instalacao')?.value || (state.osAtual && state.osAtual.endereco_instalacao) || '').trim().replace(/\s*\|\s*$/, '');
+            state.dadosOs.enderecos_instalacao = listaEndSalvar;
 
             const payload = {
                 status_os: document.getElementById('cos-status-os')?.value || (state.osAtual && state.osAtual.status_os) || state.statusNovoDraft || 'EM ELABORAÇÃO',
@@ -2122,13 +2523,13 @@
                 observacoes: document.getElementById('cos-obs')?.value ?? ((state.osAtual && state.osAtual.observacoes) || ''),
                 os_comercial_dados_json: JSON.stringify(state.dadosOs || {}),
                 atendente: novoAtendVal,
+                contato_nome: contatoAtualVal,
+                endereco_instalacao: enderecoAtualVal,
                 ...(!veioDeContrato ? {
                     modalidade_obra_evento: modAtual,
                     tipo: modAtual === 'Evento' ? 'Proposta Evento' : 'Proposta Obra',
                     titulo_contrato: String(document.getElementById('cos-titulo-contrato')?.value || '').trim(),
                     cliente_nome: clienteLimpo,
-                    contato_nome: String(document.getElementById('cos-contato')?.value || '').trim(),
-                    endereco_instalacao: String(document.getElementById('cos-endereco-instalacao')?.value || '').trim(),
                     nome_evento: String(document.getElementById('cos-nome-evento')?.value || '').trim()
                 } : {})
             };
@@ -2221,6 +2622,16 @@
         const dropAtend = document.getElementById('cos-atendente-dropdown');
         if (dropAtend && dropAtend.style.display === 'block' && wrapAtend && !wrapAtend.contains(e.target)) {
             dropAtend.style.display = 'none';
+        }
+        const wrapCt = document.getElementById('cos-contato-combo-wrap');
+        const dropCt = document.getElementById('cos-contato-dropdown');
+        if (dropCt && dropCt.style.display === 'block' && wrapCt && !wrapCt.contains(e.target)) {
+            dropCt.style.display = 'none';
+        }
+        const wrapEnd = document.getElementById('cos-endereco-combo-wrap');
+        const dropEnd = document.getElementById('cos-endereco-dropdown');
+        if (dropEnd && dropEnd.style.display === 'block' && wrapEnd && !wrapEnd.contains(e.target)) {
+            dropEnd.style.display = 'none';
         }
     });
 

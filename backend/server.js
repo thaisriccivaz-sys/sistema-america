@@ -43364,9 +43364,9 @@ app.get('/api/propostas/:id/anexos-contrato', authenticateToken, (req, res) => {
               if (!errAds && Array.isArray(adRows)) {
                 adRows.forEach(ad => {
                   const faseAd = String(ad.fase_negociacao || '').trim().toUpperCase();
-                  const sitAd = String(ad.situacao_contrato || '').trim().toUpperCase();
-                  const statusAssinafy = String(ad.assinafy_status || '').trim().toLowerCase();
-                  const r2Ad = ad.assinafy_signed_r2_key || ((faseAd === 'PROPOSTA ASSINADA' || faseAd === 'APROVADA' || sitAd.includes('CONTRATO ASSINADO') || statusAssinafy === 'certificated' || statusAssinafy === 'signed') ? ad.pdf_enviado_assinafy_r2_key : null);
+                  const adAprovado = faseAd === 'APROVADA' || faseAd === 'APROVADO' || faseAd === 'APROVADO - ADITIVO ASSINADO';
+                  if (!adAprovado) return;
+                  const r2Ad = ad.assinafy_signed_r2_key || ad.pdf_enviado_assinafy_r2_key || null;
                   if (r2Ad) {
                     const codAd = String(ad.codigo || ad.id).padStart(2, '0');
                     automaticos.push({
@@ -43893,7 +43893,7 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const ehAvulsaSemCtr = !String(prop.contrato || '').trim() && !String(prop.codigo || '').trim();
       const novoTipoModalidade = (ehAvulsaSemCtr && b.tipo !== undefined) ? String(b.tipo || prop.tipo || '').trim() : (prop.tipo || '');
       const novoClienteNome = (ehAvulsaSemCtr && b.cliente_nome !== undefined) ? String(b.cliente_nome || '').trim() : (prop.cliente_nome || '');
-      const novoContatoNome = (ehAvulsaSemCtr && b.contato_nome !== undefined) ? String(b.contato_nome || '').trim() : (prop.contato_nome || '');
+      const novoContatoNome = b.contato_nome !== undefined ? String(b.contato_nome || '').trim() : (prop.contato_nome || '');
       const novoNomeEvento = (ehAvulsaSemCtr && b.nome_evento !== undefined) ? String(b.nome_evento || '').trim() : (prop.nome_evento || '');
 
       db.run(
@@ -45327,6 +45327,9 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
         Object.keys(oldRow).forEach(k => { d[k] = oldRow[k]; });
         d.fase_negociacao = 'Reprovada';
         d.motivo_reprovacao = motivoReprov;
+      } else if (ehAditivoPut && reqFaseUpper === 'APROVADA' && oldFaseUpper !== 'APROVADA') {
+        Object.keys(oldRow).forEach(k => { d[k] = oldRow[k]; });
+        d.fase_negociacao = 'Aprovada';
       } else {
         return res.status(400).json({ error: 'Proposta aprovada/assinada não pode ser editada sem estornar o contrato primeiro.' });
       }
@@ -45342,6 +45345,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
     const reqFaseAfterCheck = String(d.fase_negociacao || '').trim().toUpperCase();
     const isAgoraAprovada = reqFaseAfterCheck === 'APROVADA' || reqFaseAfterCheck === 'PROPOSTA ASSINADA' || reqFaseAfterCheck === 'APROVADO - ADITIVO ASSINADO';
     const isReaprovacaoContrato = !d.modo_contrato && !ehFluxoAssinafyPut && reqFaseAfterCheck === 'APROVADA' && oldFaseUpper !== 'APROVADA';
+    const isAprovacaoManualAditivo = Boolean(ehAditivoPut && !d.modo_contrato && reqFaseAfterCheck === 'APROVADA' && oldFaseUpper !== 'APROVADA');
     const tinhaAssinaturaOuPreAp = Boolean(oldRow.assinatura_r2_key || oldRow.aceite_publico_em || oldFaseUpper === 'PRÉ APROVADA');
     const invalidarAssinaturaPorEdicao = Boolean(d.acao_estornar || ((!jaAssinadoAssinafy || contratoFoiEstornadoOld) && !d.modo_contrato && !isAgoraAprovada && tinhaAssinaturaOuPreAp));
     if ((!jaAssinadoAssinafy || contratoFoiEstornadoOld) && !d.acao_estornar && !d.modo_contrato && !isAgoraAprovada && !ehFluxoAssinafyPut) {
@@ -45373,8 +45377,8 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const assinaturaR2Final = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_r2_key || null);
       const assinaturaMimeFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.assinatura_mime_type || null);
       const aceiteEmFinal = invalidarAssinaturaPorEdicao ? null : (oldRow.aceite_publico_em || null);
-      const aprovadoPorFinal = d.acao_estornar ? null : (isReaprovacaoContrato ? nomeAutorAcao : (isAgoraAprovada ? (oldRow.aprovado_por || nomeAutorAcao) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_por || null))));
-      let aprovadoEmFinal = d.acao_estornar ? null : (isReaprovacaoContrato ? agora : (isAgoraAprovada ? (oldRow.aprovado_em || agora) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_em || null))));
+      const aprovadoPorFinal = d.acao_estornar ? null : ((isReaprovacaoContrato || isAprovacaoManualAditivo) ? nomeAutorAcao : (isAgoraAprovada ? (oldRow.aprovado_por || nomeAutorAcao) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_por || null))));
+      let aprovadoEmFinal = d.acao_estornar ? null : ((isReaprovacaoContrato || isAprovacaoManualAditivo) ? agora : (isAgoraAprovada ? (oldRow.aprovado_em || agora) : (invalidarAssinaturaPorEdicao ? null : (oldRow.aprovado_em || null))));
       if (d.modo_contrato) {
         const dtEmissaoReq = String(d.data_cadastro || '').trim();
         const dtEmissaoOld = String(oldRow.aprovado_em || '').trim().substring(0, 10);
@@ -46566,6 +46570,8 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
           ? JSON.stringify(signatariosLocais.map(s => ({ ...s, status: 'Assinado', assinado_em: s.assinado_em || signedAtVal })))
           : (prop.assinafy_signatarios_json || null);
 
+        const aprovadoEmAssinafy = ehAditivoPoll ? (prop.aprovado_em || null) : (prop.aprovado_em || signedAtVal);
+
         await new Promise((resolve, reject) => {
           db.run(
             `UPDATE propostas
@@ -46576,10 +46582,10 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
                  assinafy_signed_at = ?,
                  assinafy_signed_r2_key = COALESCE(?, assinafy_signed_r2_key),
                  assinafy_signatarios_json = COALESCE(?, assinafy_signatarios_json),
-                 aprovado_em = COALESCE(aprovado_em, ?),
+                 aprovado_em = ?,
                  atualizado_em = ?
              WHERE id = ?`,
-            [faseAlvoAssinada, contratoAssinadoFinal, sitContratoAssinadoFinal, signedAtVal, signedR2Key, signatariosJsonAssinadoFinal, signedAtVal, agoraIsoBr, prop.id],
+            [faseAlvoAssinada, contratoAssinadoFinal, sitContratoAssinadoFinal, signedAtVal, signedR2Key, signatariosJsonAssinadoFinal, aprovadoEmAssinafy, agoraIsoBr, prop.id],
             (errUp) => errUp ? reject(errUp) : resolve()
           );
         });
@@ -51260,6 +51266,12 @@ function evNormalizarDataIso(d) {
 function evMesclarENormalizarHistorico(listaExistente, novasEntradas) {
   const todos = [...evParseHistorico(listaExistente), ...(Array.isArray(novasEntradas) ? novasEntradas : [])];
   const mapa = new Map();
+  const juntarRefsUnicas = (a, b) => {
+    const arrA = String(a || '').split(',').map(x => x.trim()).filter(Boolean);
+    const arrB = String(b || '').split(',').map(x => x.trim()).filter(Boolean);
+    const set = Array.from(new Set([...arrA, ...arrB]));
+    return set.length ? set.join(', ') : null;
+  };
   todos.forEach(item => {
     if (!item || typeof item !== 'object') return;
     const ini = evNormalizarDataIso(item.periodo_inicio);
@@ -51268,15 +51280,15 @@ function evMesclarENormalizarHistorico(listaExistente, novasEntradas) {
     const iniFinal = ini || fim;
     const fimFinal = fim || ini;
     const propId = Number(item.proposta_id) || null;
-    const chave = propId ? `prop:${propId}` : `dt:${iniFinal}|${fimFinal}`;
+    const chave = `dt:${iniFinal}|${fimFinal}`;
     const prev = mapa.get(chave) || {};
     mapa.set(chave, {
       periodo_inicio: iniFinal,
       periodo_fim: fimFinal,
-      proposta_id: propId || prev.proposta_id || null,
-      proposta_codigo: item.proposta_codigo || prev.proposta_codigo || null,
-      contrato: item.contrato || prev.contrato || null,
-      registrado_em: item.registrado_em || prev.registrado_em || new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19)
+      proposta_id: prev.proposta_id || propId || null,
+      proposta_codigo: juntarRefsUnicas(prev.proposta_codigo, item.proposta_codigo),
+      contrato: juntarRefsUnicas(prev.contrato, item.contrato),
+      registrado_em: prev.registrado_em || item.registrado_em || new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 19)
     });
   });
   const ordenado = Array.from(mapa.values()).sort((a, b) => {
@@ -51334,10 +51346,11 @@ function evSincronizarPropostaNoEvento(dados, cb) {
         ((clienteId && Number(r.cliente_id) === Number(clienteId)) || evNormTxt(r.cliente_nome) === evNormTxt(clienteNome))
       );
       if (existente) {
-        const calc = evMesclarENormalizarHistorico(existente.historico_datas, [
-          ...(existente.ultimo_periodo_inicio ? [{ periodo_inicio: existente.ultimo_periodo_inicio, periodo_fim: existente.ultimo_periodo_fim || existente.ultimo_periodo_inicio }] : []),
-          ...novaEntrada
-        ]);
+        const histParsed = evParseHistorico(existente.historico_datas);
+        const baseHist = histParsed.length > 0
+          ? histParsed
+          : (existente.ultimo_periodo_inicio ? [{ periodo_inicio: existente.ultimo_periodo_inicio, periodo_fim: existente.ultimo_periodo_fim || existente.ultimo_periodo_inicio }] : []);
+        const calc = evMesclarENormalizarHistorico(baseHist, novaEntrada);
         db.run(
           'UPDATE comercial_eventos SET ultimo_periodo_inicio=?, ultimo_periodo_fim=?, historico_datas=?, atualizado_em=? WHERE id=?',
           [calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), agora, existente.id],
@@ -51366,7 +51379,30 @@ app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
       "SELECT id, codigo, contrato, cliente_nome, nome_evento, periodo_inicio, periodo_fim, criado_em FROM propostas WHERE nome_evento IS NOT NULL AND TRIM(nome_evento) != '' AND (status IS NULL OR status != 'Excluída')",
       [],
       (errP, propRows) => {
-        const eventos = (rows || []).map(r => ({ ...r }));
+        const mapaEventosUnicos = new Map();
+        (rows || []).forEach(r => {
+          const chv = `${evNormTxt(r.nome)}|${evNormTxt(r.cliente_nome)}`;
+          const histRow = evParseHistorico(r.historico_datas);
+          const fallbackUlt = (!histRow.length && r.ultimo_periodo_inicio)
+            ? [{ periodo_inicio: r.ultimo_periodo_inicio, periodo_fim: r.ultimo_periodo_fim || r.ultimo_periodo_inicio }]
+            : [];
+          if (!mapaEventosUnicos.has(chv)) {
+            const calcIni = evMesclarENormalizarHistorico(histRow.length ? histRow : fallbackUlt, []);
+            mapaEventosUnicos.set(chv, {
+              ...r,
+              _histCalc: calcIni.historico,
+              ultimo_periodo_inicio: calcIni.ultimo_periodo_inicio,
+              ultimo_periodo_fim: calcIni.ultimo_periodo_fim
+            });
+          } else {
+            const ex = mapaEventosUnicos.get(chv);
+            const calcMerge = evMesclarENormalizarHistorico(ex._histCalc || [], histRow.length ? histRow : fallbackUlt);
+            ex._histCalc = calcMerge.historico;
+            ex.ultimo_periodo_inicio = calcMerge.ultimo_periodo_inicio;
+            ex.ultimo_periodo_fim = calcMerge.ultimo_periodo_fim;
+          }
+        });
+        const eventos = Array.from(mapaEventosUnicos.values());
         const propostas = (!errP && Array.isArray(propRows)) ? propRows : [];
 
         propostas.forEach(p => {
@@ -51385,10 +51421,11 @@ app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
           }] : [];
           let ev = eventos.find(e => evNormTxt(e.nome) === evNormTxt(pNome) && evNormTxt(e.cliente_nome) === evNormTxt(pCli));
           if (ev) {
-            const calc = evMesclarENormalizarHistorico(ev.historico_datas, [
-              ...(ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []),
-              ...entrada
-            ]);
+            const histAtual = Array.isArray(ev._histCalc) ? ev._histCalc : evParseHistorico(ev.historico_datas);
+            const baseHist = histAtual.length > 0
+              ? histAtual
+              : (ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []);
+            const calc = evMesclarENormalizarHistorico(baseHist, entrada);
             ev._histCalc = calc.historico;
             ev.ultimo_periodo_inicio = calc.ultimo_periodo_inicio;
             ev.ultimo_periodo_fim = calc.ultimo_periodo_fim;
@@ -51396,9 +51433,10 @@ app.get('/api/comercial/eventos', authenticateToken, (req, res) => {
         });
 
         let lista = eventos.map(ev => {
-          const calc = ev._histCalc
-            ? { historico: ev._histCalc, ultimo_periodo_inicio: ev.ultimo_periodo_inicio, ultimo_periodo_fim: ev.ultimo_periodo_fim }
-            : evMesclarENormalizarHistorico(ev.historico_datas, ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []);
+          const histBase = Array.isArray(ev._histCalc) ? ev._histCalc : evParseHistorico(ev.historico_datas);
+          const calc = histBase.length > 0
+            ? { historico: histBase, ultimo_periodo_inicio: ev.ultimo_periodo_inicio || histBase[0]?.periodo_inicio || null, ultimo_periodo_fim: ev.ultimo_periodo_fim || histBase[0]?.periodo_fim || null }
+            : evMesclarENormalizarHistorico([], ev.ultimo_periodo_inicio ? [{ periodo_inicio: ev.ultimo_periodo_inicio, periodo_fim: ev.ultimo_periodo_fim || ev.ultimo_periodo_inicio }] : []);
           return {
             id: ev.id,
             cliente_id: ev.cliente_id,
@@ -51448,10 +51486,11 @@ app.post('/api/comercial/eventos', authenticateToken, (req, res) => {
       const agora = new Date(new Date().getTime() - 3*60*60*1000).toISOString().replace('T',' ').substring(0,19);
       if (dup) {
         if (novaData.length > 0) {
-          const calc = evMesclarENormalizarHistorico(dup.historico_datas, [
-            ...(dup.ultimo_periodo_inicio ? [{ periodo_inicio: dup.ultimo_periodo_inicio, periodo_fim: dup.ultimo_periodo_fim || dup.ultimo_periodo_inicio }] : []),
-            ...novaData
-          ]);
+          const histDup = evParseHistorico(dup.historico_datas);
+          const baseHistDup = histDup.length > 0
+            ? histDup
+            : (dup.ultimo_periodo_inicio ? [{ periodo_inicio: dup.ultimo_periodo_inicio, periodo_fim: dup.ultimo_periodo_fim || dup.ultimo_periodo_inicio }] : []);
+          const calc = evMesclarENormalizarHistorico(baseHistDup, novaData);
           return db.run(
             'UPDATE comercial_eventos SET ultimo_periodo_inicio=?, ultimo_periodo_fim=?, historico_datas=?, atualizado_em=? WHERE id=?',
             [calc.ultimo_periodo_inicio, calc.ultimo_periodo_fim, JSON.stringify(calc.historico), agora, dup.id],
@@ -51526,6 +51565,111 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
     if (this.changes === 0) return res.status(404).json({ error: 'Evento não encontrado.' });
     res.json({ success: true });
   });
+});
+
+// POST /api/comercial/relatorios/exportar-excel - Exporta qualquer relatório do Comercial em .xlsx estilizado
+app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (req, res) => {
+  try {
+    const ExcelJS = require('exceljs');
+    const body = req.body || {};
+    const titulo = String(body.titulo || 'Relatório Comercial').trim();
+    const nomeArqBase = String(body.nomeArquivo || 'Relatorio_Comercial')
+      .replace(/[💎🥇🥈🥉]/g, '')
+      .replace(/[^\w\-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'Relatorio_Comercial';
+    const colunas = Array.isArray(body.colunas) ? body.colunas : [];
+    const linhas = Array.isArray(body.linhas) ? body.linhas : [];
+
+    if (!colunas.length) {
+      return res.status(400).json({ error: 'Nenhuma coluna informada para exportação.' });
+    }
+
+    const limparPrefixoGrupo = (val) => String(val ?? '').replace(/^[\s💎🥇🥈🥉]+/g, '').trim();
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'América Rental';
+    wb.created = new Date();
+    const ws = wb.addWorksheet(titulo.substring(0, 30).replace(/[\\/*?:[\]]/g, '') || 'Relatório');
+
+    const totalCols = colunas.length;
+    ws.mergeCells(1, 1, 1, totalCols);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = `${titulo} — Gerado em ${new Date(Date.now() - 3 * 3600 * 1000).toISOString().replace('T', ' ').substring(0, 16)}`;
+    titleCell.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF1E293B' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F0FF' } };
+    ws.getRow(1).height = 28;
+
+    const headerRow = ws.getRow(2);
+    headerRow.height = 24;
+    colunas.forEach((col, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = String(col.label || col.key || `Coluna ${i + 1}`);
+      cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7048E8' } };
+      cell.alignment = { vertical: 'middle', horizontal: col.tipo === 'moeda' ? 'right' : 'left', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF5F3DC4' } },
+        bottom: { style: 'thin', color: { argb: 'FF5F3DC4' } },
+        left: { style: 'thin', color: { argb: 'FF5F3DC4' } },
+        right: { style: 'thin', color: { argb: 'FF5F3DC4' } }
+      };
+    });
+
+    linhas.forEach((rowObj, idxR) => {
+      const row = ws.getRow(idxR + 3);
+      row.height = 20;
+      const zebraFill = idxR % 2 === 1
+        ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+        : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+
+      colunas.forEach((col, idxC) => {
+        const cell = row.getCell(idxC + 1);
+        let val = rowObj && rowObj[col.key] !== undefined && rowObj[col.key] !== null ? rowObj[col.key] : '';
+        if (col.tipo === 'moeda') {
+          const num = typeof val === 'number'
+            ? val
+            : parseFloat(String(val).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+          cell.value = num;
+          cell.numFmt = 'R$ #,##0.00';
+          cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        } else {
+          cell.value = limparPrefixoGrupo(val);
+          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+        }
+        cell.font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+        cell.fill = zebraFill;
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+      });
+    });
+
+    colunas.forEach((col, i) => {
+      let maxLen = String(col.label || '').length + 4;
+      linhas.forEach(r => {
+        const s = String((r && r[col.key]) ?? '');
+        if (s.length + 2 > maxLen) maxLen = s.length + 2;
+      });
+      ws.getColumn(i + 1).width = col.width ? Number(col.width) : Math.min(Math.max(maxLen, 12), 55);
+    });
+
+    ws.autoFilter = {
+      from: { row: 2, column: 1 },
+      to: { row: Math.max(2, linhas.length + 2), column: totalCols }
+    };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeArqBase}.xlsx"`);
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    console.error('[RELATORIOS COMERCIAL EXCEL] Erro:', e);
+    res.status(500).json({ error: e.message || 'Erro ao gerar planilha Excel.' });
+  }
 });
 
 // Migrations para imagem de Aceite e Aditivo em comercial_modelos_proposta e assinatura em propostas (Cloudflare R2)

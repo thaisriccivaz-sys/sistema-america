@@ -4799,13 +4799,35 @@ function _renderFormPropostaInt() {
                     <button id="btn-prop-salvar" onclick="salvarPropostaNova()" ${(isNovo && window._modoTelaComercial !== 'contrato') ? '' : 'disabled'} style="display:${(window._modoTelaComercial !== 'contrato' && ['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(String(v('fase_negociacao') || '').trim().toUpperCase()) && !(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) && !(window.propostaPodeMudarParaReprovada && window.propostaPodeMudarParaReprovada(prop))) ? 'none' : 'inline-flex'}; background:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#16a34a' : '#cbd5e1'}; color:${(isNovo && window._modoTelaComercial !== 'contrato') ? '#ffffff' : '#64748b'}; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'pointer' : 'not-allowed'}; pointer-events:${(isNovo && window._modoTelaComercial !== 'contrato') ? 'auto' : 'none'}; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#15803d'" onmouseout="if(!this.disabled) this.style.background='#16a34a'" onfocus="this.blur()">
                         <i class="ph ph-check" style="font-size:1rem;"></i> Salvar
                     </button>
-                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(isNovo || window._modoTelaComercial === 'contrato' || (window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || (window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) || ['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase())) ? 'none' : 'inline-flex'}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
+                    <button type="button" id="btn-prop-aprovar" onclick="window.aprovarPropostaEdicao()" style="display:${(() => {
+                        const tUpBtn = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                        const fUpBtn = String(v('fase_negociacao') || 'Em Elaboração').trim().toUpperCase();
+                        const ehAditBtn = tUpBtn === 'ADITIVO';
+                        const foiAssBtn = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+                        if (isNovo || window._modoTelaComercial === 'contrato') return 'none';
+                        if (ehAditBtn) return (foiAssBtn && !['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(fUpBtn)) ? 'inline-flex' : 'none';
+                        return ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) || foiAssBtn || ['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(fUpBtn)) ? 'none' : 'inline-flex';
+                    })()}; background:#1b358f; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="if(!this.disabled) this.style.background='#172554'" onmouseout="if(!this.disabled) this.style.background='#1b358f'" onfocus="this.blur()"><i class="ph ph-check-circle" style="font-size:1rem;"></i> Aprovar</button>
                     <button type="button" id="btn-prop-enviar-assinafy" onclick="window.enviarContratoParaAssinaturaPeloQuadro()" title="Enviar documento para assinatura via Assinafy" style="display:none !important;"><i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Enviar para Assinatura</button>
                     <button type="button" id="btn-prop-reenviar-assinafy" onclick="window.enviarContratoParaAssinaturaPeloQuadro()" title="Reenviar documento para assinatura via Assinafy" style="display:none !important;">
                         <i class="ph ph-paper-plane-tilt" style="font-size:1rem;"></i> Reenviar Assinatura
                     </button>
-                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${window._modoTelaComercial === 'contrato' ? 'Visualizar Contrato Assinado (Assinafy)' : ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada')}" style="display:${(!isNovo && (window._modoTelaComercial === 'contrato' ? Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) : window.propostaEstaAssinadaOuAprovada(prop))) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
-                        <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${window._modoTelaComercial === 'contrato' ? 'Contrato Assinado' : ((window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'))) ? 'Proposta Assinada' : 'Proposta Aprovada')}</span>
+                    <button type="button" id="btn-prop-doc-assinado" onclick="window.verDocumentoAssinadoClienteProposta(${id || 'null'})" title="${(() => {
+                        const ehCtrT = window._modoTelaComercial === 'contrato';
+                        const usaAssT = Boolean(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')));
+                        const foiAssT = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+                        if (ehCtrT) return 'Visualizar Contrato Assinado (Assinafy)';
+                        if (usaAssT) return foiAssT ? 'Visualizar Proposta Assinada (Assinafy)' : 'Ver PDF da Proposta';
+                        return 'Visualizar Proposta Aprovada';
+                    })()}" style="display:${(!isNovo && (window._modoTelaComercial === 'contrato' ? Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop)) : window.propostaEstaAssinadaOuAprovada(prop))) ? 'inline-flex' : 'none'}; background:#0d9488; color:white; border:none; padding:0.45rem 0.9rem; border-radius:6px; cursor:pointer; font-weight:700; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#0f766e'" onmouseout="this.style.background='#0d9488'" onfocus="this.blur()">
+                        <i class="ph ph-eye" style="font-size:1rem;"></i> <span id="lbl-btn-prop-doc-assinado">${(() => {
+                            const ehCtrL = window._modoTelaComercial === 'contrato';
+                            const usaAssL = Boolean(window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo')));
+                            const foiAssL = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
+                            if (ehCtrL) return 'Contrato Assinado';
+                            if (usaAssL) return foiAssL ? 'Proposta Assinada' : 'Ver PDF da Proposta';
+                            return 'Proposta Aprovada';
+                        })()}</span>
                     </button>
                     <button onclick="fecharFormProposta()" style="display:none; background:#dc2626; color:white; border:none; padding:0.45rem 1rem; border-radius:6px; cursor:pointer; font-weight:600; font-size:0.82rem; align-items:center; gap:5px; transition:background 0.15s;" onmouseover="this.style.background='#b91c1c'" onmouseout="this.style.background='#dc2626'" onfocus="this.blur()">
                         <i class="ph ph-prohibit" style="font-size:1rem;"></i> Cancelar
@@ -6089,15 +6111,13 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
     if (btnAbrirCtr) {
         const tipoNormAtu = String(document.getElementById('prop-tipo')?.value || (prop && prop.tipo) || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         if (window._modoTelaComercial !== 'contrato' && _propostasEditandoId && tipoNormAtu === 'ADITIVO') {
-            const aditivoAssinado = Boolean(
-                foiAssinadaAssinafy ||
-                faseForm === 'PROPOSTA ASSINADA' ||
-                faseForm === 'APROVADO - ADITIVO ASSINADO' ||
-                faseForm === 'APROVADA'
+            const aditivoAprovadoParaContrato = Boolean(
+                faseForm === 'APROVADA' ||
+                faseForm === 'APROVADO - ADITIVO ASSINADO'
             );
             const rawVinc = String((prop && prop.contrato_vinculado) || document.getElementById('prop-contrato-aditivo')?.value || '').trim();
             const numCtrBase = (typeof window.extrairNumeroContratoBaseLimpo === 'function' ? window.extrairNumeroContratoBaseLimpo(rawVinc) : rawVinc).trim();
-            if (aditivoAssinado && numCtrBase) {
+            if (aditivoAprovadoParaContrato && numCtrBase) {
                 const numBaseInt = /^\d+$/.test(numCtrBase) ? parseInt(numCtrBase, 10) : null;
                 const propBase = (_propostasData || []).find(p => {
                     const tP = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
@@ -6200,11 +6220,11 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
         if (lblDocAssin) {
             lblDocAssin.textContent = isModoContratoBtn
                 ? 'Contrato Assinado'
-                : (ehDocAssinafyLabel ? 'Proposta Assinada' : 'Proposta Aprovada');
+                : (ehDocAssinafyLabel ? (foiAssinadaAssinafy ? 'Proposta Assinada' : 'Ver PDF da Proposta') : 'Proposta Aprovada');
         }
         btnDocAssinado.title = isModoContratoBtn
             ? 'Visualizar Contrato Assinado (Assinafy)'
-            : (ehDocAssinafyLabel ? 'Visualizar Proposta Assinada (Assinafy)' : 'Visualizar Proposta Aprovada');
+            : (ehDocAssinafyLabel ? (foiAssinadaAssinafy ? 'Visualizar Proposta Assinada (Assinafy)' : 'Ver PDF da Proposta') : 'Visualizar Proposta Aprovada');
         if (!_propostasEditandoId) {
             btnDocAssinado.style.display = 'none';
         } else if (isModoContratoBtn) {
@@ -6249,14 +6269,21 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
 
     const btnAprovar = document.getElementById('btn-prop-aprovar');
     if (btnAprovar) {
-        const mostrarAprovar = Boolean(_propostasEditandoId)
+        const ehAditivoBtn = String(tipoFormAtu || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
+        const mostrarAprovarAditivo = Boolean(_propostasEditandoId)
+            && window._modoTelaComercial !== 'contrato'
+            && ehAditivoBtn
+            && foiAssinadaAssinafy
+            && !['APROVADA', 'APROVADO - ADITIVO ASSINADO'].includes(faseForm);
+        const mostrarAprovarNormal = Boolean(_propostasEditandoId)
             && window._modoTelaComercial !== 'contrato'
             && !usaAssinafyTipo
             && !foiAssinadaAssinafy
             && !['', 'EM ELABORAÇÃO', 'EM ELABORACAO', 'APROVADA', 'PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'ENVIADO PARA ASSINATURA'].includes(faseForm);
+        const mostrarAprovar = mostrarAprovarAditivo || mostrarAprovarNormal;
         btnAprovar.style.display = mostrarAprovar ? 'inline-flex' : 'none';
         if (mostrarAprovar) {
-            const bloqueadoPorEdicao = Boolean(window._propFormEditadoNaoSalvo);
+            const bloqueadoPorEdicao = !mostrarAprovarAditivo && Boolean(window._propFormEditadoNaoSalvo);
             btnAprovar.disabled = bloqueadoPorEdicao;
             if (bloqueadoPorEdicao) {
                 btnAprovar.style.background = '#cbd5e1';
@@ -6269,7 +6296,7 @@ window.atualizarVisibilidadeBotoesPosSalvoProposta = function() {
                 btnAprovar.style.color = '#ffffff';
                 btnAprovar.style.cursor = 'pointer';
                 btnAprovar.style.pointerEvents = 'auto';
-                btnAprovar.title = '';
+                btnAprovar.title = mostrarAprovarAditivo ? 'Aprovar aditivo e incluí-lo no contrato vinculado' : '';
             }
         }
     }
@@ -9054,6 +9081,36 @@ window.setRamoAtividadeCheckboxes = function(chkSelector, hiddenId, ramoStr) {
     window.toggleRamoAtividadeCheckboxes(chkSelector, hiddenId);
 };
 
+window.formatarTelefonesContatoDropdown = function(c) {
+    if (!c) return [];
+    const vistos = new Set();
+    const out = [];
+    const addNum = (raw) => {
+        const s = String(raw || '').trim();
+        if (!s) return;
+        const dig = s.replace(/\D/g, '');
+        const key = dig || s.toLowerCase();
+        if (vistos.has(key)) return;
+        vistos.add(key);
+        let fmt = s;
+        if (dig.length === 10 || dig.length === 11) {
+            fmt = typeof window.aplicarMascaraTelefone === 'function' ? window.aplicarMascaraTelefone(dig) : s;
+        } else if (dig.length === 8 || dig.length === 9) {
+            fmt = dig.length === 8 ? `${dig.slice(0, 4)}-${dig.slice(4)}` : `${dig.slice(0, 5)}-${dig.slice(5)}`;
+        }
+        out.push(fmt);
+    };
+    addNum(c.celular);
+    addNum(c.telefone);
+    if (!digsSame(c.telefone, c.telefone_ramal)) addNum(c.telefone_ramal);
+    function digsSame(a, b) {
+        const da = String(a || '').replace(/\D/g, '');
+        const db = String(b || '').replace(/\D/g, '');
+        return Boolean(da && db && da === db && String(b || '').toLowerCase().indexOf('ramal') === -1);
+    }
+    return out;
+};
+
 window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
     const rawCliIn = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
     const clienteNome = typeof window.limparPrefixoGrupoCliente === 'function'
@@ -9084,13 +9141,16 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
         if (!c || !c.nome) return;
         const cliVinc = c.cliente_id ? mapClientePorId.get(Number(c.cliente_id)) : null;
         const empNome = c.cliente_nome || (cliVinc && cliVinc.nome_razao_social) || '';
+        const telRamal = c.telefone ? (c.ramal ? `${c.telefone} Ramal ${c.ramal}` : c.telefone) : '';
         const item = {
             id: c.id,
             codigo: c.codigo || c.id || '',
             nome: c.nome || '',
             cargo: c.cargo || c.departamento || '',
             email: c.email || '',
-            celular: c.celular || c.telefone || '',
+            celular: c.celular || '',
+            telefone: c.telefone || '',
+            telefone_ramal: telRamal,
             cliente_id: c.cliente_id || (cliVinc && cliVinc.id) || null,
             cliente_nome: empNome,
             email_nfe: c.email_nfe === 1 || c.nfe === 'Sim' ? 1 : 0,
@@ -9120,7 +9180,9 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
             if (mapaUnificadoPorChave.has(key)) {
                 const ex = mapaUnificadoPorChave.get(key);
                 if (!ex.email && ct.email) ex.email = ct.email;
-                if (!ex.celular && (ct.celular || ct.telefone || ct.telefone_ramal)) ex.celular = ct.celular || ct.telefone || ct.telefone_ramal;
+                if (!ex.celular && ct.celular) ex.celular = ct.celular;
+                if (!ex.telefone && ct.telefone) ex.telefone = ct.telefone;
+                if (!ex.telefone_ramal && ct.telefone_ramal) ex.telefone_ramal = ct.telefone_ramal;
                 if (!ex.cargo && (ct.cargo || ct.departamento)) ex.cargo = ct.cargo || ct.departamento;
                 if (!ex.email_nfe && ctNfe) ex.email_nfe = 1;
                 if (!ex.email_cobranca && ctCob) ex.email_cobranca = 1;
@@ -9135,7 +9197,9 @@ window._obterDadosContatosClienteProposta = async function(clienteNomeRaw) {
                 nome: ct.nome,
                 cargo: ct.cargo || ct.departamento || '',
                 email: ct.email || '',
-                celular: ct.celular || ct.telefone || ct.telefone_ramal || '',
+                celular: ct.celular || '',
+                telefone: ct.telefone || '',
+                telefone_ramal: ct.telefone_ramal || '',
                 cliente_id: cl.id,
                 cliente_nome: cl.nome_razao_social || '',
                 email_nfe: ctNfe,
@@ -9184,7 +9248,14 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     const qNorm = mostrarTodosDoCliente ? '' : normStr(termoFiltro);
     const filtrados = !qNorm
         ? base
-        : base.filter(c => normStr(c.nome).includes(qNorm) || normStr(c.cargo).includes(qNorm) || normStr(c.celular).includes(qNorm) || normStr(c.email).includes(qNorm));
+        : base.filter(c =>
+            normStr(c.nome).includes(qNorm) ||
+            normStr(c.cargo).includes(qNorm) ||
+            normStr(c.celular).includes(qNorm) ||
+            normStr(c.telefone).includes(qNorm) ||
+            normStr(c.telefone_ramal).includes(qNorm) ||
+            normStr(c.email).includes(qNorm)
+        );
     if (filtrados.length === 0) {
         const msg = clienteNome
             ? 'Nenhum contato vinculado a este cliente encontrado. Clique no botão + para cadastrar.'
@@ -9196,7 +9267,10 @@ window.renderizarDropdownContatosProposta = function(termoFiltro = '', mostrarTo
     dropEl.innerHTML = filtrados.slice(0, 80).map(c => {
         const safeNome = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const safeEmp = String(c.cliente_nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const subInfo = [c.cargo, c.celular, c.email].filter(Boolean).join(' • ');
+        const telsFmt = typeof window.formatarTelefonesContatoDropdown === 'function'
+            ? window.formatarTelefonesContatoDropdown(c).map(t => `📞 ${t}`)
+            : ([c.celular, c.telefone].filter(Boolean).map(t => `📞 ${t}`));
+        const subInfo = [c.cargo, ...telsFmt, c.email].filter(Boolean).join(' • ');
         const badgesHtml = typeof window.obterBadgesOpcoesContato === 'function' ? window.obterBadgesOpcoesContato(c) : '';
         return `
             <div onmousedown="event.preventDefault(); window.selecionarOpcaoDropdownContatoProposta('${safeNome}', '${safeEmp}')"
@@ -11093,11 +11167,12 @@ window.aprovarPropostaEdicao = async function() {
 
     const tipoLimpoAprov = String(tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     const ehAditivoAprov = tipoLimpoAprov === 'ADITIVO';
+    const aditivoJaAssinadoAssinafy = ehAditivoAprov && Boolean(propExistente && window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(propExistente));
     const ehVendaAprov = typeof window.tipoPropostaEhVenda === 'function'
         ? window.tipoPropostaEhVenda(tipo)
         : (tipoLimpoAprov === 'VENDA' || tipoLimpoAprov === 'VENDAS');
     const ehAvariaAprov = tipoLimpoAprov === 'AVARIA' || tipoLimpoAprov === 'AVARIAS';
-    const usaFluxoAssinafy = ehAditivoAprov || ehVendaAprov || ehAvariaAprov || ehModoContratoAssinafy;
+    const usaFluxoAssinafy = (ehAditivoAprov && !aditivoJaAssinadoAssinafy) || ehVendaAprov || ehAvariaAprov || ehModoContratoAssinafy;
     const faseSel = document.getElementById('prop-fase');
     if (!usaFluxoAssinafy) {
         if (faseSel) faseSel.value = 'Aprovada';
@@ -11334,7 +11409,7 @@ window.aprovarPropostaEdicao = async function() {
         return;
     }
 
-    Swal.fire({ title: 'Aprovando Proposta e gerando Contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: aditivoJaAssinadoAssinafy ? 'Aprovando Aditivo e incluindo no Contrato...' : 'Aprovando Proposta e gerando Contrato...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
         const resp = _propostasEditandoId
             ? await apiPut(`/propostas/${_propostasEditandoId}`, payload)
@@ -11344,12 +11419,16 @@ window.aprovarPropostaEdicao = async function() {
             await carregarPropostas();
             _propostasEditandoId = finalId;
             window._propostasEditandoId_proposta = finalId;
-            window._propostasEditandoId_contrato = finalId;
+            if (!aditivoJaAssinadoAssinafy) window._propostasEditandoId_contrato = finalId;
             Swal.close();
             await abrirFormProposta(finalId);
             const propAp = (_propostasData || []).find(p => Number(p.id) === Number(finalId));
-            const numCtr = propAp?.contrato || resp?.contrato || '01';
-            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta aprovada! Contrato Nº ' + numCtr + ' gerado com sucesso!');
+            const numCtr = propAp?.contrato || resp?.contrato || payload.contrato_vinculado || propExistente?.contrato_vinculado || '01';
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(aditivoJaAssinadoAssinafy
+                    ? ('Aditivo aprovado e incluído no Contrato Nº ' + numCtr + ' com sucesso!')
+                    : ('Proposta aprovada! Contrato Nº ' + numCtr + ' gerado com sucesso!'));
+            }
         } else {
             Swal.fire('Erro', 'Erro ao aprovar proposta: ' + (resp?.error || 'Erro desconhecido'), 'error');
         }
@@ -23154,8 +23233,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                 const codPropLimpo = String(p.codigo || '').trim();
                 const ehAditivoModalRow = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '') === 'ADITIVO';
                 const aditivoEstaAssinadoModal = ehAditivoModalRow && Boolean(
-                    (typeof window.propostaFoiAssinadaViaAssinafy === 'function' && window.propostaFoiAssinadaViaAssinafy(p)) ||
-                    ['PROPOSTA ASSINADA', 'APROVADO - ADITIVO ASSINADO', 'APROVADA'].includes(String(p.fase_negociacao || '').trim().toUpperCase())
+                    ['APROVADO - ADITIVO ASSINADO', 'APROVADA', 'APROVADO'].includes(String(p.fase_negociacao || '').trim().toUpperCase())
                 );
                 const numCtBaseAditivo = ehAditivoModalRow
                     ? (typeof window.extrairNumeroContratoBaseLimpo === 'function'
@@ -23182,7 +23260,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
                     : '—';
                 const btnContratoAmareloHtml = numContratoProp
                     ? ((ehAditivoModalRow && !aditivoEstaAssinadoModal)
-                        ? `<span title="Contrato Base Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))} (o aditivo ainda não foi assinado)" style="background:#e2e8f0; color:#64748b; border:1px solid #cbd5e1; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:default; display:inline-flex; align-items:center; justify-content:center; gap:4px; user-select:none;">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</span>`
+                        ? `<span title="Contrato Base Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))} (o aditivo ainda não foi aprovado)" style="background:#e2e8f0; color:#64748b; border:1px solid #cbd5e1; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:default; display:inline-flex; align-items:center; justify-content:center; gap:4px; user-select:none;">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</span>`
                         : `<button type="button" onclick="event.stopPropagation(); Swal.close(); window.abrirContratoDaProposta(${p.id});" title="Clique para abrir o Contrato Nº ${_escHtmlProp(numContratoProp.padStart(2, '0'))}" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;" onmouseover="this.style.background='#ca8a04'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='#eab308'; this.style.transform='scale(1)'">${_escHtmlProp(numContratoProp.padStart(2, '0'))}</button>`)
                     : '—';
                 const tipoExib = p.tipo || '—';
@@ -25810,19 +25888,9 @@ window.obterAditivosAssinadosDoContrato = function(propContrato) {
         const bateContrato = (idCt > 0 && vincId === idCt) || (numCtNorm && vincNum && vincNum === numCtNorm);
         if (!bateContrato) return false;
         const faseUp = String(p.fase_negociacao || '').trim().toUpperCase();
-        const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
-        const assSt = String(p.assinafy_status || '').trim().toLowerCase();
-        const foiAssinado = faseUp === 'PROPOSTA ASSINADA'
-            || faseUp === 'APROVADA'
-            || faseUp === 'APROVADO - ADITIVO ASSINADO'
-            || sitUp.includes('CONTRATO ASSINADO')
-            || assSt === 'certificated'
-            || assSt === 'signed'
-            || assSt === 'assinado'
-            || Boolean(p.assinafy_signed_r2_key)
-            || Boolean(p.assinafy_signed_at)
-            || Boolean(p.aceite_publico_em);
-        return foiAssinado;
+        // O aditivo apenas passa a integrar o contrato base depois de ser aprovado manualmente
+        // pelo botão Aprovar (mesmo após ter sido assinado via Assinafy).
+        return faseUp === 'APROVADA' || faseUp === 'APROVADO' || faseUp === 'APROVADO - ADITIVO ASSINADO';
     }).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
 };
 

@@ -378,9 +378,36 @@
                 <div class="dept-submenu">
                     <div class="dept-submenu-header" style="color:#7048e8;"><i class="ph ph-handshake"></i> Comercial
                     </div>
-                    <a href="#" class="nav-item" data-target="comercial-dashboard"
-                        onclick="navigateTo('comercial-dashboard'); return false;"><i
-                            class="ph ph-chart-line-up"></i> Dashboard</a>
+                    <div class="nav-group" id="nav-group-comercial-relatorios">
+                        <button class="nav-group-label nav-group-toggle"
+                                onclick="toggleNavGroup('nav-group-comercial-relatorios')">
+                            <span style="display:flex;align-items:center;gap:0.55rem;">
+                                <i class="ph ph-chart-bar"></i>
+                                Relatórios
+                            </span>
+                            <i class="ph ph-caret-right nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-items" id="nav-group-items-comercial-relatorios">
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-dashboard"
+                                onclick="navigateTo('comercial-dashboard'); return false;"><i
+                                    class="ph ph-chart-line-up"></i> Dashboard</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-rel-clientes"
+                                onclick="navigateTo('comercial-rel-clientes'); return false;"><i
+                                    class="ph ph-users"></i> Clientes Cadastrados</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-rel-enderecos"
+                                onclick="navigateTo('comercial-rel-enderecos'); return false;"><i
+                                    class="ph ph-map-pin"></i> Endereços Cadastrados</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-rel-propostas"
+                                onclick="navigateTo('comercial-rel-propostas'); return false;"><i
+                                    class="ph ph-file-text"></i> Propostas</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-rel-contratos"
+                                onclick="navigateTo('comercial-rel-contratos'); return false;"><i
+                                    class="ph ph-files"></i> Contratos</a>
+                            <a href="#" class="nav-item nav-item-sub" data-target="comercial-rel-os"
+                                onclick="navigateTo('comercial-rel-os'); return false;"><i
+                                    class="ph ph-clipboard-text"></i> OS</a>
+                        </div>
+                    </div>
                     <div class="nav-group" id="nav-group-comercial-admin">
                         <button class="nav-group-label nav-group-toggle"
                                 onclick="toggleNavGroup('nav-group-comercial-admin')">
@@ -3572,6 +3599,13 @@
 
                 <!-- VIEW: COMERCIAL - DASHBOARD -->
                 <section id="view-comercial-dashboard" class="content-view" style="padding:0 0.5rem;"></section>
+
+                <!-- VIEWS: COMERCIAL - RELATÓRIOS -->
+                <section id="view-comercial-rel-clientes" class="content-view" style="padding:0.5rem;"><div id="comercial-rel-clientes-root"></div></section>
+                <section id="view-comercial-rel-enderecos" class="content-view" style="padding:0.5rem;"><div id="comercial-rel-enderecos-root"></div></section>
+                <section id="view-comercial-rel-propostas" class="content-view" style="padding:0.5rem;"><div id="comercial-rel-propostas-root"></div></section>
+                <section id="view-comercial-rel-contratos" class="content-view" style="padding:0.5rem;"><div id="comercial-rel-contratos-root"></div></section>
+                <section id="view-comercial-rel-os" class="content-view" style="padding:0.5rem;"><div id="comercial-rel-os-root"></div></section>
 
                 <!-- VIEW: COMERCIAL - OS -->
                 <section id="view-comercial-os" class="content-view" style="padding:0.5rem;"></section>
@@ -6959,7 +6993,7 @@
     <script src="gerenciar_avaliacoes.js?v=20261110v2"></script>
     <script src="epi.js?v=1778869020178"></script>
     <script src="sinistros.js?v=1791925000000"></script>
-    <script src="usuarios.js?v=20261126v2"></script>
+    <script src="usuarios.js?v=20261127v1"></script>
     <script src="integracao.js"></script>
     <script src="dissidio.js?v=1778869020176"></script>
     <script src="ferias.js?v=1778869020176"></script>
@@ -6986,7 +7020,7 @@
     <script src="protocolos.js?v=2"></script>
     <script src="credenciamento.js?v=20261126v2"></script>
     <script src="comercial_credenciamento.js?v=20261126v2"></script>
-    <script src="proposta.js?v=20261127v1"></script>
+    <script src="proposta.js?v=20261127v3"></script>
     <script src="proposta_dias_produto.js?v=20261122v15"></script>
     <script src="proposta_zonas.js?v=20261117v2"></script>
     <script src="comercial_eventos.js?v=20261102v1"></script>
@@ -6994,7 +7028,8 @@
     <script src="comercial_boxes.js?v=20261126v1"></script>
     <script src="comercial_comissao.js?v=12"></script>
     <script src="comercial_dashboard.js?v=20261125v2"></script>
-    <script src="comercial_os.js?v=20261127v2"></script>
+    <script src="comercial_relatorios.js?v=20261127v1"></script>
+    <script src="comercial_os.js?v=20261127v3"></script>
     <script src="comercial_aprovacao.js?v=20261126v7"></script>
     <script src="logistica_dashboard.js?v=1778869020176"></script>
     <script src="logistica_sinistros.js?v=20261021v2"></script>
@@ -7008,7 +7043,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="rota_redonda.js?v=20261119v1"></script>
-    <script src="app.js?v=20261126v24"></script>
+    <script src="app.js?v=20261127v3"></script>
     <script src="frota_resumo.js?v=20261020v1"></script>
     <script src="testes_candidatos.js?v=1787088722966"></script>
     <!-- Global Scroll-to-Top Button -->

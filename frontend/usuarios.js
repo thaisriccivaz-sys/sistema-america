@@ -75,7 +75,13 @@ const TELAS_SISTEMA = [
     { modulo: 'Financeiro', pagina_id: 'compras-revisao', pagina_nome: 'Revisão', icone: 'ph-seal-check' },
     { modulo: 'Financeiro', pagina_id: 'compras-estoque', pagina_nome: 'Estoque', icone: 'ph-package' },
     // Módulo Comercial
-    { modulo: 'Comercial', pagina_id: 'comercial-dashboard', pagina_nome: 'Dashboard', icone: 'ph-chart-line-up' }, { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-dashboard', pagina_nome: 'Relatórios → Dashboard', icone: 'ph-chart-line-up' },
+    { modulo: 'Comercial', pagina_id: 'comercial-rel-clientes', pagina_nome: 'Relatórios → Clientes Cadastrados', icone: 'ph-users' },
+    { modulo: 'Comercial', pagina_id: 'comercial-rel-enderecos', pagina_nome: 'Relatórios → Endereços Cadastrados', icone: 'ph-map-pin' },
+    { modulo: 'Comercial', pagina_id: 'comercial-rel-propostas', pagina_nome: 'Relatórios → Propostas', icone: 'ph-file-text' },
+    { modulo: 'Comercial', pagina_id: 'comercial-rel-contratos', pagina_nome: 'Relatórios → Contratos', icone: 'ph-files' },
+    { modulo: 'Comercial', pagina_id: 'comercial-rel-os', pagina_nome: 'Relatórios → OS', icone: 'ph-clipboard-text' },
+    { modulo: 'Comercial', pagina_id: 'comercial-modelos-propostas', pagina_nome: 'Modelo Proposta', icone: 'ph-files' },
     { modulo: 'Comercial', pagina_id: 'comercial-tabela-precos', pagina_nome: 'Tabela Preços', icone: 'ph-table' },
     { modulo: 'Comercial', pagina_id: 'estoque-equipamentos', pagina_nome: 'Equipamentos', icone: 'ph-cube' },
     { modulo: 'Comercial', pagina_id: 'comercial-valores-avarias', pagina_nome: 'Valores de Avarias', icone: 'ph-warning-octagon' },
@@ -690,7 +696,12 @@ const MENU_HIERARQUIA = [
     },
     {
         modulo: 'Comercial', icone: 'ph-handshake', cor: '#5f3dc4',
-        grupos: [{ titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] }, { titulo: 'Telas', telas: ['comercial-dashboard', 'comercial-proposta', 'comercial-contratos', 'comercial-os', 'comercial-assinaturas', 'comercial-comissao', 'comercial-credenciamento'] }, { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }]
+        grupos: [
+            { titulo: 'Relatórios', telas: ['comercial-dashboard', 'comercial-rel-clientes', 'comercial-rel-enderecos', 'comercial-rel-propostas', 'comercial-rel-contratos', 'comercial-rel-os'] },
+            { titulo: 'Administração', telas: ['comercial-modelos-propostas', 'comercial-modelos-contrato', 'comercial-tabela-precos', 'estoque-equipamentos', 'comercial-valores-avarias'] },
+            { titulo: 'Telas', telas: ['comercial-proposta', 'comercial-contratos', 'comercial-os', 'comercial-assinaturas', 'comercial-comissao', 'comercial-credenciamento'] },
+            { titulo: 'Cadastros', telas: ['comercial-clientes', 'comercial-enderecos', 'comercial-eventos'] }
+        ]
     },
     {
         modulo: 'Administrativo', icone: 'ph-gear', cor: '#e8590c',

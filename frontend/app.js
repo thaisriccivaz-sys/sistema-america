@@ -832,7 +832,12 @@ const BREADCRUMB_MAP = {
     'compras-revisao': { path: 'Financeiro → Frota → Revisão', code: 'FIN003' },
     'compras-estoque': { path: 'Financeiro → Estoque', code: 'FIN004' },
     // Comercial
-    'comercial-dashboard': { path: 'Comercial → Dashboard', code: 'COM015' },
+    'comercial-dashboard': { path: 'Comercial → Relatórios → Dashboard', code: 'COM015' },
+    'comercial-rel-clientes': { path: 'Comercial → Relatórios → Clientes Cadastrados', code: 'COM018' },
+    'comercial-rel-enderecos': { path: 'Comercial → Relatórios → Endereços Cadastrados', code: 'COM019' },
+    'comercial-rel-propostas': { path: 'Comercial → Relatórios → Propostas', code: 'COM020' },
+    'comercial-rel-contratos': { path: 'Comercial → Relatórios → Contratos', code: 'COM021' },
+    'comercial-rel-os': { path: 'Comercial → Relatórios → OS', code: 'COM022' },
     'comercial-credenciamento': { path: 'Comercial → Solicitar Credencial', code: 'COM001' },
     'comercial-proposta': { path: 'Comercial → Proposta', code: 'COM002' },
     'comercial-aprovacao': { path: 'Comercial → Aprovação', code: 'COM017' },
@@ -1040,6 +1045,11 @@ window.carregarPermissoesOnline = async function () {
             if (mapPerms['comercial-contratos'] === undefined) mapPerms['comercial-contratos'] = true;
             if (mapPerms['comercial-assinaturas'] === undefined) mapPerms['comercial-assinaturas'] = true;
             if (mapPerms['comercial-dashboard'] === undefined) mapPerms['comercial-dashboard'] = true;
+            if (mapPerms['comercial-rel-clientes'] === undefined) mapPerms['comercial-rel-clientes'] = true;
+            if (mapPerms['comercial-rel-enderecos'] === undefined) mapPerms['comercial-rel-enderecos'] = true;
+            if (mapPerms['comercial-rel-propostas'] === undefined) mapPerms['comercial-rel-propostas'] = true;
+            if (mapPerms['comercial-rel-contratos'] === undefined) mapPerms['comercial-rel-contratos'] = true;
+            if (mapPerms['comercial-rel-os'] === undefined) mapPerms['comercial-rel-os'] = true;
             if (mapPerms['comercial-os'] === undefined) mapPerms['comercial-os'] = true;
             if (mapPerms['comercial-aprovacao'] === undefined) mapPerms['comercial-aprovacao'] = true;
         }
@@ -1368,6 +1378,11 @@ const TAB_META = {
     'compras-estoque': { color: '#1971c2', icon: 'ph-package', title: 'Estoque' },
     // Comercial - Roxo
     'comercial-dashboard': { color: '#7048e8', icon: 'ph-chart-line-up', title: 'Dashboard Comercial' },
+    'comercial-rel-clientes': { color: '#7048e8', icon: 'ph-users', title: 'Rel. Clientes' },
+    'comercial-rel-enderecos': { color: '#7048e8', icon: 'ph-map-pin', title: 'Rel. Endereços' },
+    'comercial-rel-propostas': { color: '#7048e8', icon: 'ph-file-text', title: 'Rel. Propostas' },
+    'comercial-rel-contratos': { color: '#7048e8', icon: 'ph-files', title: 'Rel. Contratos' },
+    'comercial-rel-os': { color: '#7048e8', icon: 'ph-clipboard-text', title: 'Rel. OS' },
     'comercial-credenciamento': { color: '#7048e8', icon: 'ph-identification-card', title: 'Solicitar Credencial' },
     'comercial-proposta': { color: '#7048e8', icon: 'ph-file-text', title: 'Proposta' },
     'comercial-aprovacao': { color: '#7048e8', icon: 'ph-seal-check', title: 'Aprovação' },
@@ -1646,6 +1661,10 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target === 'comercial-dashboard' && typeof window.renderDashboardComercial === 'function') {
         setTimeout(() => window.renderDashboardComercial(false), 50);
+    }
+    if (tab.target && tab.target.startsWith('comercial-rel-') && typeof window.renderRelatorioComercial === 'function') {
+        const tipoRelTab = tab.target.replace('comercial-rel-', '');
+        setTimeout(() => window.renderRelatorioComercial(tipoRelTab), 50);
     }
     if (tab.target === 'comercial-os' && typeof window.renderTelaOSComercial === 'function') {
         setTimeout(() => window.renderTelaOSComercial(), 50);
@@ -2026,6 +2045,9 @@ function navigateTo(target) {
         if (typeof window.renderTelaAssinaturasComercial === 'function') setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
     } else if (target === 'comercial-dashboard') {
         if (typeof window.renderDashboardComercial === 'function') setTimeout(() => window.renderDashboardComercial(false), 50);
+    } else if (target && target.startsWith('comercial-rel-')) {
+        const tipoRelNav = target.replace('comercial-rel-', '');
+        if (typeof window.renderRelatorioComercial === 'function') setTimeout(() => window.renderRelatorioComercial(tipoRelNav), 50);
     } else if (target === 'comercial-os') {
         if (typeof window.renderTelaOSComercial === 'function') setTimeout(() => window.renderTelaOSComercial(), 50);
     } else if (target === 'comercial-aprovacao') {
