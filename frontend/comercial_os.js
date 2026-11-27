@@ -369,6 +369,13 @@
         return (Array.isArray(servs) ? servs : []).some(s => normStr(s?.servico || s?.produto || s?.descricao || '').includes('fob'));
     }
 
+    function formatarTextoQtdManutencoes(raw) {
+        const digits = String(raw || '').replace(/\D+/g, '');
+        if (!digits) return '';
+        const n = parseInt(digits, 10);
+        return (!isNaN(n) && n > 0) ? `${n}x` : '';
+    }
+
     function extrairQuantidadeManutencoesProposta(prop) {
         if (!prop) return '';
         let itens = [];
@@ -378,14 +385,14 @@
         for (const it of (Array.isArray(itens) ? itens : [])) {
             if (!it || it._substituido_por_aditivo) continue;
             const m = parseInt(it.manut_semana, 10);
-            if (m > 0) return `${m}x por semana`;
+            if (m > 0) return `${m}x`;
             const nome = String(it.produto || it.descricao || it.nome || '');
             const matchCod = nome.match(/\bO0(\d)[A-Z]*(?:ZC|ZA|ZV|VZ)\b/i);
             if (matchCod && parseInt(matchCod[1], 10) > 0) {
-                return `${parseInt(matchCod[1], 10)}x por semana`;
+                return `${parseInt(matchCod[1], 10)}x`;
             }
         }
-        return '1x por semana';
+        return '1x';
     }
 
     function extrairDiasEventoInicialDaProposta(prop) {
@@ -460,7 +467,7 @@
             hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : '',
             retirada_horario_comercial: ehEvento ? false : Boolean(salvo.retirada_horario_comercial),
 
-            qtd_manutencoes: salvo.qtd_manutencoes || extrairQuantidadeManutencoesProposta(prop),
+            qtd_manutencoes: formatarTextoQtdManutencoes(salvo.qtd_manutencoes) || extrairQuantidadeManutencoesProposta(prop),
             horario_manutencao: salvo.horario_manutencao !== undefined ? salvo.horario_manutencao : '',
             manutencao_horario_comercial: ehEvento ? false : Boolean(salvo.manutencao_horario_comercial),
             dias_semana_manutencao: Array.isArray(salvo.dias_semana_manutencao) ? salvo.dias_semana_manutencao : [],
@@ -1255,15 +1262,67 @@
                                     `;
                                 })()}
 
-                                <!-- Bloco Manutenções (automático da proposta + horário comercial automático para obras + dias da semana) -->
+                                <!-- Endereço de Instalação / Nome do Evento (acima de Manutenções e Dias do Evento) -->
+                                <div style="display:flex; flex-direction:column; gap:0.4rem; background:rgba(255,255,255,0.75); padding:0.45rem 0.6rem; border:1px solid #bbf7d0; border-radius:6px; margin-bottom:0.45rem;">
+                                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                                        ${ehEvento ? `
+                                            <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
+                                                <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
+                                                <input type="text" id="cos-nome-evento" value="${esc(isNovo ? (d.nome_evento_draft || '') : v('nome_evento'))}"
+                                                    ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                                    oninput="window._comercialOS.onChangeCampoOsAvulsa('nome_evento', this.value)"
+                                                    style="width:100%;">
+                                            </div>
+                                        ` : ''}
+                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
+                                            <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
+                                            <div id="cos-endereco-combo-wrap" style="position:relative; flex:1;">
+                                                <input type="text" id="cos-endereco-instalacao" value="${esc(isNovo ? (d.endereco_instalacao_draft || '') : v('endereco_instalacao'))}"
+                                                    ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                    autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+                                                    placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite um ou mais endereços de instalação...'}"
+                                                    onfocus="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
+                                                    onclick="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
+                                                    oninput="window._comercialOS.onInputEnderecoOs(this.value);"
+                                                    onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-endereco-dropdown'); if(dd) dd.style.display='none'; }"
+                                                    style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
+                                                ${tipoOsPreenchido ? `
+                                                    <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownEnderecosOs(event)" title="Listar endereços do cliente"
+                                                        style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                        <i class="ph ph-caret-down"></i>
+                                                    </button>
+                                                ` : ''}
+                                                <div id="cos-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                            </div>
+                                            <button type="button" id="cos-btn-add-mais-endereco" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                onclick="window._comercialOS.iniciarAdicaoOutroEnderecoOs(event)"
+                                                title="Adicionar mais um endereço de instalação na OS"
+                                                style="background:#16a34a; color:#fff; border:none; flex-shrink:0; white-space:nowrap; opacity:${!tipoOsPreenchido ? '0.5' : '1'}; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'};">
+                                                <i class="ph ph-map-pin-plus"></i> + Endereço
+                                            </button>
+                                            <button type="button" id="cos-btn-novo-endereco" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                onclick="window._comercialOS.abrirModalNovoEnderecoOs(event)"
+                                                title="Cadastrar Novo Endereço no Cliente"
+                                                style="background:#eab308; color:#fff; border:none; width:26px !important; padding:0 !important; flex-shrink:0; opacity:${!tipoOsPreenchido ? '0.5' : '1'}; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'};">
+                                                <i class="ph ph-plus"></i>
+                                            </button>
+                                            ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div id="cos-enderecos-chips" style="display:none; flex-wrap:wrap; gap:5px; align-items:center;"></div>
+                                </div>
+
+                                <!-- Bloco Manutenções (abaixo de Instalação) -->
                                 ${!ehEvento ? `
-                                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem; margin-bottom:0.45rem;">
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
                                         <div style="flex:1 1 170px;">
                                             <label class="prop-lbl">Quantidade de Manutenções (Proposta)</label>
-                                            <input type="text" id="cos-qtd-manutencoes" value="${esc(d.qtd_manutencoes || (veioDeContrato ? '—' : ''))}"
+                                            <input type="text" id="cos-qtd-manutencoes"
+                                                value="${esc(formatarTextoQtdManutencoes(d.qtd_manutencoes) || (veioDeContrato ? '—' : ''))}"
+                                                data-prev-qtd="${esc(formatarTextoQtdManutencoes(d.qtd_manutencoes) || '')}"
                                                 ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
-                                                placeholder="${!veioDeContrato ? 'Ex: 1x por semana...' : ''}"
-                                                oninput="${!veioDeContrato ? "window._comercialOS.onChangeCampoDadosOs('qtd_manutencoes', this.value)" : ''}"
+                                                placeholder="${!veioDeContrato ? 'Ex: 1x, 2x, 3x...' : ''}"
+                                                oninput="${!veioDeContrato ? "window._comercialOS.onInputQtdManutencoesOs(this)" : ''}"
                                                 style="width:100%; font-weight:700;">
                                         </div>
                                         <div style="flex:1.3 1 210px;">
@@ -1312,7 +1371,7 @@
 
                                 <!-- Bloco exclusivo de EVENTO: Dias e Horas do Evento (Início e Fim, sem opção de horário comercial) -->
                                 ${ehEvento ? `
-                                    <div style="background:rgba(255,255,255,0.85); border:1px solid #86efac; border-radius:6px; padding:0.5rem 0.65rem; margin-bottom:0.45rem;">
+                                    <div style="background:rgba(255,255,255,0.85); border:1px solid #86efac; border-radius:6px; padding:0.5rem 0.65rem;">
                                         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
                                             <span style="font-size:0.75rem; font-weight:800; color:#166534; display:flex; align-items:center; gap:5px;">
                                                 <i class="ph ph-calendar-star"></i> Dias e Horários do Evento (Início e Fim) <span style="color:#dc2626;">*</span>
@@ -1327,44 +1386,6 @@
                                         </div>
                                     </div>
                                 ` : ''}
-
-                                <!-- Endereço de Instalação / Nome do Evento -->
-                                <div style="display:flex; flex-direction:column; gap:0.4rem; background:rgba(255,255,255,0.75); padding:0.45rem 0.6rem; border:1px solid #bbf7d0; border-radius:6px;">
-                                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
-                                        ${ehEvento ? `
-                                            <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
-                                                <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
-                                                <input type="text" id="cos-nome-evento" value="${esc(isNovo ? (d.nome_evento_draft || '') : v('nome_evento'))}"
-                                                    ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
-                                                    oninput="window._comercialOS.onChangeCampoOsAvulsa('nome_evento', this.value)"
-                                                    style="width:100%;">
-                                            </div>
-                                        ` : ''}
-                                        <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
-                                            <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
-                                            <div id="cos-endereco-combo-wrap" style="position:relative; flex:1;">
-                                                <input type="text" id="cos-endereco-instalacao" value="${esc(isNovo ? (d.endereco_instalacao_draft || '') : v('endereco_instalacao'))}"
-                                                    ${!tipoOsPreenchido ? 'disabled' : ''}
-                                                    autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
-                                                    placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite um ou mais endereços de instalação...'}"
-                                                    onfocus="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
-                                                    onclick="if(!this.disabled) window._comercialOS.abrirDropdownEnderecosOs(true);"
-                                                    oninput="window._comercialOS.onInputEnderecoOs(this.value);"
-                                                    onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-endereco-dropdown'); if(dd) dd.style.display='none'; }"
-                                                    style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
-                                                ${tipoOsPreenchido ? `
-                                                    <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownEnderecosOs(event)" title="Listar endereços do cliente"
-                                                        style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
-                                                        <i class="ph ph-caret-down"></i>
-                                                    </button>
-                                                ` : ''}
-                                                <div id="cos-endereco-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
-                                            </div>
-                                            ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
-                                        </div>
-                                    </div>
-                                    <div id="cos-enderecos-chips" style="display:none; flex-wrap:wrap; gap:5px; align-items:center;"></div>
-                                </div>
                             </div>
                         </div>
 
@@ -1724,74 +1745,101 @@
         });
     }
 
-    async function abrirModalSelecionarClienteOs(termoInicial = '') {
-        let clientesBrutos = (Array.isArray(window._cosTodosClientesCache) && window._cosTodosClientesCache.length > 0)
-            ? window._cosTodosClientesCache
-            : [];
+    function resolverIcoGrupoOs(grp) {
+        if (typeof window.obterIconeApenasGrupoCliente === 'function') {
+            return window.obterIconeApenasGrupoCliente(grp);
+        }
+        const g = normStr(grp);
+        if (g.includes('diamante')) return '💎';
+        if (g.includes('ouro')) return '🥇';
+        if (g.includes('prata')) return '🥈';
+        if (g.includes('bronze')) return '🥉';
+        return '';
+    }
 
-        if (!clientesBrutos.length && typeof window.apiGet === 'function') {
-            Swal.fire({
-                title: 'Carregando clientes...',
-                allowOutsideClick: false,
-                didOpen: () => { if (typeof Swal.showLoading === 'function') Swal.showLoading(); }
-            });
-            try {
-                clientesBrutos = await window.apiGet('/comercial/relatorios/clientes');
-            } catch (_) {
-                clientesBrutos = [];
-            }
-            if (!Array.isArray(clientesBrutos) || !clientesBrutos.length) {
+    function indexarListaClientesRapidaOs(clientesBrutos) {
+        const arr = (Array.isArray(clientesBrutos) ? clientesBrutos : []).map(c => {
+            const nomeRaw = String(c.nome_razao_social || c.razao_social || c.cliente_nome || '').trim();
+            const nomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
+                ? window.limparPrefixoGrupoCliente(nomeRaw)
+                : nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            const grupo = String(c.grupo_clientes || c.grupo || '').trim();
+            const icone = resolverIcoGrupoOs(grupo);
+            const nomeExib = (typeof window.formatarNomeClienteComIcone === 'function')
+                ? window.formatarNomeClienteComIcone(nomeLimpo, grupo)
+                : (icone ? `${icone} ${nomeLimpo}` : nomeLimpo);
+            return {
+                id: c.id || null,
+                nome_limpo: nomeLimpo,
+                grupo,
+                icone,
+                nome_exib: nomeExib,
+                cpf_cnpj: String(c.cpf_cnpj || c.cnpj || '').trim(),
+                search_norm: normStr(nomeLimpo + ' ' + String(c.nome_fantasia || ''))
+            };
+        }).filter(c => Boolean(c.nome_limpo));
+        arr.sort((a, b) => (a.nome_limpo < b.nome_limpo ? -1 : (a.nome_limpo > b.nome_limpo ? 1 : 0)));
+        return arr;
+    }
+
+    async function garantirCacheClientesRapidoOs(forcar = false) {
+        if (!forcar && Array.isArray(window._cosClientesIndexadosCache) && window._cosClientesIndexadosCache.length > 0) {
+            return window._cosClientesIndexadosCache;
+        }
+        if (!forcar && window._cosClientesLoadPromise) {
+            return window._cosClientesLoadPromise;
+        }
+        if (!forcar && Array.isArray(window._clientesCache) && window._clientesCache.length > 0) {
+            window._cosClientesIndexadosCache = indexarListaClientesRapidaOs(window._clientesCache);
+            return window._cosClientesIndexadosCache;
+        }
+
+        window._cosClientesLoadPromise = (async () => {
+            let clientesBrutos = [];
+            if (typeof window.apiGet === 'function') {
                 try {
-                    clientesBrutos = await window.apiGet('/clientes');
+                    clientesBrutos = await window.apiGet('/comercial/clientes-basico');
                 } catch (_) {
                     clientesBrutos = [];
                 }
+                if (!Array.isArray(clientesBrutos) || !clientesBrutos.length) {
+                    try {
+                        clientesBrutos = await window.apiGet('/comercial/relatorios/clientes');
+                    } catch (_) {
+                        clientesBrutos = [];
+                    }
+                }
             }
-            Swal.close();
             if (Array.isArray(clientesBrutos) && clientesBrutos.length > 0) {
                 window._cosTodosClientesCache = clientesBrutos;
                 if (!Array.isArray(window._clientesCache) || !window._clientesCache.length) {
                     window._clientesCache = clientesBrutos;
                 }
+                window._cosClientesIndexadosCache = indexarListaClientesRapidaOs(clientesBrutos);
+                return window._cosClientesIndexadosCache;
             }
-        } else if (!clientesBrutos.length && Array.isArray(window._clientesCache) && window._clientesCache.length > 0) {
-            clientesBrutos = window._clientesCache;
+            return [];
+        })().finally(() => {
+            window._cosClientesLoadPromise = null;
+        });
+
+        return window._cosClientesLoadPromise;
+    }
+
+    async function abrirModalSelecionarClienteOs(termoInicial = '') {
+        let listaClientes = (Array.isArray(window._cosClientesIndexadosCache) && window._cosClientesIndexadosCache.length > 0)
+            ? window._cosClientesIndexadosCache
+            : [];
+
+        if (!listaClientes.length) {
+            Swal.fire({
+                title: 'Carregando clientes...',
+                allowOutsideClick: false,
+                didOpen: () => { if (typeof Swal.showLoading === 'function') Swal.showLoading(); }
+            });
+            listaClientes = await garantirCacheClientesRapidoOs();
+            Swal.close();
         }
-
-        const resolverIcoGrupo = (grp) => {
-            if (typeof window.obterIconeApenasGrupoCliente === 'function') {
-                return window.obterIconeApenasGrupoCliente(grp);
-            }
-            const g = normStr(grp);
-            if (g.includes('diamante')) return '💎';
-            if (g.includes('ouro')) return '🥇';
-            if (g.includes('prata')) return '🥈';
-            if (g.includes('bronze')) return '🥉';
-            return '';
-        };
-
-        const listaClientes = (Array.isArray(clientesBrutos) ? clientesBrutos : [])
-            .map(c => {
-                const nomeRaw = String(c.nome_razao_social || c.razao_social || c.cliente_nome || '').trim();
-                const nomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
-                    ? window.limparPrefixoGrupoCliente(nomeRaw)
-                    : nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
-                const grupo = String(c.grupo_clientes || c.grupo || '').trim();
-                const icone = resolverIcoGrupo(grupo);
-                const nomeExib = (typeof window.formatarNomeClienteComIcone === 'function')
-                    ? window.formatarNomeClienteComIcone(nomeLimpo, grupo)
-                    : (icone ? `${icone} ${nomeLimpo}` : nomeLimpo);
-                return {
-                    nome_limpo: nomeLimpo,
-                    grupo,
-                    icone,
-                    nome_exib: nomeExib,
-                    cpf_cnpj: String(c.cpf_cnpj || c.cnpj || '').trim(),
-                    search_norm: normStr(nomeLimpo + ' ' + String(c.nome_fantasia || ''))
-                };
-            })
-            .filter(c => Boolean(c.nome_limpo))
-            .sort((a, b) => a.nome_limpo.localeCompare(b.nome_limpo, 'pt-BR', { sensitivity: 'base' }));
 
         const LIMITE_VISIVEL = 150;
         let listaAtualRenderizada = listaClientes;
@@ -1800,7 +1848,7 @@
             const item = listaAtualRenderizada[idx];
             if (!item) return;
             Swal.close();
-            window._comercialOS.selecionarClienteNaOs(item.nome_limpo, item.grupo);
+            window._comercialOS.selecionarClienteNaOs(item.nome_limpo, item.grupo, item.id);
         };
 
         const renderRows = (list) => {
@@ -1812,8 +1860,8 @@
                 <tr onclick="window._cosSelecionarClienteModalIdx(${idx})"
                     style="cursor:pointer; border-bottom:1px solid #e2e8f0; transition:background 0.15s;"
                     onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
-                    <td style="padding:10px 12px; font-weight:600; color:#1e293b;">${esc(c.nome_exib)}</td>
-                    <td style="padding:10px 12px; color:#475569; white-space:nowrap;">${esc(c.cpf_cnpj || '—')}</td>
+                    <td style="padding:10px 12px; font-weight:600; color:#1e293b; overflow-wrap:break-word;">${esc(c.nome_exib)}</td>
+                    <td style="padding:10px 12px; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(c.cpf_cnpj || '—')}</td>
                 </tr>
             `).join('');
         };
@@ -1840,12 +1888,13 @@
                                 style="width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.84rem; box-sizing:border-box; height:38px; text-transform:none;">
                         </div>
 
-                        <div style="max-height:55vh; min-height:38vh; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                        <div style="max-height:55vh; min-height:38vh; overflow:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                                <colgroup><col style="width:auto;"><col style="width:190px;"></colgroup>
                                 <thead>
                                     <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
                                         <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc;">Razão Social / Cliente</th>
-                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc; width:190px;">CNPJ / CPF</th>
+                                        <th style="padding:10px 12px; position:sticky; top:0; background:#f8fafc;">CNPJ / CPF</th>
                                     </tr>
                                 </thead>
                                 <tbody id="modal-cos-cli-tbody">
@@ -1894,6 +1943,7 @@
 
     window._comercialOS = {
         async init() {
+            garantirCacheClientesRapidoOs().catch(() => {});
             if (window._comercialOsAbrirPropostaId) {
                 const pid = window._comercialOsAbrirPropostaId;
                 window._comercialOsAbrirPropostaId = null;
@@ -2053,7 +2103,7 @@
             await abrirModalSelecionarClienteOs(limpo);
         },
 
-        selecionarClienteNaOs(nomeLimpo, grupoOpcional = '') {
+        selecionarClienteNaOs(nomeLimpo, grupoOpcional = '', clienteId = null) {
             if (osVeioDeContrato(state.osAtual)) return;
             const limpo = typeof window.limparPrefixoGrupoCliente === 'function'
                 ? window.limparPrefixoGrupoCliente(nomeLimpo || '')
@@ -2063,6 +2113,8 @@
             if (normStr(anterior) !== normStr(limpo)) {
                 this._contatosCacheAtualOs = null;
                 this._enderecosCacheAtualOs = null;
+                this._enderecosCacheKeyOs = '';
+                this._enderecosLoadPromiseOs = null;
                 if (!state.osAtual || !state.osAtual.id) {
                     state.dadosOs.contato_nome_draft = '';
                     state.dadosOs.endereco_instalacao_draft = '';
@@ -2075,6 +2127,10 @@
                 const inpEnd = document.getElementById('cos-endereco-instalacao');
                 if (inpEnd) inpEnd.value = '';
                 this.sincronizarChipsEnderecosOs();
+            }
+            if (clienteId) {
+                if (state.osAtual && state.osAtual.id) state.osAtual.cliente_id = Number(clienteId);
+                else state.dadosOs.cliente_id_draft = Number(clienteId);
             }
             const inpCli = document.getElementById('cos-cliente');
             if (inpCli) {
@@ -2093,9 +2149,33 @@
             } else {
                 state.dadosOs.cliente_nome_draft = limpo;
             }
+            this.carregarEnderecosClienteOsAtual(true).catch(() => {});
             this.marcarEditado();
             this.salvarSnapshotAba();
             atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        onInputQtdManutencoesOs(inputEl) {
+            if (!inputEl) return;
+            const raw = String(inputEl.value || '');
+            const prev = String(inputEl.dataset.prevQtd || '');
+            let digits = '';
+            if (prev && prev.endsWith('x') && raw === prev.slice(0, -1)) {
+                digits = prev.replace(/\D+/g, '').slice(0, -1);
+            } else {
+                digits = raw.replace(/\D+/g, '');
+            }
+            const n = digits ? parseInt(digits, 10) : 0;
+            const novoVal = (!isNaN(n) && n > 0) ? `${n}x` : '';
+            inputEl.value = novoVal;
+            inputEl.dataset.prevQtd = novoVal;
+            if (novoVal && typeof inputEl.setSelectionRange === 'function') {
+                try {
+                    const pos = Math.max(0, novoVal.length - 1);
+                    inputEl.setSelectionRange(pos, pos);
+                } catch (_) {}
+            }
+            this.onChangeCampoDadosOs('qtd_manutencoes', novoVal);
         },
 
         onToggleAgendarRetirada(checked) {
@@ -2493,6 +2573,69 @@
             this.filtrarDropdownEnderecosOs(valor);
         },
 
+        _formatarEnderecoLocalOs(e) {
+            if (!e) return '';
+            if (typeof window._formatarEnderecoEntregaProposta === 'function') {
+                return window._formatarEnderecoEntregaProposta(e);
+            }
+            const ruaNum = [e.endereco, e.numero].filter(Boolean).join(', ');
+            const cidUf = [e.municipio, e.uf].filter(Boolean).join('/');
+            const corpo = [ruaNum, e.complemento, e.bairro, cidUf, e.cep].filter(Boolean).join(' - ');
+            return [e.nome_local, corpo].filter(Boolean).join(' - ');
+        },
+
+        async carregarEnderecosClienteOsAtual(forcar = false) {
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) return [];
+            let cliId = (state.osAtual && state.osAtual.cliente_id) || (state.dadosOs && state.dadosOs.cliente_id_draft) || '';
+            if (!cliId && Array.isArray(window._cosClientesIndexadosCache)) {
+                const match = window._cosClientesIndexadosCache.find(c => normStr(c.nome_limpo) === normStr(cliNome));
+                if (match && match.id) cliId = match.id;
+            }
+            if (!cliId && Array.isArray(window._clientesCache)) {
+                const match2 = window._clientesCache.find(c => normStr(c.nome_razao_social) === normStr(cliNome) || normStr(c.nome_fantasia) === normStr(cliNome));
+                if (match2 && match2.id) cliId = match2.id;
+            }
+            const key = `${cliId || ''}::${normStr(cliNome)}`;
+            if (!forcar && this._enderecosCacheKeyOs === key && Array.isArray(this._enderecosCacheAtualOs)) {
+                return this._enderecosCacheAtualOs;
+            }
+            if (!forcar && this._enderecosLoadPromiseOs && this._enderecosLoadPromiseKeyOs === key) {
+                return this._enderecosLoadPromiseOs;
+            }
+
+            this._enderecosLoadPromiseKeyOs = key;
+            this._enderecosLoadPromiseOs = (async () => {
+                let ends = [];
+                try {
+                    const qs = new URLSearchParams();
+                    if (cliId) qs.set('cliente_id', String(cliId));
+                    qs.set('cliente_nome', cliNome);
+                    if (typeof window.apiGet === 'function') {
+                        const rawEnds = await window.apiGet(`/comercial/enderecos-por-cliente?${qs.toString()}`).catch(() => []);
+                        if (Array.isArray(rawEnds)) {
+                            ends = rawEnds.map(e => ({
+                                ...e,
+                                texto_completo: this._formatarEnderecoLocalOs(e)
+                            })).filter(e => Boolean(e.texto_completo));
+                        }
+                    }
+                } catch (_) {}
+
+                if (!ends.length && typeof window._obterDadosEnderecosClienteProposta === 'function') {
+                    const res = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
+                    ends = Array.isArray(res?.enderecosDoCliente) ? res.enderecosDoCliente : [];
+                }
+                this._enderecosCacheAtualOs = ends;
+                this._enderecosCacheKeyOs = key;
+                return ends;
+            })().finally(() => {
+                this._enderecosLoadPromiseOs = null;
+            });
+
+            return this._enderecosLoadPromiseOs;
+        },
+
         async abrirDropdownEnderecosOs(mostrarTodos = true) {
             const drop = document.getElementById('cos-endereco-dropdown');
             const inp = document.getElementById('cos-endereco-instalacao');
@@ -2503,12 +2646,12 @@
                 drop.style.display = 'block';
                 return;
             }
-            let ends = [];
-            if (typeof window._obterDadosEnderecosClienteProposta === 'function') {
-                const res = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
-                ends = Array.isArray(res?.enderecosDoCliente) ? res.enderecosDoCliente : [];
+            const curKey = `${(state.osAtual && state.osAtual.cliente_id) || (state.dadosOs && state.dadosOs.cliente_id_draft) || ''}::${normStr(cliNome)}`;
+            if (this._enderecosCacheKeyOs !== curKey || !Array.isArray(this._enderecosCacheAtualOs)) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;"><i class="ph ph-spinner ph-spin"></i> Carregando endereços do cliente...</div>`;
+                drop.style.display = 'block';
             }
-            this._enderecosCacheAtualOs = ends;
+            await this.carregarEnderecosClienteOsAtual(false);
             this.renderDropdownEnderecosOs(inp.value, mostrarTodos);
         },
 
@@ -2525,9 +2668,8 @@
 
         async filtrarDropdownEnderecosOs(termo) {
             const cliNome = this._obterNomeClienteAtualOs();
-            if (!Array.isArray(this._enderecosCacheAtualOs) && cliNome && typeof window._obterDadosEnderecosClienteProposta === 'function') {
-                const res = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
-                this._enderecosCacheAtualOs = Array.isArray(res?.enderecosDoCliente) ? res.enderecosDoCliente : [];
+            if (cliNome && !Array.isArray(this._enderecosCacheAtualOs)) {
+                await this.carregarEnderecosClienteOsAtual(false);
             }
             this.renderDropdownEnderecosOs(termo, false);
         },
@@ -2557,7 +2699,7 @@
                     normStr(e.cep).includes(q)
                 );
             if (!filtrados.length) {
-                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Nenhum endereço cadastrado encontrado para este filtro (você pode digitar manualmente).</div>`;
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.76rem; color:#64748b; text-align:center;">Nenhum endereço cadastrado encontrado para este cliente (clique no botão <b>+</b> amarelo para cadastrar ou digite manualmente).</div>`;
                 drop.style.display = 'block';
                 return;
             }
@@ -2565,11 +2707,21 @@
                 const txt = String(e.texto_completo || '').trim();
                 const safeTxt = txt.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 const jaAdic = listaAtuais.some(x => normStr(x) === normStr(txt));
+                const zonaTxt = String(e.zona || '').trim();
+                const zonaNorm = normStr(zonaTxt);
+                const zonaBg = zonaNorm.includes('central') ? '#dbeafe' : (zonaNorm.includes('amarela') ? '#fef9c3' : (zonaNorm.includes('vermelha') ? '#fee2e2' : '#f1f5f9'));
+                const zonaCor = zonaNorm.includes('central') ? '#1d4ed8' : (zonaNorm.includes('amarela') ? '#a16207' : (zonaNorm.includes('vermelha') ? '#b91c1c' : '#475569'));
+                const zonaHtml = (zonaTxt && zonaTxt !== 'Outra')
+                    ? `<span style="background:${zonaBg}; color:${zonaCor}; padding:1px 6px; border-radius:999px; font-size:0.64rem; font-weight:800;">${esc(zonaTxt)}</span>`
+                    : '';
                 return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarEnderecoDropdownOs('${safeTxt}')"
                     style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9; background:${jaAdic ? '#f0fdf4' : '#fff'};"
                     onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${jaAdic ? '#f0fdf4' : '#fff'}'">
                     <div style="font-size:0.76rem; font-weight:700; color:#1e293b; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                        <span>${esc(e.nome_local || e.endereco || 'Endereço')}</span>
+                        <span style="display:inline-flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                            <span>${esc(e.nome_local || e.endereco || 'Endereço')}</span>
+                            ${zonaHtml}
+                        </span>
                         ${jaAdic ? '<span style="font-size:0.65rem; background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:1px 6px; border-radius:999px; font-weight:800;">✓ Selecionado</span>' : ''}
                     </div>
                     <div style="font-size:0.7rem; color:#64748b; margin-top:2px;">${esc(txt)}</div>
@@ -2594,6 +2746,60 @@
                 this.sincronizarChipsEnderecosOs();
             }
             if (drop) drop.style.display = 'none';
+        },
+
+        async abrirModalNovoEnderecoOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (!String(resolverTipoOsComercial(state.osAtual) || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs();
+                return;
+            }
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Selecione o Cliente', 'Selecione o Cliente primeiro antes de cadastrar um novo endereço.', 'warning');
+                }
+                return;
+            }
+            if (typeof window.abrirModalEnderecosEntrega !== 'function') {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Aviso', 'Função de cadastro de endereços não está disponível no momento.', 'warning');
+                }
+                return;
+            }
+
+            let cliObj = null;
+            const listaCli = Array.isArray(window._cosClientesIndexadosCache) ? window._cosClientesIndexadosCache : [];
+            const m1 = listaCli.find(c => normStr(c.nome_limpo) === normStr(cliNome));
+            if (m1 && m1.id) {
+                cliObj = { id: m1.id, nome_razao_social: m1.nome_limpo };
+            } else if (Array.isArray(window._clientesCache)) {
+                cliObj = window._clientesCache.find(c => normStr(c.nome_razao_social) === normStr(cliNome) || normStr(c.nome_fantasia) === normStr(cliNome)) || null;
+            }
+            if (!cliObj) {
+                const idSalvo = (state.osAtual && state.osAtual.cliente_id) || (state.dadosOs && state.dadosOs.cliente_id_draft) || null;
+                cliObj = idSalvo ? { id: idSalvo, nome_razao_social: cliNome } : { nome_razao_social: cliNome };
+            }
+
+            window._onOsComercialEnderecoSalvo = (fullAddress) => {
+                this._enderecosCacheAtualOs = null;
+                this._enderecosCacheKeyOs = '';
+                this._enderecosLoadPromiseOs = null;
+                const txtNovo = String(fullAddress || '').trim();
+                const inp = document.getElementById('cos-endereco-instalacao');
+                const valAtual = inp ? inp.value : ((state.osAtual && state.osAtual.id) ? state.osAtual.endereco_instalacao : (state.dadosOs && state.dadosOs.endereco_instalacao_draft));
+                const lista = this.obterListaEnderecosOs(valAtual || '');
+                if (txtNovo && !lista.some(x => normStr(x) === normStr(txtNovo))) {
+                    lista.push(txtNovo);
+                }
+                const novoVal = lista.join(' | ');
+                if (inp) inp.value = novoVal;
+                this.onChangeCampoOsAvulsa('endereco_instalacao', novoVal);
+                this.sincronizarChipsEnderecosOs();
+                this.carregarEnderecosClienteOsAtual(true).catch(() => {});
+            };
+
+            await window.abrirModalEnderecosEntrega(cliObj);
         },
 
         onChangeCampoOsAvulsa(campo, valor) {

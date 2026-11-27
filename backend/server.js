@@ -51612,6 +51612,120 @@ app.get('/api/comercial/relatorios/enderecos', authenticateToken, (req, res) => 
   });
 });
 
+// GET /api/comercial/clientes-basico - Lista ultraleve e ordenada para pesquisa instantânea de clientes na OS
+app.get('/api/comercial/clientes-basico', authenticateToken, (req, res) => {
+  db.all(
+    `SELECT id, codigo, nome_razao_social, nome_fantasia, grupo_clientes, cpf_cnpj
+     FROM clientes
+     ORDER BY nome_razao_social COLLATE NOCASE ASC`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows || []);
+    }
+  );
+});
+
+// GET /api/comercial/enderecos-por-cliente - Lista endereços cadastrados de um cliente por id e/ou nome normalizado
+app.get('/api/comercial/enderecos-por-cliente', authenticateToken, (req, res) => {
+  const clienteIdParam = Number(req.query.cliente_id) || 0;
+  const clienteNomeParam = limparEmojiGrupoClienteHist(req.query.cliente_nome || '');
+  const clienteNomeNorm = normNomeClienteHist(clienteNomeParam);
+
+  if (!clienteIdParam && !clienteNomeNorm) {
+    return res.json([]);
+  }
+
+  db.all(
+    'SELECT id, nome_razao_social, nome_fantasia, endereco, numero, complemento, bairro, municipio, uf, cep FROM clientes',
+    [],
+    (errCli, allCli) => {
+      if (errCli) return res.status(500).json({ error: errCli.message });
+      const cliArr = Array.isArray(allCli) ? allCli : [];
+      const idsAlvo = new Set();
+      const nomesAlvo = new Set();
+      if (clienteIdParam) idsAlvo.add(clienteIdParam);
+      if (clienteNomeNorm) nomesAlvo.add(clienteNomeNorm);
+
+      const clientesBatidos = cliArr.filter(c => {
+        if (clienteIdParam && Number(c.id) === clienteIdParam) return true;
+        if (!clienteNomeNorm) return false;
+        const nRaz = normNomeClienteHist(c.nome_razao_social);
+        const nFan = normNomeClienteHist(c.nome_fantasia);
+        return (nRaz && nRaz === clienteNomeNorm) || (nFan && nFan === clienteNomeNorm);
+      });
+
+      const clientesMatchedFinal = clientesBatidos.length
+        ? clientesBatidos
+        : cliArr.filter(c => {
+            if (!clienteNomeNorm) return false;
+            const nRaz = normNomeClienteHist(c.nome_razao_social);
+            const nFan = normNomeClienteHist(c.nome_fantasia);
+            return (nRaz && nRaz.includes(clienteNomeNorm)) || (nFan && nFan.includes(clienteNomeNorm));
+          });
+
+      clientesMatchedFinal.forEach(c => {
+        if (c.id) idsAlvo.add(Number(c.id));
+        const nRaz = normNomeClienteHist(c.nome_razao_social);
+        const nFan = normNomeClienteHist(c.nome_fantasia);
+        if (nRaz) nomesAlvo.add(nRaz);
+        if (nFan) nomesAlvo.add(nFan);
+      });
+
+      db.all(
+        `SELECT e.id, e.sequencia, e.cliente_id, e.razao_social,
+                c.nome_razao_social AS cli_razao, c.nome_fantasia AS cli_fantasia,
+                e.nome_local, e.endereco, e.numero, e.complemento, e.bairro, e.municipio, e.uf, e.cep, e.coordenadas
+         FROM clientes_enderecos_entrega e
+         LEFT JOIN clientes c ON c.id = e.cliente_id
+         ORDER BY e.sequencia ASC, e.id ASC`,
+        [],
+        (errEnd, allEnds) => {
+          if (errEnd) return res.status(500).json({ error: errEnd.message });
+          const filtrados = (Array.isArray(allEnds) ? allEnds : []).filter(e => {
+            if (e.cliente_id && idsAlvo.has(Number(e.cliente_id))) return true;
+            const nE = normNomeClienteHist(e.razao_social);
+            const nCR = normNomeClienteHist(e.cli_razao);
+            const nCF = normNomeClienteHist(e.cli_fantasia);
+            return (nE && nomesAlvo.has(nE)) || (nCR && nomesAlvo.has(nCR)) || (nCF && nomesAlvo.has(nCF));
+          });
+
+          const resultado = filtrados.map(e => ({
+            ...e,
+            zona: classificarZonaEnderecoServer([e.endereco, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean).join(' '))
+          }));
+
+          clientesMatchedFinal.forEach(c => {
+            if (c.endereco && String(c.endereco).trim()) {
+              const endCadNorm = normNomeClienteHist(c.endereco);
+              const jaExiste = resultado.some(r => normNomeClienteHist(r.endereco) === endCadNorm);
+              if (!jaExiste) {
+                resultado.push({
+                  id: `principal_${c.id}`,
+                  sequencia: 0,
+                  cliente_id: c.id,
+                  nome_local: 'Endereço de Faturamento',
+                  endereco: c.endereco,
+                  numero: c.numero || '',
+                  complemento: c.complemento || '',
+                  bairro: c.bairro || '',
+                  municipio: c.municipio || '',
+                  uf: c.uf || '',
+                  cep: c.cep || '',
+                  coordenadas: '',
+                  zona: classificarZonaEnderecoServer([c.endereco, c.bairro, c.municipio, c.uf, c.cep].filter(Boolean).join(' '))
+                });
+              }
+            }
+          });
+
+          res.json(resultado);
+        }
+      );
+    }
+  );
+});
+
 // ── HISTÓRICO FINANCEIRO / MOVIMENTAÇÕES DE CLIENTES ──
 db.run(`CREATE TABLE IF NOT EXISTS clientes_historico_faturamento (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

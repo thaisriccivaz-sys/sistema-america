@@ -18743,6 +18743,11 @@ window.modalSalvarEndereco = async function() {
             if (typeof window._onAprovacaoEnderecoSalvo === 'function') {
                 window._onAprovacaoEnderecoSalvo(fullAddress);
             }
+            if (typeof window._onOsComercialEnderecoSalvo === 'function') {
+                const cbOsEnd = window._onOsComercialEnderecoSalvo;
+                window._onOsComercialEnderecoSalvo = null;
+                cbOsEnd(fullAddress);
+            }
 
             if (typeof window.carregarEnderecosVinculadosClienteProposta === 'function') {
                 window.carregarEnderecosVinculadosClienteProposta(document.getElementById('prop-cliente')?.value || '', false);
@@ -26503,8 +26508,11 @@ window._formatarEnderecoEntregaProposta = function(e) {
 };
 
 window._obterDadosEnderecosClienteProposta = async function(clienteNomeRaw) {
-    const clienteNome = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
-    const normStr = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const rawCliIn = String(clienteNomeRaw !== undefined ? clienteNomeRaw : (document.getElementById('prop-cliente')?.value || '')).trim();
+    const clienteNome = typeof window.limparPrefixoGrupoCliente === 'function'
+        ? window.limparPrefixoGrupoCliente(rawCliIn)
+        : rawCliIn.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+    const normStr = (s) => String(s || '').replace(/^[💎🥇🥈🥉]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     const clientesCache = await window.obterClientesCache().catch(() => []);
     const clientes = Array.isArray(clientesCache) ? clientesCache : [];
     const cliNorm = normStr(clienteNome);
