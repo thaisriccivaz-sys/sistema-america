@@ -86,11 +86,11 @@
     };
 
     const stateByTipo = {
-        clientes:  { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', cidade: '' } },
-        enderecos: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', municipioUf: '' } },
-        propostas: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fase: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
-        contratos: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
-        os:        { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
+        clientes:  { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', cidade: '' } },
+        enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', municipioUf: '' } },
+        propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fase: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
+        contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
+        os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
     };
 
     let atendentesComercialLista = [];
@@ -360,6 +360,7 @@
                     });
                 }
             }
+            st.carregado = true;
         } catch (e) {
             st.erro = e.message || 'Erro ao carregar dados do relatório.';
         } finally {
@@ -624,6 +625,18 @@
         </div>`;
     }
 
+    function renderNomeClienteClicavelHtml(nomeExib, { clienteId = '', clienteNomeLimpo = '', grupo = '' } = {}) {
+        const txt = String(nomeExib || '').trim();
+        if (!txt || txt === '—') return '—';
+        const nomeLimpoFinal = String(clienteNomeLimpo || limparNomeClienteParaExcel(txt)).trim();
+        return `<button type="button" data-cli-id="${esc(clienteId || '')}" data-cli-nome="${esc(nomeLimpoFinal)}" data-cli-grupo="${esc(grupo || '')}"
+            onclick="window._comercialRelatorios.abrirHistoricoPorElemento(this)"
+            title="Clique para ver o histórico de movimentações deste cliente (Propostas, Contratos, OS e Faturamento)"
+            style="background:none; border:none; padding:0; margin:0; text-align:left; font:inherit; font-weight:700; color:#1e293b; cursor:pointer; text-decoration:underline; text-decoration-color:#cbd5e1; text-underline-offset:3px;"
+            onmouseover="this.style.color='#5f3dc4'; this.style.textDecorationColor='#7048e8';"
+            onmouseout="this.style.color='#1e293b'; this.style.textDecorationColor='#cbd5e1';">${esc(txt)}</button>`;
+    }
+
     function renderLinhasHtml(tipo, paginaLinhas) {
         if (!paginaLinhas.length) {
             return `<tr><td colspan="14" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
@@ -632,9 +645,15 @@
         if (tipo === 'clientes') {
             return paginaLinhas.map(c => {
                 const grupo = c.grupo_clientes || c.classificacao || '';
+                const nomeExibCli = c._nomeExib || c.nome_razao_social || '—';
+                const nomeHtml = renderNomeClienteClicavelHtml(nomeExibCli, {
+                    clienteId: c.id || '',
+                    clienteNomeLimpo: limparNomeClienteParaExcel(c.nome_razao_social || c.nome_fantasia || ''),
+                    grupo
+                });
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                     <td style="padding:7px 10px; font-weight:700; color:#7048e8; white-space:nowrap;">${esc(c.codigo || c.id || '—')}</td>
-                    <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${esc(c._nomeExib || c.nome_razao_social || '—')}</td>
+                    <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${nomeHtml}</td>
                     <td style="padding:7px 10px; color:#475569;">${esc(c.nome_fantasia || '—')}</td>
                     <td style="padding:7px 10px; white-space:nowrap;">${grupo ? `<span style="background:#f3f0ff; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">${esc(grupo)}</span>` : '<span style="color:#94a3b8;">—</span>'}</td>
                     <td style="padding:7px 10px; white-space:nowrap; color:#334155;">${esc(c.cpf_cnpj || '—')}</td>
@@ -647,9 +666,15 @@
         }
 
         if (tipo === 'enderecos') {
-            return paginaLinhas.map((e, idx) => `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+            return paginaLinhas.map((e, idx) => {
+                const nomeHtml = renderNomeClienteClicavelHtml(e._cliExib || '—', {
+                    clienteId: e.cliente_id || '',
+                    clienteNomeLimpo: limparNomeClienteParaExcel(e._cliRaw || ''),
+                    grupo: e.grupo_clientes || ''
+                });
+                return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                 <td style="padding:7px 10px; font-weight:700; color:#64748b; text-align:center;">${esc(e.sequencia || (idx + 1))}</td>
-                <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${esc(e._cliExib || '—')}</td>
+                <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${nomeHtml}</td>
                 <td style="padding:7px 10px; font-weight:600; color:#5f3dc4;">${esc(e.nome_local || '—')}</td>
                 <td style="padding:7px 10px; color:#334155;">${esc(e.endereco || '—')}</td>
                 <td style="padding:7px 10px; color:#334155; white-space:nowrap;">${esc(e.numero || 'S/N')}</td>
@@ -657,12 +682,18 @@
                 <td style="padding:7px 10px; color:#475569;">${esc(e.municipio || '—')}</td>
                 <td style="padding:7px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(e.uf || '—')}</td>
                 <td style="padding:7px 10px; white-space:nowrap; color:#64748b;">${esc(e.cep || '—')}</td>
-            </tr>`).join('');
+            </tr>`;
+            }).join('');
         }
 
         if (tipo === 'propostas') {
             return paginaLinhas.map(p => {
                 const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
+                const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
+                    clienteId: '',
+                    clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
+                    grupo: ''
+                });
                 const faseHtml = typeof window.renderBadgeFaseNegociacaoHtml === 'function'
                     ? window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração')
                     : esc(p.fase_negociacao || 'Em Elaboração');
@@ -674,7 +705,7 @@
                     </td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(p.data_cadastro))}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
+                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
                     <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
                     <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${faseHtml}</td>
@@ -689,6 +720,11 @@
         if (tipo === 'contratos') {
             return paginaLinhas.map(p => {
                 const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
+                const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
+                    clienteId: '',
+                    clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
+                    grupo: ''
+                });
                 const sitHtml = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato || 'EM ELABORAÇÃO', false)
                     : esc(p.situacao_contrato || 'EM ELABORAÇÃO');
@@ -706,7 +742,7 @@
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtEm)}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
                     <td style="padding:8px 10px; color:#334155;">${esc(p.titulo_contrato || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
+                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
                     <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
                     <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${sitHtml}</td>
@@ -719,6 +755,11 @@
 
         return paginaLinhas.map(p => {
             const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
+            const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
+                clienteId: '',
+                clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
+                grupo: ''
+            });
             const mod = p._modalidade || resolverModalidadeOs(p);
             const modHtml = typeof window.renderBadgeModalidadeObraEventoOsHtml === 'function'
                 ? window.renderBadgeModalidadeObraEventoOsHtml(mod)
@@ -740,7 +781,7 @@
                     ${p.contrato ? `<button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})"
                         style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.75rem; cursor:pointer;">${esc(p.contrato)}</button>` : '—'}
                 </td>
-                <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
+                <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
                 <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
                 <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                 <td style="padding:8px 10px; white-space:nowrap;">${stHtml}</td>
@@ -1277,6 +1318,30 @@
             renderShellRelatorio(tipo);
         },
 
+        resetarAbaFechada(tipo) {
+            const meta = REPORTS_META[tipo];
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            st.carregado = false;
+            st.dados = [];
+            st.erro = '';
+            st.page = 1;
+            if (meta) {
+                const root = document.getElementById(`${meta.target}-root`) || document.getElementById(`view-${meta.target}`);
+                if (root) root.innerHTML = '';
+            }
+        },
+
+        abrirHistoricoPorElemento(el) {
+            if (!el) return;
+            const clienteId = el.getAttribute('data-cli-id') || '';
+            const clienteNome = el.getAttribute('data-cli-nome') || '';
+            const grupoCliente = el.getAttribute('data-cli-grupo') || '';
+            if (typeof window.abrirHistoricoMovimentacoesCliente === 'function') {
+                window.abrirHistoricoMovimentacoesCliente({ clienteId, clienteNome, grupoCliente });
+            }
+        },
+
         async exportarExcel(tipo) {
             const meta = REPORTS_META[tipo];
             if (!meta) return;
@@ -1347,9 +1412,467 @@
         });
     });
 
-    window.renderRelatorioComercial = async function (tipo) {
+    function renderBadgeStatusFaturamentoHist(st) {
+        const raw = String(st || 'Aberto').trim();
+        const s = normStr(raw);
+        let bg = '#eff6ff', txt = '#1d4ed8', bd = '#bfdbfe';
+        if (s.includes('pago') || s.includes('liquidad') || s.includes('recebid')) {
+            bg = '#dcfce7'; txt = '#15803d'; bd = '#86efac';
+        } else if (s.includes('vencid') || s.includes('atras') || s.includes('cancelad') || s.includes('estornad')) {
+            bg = '#fee2e2'; txt = '#b91c1c'; bd = '#fecaca';
+        } else if (s.includes('parcial')) {
+            bg = '#fef3c7'; txt = '#b45309'; bd = '#fde68a';
+        } else if (s.includes('faturad')) {
+            bg = '#ede9fe'; txt = '#5f3dc4'; bd = '#ddd6fe';
+        }
+        return `<span style="background:${bg}; color:${txt}; border:1px solid ${bd}; padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:800; white-space:nowrap;">${esc(raw)}</span>`;
+    }
+
+    window.abrirHistoricoMovimentacoesCliente = async function ({ clienteId = '', clienteNome = '', grupoCliente = '' } = {}) {
+        const nomeLimpo = limparNomeClienteParaExcel(clienteNome || '');
+        if (!clienteId && !nomeLimpo) return;
+
+        if (typeof Swal === 'undefined') return;
+
+        Swal.fire({
+            title: '',
+            width: '1140px',
+            showConfirmButton: false,
+            customClass: { popup: 'custom-swal-padding-zero' },
+            html: `<div style="padding:3rem 1.5rem; text-align:center; font-family:'Inter', sans-serif; color:#475569;">
+                <i class="ph ph-spinner ph-spin" style="font-size:2rem; color:#7048e8;"></i>
+                <div style="margin-top:10px; font-weight:700; font-size:0.95rem;">Carregando histórico de movimentações de ${esc(nomeLimpo || 'cliente')}...</div>
+            </div>`,
+            didOpen: () => {
+                const p = typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+                if (p) p.style.maxWidth = '96vw';
+            }
+        });
+
+        try {
+            const qs = new URLSearchParams();
+            if (clienteId) qs.set('cliente_id', String(clienteId));
+            if (nomeLimpo) qs.set('cliente_nome', nomeLimpo);
+
+            const resp = await fetch(`${getApiBase()}/clientes/historico-movimentacoes?${qs.toString()}`, {
+                headers: getAuthHeaders()
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+                throw new Error((data && data.error) || 'Não foi possível carregar o histórico do cliente.');
+            }
+
+            const cli = data.cliente || {};
+            const resu = data.resumo || {};
+            const propsList = Array.isArray(data.propostas) ? data.propostas : [];
+            const ctrsList = Array.isArray(data.contratos) ? data.contratos : [];
+            const osList = Array.isArray(data.ordens_servico) ? data.ordens_servico : [];
+            const fatList = Array.isArray(data.faturamentos) ? data.faturamentos : [];
+
+            const grupoFinal = cli.grupo_clientes || grupoCliente || '';
+            const nomeClienteReal = cli.nome_razao_social || nomeLimpo || 'Cliente';
+            const nomeHeader = formatarNomeComGrupoRapido(nomeClienteReal, grupoFinal);
+            const cidadeUf = [cli.municipio, cli.uf].filter(Boolean).join('/') || '';
+
+            const timeline = [];
+            propsList.forEach(p => {
+                const dtIso = String(p.data_cadastro || p.criado_em || '').substring(0, 10);
+                timeline.push({
+                    tipoKey: 'proposta',
+                    tipoLabel: 'Proposta',
+                    tipoStyle: 'background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe;',
+                    numero: p.codigo || '—',
+                    btnStyle: 'background:#2563eb; color:#fff; border:none;',
+                    onClickCode: `Swal.close(); if(window.abrirPropostaDiretoId) window.abrirPropostaDiretoId(${Number(p.id)});`,
+                    dataIso: dtIso,
+                    detalhe: [p.tipo, p.titulo_contrato || p.nome_evento, p.fase_negociacao, resolverAtendenteNome(p.atendente)].filter(Boolean).join(' · '),
+                    valor: Number(p.valor_total) || 0,
+                    search: normStr(`proposta ${p.codigo} ${p.tipo} ${p.titulo_contrato} ${p.nome_evento} ${p.fase_negociacao} ${p.atendente}`)
+                });
+            });
+            ctrsList.forEach(c => {
+                const dtIso = String(c.aprovado_em || c.data_cadastro || c.criado_em || '').substring(0, 10);
+                timeline.push({
+                    tipoKey: 'contrato',
+                    tipoLabel: 'Contrato',
+                    tipoStyle: 'background:#fef9c3; color:#854d0e; border:1px solid #fde047;',
+                    numero: c.contrato || '—',
+                    btnStyle: 'background:#eab308; color:#0f172a; border:1px solid #ca8a04;',
+                    onClickCode: `Swal.close(); if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(c.id)});`,
+                    dataIso: dtIso,
+                    detalhe: [c.titulo_contrato || c.tipo, c.situacao_contrato, c.periodo_inicio ? `${fmtDataBr(c.periodo_inicio)} a ${fmtDataBr(c.periodo_fim || c.periodo_inicio)}` : ''].filter(Boolean).join(' · '),
+                    valor: Number(c.valor_total) || 0,
+                    search: normStr(`contrato ${c.contrato} ${c.codigo} ${c.titulo_contrato} ${c.tipo} ${c.situacao_contrato}`)
+                });
+            });
+            osList.forEach(o => {
+                const dtIso = String(o.os_criada_em || o.data_cadastro || o.criado_em || '').substring(0, 10);
+                timeline.push({
+                    tipoKey: 'os',
+                    tipoLabel: 'OS',
+                    tipoStyle: 'background:#dcfce7; color:#15803d; border:1px solid #86efac;',
+                    numero: o.numero_os || '—',
+                    btnStyle: 'background:#16a34a; color:#fff; border:none;',
+                    onClickCode: `Swal.close(); if(window.abrirOsComercialDaProposta) window.abrirOsComercialDaProposta(${Number(o.id)});`,
+                    dataIso: dtIso,
+                    detalhe: [o.modalidade, o.os_tipo_operacao || 'Envio', o.contrato ? `Ctr ${o.contrato}` : 'OS Avulsa', o.status_os || 'EM ELABORAÇÃO'].filter(Boolean).join(' · '),
+                    valor: Number(o.valor_total) || 0,
+                    search: normStr(`os ${o.numero_os} ${o.contrato} ${o.modalidade} ${o.os_tipo_operacao} ${o.status_os} ${o.endereco_instalacao}`)
+                });
+            });
+            fatList.forEach(f => {
+                const dtIso = String(f.data_emissao || f.data_vencimento || f.criado_em || '').substring(0, 10);
+                const vLiq = Number(f.valor_liquido) || Number(f.valor_bruto) || 0;
+                timeline.push({
+                    tipoKey: 'faturamento',
+                    tipoLabel: 'Faturamento',
+                    tipoStyle: 'background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff;',
+                    numero: f.numero_nf || f.competencia || `#${f.id}`,
+                    btnStyle: 'background:#7048e8; color:#fff; border:none;',
+                    onClickCode: '',
+                    dataIso: dtIso,
+                    detalhe: [f.tipo_lancamento, f.competencia ? `Comp. ${f.competencia}` : '', f.numero_contrato ? `Ctr ${f.numero_contrato}` : '', f.status, f.data_vencimento ? `Venc. ${fmtDataBr(f.data_vencimento)}` : ''].filter(Boolean).join(' · '),
+                    valor: vLiq,
+                    search: normStr(`faturamento ${f.numero_nf} ${f.tipo_lancamento} ${f.competencia} ${f.numero_contrato} ${f.numero_os} ${f.status} ${f.observacoes}`)
+                });
+            });
+            timeline.sort((a, b) => String(b.dataIso || '').localeCompare(String(a.dataIso || '')));
+
+            let abaAtiva = 'visao';
+            let termoBusca = '';
+
+            const htmlAbas = () => {
+                const defs = [
+                    { id: 'visao', label: 'Visão Geral', count: timeline.length, icon: 'ph-clock-counter-clockwise' },
+                    { id: 'propostas', label: 'Propostas', count: propsList.length, icon: 'ph-file-text' },
+                    { id: 'contratos', label: 'Contratos', count: ctrsList.length, icon: 'ph-files' },
+                    { id: 'os', label: 'OS', count: osList.length, icon: 'ph-clipboard-text' },
+                    { id: 'faturamento', label: 'Faturamento', count: fatList.length, icon: 'ph-currency-circle-dollar' }
+                ];
+                return defs.map(t => {
+                    const ativo = abaAtiva === t.id;
+                    return `<button type="button" data-hist-tab="${t.id}"
+                        style="height:34px; padding:0 12px; border-radius:8px; border:1px solid ${ativo ? '#7048e8' : '#cbd5e1'}; background:${ativo ? '#7048e8' : '#ffffff'}; color:${ativo ? '#ffffff' : '#334155'}; font-weight:700; font-size:0.79rem; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">
+                        <i class="ph ${t.icon}"></i>
+                        <span>${esc(t.label)}</span>
+                        <span style="background:${ativo ? 'rgba(255,255,255,0.22)' : '#f1f5f9'}; color:${ativo ? '#ffffff' : '#475569'}; padding:1px 7px; border-radius:999px; font-size:0.7rem; font-weight:800;">${t.count}</span>
+                    </button>`;
+                }).join('');
+            };
+
+            const renderConteudoAba = () => {
+                const q = normStr(termoBusca);
+                const thSt = 'position:sticky; top:0; z-index:2; background:#f8fafc; padding:9px 10px; text-align:left; white-space:nowrap; font-size:0.71rem; font-weight:800; color:#475569; text-transform:uppercase; border-bottom:2px solid #cbd5e1;';
+                const thRight = thSt.replace('text-align:left;', 'text-align:right;');
+
+                if (abaAtiva === 'visao') {
+                    const lista = q ? timeline.filter(it => it.search.includes(q)) : timeline;
+                    if (!lista.length) {
+                        return `<div style="padding:2rem; text-align:center; color:#94a3b8;">Nenhuma movimentação encontrada para este filtro.</div>`;
+                    }
+                    const totalGeral = lista.reduce((acc, it) => acc + (Number(it.valor) || 0), 0);
+                    return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                        <thead><tr>
+                            <th style="${thSt}">Movimentação</th>
+                            <th style="${thSt}">Nº / Ref.</th>
+                            <th style="${thSt}">Data</th>
+                            <th style="${thSt}">Detalhes / Situação</th>
+                            <th style="${thRight}">Valor</th>
+                        </tr></thead>
+                        <tbody>
+                            ${lista.map(it => `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                <td style="padding:8px 10px; white-space:nowrap;"><span style="${it.tipoStyle} padding:2px 8px; border-radius:999px; font-size:0.71rem; font-weight:800;">${esc(it.tipoLabel)}</span></td>
+                                <td style="padding:8px 10px; white-space:nowrap;">${it.onClickCode
+                                    ? `<button type="button" onclick="${it.onClickCode}" style="${it.btnStyle} padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(it.numero)}</button>`
+                                    : `<span style="${it.btnStyle} padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; display:inline-block;">${esc(it.numero)}</span>`}</td>
+                                <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(it.dataIso))}</td>
+                                <td style="padding:8px 10px; color:#334155;">${esc(it.detalhe || '—')}</td>
+                                <td style="padding:8px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(it.valor))}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                        <tfoot><tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                            <td colspan="4" style="padding:9px 10px; font-weight:800; color:#1e293b;">Total dos registros exibidos (${lista.length})</td>
+                            <td style="padding:9px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(totalGeral))}</td>
+                        </tr></tfoot>
+                    </table>`;
+                }
+
+                if (abaAtiva === 'propostas') {
+                    const lista = q ? propsList.filter(p => normStr(`${p.codigo} ${p.tipo} ${p.fase_negociacao} ${p.atendente} ${p.titulo_contrato} ${p.nome_evento}`).includes(q)) : propsList;
+                    if (!lista.length) return `<div style="padding:2rem; text-align:center; color:#94a3b8;">Nenhuma proposta encontrada para este cliente.</div>`;
+                    const total = lista.reduce((a, p) => a + (Number(p.valor_total) || 0), 0);
+                    return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                        <thead><tr>
+                            <th style="${thSt}">Nº Prop.</th>
+                            <th style="${thSt}">Cadastro</th>
+                            <th style="${thSt}">Tipo</th>
+                            <th style="${thSt}">Período</th>
+                            <th style="${thSt}">Atendente</th>
+                            <th style="${thSt}">Fase de Negociação</th>
+                            <th style="${thRight}">Valor Total</th>
+                        </tr></thead>
+                        <tbody>
+                            ${lista.map(p => {
+                                const perStr = p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—';
+                                const faseHtml = typeof window.renderBadgeFaseNegociacaoHtml === 'function' ? window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração') : esc(p.fase_negociacao || '—');
+                                return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                    <td style="padding:8px 10px; white-space:nowrap;"><button type="button" onclick="Swal.close(); if(window.abrirPropostaDiretoId) window.abrirPropostaDiretoId(${Number(p.id)});" style="background:#2563eb; color:#fff; border:none; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(p.codigo || '—')}</button></td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(p.data_cadastro))}</td>
+                                    <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#334155;">${esc(resolverAtendenteNome(p.atendente))}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${faseHtml}</td>
+                                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(p.valor_total))}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot><tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                            <td colspan="6" style="padding:9px 10px; font-weight:800; color:#1e293b;">Total em Propostas (${lista.length})</td>
+                            <td style="padding:9px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(total))}</td>
+                        </tr></tfoot>
+                    </table>`;
+                }
+
+                if (abaAtiva === 'contratos') {
+                    const lista = q ? ctrsList.filter(c => normStr(`${c.contrato} ${c.codigo} ${c.titulo_contrato} ${c.tipo} ${c.situacao_contrato} ${c.atendente}`).includes(q)) : ctrsList;
+                    if (!lista.length) return `<div style="padding:2rem; text-align:center; color:#94a3b8;">Nenhum contrato encontrado para este cliente.</div>`;
+                    const total = lista.reduce((a, c) => a + (Number(c.valor_total) || 0), 0);
+                    return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                        <thead><tr>
+                            <th style="${thSt}">Contrato</th>
+                            <th style="${thSt}">Proposta</th>
+                            <th style="${thSt}">Emissão</th>
+                            <th style="${thSt}">Título / Tipo</th>
+                            <th style="${thSt}">Período</th>
+                            <th style="${thSt}">Situação</th>
+                            <th style="${thSt}">OS</th>
+                            <th style="${thRight}">Valor</th>
+                        </tr></thead>
+                        <tbody>
+                            ${lista.map(c => {
+                                const dtEm = fmtDataBr(String(c.aprovado_em || '').substring(0, 10) || c.data_cadastro);
+                                const perStr = c.periodo_inicio ? `${fmtDataBr(c.periodo_inicio)} até ${fmtDataBr(c.periodo_fim || c.periodo_inicio)}` : '—';
+                                const sitHtml = typeof window.renderBadgeSituacaoContratoHtml === 'function' ? window.renderBadgeSituacaoContratoHtml(c.situacao_contrato || 'EM ELABORAÇÃO', false) : esc(c.situacao_contrato || '—');
+                                return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                    <td style="padding:8px 10px; white-space:nowrap;"><button type="button" onclick="Swal.close(); if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(c.id)});" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(c.contrato || '—')}</button></td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${c.codigo ? `<button type="button" onclick="Swal.close(); if(window.abrirPropostaDiretoId) window.abrirPropostaDiretoId(${Number(c.id)});" style="background:#2563eb; color:#fff; border:none; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(c.codigo)}</button>` : '—'}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtEm)}</td>
+                                    <td style="padding:8px 10px; color:#334155;"><b>${esc(c.titulo_contrato || '—')}</b> <span style="color:#64748b;">(${esc(c.tipo || '—')})</span></td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${sitHtml}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${c.numero_os ? `<button type="button" onclick="Swal.close(); if(window.abrirOsComercialDaProposta) window.abrirOsComercialDaProposta(${Number(c.id)});" style="background:#16a34a; color:#fff; border:none; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(c.numero_os)}</button>` : '—'}</td>
+                                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(c.valor_total))}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot><tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                            <td colspan="7" style="padding:9px 10px; font-weight:800; color:#1e293b;">Total em Contratos (${lista.length})</td>
+                            <td style="padding:9px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(total))}</td>
+                        </tr></tfoot>
+                    </table>`;
+                }
+
+                if (abaAtiva === 'os') {
+                    const lista = q ? osList.filter(o => normStr(`${o.numero_os} ${o.contrato} ${o.modalidade} ${o.os_tipo_operacao} ${o.status_os} ${o.endereco_instalacao}`).includes(q)) : osList;
+                    if (!lista.length) return `<div style="padding:2rem; text-align:center; color:#94a3b8;">Nenhuma OS encontrada para este cliente.</div>`;
+                    const total = lista.reduce((a, o) => a + (Number(o.valor_total) || 0), 0);
+                    return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                        <thead><tr>
+                            <th style="${thSt}">Nº OS</th>
+                            <th style="${thSt}">Modalidade</th>
+                            <th style="${thSt}">Tipo OS</th>
+                            <th style="${thSt}">Contrato</th>
+                            <th style="${thSt}">Data OS</th>
+                            <th style="${thSt}">Entrega / Retirada</th>
+                            <th style="${thSt}">Status da OS</th>
+                            <th style="${thRight}">Valor</th>
+                        </tr></thead>
+                        <tbody>
+                            ${lista.map(o => {
+                                const modHtml = typeof window.renderBadgeModalidadeObraEventoOsHtml === 'function' ? window.renderBadgeModalidadeObraEventoOsHtml(o.modalidade || 'Obra') : esc(o.modalidade || 'Obra');
+                                const stHtml = typeof window.renderBadgeStatusOsComercialHtml === 'function' ? window.renderBadgeStatusOsComercialHtml(o.status_os || 'EM ELABORAÇÃO') : esc(o.status_os || 'EM ELABORAÇÃO');
+                                const dtCad = fmtDataBr(String(o.os_criada_em || '').substring(0, 10) || o.data_cadastro);
+                                const entRet = [o.data_entrega ? `Ent: ${fmtDataBr(o.data_entrega)}` : '', o.data_retirada ? `Ret: ${fmtDataBr(o.data_retirada)}` : ''].filter(Boolean).join(' · ') || '—';
+                                return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                                    <td style="padding:8px 10px; white-space:nowrap;"><button type="button" onclick="Swal.close(); if(window.abrirOsComercialDaProposta) window.abrirOsComercialDaProposta(${Number(o.id)});" style="background:#16a34a; color:#fff; border:none; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(o.numero_os || '—')}</button></td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${modHtml}</td>
+                                    <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(o.os_tipo_operacao || 'Envio')}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${o.contrato ? `<button type="button" onclick="Swal.close(); if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(o.id)});" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(o.contrato)}</button>` : 'Avulsa'}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtCad)}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(entRet)}</td>
+                                    <td style="padding:8px 10px; white-space:nowrap;">${stHtml}</td>
+                                    <td style="padding:8px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(o.valor_total))}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                        <tfoot><tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                            <td colspan="7" style="padding:9px 10px; font-weight:800; color:#1e293b;">Total vinculado às OS (${lista.length})</td>
+                            <td style="padding:9px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(total))}</td>
+                        </tr></tfoot>
+                    </table>`;
+                }
+
+                const listaFat = q ? fatList.filter(f => normStr(`${f.numero_nf} ${f.tipo_lancamento} ${f.competencia} ${f.numero_contrato} ${f.numero_os} ${f.status} ${f.forma_pagamento} ${f.observacoes}`).includes(q)) : fatList;
+                if (!listaFat.length) {
+                    return `<div style="padding:2rem; text-align:center; color:#64748b;">
+                        <i class="ph ph-currency-circle-dollar" style="font-size:2rem; color:#7048e8;"></i>
+                        <div style="margin-top:8px; font-weight:700; color:#334155;">Nenhum lançamento de Faturamento Financeiro registrado para este cliente até o momento.</div>
+                        <div style="margin-top:4px; font-size:0.78rem; color:#64748b;">Quando os faturamentos forem gerados na tela de Faturamento do Financeiro, todas as faturas, NFs, boletos e pagamentos aparecerão aqui com valores e status.</div>
+                    </div>`;
+                }
+                const totLiq = listaFat.reduce((a, f) => a + (Number(f.valor_liquido) || Number(f.valor_bruto) || 0), 0);
+                const totPago = listaFat.reduce((a, f) => a + (Number(f.valor_pago) || 0), 0);
+                return `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead><tr>
+                        <th style="${thSt}">NF / Lançamento</th>
+                        <th style="${thSt}">Competência</th>
+                        <th style="${thSt}">Emissão</th>
+                        <th style="${thSt}">Vencimento</th>
+                        <th style="${thSt}">Pagamento</th>
+                        <th style="${thSt}">Contrato / OS</th>
+                        <th style="${thSt}">Status</th>
+                        <th style="${thRight}">Valor Líq.</th>
+                        <th style="${thRight}">Valor Pago</th>
+                    </tr></thead>
+                    <tbody>
+                        ${listaFat.map(f => `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                            <td style="padding:8px 10px; font-weight:700; color:#1e293b;">${esc(f.numero_nf || f.tipo_lancamento || `#${f.id}`)}${f.tipo_lancamento && f.numero_nf ? ` <span style="color:#64748b; font-weight:500;">(${esc(f.tipo_lancamento)})</span>` : ''}</td>
+                            <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(f.competencia || '—')}</td>
+                            <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(f.data_emissao))}</td>
+                            <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(f.data_vencimento))}</td>
+                            <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(f.data_pagamento))}</td>
+                            <td style="padding:8px 10px; white-space:nowrap; color:#334155;">${esc([f.numero_contrato ? `Ctr ${f.numero_contrato}` : '', f.numero_os ? `OS ${f.numero_os}` : ''].filter(Boolean).join(' · ') || '—')}</td>
+                            <td style="padding:8px 10px; white-space:nowrap;">${renderBadgeStatusFaturamentoHist(f.status)}</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:800; color:#1e293b; white-space:nowrap;">${esc(fmtMoeda(Number(f.valor_liquido) || Number(f.valor_bruto) || 0))}</td>
+                            <td style="padding:8px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(f.valor_pago))}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                    <tfoot><tr style="background:#f8fafc; border-top:2px solid #cbd5e1;">
+                        <td colspan="7" style="padding:9px 10px; font-weight:800; color:#1e293b;">Total em Faturamento (${listaFat.length})</td>
+                        <td style="padding:9px 10px; text-align:right; font-weight:800; color:#1e293b; white-space:nowrap;">${esc(fmtMoeda(totLiq))}</td>
+                        <td style="padding:9px 10px; text-align:right; font-weight:800; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(totPago))}</td>
+                    </tr></tfoot>
+                </table>`;
+            };
+
+            Swal.fire({
+                title: '',
+                width: '1140px',
+                showConfirmButton: false,
+                customClass: { popup: 'custom-swal-padding-zero' },
+                html: `
+                    <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; background:#f8fafc;">
+                        <!-- Cabeçalho -->
+                        <div style="padding:14px 18px; background:#ffffff; border-bottom:1px solid #e2e8f0; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                    <span style="font-size:1.08rem; font-weight:800; color:#0f172a;">${esc(nomeHeader)}</span>
+                                    ${grupoFinal ? `<span style="background:#f3f0ff; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">${esc(grupoFinal)}</span>` : ''}
+                                </div>
+                                <div style="margin-top:4px; font-size:0.78rem; color:#64748b; display:flex; gap:14px; flex-wrap:wrap;">
+                                    <span><b>CNPJ/CPF:</b> ${esc(cli.cpf_cnpj || '—')}</span>
+                                    ${cidadeUf ? `<span><b>Cidade/UF:</b> ${esc(cidadeUf)}</span>` : ''}
+                                    <span>Histórico de movimentações comerciais e financeiras do cliente</span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="Swal.close()" style="background:none; border:none; color:#64748b; font-size:1.4rem; cursor:pointer; line-height:1;">&times;</button>
+                        </div>
+
+                        <!-- 4 Cards de Resumo com Valores -->
+                        <div style="padding:12px 16px 0; display:grid; grid-template-columns:repeat(4, minmax(170px, 1fr)); gap:10px;">
+                            <div style="background:#ffffff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px;">
+                                <div style="font-size:0.72rem; font-weight:800; color:#1d4ed8; text-transform:uppercase;">Propostas</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-top:2px;">${esc(fmtMoeda(resu.valor_total_propostas))}</div>
+                                <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">${Number(resu.qtd_propostas) || 0} registro(s) · ${Number(resu.qtd_propostas_aprovadas) || 0} aprov./assin.</div>
+                            </div>
+                            <div style="background:#ffffff; border:1px solid #fde047; border-radius:10px; padding:10px 12px;">
+                                <div style="font-size:0.72rem; font-weight:800; color:#854d0e; text-transform:uppercase;">Contratos</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-top:2px;">${esc(fmtMoeda(resu.valor_total_contratos))}</div>
+                                <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">${Number(resu.qtd_contratos) || 0} contrato(s) gerado(s)</div>
+                            </div>
+                            <div style="background:#ffffff; border:1px solid #86efac; border-radius:10px; padding:10px 12px;">
+                                <div style="font-size:0.72rem; font-weight:800; color:#15803d; text-transform:uppercase;">Ordens de Serviço (OS)</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-top:2px;">${esc(fmtMoeda(resu.valor_total_os))}</div>
+                                <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">${Number(resu.qtd_os) || 0} OS(s) vinculada(s)</div>
+                            </div>
+                            <div style="background:#ffffff; border:1px solid #d0bfff; border-radius:10px; padding:10px 12px;">
+                                <div style="font-size:0.72rem; font-weight:800; color:#5f3dc4; text-transform:uppercase;">Faturamento Financeiro</div>
+                                <div style="font-size:1.05rem; font-weight:800; color:#0f172a; margin-top:2px;">${esc(fmtMoeda(resu.valor_total_faturado))}</div>
+                                <div style="font-size:0.71rem; color:#64748b; margin-top:2px;">${Number(resu.qtd_faturamentos) || 0} lanç. · Pago: <b style="color:#15803d;">${esc(fmtMoeda(resu.valor_total_pago))}</b> · Aberto: <b style="color:#b45309;">${esc(fmtMoeda(resu.valor_total_em_aberto))}</b></div>
+                            </div>
+                        </div>
+
+                        <!-- Abas + Busca -->
+                        <div style="padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div id="modal-cli-hist-tabs" style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${htmlAbas()}
+                            </div>
+                            <div style="flex:1 1 220px; max-width:300px;">
+                                <input type="text" id="modal-cli-hist-busca" placeholder="Pesquisar movimentação..."
+                                    style="width:100%; height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.8rem; background:#fff; box-sizing:border-box; outline:none; text-transform:none;">
+                            </div>
+                        </div>
+
+                        <!-- Tabela -->
+                        <div style="padding:0 16px 16px;">
+                            <div id="modal-cli-hist-body" style="max-height:50vh; min-height:220px; overflow:auto; border:1px solid #e2e8f0; border-radius:10px; background:#ffffff;">
+                                ${renderConteudoAba()}
+                            </div>
+                        </div>
+                    </div>
+                `,
+                didOpen: () => {
+                    const p = typeof Swal.getPopup === 'function' ? Swal.getPopup() : null;
+                    if (p) p.style.maxWidth = '96vw';
+                    const tabsEl = document.getElementById('modal-cli-hist-tabs');
+                    const bodyEl = document.getElementById('modal-cli-hist-body');
+                    const inpBusca = document.getElementById('modal-cli-hist-busca');
+
+                    const atualizarVisao = () => {
+                        if (tabsEl) tabsEl.innerHTML = htmlAbas();
+                        if (bodyEl) bodyEl.innerHTML = renderConteudoAba();
+                        tabsEl?.querySelectorAll('button[data-hist-tab]').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                abaAtiva = btn.getAttribute('data-hist-tab') || 'visao';
+                                atualizarVisao();
+                            });
+                        });
+                    };
+
+                    tabsEl?.querySelectorAll('button[data-hist-tab]').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            abaAtiva = btn.getAttribute('data-hist-tab') || 'visao';
+                            atualizarVisao();
+                        });
+                    });
+
+                    let timerHist = null;
+                    inpBusca?.addEventListener('input', () => {
+                        termoBusca = inpBusca.value || '';
+                        clearTimeout(timerHist);
+                        timerHist = setTimeout(() => {
+                            if (bodyEl) bodyEl.innerHTML = renderConteudoAba();
+                        }, 80);
+                    });
+                }
+            });
+        } catch (err) {
+            Swal.fire('Erro', err.message || 'Erro ao buscar histórico de movimentações do cliente.', 'error');
+        }
+    };
+
+    window.renderRelatorioComercial = async function (tipo, forcar = false) {
+        const meta = REPORTS_META[tipo];
         const st = stateByTipo[tipo];
-        if (!st) return;
+        if (!meta || !st) return;
+
+        const root = document.getElementById(`${meta.target}-root`) || document.getElementById(`view-${meta.target}`);
+        if (!forcar && st.carregado) {
+            if (root && root.innerHTML.trim()) return;
+            renderShellRelatorio(tipo);
+            return;
+        }
+
         st.carregando = true;
         renderShellRelatorio(tipo);
         await fetchDadosRelatorio(tipo);

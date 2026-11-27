@@ -1632,11 +1632,22 @@
                 STATE.dataInicio = r.inicio;
                 STATE.dataFim = r.fim;
             }
+            if (!forcarReload && STATE.initialized && STATE.propostasRaw.length > 0) {
+                const cont = document.getElementById('view-comercial-dashboard');
+                if (cont && cont.innerHTML.trim()) return;
+            }
             if (!STATE.initialized || forcarReload || STATE.propostasRaw.length === 0) {
                 await carregarDadosBackend();
                 STATE.initialized = true;
             }
             renderPainel();
+        },
+
+        resetarAbaFechada() {
+            STATE.initialized = false;
+            STATE.propostasRaw = [];
+            const cont = document.getElementById('view-comercial-dashboard');
+            if (cont) cont.innerHTML = '';
         },
 
         setAba(abaId) {

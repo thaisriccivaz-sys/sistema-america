@@ -1664,7 +1664,7 @@ window.navigateToTab = function (tabId) {
     }
     if (tab.target && tab.target.startsWith('comercial-rel-') && typeof window.renderRelatorioComercial === 'function') {
         const tipoRelTab = tab.target.replace('comercial-rel-', '');
-        setTimeout(() => window.renderRelatorioComercial(tipoRelTab), 50);
+        setTimeout(() => window.renderRelatorioComercial(tipoRelTab, false), 50);
     }
     if (tab.target === 'comercial-os' && typeof window.renderTelaOSComercial === 'function') {
         setTimeout(() => window.renderTelaOSComercial(), 50);
@@ -1723,6 +1723,10 @@ window.closeAppTab = async function (tabId, forceClose = false) {
         window.limparEstadoAbaComercial(tabObjAfter.target === 'comercial-contratos' ? 'contrato' : 'proposta', wasActiveAfter, tabObjAfter.tabId);
     } else if (tabObjAfter && tabObjAfter.target === 'comercial-os' && window._comercialOS && typeof window._comercialOS.limparSnapshotAba === 'function') {
         window._comercialOS.limparSnapshotAba(tabObjAfter.tabId);
+    } else if (tabObjAfter && tabObjAfter.target && tabObjAfter.target.startsWith('comercial-rel-') && window._comercialRelatorios && typeof window._comercialRelatorios.resetarAbaFechada === 'function') {
+        window._comercialRelatorios.resetarAbaFechada(tabObjAfter.target.replace('comercial-rel-', ''));
+    } else if (tabObjAfter && tabObjAfter.target === 'comercial-dashboard' && window._comercialDashboard && typeof window._comercialDashboard.resetarAbaFechada === 'function') {
+        window._comercialDashboard.resetarAbaFechada();
     }
     appOpenTabs.splice(idxAfter, 1);
 
@@ -2044,10 +2048,10 @@ function navigateTo(target) {
     } else if (target === 'comercial-assinaturas') {
         if (typeof window.renderTelaAssinaturasComercial === 'function') setTimeout(() => window.renderTelaAssinaturasComercial(true), 50);
     } else if (target === 'comercial-dashboard') {
-        if (typeof window.renderDashboardComercial === 'function') setTimeout(() => window.renderDashboardComercial(false), 50);
+        if (typeof window.renderDashboardComercial === 'function') setTimeout(() => window.renderDashboardComercial(_abaEhNova), 50);
     } else if (target && target.startsWith('comercial-rel-')) {
         const tipoRelNav = target.replace('comercial-rel-', '');
-        if (typeof window.renderRelatorioComercial === 'function') setTimeout(() => window.renderRelatorioComercial(tipoRelNav), 50);
+        if (typeof window.renderRelatorioComercial === 'function') setTimeout(() => window.renderRelatorioComercial(tipoRelNav, _abaEhNova), 50);
     } else if (target === 'comercial-os') {
         if (typeof window.renderTelaOSComercial === 'function') setTimeout(() => window.renderTelaOSComercial(), 50);
     } else if (target === 'comercial-aprovacao') {

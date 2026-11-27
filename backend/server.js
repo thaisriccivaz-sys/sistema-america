@@ -51564,6 +51564,292 @@ app.get('/api/comercial/relatorios/enderecos', authenticateToken, (req, res) => 
   });
 });
 
+// ── HISTÓRICO FINANCEIRO / MOVIMENTAÇÕES DE CLIENTES ──
+db.run(`CREATE TABLE IF NOT EXISTS clientes_historico_faturamento (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cliente_id INTEGER,
+  cliente_nome TEXT NOT NULL DEFAULT '',
+  contrato_id INTEGER,
+  numero_contrato TEXT DEFAULT '',
+  numero_os TEXT DEFAULT '',
+  numero_nf TEXT DEFAULT '',
+  tipo_lancamento TEXT DEFAULT 'Fatura',
+  competencia TEXT DEFAULT '',
+  data_emissao TEXT DEFAULT '',
+  data_vencimento TEXT DEFAULT '',
+  data_pagamento TEXT DEFAULT '',
+  valor_bruto REAL DEFAULT 0,
+  valor_desconto REAL DEFAULT 0,
+  valor_liquido REAL DEFAULT 0,
+  valor_pago REAL DEFAULT 0,
+  status TEXT DEFAULT 'Aberto',
+  forma_pagamento TEXT DEFAULT '',
+  observacoes TEXT DEFAULT '',
+  origem_modulo TEXT DEFAULT '',
+  origem_registro_id INTEGER,
+  criado_por TEXT DEFAULT '',
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (errHistFat) => {
+  if (errHistFat) console.error('[CLIENTES_HISTORICO_FATURAMENTO] Erro ao criar tabela:', errHistFat.message);
+});
+
+function limparEmojiGrupoClienteHist(nome) {
+  return String(nome || '').replace(/^[💎🥇🥈🥉]\s*/g, '').trim();
+}
+
+function normNomeClienteHist(nome) {
+  return limparEmojiGrupoClienteHist(nome)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function registrarMovimentacaoFaturamentoCliente(dados, cb) {
+  const done = typeof cb === 'function' ? cb : () => {};
+  try {
+    const d = dados || {};
+    const clienteId = d.cliente_id ? Number(d.cliente_id) : null;
+    const clienteNome = limparEmojiGrupoClienteHist(d.cliente_nome || '');
+    const contratoId = d.contrato_id ? Number(d.contrato_id) : null;
+    const numeroContrato = String(d.numero_contrato || '').trim();
+    const numeroOs = String(d.numero_os || '').trim();
+    const numeroNf = String(d.numero_nf || '').trim();
+    const tipoLanc = String(d.tipo_lancamento || 'Fatura').trim();
+    const competencia = String(d.competencia || '').trim();
+    const dataEmissao = String(d.data_emissao || '').trim().substring(0, 10);
+    const dataVencimento = String(d.data_vencimento || '').trim().substring(0, 10);
+    const dataPagamento = String(d.data_pagamento || '').trim().substring(0, 10);
+    const valorBruto = Number(d.valor_bruto) || 0;
+    const valorDesconto = Number(d.valor_desconto) || 0;
+    const valorLiquido = d.valor_liquido !== undefined ? (Number(d.valor_liquido) || 0) : Math.max(0, valorBruto - valorDesconto);
+    const valorPago = Number(d.valor_pago) || 0;
+    const status = String(d.status || 'Aberto').trim();
+    const formaPag = String(d.forma_pagamento || '').trim();
+    const observacoes = String(d.observacoes || '').trim();
+    const origemMod = String(d.origem_modulo || '').trim();
+    const origemRegId = (d.origem_registro_id !== undefined && d.origem_registro_id !== null && d.origem_registro_id !== '')
+      ? Number(d.origem_registro_id)
+      : null;
+    const criadoPor = String(d.criado_por || '').trim();
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    const executarInsert = () => {
+      db.run(
+        `INSERT INTO clientes_historico_faturamento (
+          cliente_id, cliente_nome, contrato_id, numero_contrato, numero_os, numero_nf,
+          tipo_lancamento, competencia, data_emissao, data_vencimento, data_pagamento,
+          valor_bruto, valor_desconto, valor_liquido, valor_pago, status,
+          forma_pagamento, observacoes, origem_modulo, origem_registro_id,
+          criado_por, criado_em, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          clienteId, clienteNome, contratoId, numeroContrato, numeroOs, numeroNf,
+          tipoLanc, competencia, dataEmissao, dataVencimento, dataPagamento,
+          valorBruto, valorDesconto, valorLiquido, valorPago, status,
+          formaPag, observacoes, origemMod, origemRegId,
+          criadoPor, agora, agora
+        ],
+        function (errIns) {
+          if (errIns) return done(errIns, null);
+          done(null, { id: this.lastID, updated: false });
+        }
+      );
+    };
+
+    if (origemMod && origemRegId !== null) {
+      db.get(
+        'SELECT id FROM clientes_historico_faturamento WHERE origem_modulo = ? AND origem_registro_id = ? LIMIT 1',
+        [origemMod, origemRegId],
+        (errEx, rowEx) => {
+          if (errEx) return done(errEx, null);
+          if (rowEx && rowEx.id) {
+            db.run(
+              `UPDATE clientes_historico_faturamento SET
+                cliente_id = ?, cliente_nome = ?, contrato_id = ?, numero_contrato = ?, numero_os = ?,
+                numero_nf = ?, tipo_lancamento = ?, competencia = ?, data_emissao = ?, data_vencimento = ?,
+                data_pagamento = ?, valor_bruto = ?, valor_desconto = ?, valor_liquido = ?, valor_pago = ?,
+                status = ?, forma_pagamento = ?, observacoes = ?, atualizado_em = ?
+               WHERE id = ?`,
+              [
+                clienteId, clienteNome, contratoId, numeroContrato, numeroOs,
+                numeroNf, tipoLanc, competencia, dataEmissao, dataVencimento,
+                dataPagamento, valorBruto, valorDesconto, valorLiquido, valorPago,
+                status, formaPag, observacoes, agora,
+                rowEx.id
+              ],
+              (errUp) => {
+                if (errUp) return done(errUp, null);
+                done(null, { id: rowEx.id, updated: true });
+              }
+            );
+          } else {
+            executarInsert();
+          }
+        }
+      );
+    } else {
+      executarInsert();
+    }
+  } catch (e) {
+    done(e, null);
+  }
+}
+global.registrarMovimentacaoFaturamentoCliente = registrarMovimentacaoFaturamentoCliente;
+
+// GET /api/clientes/historico-movimentacoes - Histórico consolidado do cliente (Propostas, Contratos, OS e Faturamento Financeiro)
+app.get('/api/clientes/historico-movimentacoes', authenticateToken, (req, res) => {
+  const clienteIdParam = Number(req.query.cliente_id) || 0;
+  const clienteNomeParam = limparEmojiGrupoClienteHist(req.query.cliente_nome || '');
+  const clienteNomeNormParam = normNomeClienteHist(clienteNomeParam);
+
+  if (!clienteIdParam && !clienteNomeNormParam) {
+    return res.status(400).json({ error: 'Informe cliente_id ou cliente_nome.' });
+  }
+
+  db.all(
+    'SELECT id, codigo, nome_razao_social, nome_fantasia, grupo_clientes, cpf_cnpj, celular, telefone, email, municipio, uf, criado_em FROM clientes',
+    [],
+    (errCli, allClientes) => {
+      if (errCli) return res.status(500).json({ error: errCli.message });
+      const clientesArr = Array.isArray(allClientes) ? allClientes : [];
+      let cliRow = null;
+      if (clienteIdParam) {
+        cliRow = clientesArr.find(c => Number(c.id) === clienteIdParam) || null;
+      }
+      if (!cliRow && clienteNomeNormParam) {
+        cliRow = clientesArr.find(c =>
+          normNomeClienteHist(c.nome_razao_social) === clienteNomeNormParam ||
+          normNomeClienteHist(c.nome_fantasia) === clienteNomeNormParam
+        ) || clientesArr.find(c =>
+          normNomeClienteHist(c.nome_razao_social).includes(clienteNomeNormParam)
+        ) || null;
+      }
+
+      const nomesAlvo = new Set();
+      if (clienteNomeNormParam) nomesAlvo.add(clienteNomeNormParam);
+      if (cliRow) {
+        const nRaz = normNomeClienteHist(cliRow.nome_razao_social);
+        const nFan = normNomeClienteHist(cliRow.nome_fantasia);
+        if (nRaz) nomesAlvo.add(nRaz);
+        if (nFan) nomesAlvo.add(nFan);
+      }
+
+      db.all(
+        `SELECT id, codigo, contrato, tipo, titulo_contrato, cliente_nome, contato_nome, atendente,
+                data_cadastro, periodo_inicio, periodo_fim, aprovado_em, fase_negociacao,
+                situacao_contrato, valor_total, numero_os, status_os, os_criada_em,
+                os_tipo_operacao, os_comercial_dados_json, endereco_instalacao, nome_evento, criado_em
+         FROM propostas
+         WHERE LOWER(COALESCE(status, '')) != 'excluída'
+         ORDER BY id DESC`,
+        [],
+        (errProp, allProps) => {
+          if (errProp) return res.status(500).json({ error: errProp.message });
+
+          const propsCliente = (Array.isArray(allProps) ? allProps : []).filter(p => {
+            const pNorm = normNomeClienteHist(p.cliente_nome);
+            return Boolean(pNorm && nomesAlvo.has(pNorm));
+          });
+
+          const propostas = [];
+          const contratos = [];
+          const ordens_servico = [];
+
+          propsCliente.forEach(p => {
+            const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
+            const tipoUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+
+            if (sitUp !== 'OS AVULSA' && String(p.codigo || '').trim()) {
+              propostas.push(p);
+            }
+            if (tipoUp !== 'ADITIVO' && String(p.contrato || '').trim()) {
+              contratos.push(p);
+            }
+            if (tipoUp !== 'ADITIVO' && String(p.numero_os || '').trim()) {
+              let dOs = {};
+              try {
+                dOs = typeof p.os_comercial_dados_json === 'string'
+                  ? JSON.parse(p.os_comercial_dados_json || '{}')
+                  : (p.os_comercial_dados_json || {});
+              } catch (_) { dOs = {}; }
+              const modOs = tipoUp.includes('EVENTO') || String(dOs?.modalidade_os || dOs?.modalidade_obra_evento || '').toLowerCase() === 'evento'
+                ? 'Evento'
+                : 'Obra';
+              ordens_servico.push({
+                ...p,
+                modalidade: modOs,
+                data_entrega: String(dOs?.data_entrega || '').trim().substring(0, 10),
+                data_retirada: String(dOs?.data_retirada || '').trim().substring(0, 10)
+              });
+            }
+          });
+
+          db.all(
+            `SELECT * FROM clientes_historico_faturamento ORDER BY COALESCE(NULLIF(TRIM(data_emissao), ''), criado_em) DESC, id DESC`,
+            [],
+            (errFat, allFats) => {
+              if (errFat) return res.status(500).json({ error: errFat.message });
+              const faturamentos = (Array.isArray(allFats) ? allFats : []).filter(f => {
+                if (cliRow && cliRow.id && Number(f.cliente_id) === Number(cliRow.id)) return true;
+                if (clienteIdParam && Number(f.cliente_id) === clienteIdParam) return true;
+                const fNorm = normNomeClienteHist(f.cliente_nome);
+                return Boolean(fNorm && nomesAlvo.has(fNorm));
+              });
+
+              const qtdPropostasAprovadas = propostas.filter(p => {
+                const fn = normNomeClienteHist(p.fase_negociacao);
+                return fn === 'aprovada' || fn.includes('aprovado') || fn === 'proposta assinada';
+              }).length;
+
+              const valorTotalPropostas = propostas.reduce((acc, p) => acc + (Number(p.valor_total) || 0), 0);
+              const valorTotalContratos = contratos.reduce((acc, p) => acc + (Number(p.valor_total) || 0), 0);
+              const valorTotalOs = ordens_servico.reduce((acc, p) => acc + (Number(p.valor_total) || 0), 0);
+
+              const faturamentosValidos = faturamentos.filter(f => {
+                const stN = normNomeClienteHist(f.status);
+                return !stN.includes('cancelad') && !stN.includes('estornad');
+              });
+              const valorTotalFaturado = faturamentosValidos.reduce((acc, f) => acc + (Number(f.valor_liquido) || Number(f.valor_bruto) || 0), 0);
+              const valorTotalPago = faturamentosValidos.reduce((acc, f) => acc + (Number(f.valor_pago) || 0), 0);
+              const valorTotalEmAberto = Math.max(0, valorTotalFaturado - valorTotalPago);
+
+              res.json({
+                cliente: cliRow || {
+                  id: clienteIdParam || null,
+                  nome_razao_social: clienteNomeParam,
+                  grupo_clientes: '',
+                  cpf_cnpj: '',
+                  municipio: '',
+                  uf: ''
+                },
+                resumo: {
+                  qtd_propostas: propostas.length,
+                  qtd_propostas_aprovadas: qtdPropostasAprovadas,
+                  valor_total_propostas: valorTotalPropostas,
+                  qtd_contratos: contratos.length,
+                  valor_total_contratos: valorTotalContratos,
+                  qtd_os: ordens_servico.length,
+                  valor_total_os: valorTotalOs,
+                  qtd_faturamentos: faturamentos.length,
+                  valor_total_faturado: valorTotalFaturado,
+                  valor_total_pago: valorTotalPago,
+                  valor_total_em_aberto: valorTotalEmAberto
+                },
+                propostas,
+                contratos,
+                ordens_servico,
+                faturamentos
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
 // POST /api/comercial/relatorios/exportar-excel - Exporta qualquer relatório do Comercial em .xlsx estilizado
 app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (req, res) => {
   try {
