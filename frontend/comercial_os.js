@@ -74,6 +74,8 @@
         dadosOs: null,
         editadoNaoSalvo: false,
         statusNovoDraft: 'EM ELABORAÇÃO',
+        tipoOsDraft: '',
+        modalidadeDraft: 'Obra',
         secoesAbertas: {
             periodo: true,
             produtos: true,
@@ -133,6 +135,46 @@
             <span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border}; padding:1px 9px; border-radius:999px; font-size:0.71rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;">
                 <i class="ph ${cfg.icon}" style="font-size:0.82rem;"></i> ${esc(cfg.nome)}
             </span>
+        </span>`;
+    };
+
+    function osVeioDeContrato(prop) {
+        if (!prop || !prop.id) return false;
+        const sitUp = String(prop.situacao_contrato || '').trim().toUpperCase();
+        const faseUp = String(prop.fase_negociacao || '').trim().toUpperCase();
+        if (sitUp === 'OS AVULSA' || faseUp === 'OS AVULSA') return false;
+        return Boolean(String(prop.contrato || '').trim() || String(prop.codigo || '').trim());
+    }
+
+    function resolverModalidadeObraEventoOs(prop, dadosOs) {
+        if (osVeioDeContrato(prop)) {
+            const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO')) return 'Evento';
+            if (tipoLimpoUp.includes('OBRA')) return 'Obra';
+            if (dadosOs && (dadosOs.modalidade_os === 'Obra' || dadosOs.modalidade_os === 'Evento')) {
+                return dadosOs.modalidade_os;
+            }
+            return 'Obra';
+        }
+        if (dadosOs && (dadosOs.modalidade_os === 'Obra' || dadosOs.modalidade_os === 'Evento')) {
+            return dadosOs.modalidade_os;
+        }
+        if (prop && prop.tipo) {
+            const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoLimpoUp.includes('EVENTO')) return 'Evento';
+            if (tipoLimpoUp.includes('OBRA')) return 'Obra';
+        }
+        return state.modalidadeDraft === 'Evento' ? 'Evento' : 'Obra';
+    }
+
+    window.renderBadgeModalidadeObraEventoOsHtml = function (modalidade) {
+        const ehEv = String(modalidade || '').trim().toLowerCase() === 'evento';
+        const imgSrc = ehEv ? 'assets/evento.png' : 'assets/obra.png';
+        const txt = ehEv ? 'Evento' : 'Obra';
+        const cor = ehEv ? '#8E24AA' : '#156EB6';
+        return `<span style="display:inline-flex; align-items:center; gap:6px;">
+            <img src="${imgSrc}" alt="${txt}" style="height:20px; width:auto; object-fit:contain; flex-shrink:0;">
+            <span style="font-weight:800; color:${cor}; font-size:0.76rem;">${txt}</span>
         </span>`;
     };
 
@@ -279,7 +321,16 @@
      * - Contrato LIMPA FOSSA → "Limpa fossa"
      */
     function resolverTipoOsComercial(prop) {
-        if (!prop) return '';
+        if (!prop) return state.tipoOsDraft || '';
+        const salvo = String(prop.os_tipo_operacao || '').trim();
+        if (Object.prototype.hasOwnProperty.call(prop, '_tipoOsManual')) {
+            if (!prop._tipoOsManual) return '';
+            const mManual = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(prop._tipoOsManual));
+            if (mManual) return mManual.nome;
+        }
+        const matchSalvo = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(salvo));
+        if (matchSalvo) return matchSalvo.nome;
+
         const tipoCtr = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
         if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
 
@@ -299,9 +350,7 @@
         if (temEquipLogistica) {
             return 'Envio';
         }
-        const salvo = String(prop.os_tipo_operacao || '').trim();
-        const matchSalvo = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(salvo));
-        if (matchSalvo) return matchSalvo.nome;
+        if (!osVeioDeContrato(prop)) return '';
         return tipoCtr === 'EQUIPAMENTOS' ? 'Equipamentos' : 'Envio';
     }
 
@@ -385,8 +434,9 @@
         }
 
         const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const ehObra = tipoLimpoUp.includes('OBRA');
-        const ehEvento = tipoLimpoUp === 'EVENTO';
+        const modResolvida = salvo.modalidade_os || (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO') ? 'Evento' : 'Obra');
+        const ehObra = modResolvida === 'Obra';
+        const ehEvento = modResolvida === 'Evento';
 
         // Datas de entrega/retirada do contrato (quando houver) ou período início/fim
         let dtEntPad = String(prop.periodo_inicio || '').trim().substring(0, 10);
@@ -407,6 +457,7 @@
         const horarioComercialPadrao = ehObra ? true : false;
 
         return {
+            modalidade_os: modResolvida,
             data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : dtEntPad,
             hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : (ehObra ? '08:00 às 18:00' : (String(prop.hora_inicio || '').trim() || '')),
             entrega_horario_comercial: ehEvento ? false : (salvo.entrega_horario_comercial !== undefined ? Boolean(salvo.entrega_horario_comercial) : horarioComercialPadrao),
@@ -443,9 +494,12 @@
         if (!prop || !prop.id || !d) return { ok: false, pendencias: ['Carregue uma OS válida'] };
 
         const pendencias = [];
-        const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const ehEvento = tipoLimpoUp === 'EVENTO';
+        const modAtual = resolverModalidadeObraEventoOs(prop, d);
+        const ehEvento = modAtual === 'Evento';
         const temFob = propostaTemFreteFob(prop);
+
+        const tipoOsVal = resolverTipoOsComercial(prop);
+        if (!String(tipoOsVal || '').trim()) pendencias.push('Tipo de OS');
 
         if (!String(d.data_entrega || '').trim()) pendencias.push('Data de Entrega');
         if (!d.entrega_horario_comercial && !String(d.hora_entrega || '').trim()) {
@@ -503,6 +557,7 @@
             sitUp === 'CONTRATO DIGITAL ASSINADO' ||
             sitUp === 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA' ||
             sitUp === 'NAO ASSINA CONTRATO - ENTREGA LIBERADA' ||
+            sitUp === 'OS AVULSA' ||
             assSt === 'assinado' || assSt === 'signed' || assSt === 'certificated' ||
             p.assinafy_signed_at || p.assinafy_signed_r2_key ||
             (typeof window.propostaFoiAssinadaViaAssinafy === 'function' && window.propostaFoiAssinadaViaAssinafy(p))
@@ -668,26 +723,32 @@
         };
 
         const v = (campo) => prop ? (prop[campo] || '') : '';
+        const veioDeContrato = osVeioDeContrato(prop);
 
-        // Data de cadastro = data de criação da OS (os_criada_em), somente leitura
+        // Data de cadastro = data de criação da OS (os_criada_em)
         const dataCadastroOs = isNovo
-            ? hojeIso()
+            ? ((state.dadosOs && state.dadosOs.os_criada_em_draft) || hojeIso())
             : (String(v('os_criada_em') || '').trim().substring(0, 10) || hojeIso());
 
         // Uma nova OS nasce com a situação de EM ELABORAÇÃO
-        const statusOsAtual = obterConfigStatusOs(isNovo ? 'EM ELABORAÇÃO' : (v('status_os') || 'EM ELABORAÇÃO')).nome;
-        const tipoOsResolvido = isNovo ? '' : resolverTipoOsComercial(prop);
+        const statusOsAtual = obterConfigStatusOs(isNovo ? (state.statusNovoDraft || 'EM ELABORAÇÃO') : (v('status_os') || 'EM ELABORAÇÃO')).nome;
+        const tipoOsResolvido = resolverTipoOsComercial(prop);
+        const tipoOsPreenchido = Boolean(String(tipoOsResolvido || '').trim());
+        const modalidadeAtual = resolverModalidadeObraEventoOs(prop, d);
+        const ehEvento = normStr(modalidadeAtual) === 'evento';
+        const ehObra = !ehEvento;
 
-        const clienteNomeRaw = v('cliente_nome');
-        const clienteNomeFormatado = (!isNovo && clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
+        const clienteNomeRaw = isNovo ? (d.cliente_nome_draft || '') : v('cliente_nome');
+        const clienteNomeFormatado = (clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
             ? window.formatarNomeClienteComIcone(clienteNomeRaw)
             : clienteNomeRaw;
 
-        const tipoLimpoUp = String(v('tipo') || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const ehObra = tipoLimpoUp.includes('OBRA');
-        const ehEvento = tipoLimpoUp === 'EVENTO';
         const temFob = !isNovo && propostaTemFreteFob(prop);
         const checkObrig = verificarCamposObrigatoriosOsPreenchidos();
+        const lockPorTipoAttr = !tipoOsPreenchido ? 'disabled' : '';
+        const lockPorTipoTitle = !tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos.' : '';
+        const lockPorTipoStyle = !tipoOsPreenchido ? 'opacity:0.55; cursor:not-allowed;' : '';
+        const podeSalvarOs = (!isNovo && state.editadoNaoSalvo && tipoOsPreenchido) || (isNovo && tipoOsPreenchido && state.editadoNaoSalvo);
 
         atualizarTituloAbaSuperior(!isNovo ? v('numero_os') : null);
 
@@ -838,8 +899,8 @@
                             <i class="ph ph-file-text"></i> Novo
                         </button>
 
-                        <button type="button" id="btn-cos-salvar" onclick="window._comercialOS.salvarAlteracoesOS()" ${(!isNovo && state.editadoNaoSalvo) ? '' : 'disabled'}
-                            style="background:${(!isNovo && state.editadoNaoSalvo) ? '#16a34a' : '#cbd5e1'}; color:${(!isNovo && state.editadoNaoSalvo) ? '#ffffff' : '#64748b'}; border:none; cursor:${(!isNovo && state.editadoNaoSalvo) ? 'pointer' : 'not-allowed'};">
+                        <button type="button" id="btn-cos-salvar" onclick="window._comercialOS.salvarAlteracoesOS()" ${podeSalvarOs ? '' : 'disabled'}
+                            style="background:${podeSalvarOs ? '#16a34a' : '#cbd5e1'}; color:${podeSalvarOs ? '#ffffff' : '#64748b'}; border:none; cursor:${podeSalvarOs ? 'pointer' : 'not-allowed'};">
                             <i class="ph ph-check"></i> Salvar
                         </button>
 
@@ -876,8 +937,36 @@
                 <!-- Corpo do Formulário -->
                 <div style="padding:1.25rem 1.5rem;">
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
-                        <!-- Linha 1: Nº da OS, Tipo * (com ícone na frente, bloqueado — vem direto do contrato), Atendente (bloqueado) -->
-                        <div style="display:grid; grid-template-columns:1fr 1.8fr 1.4fr 1fr; gap:1rem; margin-bottom:1rem;">
+                        <!-- Linha 1: Obra / Evento (ao lado esquerdo do Nº da OS), Nº da OS, Tipo *, Atendente, Data Cadastro * -->
+                        <div style="display:grid; grid-template-columns:0.95fr 1fr 1.6fr 1.3fr 0.95fr; gap:1rem; margin-bottom:1rem;">
+                            <div onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
+                                <label class="prop-lbl">Obra / Evento</label>
+                                <div id="cos-modalidade-custom-wrap" style="position:relative; width:100%;">
+                                    <button type="button" id="cos-modalidade-custom-btn"
+                                        ${(veioDeContrato || !tipoOsPreenchido) ? 'disabled' : ''}
+                                        onclick="window._comercialOS.toggleMenuModalidadeOs(event)"
+                                        title="${veioDeContrato ? 'A modalidade (Obra / Evento) vem automaticamente do Contrato vinculado e não pode ser alterada.' : (!tipoOsPreenchido ? lockPorTipoTitle : 'Selecionar Obra ou Evento')}"
+                                        style="width:100% !important; display:flex !important; justify-content:space-between !important; align-items:center !important; padding:0 8px !important; border:1px solid #cbd5e1; background:${(veioDeContrato || !tipoOsPreenchido) ? '#f8fafc' : '#fff'}; cursor:${(veioDeContrato || !tipoOsPreenchido) ? 'not-allowed' : 'pointer'}; ${lockPorTipoStyle}">
+                                        <span id="cos-modalidade-custom-badge" style="display:inline-flex; align-items:center; gap:6px;">
+                                            ${window.renderBadgeModalidadeObraEventoOsHtml(modalidadeAtual)}
+                                        </span>
+                                        ${!veioDeContrato ? `<i class="ph ph-caret-down" style="font-size:0.82rem; color:#64748b;"></i>` : `<i class="ph ph-lock-simple" style="font-size:0.78rem; color:#94a3b8;"></i>`}
+                                    </button>
+                                    <input type="hidden" id="cos-modalidade-os" value="${esc(modalidadeAtual)}">
+                                    ${!veioDeContrato ? `
+                                        <div id="cos-modalidade-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
+                                            ${['Obra', 'Evento'].map(mod => `
+                                                <div onclick="window._comercialOS.selecionarModalidadeOs('${mod}', event)"
+                                                    style="padding:5px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:background 0.12s;"
+                                                    onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                                    ${window.renderBadgeModalidadeObraEventoOsHtml(mod)}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="prop-lbl">Nº da OS</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -896,24 +985,31 @@
 
                             <div>
                                 <label class="prop-lbl">Tipo *</label>
-                                <select id="cos-tipo" disabled title="O Tipo de OS vem automaticamente do Contrato e não pode ser editado">
+                                <select id="cos-tipo"
+                                    onchange="window._comercialOS.onChangeTipoOs(this.value)"
+                                    title="Selecione o Tipo de OS para habilitar o preenchimento dos demais campos"
+                                    style="width:100%; border-color:${!tipoOsPreenchido ? '#2563eb' : '#cbd5e1'} !important; background:#fff !important; font-weight:700;">
                                     <option value="">-- Selecione --</option>
-                                    ${OS_COMERCIAL_TIPOS_CONFIG.map(t => `<option value="${esc(t.nome)}" ${(!isNovo && normStr(tipoOsResolvido) === normStr(t.nome)) ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
+                                    ${OS_COMERCIAL_TIPOS_CONFIG.map(t => `<option value="${esc(t.nome)}" ${(normStr(tipoOsResolvido) === normStr(t.nome)) ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
                                 </select>
                             </div>
 
-                            <div>
+                            <div onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                                 <label class="prop-lbl">Atendente</label>
                                 ${(() => {
-                                    const podeEditarAtend = !isNovo && typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+                                    const gestorPodeEditar = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+                                    const podeEditarAtend = tipoOsPreenchido && (!veioDeContrato || gestorPodeEditar);
+                                    const rawAtend = isNovo
+                                        ? ((d && d.atendente_draft) || (window.currentUser && (window.currentUser.nome_completo || window.currentUser.nome || window.currentUser.username)) || '')
+                                        : v('atendente');
                                     const nomeAtendExib = typeof window.resolverNomeExibicaoAtendenteComercial === 'function'
-                                        ? window.resolverNomeExibicaoAtendenteComercial(v('atendente'), false)
-                                        : (v('atendente_nome') || v('atendente') || '');
+                                        ? window.resolverNomeExibicaoAtendenteComercial(rawAtend, false)
+                                        : (v('atendente_nome') || rawAtend || '');
                                     return `
-                                        <div id="cos-atendente-combo-wrap" style="position:relative; width:100%;">
+                                        <div id="cos-atendente-combo-wrap" style="position:relative; width:100%; ${lockPorTipoStyle}">
                                             <input type="text" id="cos-atendente" value="${esc(nomeAtendExib)}"
                                                 ${podeEditarAtend ? '' : 'readonly disabled'}
-                                                title="${podeEditarAtend ? 'Selecionar atendente (liberado para o gestor do departamento)' : 'O atendente vem da Proposta/Contrato e apenas o gestor do departamento pode editá-lo.'}"
+                                                title="${!tipoOsPreenchido ? lockPorTipoTitle : (podeEditarAtend ? 'Selecionar atendente do departamento Comercial' : 'O atendente vem da Proposta/Contrato e apenas o gestor do departamento pode editá-lo.')}"
                                                 onfocus="if(!this.disabled && window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs('', true);"
                                                 onclick="if(!this.disabled && window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs('', true);"
                                                 oninput="if(window._comercialOS && typeof window._comercialOS.filtrarDropdownAtendenteOs === 'function') window._comercialOS.filtrarDropdownAtendenteOs(this.value, true);"
@@ -930,25 +1026,33 @@
                                 })()}
                             </div>
 
-                            <div>
+                            <div onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                                 <label class="prop-lbl">Data Cadastro *</label>
-                                <input type="date" id="cos-data-cadastro" value="${esc(dataCadastroOs)}" readonly disabled style="width:100%;">
+                                <input type="date" id="cos-data-cadastro" value="${esc(dataCadastroOs)}"
+                                    ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                    onchange="window._comercialOS.onChangeCampoOsAvulsa('os_criada_em', this.value)"
+                                    title="${!tipoOsPreenchido ? lockPorTipoTitle : ''}"
+                                    style="width:100%; ${lockPorTipoStyle}">
                             </div>
                         </div>
 
-                        <!-- Linha 2: Título * (bloqueado), Status da OS * (editável; nasce EM ELABORAÇÃO) -->
-                        <div style="display:grid; grid-template-columns:1.8fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                        <!-- Linha 2: Título *, Status da OS * (editável; nasce EM ELABORAÇÃO) -->
+                        <div style="display:grid; grid-template-columns:1.8fr 1.5fr; gap:1rem; margin-bottom:1rem;" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <div>
                                 <label class="prop-lbl">Título *</label>
-                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" readonly disabled
-                                    placeholder="Título da OS / Contrato..." style="width:100%;">
+                                <input type="text" id="cos-titulo-contrato" value="${esc(isNovo ? (d.titulo_contrato_draft || '') : v('titulo_contrato'))}"
+                                    ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                    oninput="window._comercialOS.onChangeCampoOsAvulsa('titulo_contrato', this.value)"
+                                    title="${!tipoOsPreenchido ? lockPorTipoTitle : ''}"
+                                    placeholder="Título da OS / Contrato..." style="width:100%; ${lockPorTipoStyle}">
                             </div>
 
                             <div>
                                 <label class="prop-lbl">Status da OS *</label>
-                                <div id="cos-status-custom-wrap" style="position:relative; width:100%;">
-                                    <button type="button" id="cos-status-custom-btn" onclick="window._comercialOS.toggleMenuStatusOs(event)"
-                                        style="border:1px solid #cbd5e1; background:#fff;">
+                                <div id="cos-status-custom-wrap" style="position:relative; width:100%; ${lockPorTipoStyle}">
+                                    <button type="button" id="cos-status-custom-btn" ${lockPorTipoAttr} onclick="window._comercialOS.toggleMenuStatusOs(event)"
+                                        title="${!tipoOsPreenchido ? lockPorTipoTitle : ''}"
+                                        style="border:1px solid #cbd5e1; background:${!tipoOsPreenchido ? '#f8fafc' : '#fff'};">
                                         <span id="cos-status-custom-badge">${window.renderBadgeStatusOsComercialHtml(statusOsAtual)}</span>
                                         <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b;"></i>
                                     </button>
@@ -966,8 +1070,8 @@
                             </div>
                         </div>
 
-                        <!-- Seção: Dados do Cliente (somente leitura para edição, mantendo a pesquisa por lupa/Enter quando em branco) -->
-                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                        <!-- Seção: Dados do Cliente -->
+                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <h4 style="margin:0 0 0.35rem !important;">
                                 <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente <span style="color:#dc2626;">*</span>
                             </h4>
@@ -976,8 +1080,9 @@
                                     <label class="prop-lbl">Cliente <span style="color:#ef4444;">*</span></label>
                                     <div style="display:flex; gap:0.35rem; align-items:center;">
                                         <input type="text" id="cos-cliente" value="${esc(clienteNomeFormatado)}"
-                                            ${!isNovo ? 'readonly' : ''}
-                                            placeholder="Pressione Enter ou clique na lupa para pesquisar OS por cliente..."
+                                            ${!tipoOsPreenchido ? 'disabled' : (veioDeContrato ? 'readonly' : '')}
+                                            placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : (veioDeContrato ? 'Pressione Enter ou clique na lupa para pesquisar OS por cliente...' : 'Informe o nome do cliente ou clique na lupa para pesquisar...')}"
+                                            oninput="${!veioDeContrato ? "window._comercialOS.onChangeCampoOsAvulsa('cliente_nome', this.value)" : ''}"
                                             onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.pesquisarPorCampoClienteInput(); }"
                                             style="width:100%;">
                                         <button type="button" onclick="window._comercialOS.pesquisarPorCampoClienteInput()"
@@ -989,13 +1094,17 @@
 
                                 <div>
                                     <label class="prop-lbl">Contato <span style="color:#ef4444;">*</span></label>
-                                    <input type="text" id="cos-contato" value="${esc(v('contato_nome'))}" readonly disabled style="width:100%;">
+                                    <input type="text" id="cos-contato" value="${esc(isNovo ? (d.contato_nome_draft || '') : v('contato_nome'))}"
+                                        ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                        placeholder="${(!veioDeContrato && tipoOsPreenchido) ? 'Informe o contato...' : ''}"
+                                        oninput="window._comercialOS.onChangeCampoOsAvulsa('contato_nome', this.value)"
+                                        style="width:100%;">
                                 </div>
                             </div>
                         </div>
 
                         <!-- Seção: Entrega, Manutenções e Retiradas (antigo Período e Locação, sem Dias Contrato) -->
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <div onclick="window._comercialOS.toggleSecao('periodo', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
                                 <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important;">
                                     <i class="ph ph-truck" style="color:#16a34a;"></i> Entrega, Manutenções e Retiradas <span style="color:#dc2626;">*</span>
@@ -1013,20 +1122,20 @@
                                         <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
                                             <div>
                                                 <label class="prop-lbl">Data de Entrega <span style="color:#dc2626;">*</span></label>
-                                                <input type="date" id="cos-data-entrega" value="${esc(d.data_entrega || '')}" ${isNovo ? 'disabled' : ''}
+                                                <input type="date" id="cos-data-entrega" value="${esc(d.data_entrega || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
                                                     onchange="window._comercialOS.onChangeCampoDadosOs('data_entrega', this.value)" style="width:100%;">
                                             </div>
                                             <div>
                                                 <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
                                                 <input type="text" id="cos-hora-entrega" value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
                                                     placeholder="Ex: 08:00 às 12:00"
-                                                    ${(isNovo || d.entrega_horario_comercial) ? 'disabled' : ''}
+                                                    ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
                                                     oninput="window._comercialOS.onChangeCampoDadosOs('hora_entrega', this.value)" style="width:100%;">
                                             </div>
                                             ${!ehEvento ? `
                                                 <div>
                                                     <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a entrega">
-                                                        <input type="checkbox" id="cos-chk-entrega-comercial" ${d.entrega_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                        <input type="checkbox" id="cos-chk-entrega-comercial" ${d.entrega_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
                                                             onchange="window._comercialOS.onToggleHorarioComercial('entrega', this.checked)">
                                                         <span>Horário comercial</span>
                                                     </label>
@@ -1040,20 +1149,20 @@
                                         <div style="display:grid; grid-template-columns:1fr 1fr ${ehEvento ? '' : 'auto'}; gap:0.45rem; align-items:end;">
                                             <div>
                                                 <label class="prop-lbl">Data de Retirada <span style="color:#dc2626;">*</span></label>
-                                                <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${isNovo ? 'disabled' : ''}
+                                                <input type="date" id="cos-data-retirada" value="${esc(d.data_retirada || '')}" ${!tipoOsPreenchido ? 'disabled' : ''}
                                                     onchange="window._comercialOS.onChangeCampoDadosOs('data_retirada', this.value)" style="width:100%;">
                                             </div>
                                             <div>
                                                 <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
                                                 <input type="text" id="cos-hora-retirada" value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
                                                     placeholder="Ex: 14:00 às 18:00"
-                                                    ${(isNovo || d.retirada_horario_comercial) ? 'disabled' : ''}
+                                                    ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
                                                     oninput="window._comercialOS.onChangeCampoDadosOs('hora_retirada', this.value)" style="width:100%;">
                                             </div>
                                             ${!ehEvento ? `
                                                 <div>
                                                     <label class="prop-chk-inline-lbl" title="Selecionar Horário Comercial (08:00 às 18:00) para a retirada">
-                                                        <input type="checkbox" id="cos-chk-retirada-comercial" ${d.retirada_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                        <input type="checkbox" id="cos-chk-retirada-comercial" ${d.retirada_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
                                                             onchange="window._comercialOS.onToggleHorarioComercial('retirada', this.checked)">
                                                         <span>Horário comercial</span>
                                                     </label>
@@ -1068,18 +1177,22 @@
                                     <div style="display:grid; grid-template-columns:1fr 1.4fr auto; gap:0.5rem; align-items:end; background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem; margin-bottom:0.45rem;">
                                         <div>
                                             <label class="prop-lbl">Quantidade de Manutenções (Proposta)</label>
-                                            <input type="text" id="cos-qtd-manutencoes" value="${esc(d.qtd_manutencoes || '—')}" readonly disabled style="width:100%; font-weight:700;">
+                                            <input type="text" id="cos-qtd-manutencoes" value="${esc(d.qtd_manutencoes || (veioDeContrato ? '—' : ''))}"
+                                                ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                                placeholder="${!veioDeContrato ? 'Ex: 1x por semana...' : ''}"
+                                                oninput="${!veioDeContrato ? "window._comercialOS.onChangeCampoDadosOs('qtd_manutencoes', this.value)" : ''}"
+                                                style="width:100%; font-weight:700;">
                                         </div>
                                         <div>
                                             <label class="prop-lbl">Horário da Manutenção</label>
                                             <input type="text" id="cos-horario-manutencao" value="${esc(d.manutencao_horario_comercial ? '08:00 às 18:00 (Horário Comercial)' : (d.horario_manutencao || ''))}"
                                                 placeholder="Informe o horário da manutenção..."
-                                                ${(isNovo || d.manutencao_horario_comercial) ? 'disabled' : ''}
+                                                ${(!tipoOsPreenchido || d.manutencao_horario_comercial) ? 'disabled' : ''}
                                                 oninput="window._comercialOS.onChangeCampoDadosOs('horario_manutencao', this.value)" style="width:100%;">
                                         </div>
                                         <div>
                                             <label class="prop-chk-inline-lbl">
-                                                <input type="checkbox" id="cos-chk-manut-comercial" ${d.manutencao_horario_comercial ? 'checked' : ''} ${isNovo ? 'disabled' : ''}
+                                                <input type="checkbox" id="cos-chk-manut-comercial" ${d.manutencao_horario_comercial ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
                                                     onchange="window._comercialOS.onToggleHorarioComercial('manutencao', this.checked)">
                                                 <span>Horário comercial</span>
                                             </label>
@@ -1094,7 +1207,7 @@
                                             <span style="font-size:0.75rem; font-weight:800; color:#166534; display:flex; align-items:center; gap:5px;">
                                                 <i class="ph ph-calendar-star"></i> Dias e Horários do Evento (Início e Fim) <span style="color:#dc2626;">*</span>
                                             </span>
-                                            <button type="button" onclick="window._comercialOS.adicionarDiaEvento()" ${isNovo ? 'disabled' : ''}
+                                            <button type="button" onclick="window._comercialOS.adicionarDiaEvento()" ${!tipoOsPreenchido ? 'disabled' : ''}
                                                 style="background:#16a34a; color:#fff; border:none;">
                                                 <i class="ph ph-plus"></i> Adicionar Dia do Evento
                                             </button>
@@ -1110,12 +1223,19 @@
                                     ${ehEvento ? `
                                         <div style="display:flex; gap:0.4rem; align-items:center; flex:1 1 240px;">
                                             <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Nome do Evento:</span>
-                                            <input type="text" value="${esc(v('nome_evento'))}" readonly disabled style="width:100%;">
+                                            <input type="text" id="cos-nome-evento" value="${esc(isNovo ? (d.nome_evento_draft || '') : v('nome_evento'))}"
+                                                ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                                oninput="window._comercialOS.onChangeCampoOsAvulsa('nome_evento', this.value)"
+                                                style="width:100%;">
                                         </div>
                                     ` : ''}
                                     <div style="display:flex; gap:0.4rem; align-items:center; flex:2 1 360px;">
                                         <span style="font-size:0.74rem; font-weight:700; color:#475569; white-space:nowrap;">Instalação *:</span>
-                                        <input type="text" id="cos-endereco-instalacao" value="${esc(v('endereco_instalacao'))}" readonly disabled style="width:100%;">
+                                        <input type="text" id="cos-endereco-instalacao" value="${esc(isNovo ? (d.endereco_instalacao_draft || '') : v('endereco_instalacao'))}"
+                                            ${(veioDeContrato || !tipoOsPreenchido) ? 'readonly disabled' : ''}
+                                            placeholder="${(!veioDeContrato && tipoOsPreenchido) ? 'Informe o endereço de instalação...' : ''}"
+                                            oninput="window._comercialOS.onChangeCampoOsAvulsa('endereco_instalacao', this.value)"
+                                            style="width:100%;">
                                         ${v('regiao') ? `<span style="background:#e0f2fe; color:#0369a1; font-weight:800; font-size:0.7rem; padding:2px 8px; border-radius:999px; white-space:nowrap;">${esc(v('regiao'))}</span>` : ''}
                                     </div>
                                 </div>
@@ -1124,7 +1244,7 @@
 
                         <!-- Quadro FOB (exibido apenas quando o frete for do tipo FOB) -->
                         ${temFob ? `
-                            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                            <div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                                 <div onclick="window._comercialOS.toggleSecao('fob', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
                                     <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important; color:#1e3a8a !important;">
                                         <i class="ph ph-steering-wheel" style="color:#2563eb;"></i> FOB (Retirada / Entrega pelo Cliente) <span style="color:#dc2626;">*</span>
@@ -1138,29 +1258,29 @@
                                     <div style="display:grid; grid-template-columns:1fr 1fr 1.3fr 1fr 1.4fr; gap:0.5rem 0.65rem;">
                                         <div>
                                             <label class="prop-lbl">Data da Entrega (FOB) <span style="color:#dc2626;">*</span></label>
-                                            <input type="date" id="cos-fob-data-entrega" value="${esc(d.fob_data_entrega || '')}"
+                                            <input type="date" id="cos-fob-data-entrega" value="${esc(d.fob_data_entrega || '')}" ${lockPorTipoAttr}
                                                 onchange="window._comercialOS.onChangeCampoDadosOs('fob_data_entrega', this.value)" style="width:100%;">
                                         </div>
                                         <div>
                                             <label class="prop-lbl">Data da Retirada (FOB) <span style="color:#dc2626;">*</span></label>
-                                            <input type="date" id="cos-fob-data-retirada" value="${esc(d.fob_data_retirada || '')}"
+                                            <input type="date" id="cos-fob-data-retirada" value="${esc(d.fob_data_retirada || '')}" ${lockPorTipoAttr}
                                                 onchange="window._comercialOS.onChangeCampoDadosOs('fob_data_retirada', this.value)" style="width:100%;">
                                         </div>
                                         <div>
                                             <label class="prop-lbl">Modelo do Veículo <span style="color:#dc2626;">*</span></label>
-                                            <input type="text" id="cos-fob-modelo-veiculo" value="${esc(d.fob_modelo_veiculo || '')}"
+                                            <input type="text" id="cos-fob-modelo-veiculo" value="${esc(d.fob_modelo_veiculo || '')}" ${lockPorTipoAttr}
                                                 placeholder="Modelo do veículo..."
                                                 oninput="window._comercialOS.onChangeCampoDadosOs('fob_modelo_veiculo', this.value)" style="width:100%;">
                                         </div>
                                         <div>
                                             <label class="prop-lbl">Placa do Veículo <span style="color:#dc2626;">*</span></label>
-                                            <input type="text" id="cos-fob-placa-veiculo" value="${esc(d.fob_placa_veiculo || '')}"
+                                            <input type="text" id="cos-fob-placa-veiculo" value="${esc(d.fob_placa_veiculo || '')}" ${lockPorTipoAttr}
                                                 placeholder="Ex: ABC-1D23"
                                                 oninput="window._comercialOS.onChangeCampoDadosOs('fob_placa_veiculo', this.value)" style="width:100%;">
                                         </div>
                                         <div>
                                             <label class="prop-lbl">Nome do Motorista <span style="color:#dc2626;">*</span></label>
-                                            <input type="text" id="cos-fob-nome-motorista" value="${esc(d.fob_nome_motorista || '')}"
+                                            <input type="text" id="cos-fob-nome-motorista" value="${esc(d.fob_nome_motorista || '')}" ${lockPorTipoAttr}
                                                 placeholder="Nome do motorista..."
                                                 oninput="window._comercialOS.onChangeCampoDadosOs('fob_nome_motorista', this.value)" style="width:100%;">
                                         </div>
@@ -1170,7 +1290,7 @@
                         ` : ''}
 
                         <!-- Seção: Produtos (Com associação e ícones da OS da Logística para Próprio Avulso e Pacote Obra; Quadro Serviços ocultado) -->
-                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem;">
+                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}">
                             <div onclick="window._comercialOS.toggleSecao('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
                                 <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important;">
                                     <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span style="color:#dc2626;">*</span>
@@ -1235,11 +1355,12 @@
                         </div>
 
                         <!-- Observações -->
-                        <div style="margin-bottom:0.25rem;">
+                        <div style="margin-bottom:0.25rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <label class="prop-lbl">Observações</label>
-                            <textarea id="cos-obs" rows="3" ${isNovo ? 'disabled' : ''} oninput="window._comercialOS.marcarEditado()"
+                            <textarea id="cos-obs" rows="3" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                oninput="window._comercialOS.onChangeCampoOsAvulsa('observacoes', this.value)"
                                 style="width:100%; resize:vertical;"
-                                placeholder="${isNovo ? 'Pesquise uma OS existente pelo Nº da OS, Nome do Cliente, Nº do Contrato ou Nº da Proposta (toda OS nasce de um contrato assinado).' : 'Informações adicionais sobre a OS...'}">${esc(v('observacoes'))}</textarea>
+                                placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos...' : 'Informações adicionais sobre a OS...'}">${esc(isNovo ? (d.observacoes_draft || '') : v('observacoes'))}</textarea>
                         </div>
                     </form>
                 </div>
@@ -1491,6 +1612,8 @@
                 state.dadosOs = snap.dadosOs ? JSON.parse(JSON.stringify(snap.dadosOs)) : (state.osAtual ? inicializarDadosOsComercial(state.osAtual) : null);
                 state.editadoNaoSalvo = Boolean(snap.editadoNaoSalvo);
                 state.statusNovoDraft = snap.statusNovoDraft || 'EM ELABORAÇÃO';
+                state.tipoOsDraft = snap.tipoOsDraft || '';
+                state.modalidadeDraft = snap.modalidadeDraft || 'Obra';
                 state.anexosAtuais = Array.isArray(snap.anexosAtuais) ? snap.anexosAtuais : [];
             } else {
                 this.resetarParaNovaAba();
@@ -1507,6 +1630,8 @@
                 dadosOs: state.dadosOs ? JSON.parse(JSON.stringify(state.dadosOs)) : null,
                 editadoNaoSalvo: Boolean(state.editadoNaoSalvo),
                 statusNovoDraft: state.statusNovoDraft || 'EM ELABORAÇÃO',
+                tipoOsDraft: state.tipoOsDraft || '',
+                modalidadeDraft: state.modalidadeDraft || 'Obra',
                 anexosAtuais: Array.isArray(state.anexosAtuais) ? JSON.parse(JSON.stringify(state.anexosAtuais)) : []
             };
         },
@@ -1524,6 +1649,8 @@
             state.dadosOs = null;
             state.editadoNaoSalvo = false;
             state.statusNovoDraft = 'EM ELABORAÇÃO';
+            state.tipoOsDraft = '';
+            state.modalidadeDraft = 'Obra';
             state.anexosAtuais = [];
         },
 
@@ -1552,6 +1679,8 @@
                 state.propostaIdAtiva = p.id;
                 state.osAtual = p;
                 state.dadosOs = inicializarDadosOsComercial(p);
+                state.tipoOsDraft = p.os_tipo_operacao || '';
+                state.modalidadeDraft = resolverModalidadeObraEventoOs(p, state.dadosOs);
                 state.editadoNaoSalvo = false;
                 state.anexosAtuais = [];
                 this.salvarSnapshotAba();
@@ -1628,6 +1757,114 @@
             state.secoesAbertas[chave] = novo;
             body.style.display = novo ? 'block' : 'none';
             if (caret) caret.style.transform = novo ? 'rotate(180deg)' : 'rotate(0deg)';
+        },
+
+        onClickCampoBloqueadoPorTipoOs(event) {
+            const tipoAtual = resolverTipoOsComercial(state.osAtual);
+            if (String(tipoAtual || '').trim()) return;
+            if (event) {
+                const tag = String(event.target?.tagName || '').toUpperCase();
+                if (tag === 'BUTTON' && event.target.title && event.target.title.includes('Pesquisar')) return;
+                if (event.target?.closest && event.target.closest('button[title*="Pesquisar"]')) return;
+            }
+            const selTipo = document.getElementById('cos-tipo');
+            if (selTipo) {
+                selTipo.focus();
+                selTipo.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.28)';
+                setTimeout(() => { if (selTipo) selTipo.style.boxShadow = ''; }, 1400);
+            }
+            if (typeof mostrarToastAviso === 'function') {
+                mostrarToastAviso('Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos.');
+            } else if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos.',
+                    showConfirmButton: false,
+                    timer: 2600
+                });
+            }
+        },
+
+        onChangeTipoOs(novoTipo) {
+            const val = String(novoTipo || '').trim();
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.os_tipo_operacao = val;
+            } else {
+                state.tipoOsDraft = val;
+                if (!state.dadosOs) {
+                    state.dadosOs = {
+                        modalidade_obra_evento: state.modalidadeDraft || 'Obra',
+                        data_entrega: '',
+                        hora_entrega: '08:00 às 18:00',
+                        entrega_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        data_retirada: '',
+                        hora_retirada: '08:00 às 18:00',
+                        retirada_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        qtd_manutencoes: '',
+                        horario_manutencao: 'Horário Comercial (08:00 às 18:00)',
+                        manutencao_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        dias_evento: [],
+                        fob_data_entrega: '',
+                        fob_data_retirada: '',
+                        fob_modelo_veiculo: '',
+                        fob_placa_veiculo: '',
+                        fob_nome_motorista: ''
+                    };
+                }
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            renderFormOS();
+        },
+
+        toggleMenuModalidadeOs(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (osVeioDeContrato(state.osAtual)) return;
+            const tipoAtual = resolverTipoOsComercial(state.osAtual);
+            if (!String(tipoAtual || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs(event);
+                return;
+            }
+            const menu = document.getElementById('cos-modalidade-custom-menu');
+            if (!menu) return;
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        },
+
+        selecionarModalidadeOs(modalidade, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            if (osVeioDeContrato(state.osAtual)) return;
+            const modNorm = normStr(modalidade) === 'evento' ? 'Evento' : 'Obra';
+            state.modalidadeDraft = modNorm;
+            if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.modalidade_obra_evento = modNorm;
+            if (state.osAtual) {
+                state.osAtual.tipo = modNorm === 'Evento' ? 'Proposta Evento' : 'Proposta Obra';
+            }
+            const menu = document.getElementById('cos-modalidade-custom-menu');
+            if (menu) menu.style.display = 'none';
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            renderFormOS();
+        },
+
+        onChangeCampoOsAvulsa(campo, valor) {
+            if (!state.dadosOs) state.dadosOs = {};
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual[campo] = valor;
+            } else {
+                state.dadosOs[`${campo}_draft`] = valor;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
         },
 
         onChangeCampoDadosOs(campo, valor) {
@@ -1715,7 +1952,9 @@
         },
 
         async filtrarDropdownAtendenteOs(termo = '', abrir = true) {
-            if (!(typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial())) return;
+            const veioDeContrato = osVeioDeContrato(state.osAtual);
+            const gestorPode = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+            if (veioDeContrato && !gestorPode) return;
             const drop = document.getElementById('cos-atendente-dropdown');
             const inp = document.getElementById('cos-atendente');
             if (!drop || !inp || inp.disabled) return;
@@ -1746,7 +1985,9 @@
                 event.preventDefault();
                 event.stopPropagation();
             }
-            if (!(typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial())) return;
+            const veioDeContrato = osVeioDeContrato(state.osAtual);
+            const gestorPode = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+            if (veioDeContrato && !gestorPode) return;
             const drop = document.getElementById('cos-atendente-dropdown');
             const inp = document.getElementById('cos-atendente');
             if (!drop || !inp || inp.disabled) return;
@@ -1763,7 +2004,12 @@
             const drop = document.getElementById('cos-atendente-dropdown');
             if (inp) inp.value = nome;
             if (drop) drop.style.display = 'none';
-            if (state.osAtual) state.osAtual.atendente = nome;
+            if (state.osAtual) {
+                state.osAtual.atendente = nome;
+            } else {
+                if (!state.dadosOs) state.dadosOs = {};
+                state.dadosOs.atendente_draft = nome;
+            }
             this.marcarEditado();
             this.salvarSnapshotAba();
         },
@@ -1791,7 +2037,8 @@
         marcarEditado() {
             state.editadoNaoSalvo = true;
             const btn = document.getElementById('btn-cos-salvar');
-            if (btn && state.osAtual && state.osAtual.id) {
+            const tipoPreenchido = Boolean(String(resolverTipoOsComercial(state.osAtual) || '').trim());
+            if (btn && tipoPreenchido) {
                 btn.disabled = false;
                 btn.style.background = '#16a34a';
                 btn.style.color = '#ffffff';
@@ -1847,21 +2094,68 @@
         },
 
         async salvarAlteracoesOS(silencioso = false) {
-            if (!state.osAtual || !state.osAtual.id) return false;
-            const podeEditarAtend = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+            const tipoOperacao = String(document.getElementById('cos-tipo')?.value || resolverTipoOsComercial(state.osAtual) || '').trim();
+            if (!tipoOperacao) {
+                if (!silencioso) Swal.fire('Tipo obrigatório', 'Selecione primeiro o Tipo * de OS.', 'warning');
+                return false;
+            }
+            const veioDeContrato = osVeioDeContrato(state.osAtual);
+            const gestorPodeEditarAtend = typeof window.usuarioLogadoPodeEditarAtendenteComercial === 'function' && window.usuarioLogadoPodeEditarAtendenteComercial();
+            const podeEditarAtend = !veioDeContrato || gestorPodeEditarAtend;
             const novoAtendVal = podeEditarAtend
-                ? String(document.getElementById('cos-atendente')?.value || state.osAtual.atendente || '').trim()
-                : (state.osAtual.atendente || '');
+                ? String(document.getElementById('cos-atendente')?.value || (state.osAtual && state.osAtual.atendente) || (state.dadosOs && state.dadosOs.atendente_draft) || '').trim()
+                : ((state.osAtual && state.osAtual.atendente) || '');
+
+            const modAtual = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+            if (!state.dadosOs) state.dadosOs = {};
+            state.dadosOs.modalidade_obra_evento = modAtual;
+
+            const clienteRawInput = String(document.getElementById('cos-cliente')?.value || (state.osAtual && state.osAtual.cliente_nome) || (state.dadosOs && state.dadosOs.cliente_nome_draft) || '').trim();
+            const clienteLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
+                ? window.limparPrefixoGrupoCliente(clienteRawInput)
+                : clienteRawInput.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+
             const payload = {
-                status_os: document.getElementById('cos-status-os')?.value || state.osAtual.status_os || 'EM ELABORAÇÃO',
-                os_tipo_operacao: resolverTipoOsComercial(state.osAtual),
-                os_criada_em: state.osAtual.os_criada_em || hojeIso(),
-                observacoes: document.getElementById('cos-obs')?.value ?? (state.osAtual.observacoes || ''),
+                status_os: document.getElementById('cos-status-os')?.value || (state.osAtual && state.osAtual.status_os) || state.statusNovoDraft || 'EM ELABORAÇÃO',
+                os_tipo_operacao: tipoOperacao,
+                os_criada_em: document.getElementById('cos-data-cadastro')?.value || (state.osAtual && state.osAtual.os_criada_em) || hojeIso(),
+                observacoes: document.getElementById('cos-obs')?.value ?? ((state.osAtual && state.osAtual.observacoes) || ''),
                 os_comercial_dados_json: JSON.stringify(state.dadosOs || {}),
-                atendente: novoAtendVal
+                atendente: novoAtendVal,
+                ...(!veioDeContrato ? {
+                    modalidade_obra_evento: modAtual,
+                    tipo: modAtual === 'Evento' ? 'Proposta Evento' : 'Proposta Obra',
+                    titulo_contrato: String(document.getElementById('cos-titulo-contrato')?.value || '').trim(),
+                    cliente_nome: clienteLimpo,
+                    contato_nome: String(document.getElementById('cos-contato')?.value || '').trim(),
+                    endereco_instalacao: String(document.getElementById('cos-endereco-instalacao')?.value || '').trim(),
+                    nome_evento: String(document.getElementById('cos-nome-evento')?.value || '').trim()
+                } : {})
             };
+
             try {
                 const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                if (!state.osAtual || !state.osAtual.id) {
+                    const rNovo = await fetch('/api/comercial/os-avulsa', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(tk ? { 'Authorization': 'Bearer ' + tk } : {})
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const resNovo = await rNovo.json();
+                    if (!rNovo.ok || !resNovo.success || !resNovo.id) {
+                        if (!silencioso) Swal.fire('Erro', (resNovo && resNovo.error) || 'Não foi possível criar a OS.', 'error');
+                        return false;
+                    }
+                    await this.carregarOsPorPropostaId(resNovo.id);
+                    if (!silencioso && typeof mostrarToastSucesso === 'function') {
+                        mostrarToastSucesso(`OS Nº ${resNovo.numero_os} criada com sucesso!`);
+                    }
+                    return true;
+                }
+
                 const r = await fetch(`/api/propostas/${state.osAtual.id}/os-comercial`, {
                     method: 'PATCH',
                     headers: {
@@ -1917,6 +2211,11 @@
         const menu = document.getElementById('cos-status-custom-menu');
         if (menu && menu.style.display === 'block' && wrap && !wrap.contains(e.target)) {
             menu.style.display = 'none';
+        }
+        const wrapMod = document.getElementById('cos-modalidade-custom-wrap');
+        const menuMod = document.getElementById('cos-modalidade-custom-menu');
+        if (menuMod && menuMod.style.display === 'block' && wrapMod && !wrapMod.contains(e.target)) {
+            menuMod.style.display = 'none';
         }
         const wrapAtend = document.getElementById('cos-atendente-combo-wrap');
         const dropAtend = document.getElementById('cos-atendente-dropdown');

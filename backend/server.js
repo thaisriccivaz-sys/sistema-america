@@ -43890,6 +43890,11 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const novoAtendente = (podeEditarAtendente && b.atendente !== undefined && String(b.atendente || '').trim())
         ? String(b.atendente).trim()
         : (prop.atendente || '');
+      const ehAvulsaSemCtr = !String(prop.contrato || '').trim() && !String(prop.codigo || '').trim();
+      const novoTipoModalidade = (ehAvulsaSemCtr && b.tipo !== undefined) ? String(b.tipo || prop.tipo || '').trim() : (prop.tipo || '');
+      const novoClienteNome = (ehAvulsaSemCtr && b.cliente_nome !== undefined) ? String(b.cliente_nome || '').trim() : (prop.cliente_nome || '');
+      const novoContatoNome = (ehAvulsaSemCtr && b.contato_nome !== undefined) ? String(b.contato_nome || '').trim() : (prop.contato_nome || '');
+      const novoNomeEvento = (ehAvulsaSemCtr && b.nome_evento !== undefined) ? String(b.nome_evento || '').trim() : (prop.nome_evento || '');
 
       db.run(
         `UPDATE propostas SET
@@ -43905,9 +43910,13 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
           datas_retirada_equipamentos = ?,
           os_comercial_dados_json = ?,
           atendente = ?,
+          tipo = ?,
+          cliente_nome = ?,
+          contato_nome = ?,
+          nome_evento = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, novoAtendente, agora, propId],
+        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, novoAtendente, novoTipoModalidade, novoClienteNome, novoContatoNome, novoNomeEvento, agora, propId],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (String(prop.status_os || 'EM ELABORAÇÃO') !== novoStatusOs) {
@@ -43936,6 +43945,59 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
     });
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao salvar OS.' });
+  }
+});
+
+// POST /api/comercial/os-avulsa - Cria uma nova OS do zero diretamente na tela Comercial -> OS (sem contrato prévio)
+app.post('/api/comercial/os-avulsa', authenticateToken, async (req, res) => {
+  try {
+    const ctxUser = await resolverContextoUsuarioComercial(req.user);
+    const autor = (ctxUser && ctxUser.nome_colaborador) || req.user?.nome || req.user?.username || 'Usuário';
+    const b = req.body || {};
+    const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const dataHojeIso = agora.substring(0, 10);
+
+    gerarCodigoOsComercial((novoNumOs) => {
+      const statusOs = String(b.status_os || 'EM ELABORAÇÃO').trim();
+      const tipoOpOs = String(b.os_tipo_operacao || 'Envio').trim();
+      const dataCriada = String(b.os_criada_em || dataHojeIso).trim();
+      const tipoModalidade = String(b.tipo || 'PACOTE OBRA').trim();
+      const titulo = String(b.titulo_contrato || '').trim();
+      const clienteNome = String(b.cliente_nome || '').trim();
+      const contatoNome = String(b.contato_nome || '').trim();
+      const enderecoInst = String(b.endereco_instalacao || '').trim();
+      const nomeEvento = String(b.nome_evento || '').trim();
+      const obs = String(b.observacoes || '');
+      const atendente = String(b.atendente || autor).trim();
+      const dadosJson = typeof b.os_comercial_dados_json === 'string'
+        ? b.os_comercial_dados_json
+        : JSON.stringify(b.os_comercial_dados_json || {});
+
+      db.run(
+        `INSERT INTO propostas (
+           codigo, contrato, tipo, atendente, data_cadastro, fase_negociacao, situacao_contrato,
+           titulo_contrato, cliente_nome, contato_nome, endereco_instalacao, nome_evento,
+           observacoes, numero_os, status_os, os_criada_em, os_tipo_operacao, os_comercial_dados_json,
+           criado_em, atualizado_em
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          '', '', tipoModalidade, atendente, dataCriada, 'OS Avulsa', 'OS AVULSA',
+          titulo, clienteNome, contatoNome, enderecoInst, nomeEvento,
+          obs, novoNumOs, statusOs, dataCriada, tipoOpOs, dadosJson,
+          agora, agora
+        ],
+        function(errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          const novoId = this.lastID;
+          db.get('SELECT * FROM propostas WHERE id = ?', [novoId], (errG, row) => {
+            if (errG) return res.status(500).json({ error: errG.message });
+            res.json({ success: true, id: novoId, numero_os: novoNumOs, proposta: row });
+          });
+        }
+      );
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao criar OS.' });
   }
 });
 
