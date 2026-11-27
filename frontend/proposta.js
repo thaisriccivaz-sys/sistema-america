@@ -549,7 +549,9 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
                 ctx.is_gestor_departamento = true;
             }
             if (Array.isArray(ctx.atendentes_comercial) && ctx.atendentes_comercial.length > 0) {
-                window._atendentesComercialCache = ctx.atendentes_comercial;
+                window._atendentesComercialCache = typeof window.normalizarListaAtendentesComercial === 'function'
+                    ? window.normalizarListaAtendentesComercial(ctx.atendentes_comercial)
+                    : ctx.atendentes_comercial;
             }
             window._contextoUsuarioComercial = ctx;
             if (typeof window.aplicarPermissaoDescontoPropostaDOM === 'function') {
@@ -577,21 +579,45 @@ window.carregarContextoUsuarioComercial = async function(force = false) {
     return window._contextoUsuarioComercial;
 };
 
+window.normalizarListaAtendentesComercial = function(listaRaw) {
+    const arr = Array.isArray(listaRaw) ? listaRaw : [];
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const map = new Map();
+    arr.forEach(item => {
+        if (!item) return;
+        let nome = String(item.nome || '').trim();
+        if (!nome) return;
+        const n = norm(nome);
+        if (n === 'teste' || /\bteste\b/.test(n)) return;
+        if (n.includes('thais') && n.includes('ricci')) nome = 'Thais Ricci';
+        const key = norm(nome);
+        if (!map.has(key)) {
+            map.set(key, { ...item, nome });
+        }
+    });
+    if (!map.has('thais ricci')) {
+        map.set('thais ricci', { nome: 'Thais Ricci', username: 'Thais.Ricci', email_corporativo: '', is_gestor: true, status: 'Ativo', desligado: false });
+    }
+    return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+};
+
 window.carregarAtendentesComercial = async function(force = false) {
     if (Array.isArray(window._atendentesComercialCache) && window._atendentesComercialCache.length > 0 && !force) {
+        window._atendentesComercialCache = window.normalizarListaAtendentesComercial(window._atendentesComercialCache);
         return window._atendentesComercialCache;
     }
     try {
         const lista = await apiGet('/comercial/atendentes');
         if (Array.isArray(lista)) {
-            window._atendentesComercialCache = lista;
+            window._atendentesComercialCache = window.normalizarListaAtendentesComercial(lista);
             if (typeof window.sincronizarExibicaoInputAtendenteDOM === 'function') {
                 window.sincronizarExibicaoInputAtendenteDOM();
             }
-            return lista;
+            return window._atendentesComercialCache;
         }
     } catch (_) {}
-    return window._atendentesComercialCache || [];
+    window._atendentesComercialCache = window.normalizarListaAtendentesComercial(window._atendentesComercialCache || []);
+    return window._atendentesComercialCache;
 };
 
 window.resolverObjetoAtendenteComercial = function(rawVal) {
@@ -618,8 +644,13 @@ window.resolverNomeExibicaoAtendenteComercial = function(rawVal, usarLogadoSeVaz
             || '';
     }
     if (!val) return '';
+    const vNorm = val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (vNorm.includes('thais') && vNorm.includes('ricci')) return 'Thais Ricci';
     const obj = window.resolverObjetoAtendenteComercial(val);
-    if (obj && obj.nome) return obj.nome;
+    if (obj && obj.nome) {
+        const oNorm = String(obj.nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return (oNorm.includes('thais') && oNorm.includes('ricci')) ? 'Thais Ricci' : obj.nome;
+    }
     if (val.includes('.')) {
         return window.formatarNomeColaboradorAssinatura(val);
     }
@@ -693,13 +724,11 @@ window.filtrarDropdownAtendentesComercial = async function(termo = '', abrir = t
             const nomeEsc = String(a.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const emailEsc = String(a.email_corporativo || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             return `<div onmousedown="event.preventDefault(); window.selecionarAtendenteComercial('${nomeEsc}', '${emailEsc}')"
-                style="padding:7px 10px; font-size:0.82rem; color:#1e293b; cursor:pointer; border-bottom:1px solid #f1f5f9; display:flex; flex-direction:column; gap:2px;"
+                style="padding:7px 10px; font-size:0.82rem; color:#1e293b; cursor:pointer; border-bottom:1px solid #f1f5f9;"
                 onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
-                <div style="font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                <div style="font-weight:700;">
                     <span>${_escHtmlProp(a.nome)}</span>
-                    ${a.is_gestor ? '<span style="font-size:0.65rem; background:#ede9fe; color:#6d28d9; padding:1px 6px; border-radius:999px; font-weight:800;">Gestor Comercial</span>' : ''}
                 </div>
-                ${a.email_corporativo ? `<div style="font-size:0.72rem; color:#64748b;">${_escHtmlProp(a.email_corporativo)}</div>` : ''}
             </div>`;
         }).join('');
     }
@@ -4833,8 +4862,8 @@ function _renderFormPropostaInt() {
             <div style="padding:1.5rem;">
                 <form id="form-proposta" data-modo-comercial="${window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta'}" data-tab-key="${typeof window._obterChaveSnapshotComercial === 'function' ? window._obterChaveSnapshotComercial(window._modoTelaComercial === 'contrato' ? 'contrato' : 'proposta') : ''}" data-editando-id="${id || ''}" autocomplete="off" onsubmit="return false;" oninput="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)" onchange="window._onEdicaoCampoFormProposta && window._onEdicaoCampoFormProposta(event)">
 
-                    <!-- Linha 1: Código, Tipo, Atendente -->
-                    <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 1: Código, Tipo, Atendente, Data Cadastro -->
+                    <div id="prop-linha-topo-grid" style="display:grid; grid-template-columns:1fr 1.8fr 1.4fr 1fr; gap:1rem; margin-bottom:1rem;">
                         <div>
                             <label class="prop-lbl">${window._modoTelaComercial === 'contrato' ? 'Nº do Contrato' : 'Código'}</label>
                             <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -4886,12 +4915,17 @@ function _renderFormPropostaInt() {
                                 <div id="prop-atendente-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1060; font-family:'Inter',sans-serif;"></div>
                             </div>
                         </div>
+                        <div onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
+                            <label class="prop-lbl">Data Cadastro *</label>
+                            <input type="date" id="prop-data-cadastro" value="${dataCadastroValorForm}" onchange="window.calcularPrevisaoFechamento()"
+                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;height:36px;">
+                        </div>
                     </div>
 
                     <div id="prop-campos-dependentes-tipo" onclick="if(typeof window.onClickCampoBloqueadoPorTipoProposta === 'function') window.onClickCampoBloqueadoPorTipoProposta(event);">
 
-                    <!-- Linha 2: Título + Interveniente (no Contrato), Data Cadastro, Validade da Proposta, Previsão Fechamento, Fase -->
-                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1.6fr 1fr 1.5fr' : '1fr 1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
+                    <!-- Linha 2: Título + Interveniente (no Contrato), Validade da Proposta, Previsão Fechamento, Fase -->
+                    <div style="display:grid; grid-template-columns:${window._modoTelaComercial === 'contrato' ? '1.8fr 1.5fr' : '1fr 1fr 1.5fr'}; gap:1rem; margin-bottom:1rem;">
                         <div id="prop-col-titulo-contrato" style="display:${window._modoTelaComercial === 'contrato' ? 'block' : 'none'};">
                             <label class="prop-lbl">Título *</label>
                             <div style="display:flex; gap:0.55rem; align-items:center;">
@@ -4905,11 +4939,6 @@ function _renderFormPropostaInt() {
                                     <span>Interveniente</span>
                                 </label>
                             </div>
-                        </div>
-                        <div>
-                            <label class="prop-lbl">Data Cadastro *</label>
-                            <input type="date" id="prop-data-cadastro" value="${dataCadastroValorForm}" onchange="window.calcularPrevisaoFechamento()"
-                                style="width:100%;padding:0.55rem;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
                         </div>
                         <div id="prop-col-validade" style="display:${window._modoTelaComercial === 'contrato' ? 'none' : 'block'};">
                             <label class="prop-lbl">Validade da Proposta</label>
@@ -24546,6 +24575,12 @@ window.atualizarBloqueioPorTipoProposta = function() {
         tipoEl.style.background = '';
     }
     const liberado = !ehContratoSemRegistro && Boolean(String(tipoEl.value || '').trim());
+    const dataCadastroEl = document.getElementById('prop-data-cadastro');
+    if (dataCadastroEl) {
+        dataCadastroEl.disabled = !liberado;
+        dataCadastroEl.style.pointerEvents = liberado ? '' : 'none';
+        dataCadastroEl.style.opacity = liberado ? '1' : '0.6';
+    }
     if (atendenteEl) {
         if (typeof window.aplicarBloqueioAtendentePropostaContratoDOM === 'function') {
             window.aplicarBloqueioAtendentePropostaContratoDOM();

@@ -204,6 +204,15 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
     }
 
+    function ultimoDiaUtilMes(ym) {
+        const [y, m] = String(ym).split('-').map(Number);
+        const d = new Date(Date.UTC(y, m, 0));
+        const dow = d.getUTCDay();
+        if (dow === 0) d.setUTCDate(d.getUTCDate() - 2);
+        else if (dow === 6) d.setUTCDate(d.getUTCDate() - 1);
+        return `${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+    }
+
     // Regra de corte da Academia (ciclo dia 27 ao dia 26):
     // - Saiu / Desligou até o dia 26 do mês M (dia <= 26): cobra o mês M (Ativo amarelo) e a partir de M + 1 fica Inativo (R$ 0,00).
     // - Saiu / Desligou a partir do dia 27 do mês M (dia >= 27): cobra o mês M e M + 1 (Ativo amarelo) e a partir de M + 2 fica Inativo (R$ 0,00).
@@ -667,6 +676,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
 
             const html = emailShell('Academia — Relação de Colaboradores', paragrafos(mensagem) + caixaResumo([
                 ['Mês de referência', mesLabel(mes)],
+                ['Mês de uso da academia', mesLabel(addMes(mes, 1))],
+                ['Data de pagamento', ultimoDiaUtilMes(mes)],
                 ['Colaboradores ativos', String(lista.qtd_ativos)],
                 ['Valor por colaborador', brl(lista.valor_unitario)],
                 ['Valor total', brl(lista.total)]
@@ -787,6 +798,8 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 || `Prezados,\n\nSegue em anexo a planilha da academia e a nota fiscal emitida pela academia referente a ${mesLabel(nota.mes_ref)}, solicitando o pagamento.\n\nValor total da planilha (${lista.qtd_ativos} colaborador(es) ativo(s)): ${brl(lista.total)}\nValor da Nota Fiscal${nota.nf_numero ? ' (NFS-e nº ' + nota.nf_numero + ')' : ''}: ${valNfTxt}\n\nAtenciosamente,\nRH — América Rental`;
             const linhas = [
                 ['Mês de referência', mesLabel(nota.mes_ref)],
+                ['Mês de uso da academia', mesLabel(addMes(nota.mes_ref, 1))],
+                ['Data de pagamento', ultimoDiaUtilMes(nota.mes_ref)],
                 ['Colaboradores ativos', String(lista.qtd_ativos)],
                 ['Valor total da planilha', brl(lista.total)],
                 ['Nota fiscal', nota.nf_numero ? `nº ${nota.nf_numero}` : (nota.nome_arquivo || '-')],

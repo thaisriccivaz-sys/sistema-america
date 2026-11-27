@@ -877,7 +877,7 @@
                 <div style="padding:1.25rem 1.5rem;">
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
                         <!-- Linha 1: Nº da OS, Tipo * (com ícone na frente, bloqueado — vem direto do contrato), Atendente (bloqueado) -->
-                        <div style="display:grid; grid-template-columns:1fr 2fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                        <div style="display:grid; grid-template-columns:1fr 1.8fr 1.4fr 1fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Nº da OS</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
@@ -929,19 +929,19 @@
                                     `;
                                 })()}
                             </div>
-                        </div>
-
-                        <!-- Linha 2: Título * (bloqueado), Data Cadastro * (bloqueado), Status da OS * (editável; nasce EM ELABORAÇÃO) -->
-                        <div style="display:grid; grid-template-columns:1.6fr 1fr 1.5fr; gap:1rem; margin-bottom:1rem;">
-                            <div>
-                                <label class="prop-lbl">Título *</label>
-                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" readonly disabled
-                                    placeholder="Título da OS / Contrato..." style="width:100%;">
-                            </div>
 
                             <div>
                                 <label class="prop-lbl">Data Cadastro *</label>
                                 <input type="date" id="cos-data-cadastro" value="${esc(dataCadastroOs)}" readonly disabled style="width:100%;">
+                            </div>
+                        </div>
+
+                        <!-- Linha 2: Título * (bloqueado), Status da OS * (editável; nasce EM ELABORAÇÃO) -->
+                        <div style="display:grid; grid-template-columns:1.8fr 1.5fr; gap:1rem; margin-bottom:1rem;">
+                            <div>
+                                <label class="prop-lbl">Título *</label>
+                                <input type="text" id="cos-titulo-contrato" value="${esc(v('titulo_contrato'))}" readonly disabled
+                                    placeholder="Título da OS / Contrato..." style="width:100%;">
                             </div>
 
                             <div>

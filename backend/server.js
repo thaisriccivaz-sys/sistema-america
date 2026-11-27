@@ -42816,8 +42816,15 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
 
     const qAll = (sql, params = []) => new Promise((res) => db.all(sql, params, (e, r) => res(Array.isArray(r) ? r : [])));
     const sqlColabs = incluirDesligados
-      ? "SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, data_desligamento FROM colaboradores"
-      : "SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, data_desligamento FROM colaboradores WHERE status IS NULL OR LOWER(TRIM(status)) != 'desligado'";
+      ? `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.status, c.data_desligamento,
+                COALESCE(NULLIF(TRIM(c.departamento), ''), ca.departamento) AS depto_efetivo
+         FROM colaboradores c
+         LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))`
+      : `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.status, c.data_desligamento,
+                COALESCE(NULLIF(TRIM(c.departamento), ''), ca.departamento) AS depto_efetivo
+         FROM colaboradores c
+         LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))
+         WHERE c.status IS NULL OR LOWER(TRIM(c.status)) != 'desligado'`;
 
     Promise.all([
       qAll(sqlColabs),
@@ -42833,8 +42840,13 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
 
       const mapPorNome = new Map();
       const adicionarPessoa = (colab, userFallback, isGestorFlag = false) => {
-        const nomeExibicao = String((colab && colab.nome_completo) || (userFallback && userFallback.nome) || '').trim();
+        let nomeExibicao = String((colab && colab.nome_completo) || (userFallback && userFallback.nome) || '').trim();
         if (!nomeExibicao) return;
+        const nCheck = normStr(nomeExibicao);
+        if (nCheck === 'teste' || /\bteste\b/.test(nCheck)) return;
+        if (nCheck.includes('thais') && nCheck.includes('ricci')) {
+          nomeExibicao = 'Thais Ricci';
+        }
         const chave = normStr(nomeExibicao);
         if (!chave) return;
 
@@ -42889,11 +42901,22 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
         });
       };
 
-      // 1) Colaboradores do departamento Comercial (ativos e, se solicitado, desligados)
+      // 1) Colaboradores do departamento Comercial (pelo departamento direto ou pelo cargo)
       colabs.forEach(c => {
-        if (normStr(c.departamento).includes('comercial')) {
+        const depEf = normStr(c.depto_efetivo || c.departamento || '');
+        if (depEf.includes('comercial')) {
           const ehGestor = (gestorColabId && Number(c.id) === gestorColabId) || (gestorNomeRef && matchNomeFlex(c.nome_completo, gestorNomeRef));
           adicionarPessoa(c, null, ehGestor);
+        }
+      });
+
+      // 1b) Usuários do departamento Comercial vinculados a colaborador
+      usuarios.forEach(u => {
+        if (Number(u.ativo) === 0 && !incluirDesligados) return;
+        if (normStr(u.departamento).includes('comercial')) {
+          const colabVinc = colabs.find(c => matchNomeFlex(c.nome_completo, u.nome) || matchNomeFlex(c.nome_completo, u.username)) || null;
+          const ehGestor = (colabVinc && gestorColabId && Number(colabVinc.id) === gestorColabId) || (gestorNomeRef && matchNomeFlex(u.nome || u.username, gestorNomeRef));
+          adicionarPessoa(colabVinc, u, ehGestor);
         }
       });
 
@@ -42910,6 +42933,11 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
           adicionarPessoa(colabGestor || { id: gestorColabId, nome_completo: (userGestor && userGestor.nome) || gestorNomeRef }, userGestor, true);
         }
       }
+
+      // 3) Garantir Thais Ricci na lista de atendentes
+      const colabThais = colabs.find(c => { const n = normStr(c.nome_completo); return n.includes('thais') && n.includes('ricci'); }) || null;
+      const userThais = usuarios.find(u => { const n = normStr(u.nome || u.username); return n.includes('thais') && n.includes('ricci'); }) || null;
+      adicionarPessoa(colabThais ? { ...colabThais, nome_completo: 'Thais Ricci', status: 'Ativo', data_desligamento: null } : { id: null, nome_completo: 'Thais Ricci', status: 'Ativo' }, userThais, true);
 
       // Ordenar: Ativos primeiro (em ordem alfabética), Desligados no final (em ordem alfabética)
       const listaFinal = Array.from(mapPorNome.values()).sort((a, b) => {
