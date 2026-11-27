@@ -462,8 +462,9 @@ const db = require('./database');
 global._sacTicketsVersion = 1;
 const _SAC_BOOT = Date.now().toString(36);
 (function () {
-    const _bump = (sql) => { try { if (typeof sql === 'string' && /sac_tickets/i.test(sql) && !/^\s*select/i.test(sql)) { global._sacTicketsVersion++; clearTimeout(global._sacWarmT); global._sacWarmT = setTimeout(() => { try { global._sacWarmFn && global._sacWarmFn(); } catch (e) { } }, 1500); } } catch (e) { } };
+    const _bump = (sql) => { try { if (typeof sql === 'string' && /sac_tickets/i.test(sql) && !/^\s*(select|create\s+index)/i.test(sql)) { global._sacTicketsVersion++; clearTimeout(global._sacWarmT); global._sacWarmT = setTimeout(() => { try { global._sacWarmFn && global._sacWarmFn(); } catch (e) { } }, 4000); } } catch (e) { } };
     const _origRun = db.run;
+    db._origRun = _origRun;
     db.run = function (sql, ...args) { _bump(sql); return _origRun.call(this, sql, ...args); };
     const _origExec = db.exec;
     db.exec = function (sql, ...args) { _bump(sql); return _origExec.call(this, sql, ...args); };
@@ -20065,14 +20066,16 @@ app.get('/api/usuarios', authenticateToken, (req, res) => {
             ORDER BY u.nome`, [], (err, usuarios) => {
         if (err) return res.status(500).json({ error: err.message });
         
-        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status, foto_base64, foto_path FROM colaboradores`, [], (errC, colabs) => {
+        db.all(`/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, status, foto_path,
+                CASE WHEN (foto_base64 IS NOT NULL AND LENGTH(foto_base64) > 50) OR (foto_path IS NOT NULL AND TRIM(foto_path) != '') THEN 1 ELSE 0 END AS tem_foto
+                FROM colaboradores`, [], (errC, colabs) => {
             if (errC) return res.json(usuarios);
             
             (usuarios || []).forEach(u => {
                 const c = global.matchUsuarioComColaborador ? global.matchUsuarioComColaborador(u, colabs) : null;
                 if (c) {
                     u.colaborador_id = c.id;
-                    u.foto_colaborador = c.foto_base64 || ('/api/colaboradores/foto/' + c.id);
+                    u.foto_colaborador = '/api/colaboradores/foto/' + c.id;
                 }
                 if (u.ativo !== 0 && global.usuarioEhDeColaboradorDesligado) {
                     const colabDesl = global.usuarioEhDeColaboradorDesligado(u, colabs);
@@ -25057,9 +25060,10 @@ app.get('/api/logistica/os/buscar', authenticateToken, (req, res) => {
                 }
             );
         } else {
+        const _n0 = _nums[0];
         db.all(
-            `SELECT * FROM os_logistica WHERE numero_os = ? AND status = 'ativo' ORDER BY criado_em DESC`,
-            [_nums[0]],
+            `SELECT * FROM os_logistica WHERE (TRIM(CAST(numero_os AS TEXT)) = ? OR (CAST(? AS INTEGER) > 0 AND CAST(TRIM(numero_os) AS INTEGER) = CAST(? AS INTEGER))) AND status = 'ativo' ORDER BY criado_em DESC`,
+            [_n0, _n0, _n0],
             (err, rows) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!rows || rows.length === 0) return res.status(404).json({ error: 'OS nao encontrada.' });
@@ -30356,7 +30360,8 @@ app.post('/api/comercial/credenciamento', authenticateToken, (req, res) => {
                         console.error("[SAC] Erro ao obter max_num para novo credenciamento:", errMax);
                         return; // não bloqueia o fluxo principal
                     }
-                    const nextNum  = (row ? row.max_num : 0) + 1;
+                    const nextNum  = Math.max(global._sacMaxProtocolNum || 0, row ? row.max_num : 0) + 1;
+                    global._sacMaxProtocolNum = nextNum;
                     const protocol = String(nextNum).padStart(4, '0');
                     const uuidv4 = require('crypto').randomUUID;
                     const ticketId = uuidv4();
@@ -56471,7 +56476,10 @@ app.post('/api/sac/upload-anexos', authenticateToken, sacUpload.array('anexos', 
 // ── SAC: fotos de usuario (data-URI) servidas por URL curta e cacheavel, em vez de embutidas no JSON da lista ──
 // Persistidas na tabela sac_photos (SQLite em /data) para que a URL nunca quebre apos restart/deploy.
 db.run("CREATE TABLE IF NOT EXISTS sac_photos (hash TEXT PRIMARY KEY, mime TEXT, data BLOB)");
+db.run("CREATE INDEX IF NOT EXISTS idx_sac_tickets_created_at ON sac_tickets(created_at DESC)");
+db.run("CREATE INDEX IF NOT EXISTS idx_sac_tickets_protocol ON sac_tickets(protocol)");
 global._sacPhotoMap = global._sacPhotoMap || {};
+global._sacMaxProtocolNum = global._sacMaxProtocolNum || 0;
 function _sacPhotoToUrl(dataUri) {
     try {
         const m = /^data:([\w\/+.-]+);base64,(.+)$/s.exec(dataUri);
@@ -56516,61 +56524,90 @@ function _sacBuildTicketsPayload(cb) {
     db.all("SELECT * FROM sac_tickets ORDER BY created_at DESC", [], (err, rows) => {
         if (err) return cb(err);
         let parsed;
+        let maxProto = global._sacMaxProtocolNum || 0;
+        const rowsToCleanInDb = [];
         try {
-            parsed = rows.map(r => ({
-            ...r,
-            timeline: JSON.parse(r.timeline||'[]'),
-            costCenters: JSON.parse(r.cost_centers||'[]'),
-            attachments: JSON.parse(r.attachments||'[]'),
-            checklist: JSON.parse(r.checklist||'[]'),
-            sacChecklist: JSON.parse(r.sac_checklist||'null'),
-            logisticsTask: JSON.parse(r.logistics_task||'null'),
-            commercialTask: JSON.parse(r.commercial_task||'null'),
-            financialTask: JSON.parse(r.financial_task||'null'),
-            occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : { ...o, name: (o && o.name && o.name !== 'undefined') ? o.name : '', note: (o && o.note && o.note !== 'undefined') ? o.note : '' }),
-            comments: JSON.parse(r.comments||'[]'),
-            tags: JSON.parse(r.tags||'[]'),
-            isUrgent: r.is_urgent === 1,
-            nextSteps: r.next_steps,
-            clientName: r.client_name,
-            cnpjCpf: r.cnpj_cpf,
-            osNumber: r.os_number,
-            contacts: (() => { try { const arr = JSON.parse(r.contacts || '[]'); return Array.isArray(arr) ? arr : []; } catch(e) { return []; } })(),
-            contactName: r.contact_name,
-            contactPhone: r.contact_phone,
-            contactEmail: r.contact_email,
-            typeKey: r.type_key,
-            openDate: r.created_at,
-            closeDate: r.close_date,
-            slaFrozenAt: r.sla_frozen_at,
-            slaElapsedMs: r.sla_elapsed_ms,
-            followUpDeadline: r.follow_up_deadline,
-            followUpNotified: r.follow_up_notified === 1,
-            followUpPendingJustification: r.follow_up_pending_justification === 1,
-            aguardDeadline: r.aguard_deadline,
-            aguardNotified: r.aguard_notified === 1,
-            aguardPendingJustification: r.aguard_pending_justification === 1,
-            slaOverdueNotified: r.sla_overdue_notified === 1,
-            slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
-            osDate: r.os_date || null,
-            openedByFromOS: r.opened_by_from_os || null,
-            conferido: r.conferido === 1,
-            conferidoPor: r.conferido_por || null,
-            conferidoAt: r.conferido_at || null,
-            gestorSetor: (() => { try { return (JSON.parse(r.logistics_task||'null')||{}).gestorSetor || (JSON.parse(r.commercial_task||'null')||{}).gestorSetor || (JSON.parse(r.financial_task||'null')||{}).gestorSetor; } catch(e){return null;} })()
-        }));
+            parsed = rows.map(r => {
+                const pNum = parseInt(String(r.protocol || '').replace(/\D/g, ''), 10);
+                if (!isNaN(pNum) && pNum > maxProto) maxProto = pNum;
+
+                const hadInlineDataUri =
+                    (r.logistics_task && r.logistics_task.includes('data:image')) ||
+                    (r.commercial_task && r.commercial_task.includes('data:image')) ||
+                    (r.financial_task && r.financial_task.includes('data:image')) ||
+                    (r.cost_centers && r.cost_centers.includes('data:image'));
+
+                const logTask = _sacStripDataUris(JSON.parse(r.logistics_task||'null'));
+                const comTask = _sacStripDataUris(JSON.parse(r.commercial_task||'null'));
+                const finTask = _sacStripDataUris(JSON.parse(r.financial_task||'null'));
+                const cCenters = _sacStripDataUris(JSON.parse(r.cost_centers||'[]'));
+
+                if (hadInlineDataUri) {
+                    rowsToCleanInDb.push({
+                        id: r.id,
+                        log: JSON.stringify(logTask),
+                        com: JSON.stringify(comTask),
+                        fin: JSON.stringify(finTask),
+                        cc: JSON.stringify(cCenters)
+                    });
+                }
+
+                return {
+                    ...r,
+                    timeline: JSON.parse(r.timeline||'[]'),
+                    costCenters: cCenters,
+                    attachments: JSON.parse(r.attachments||'[]'),
+                    checklist: JSON.parse(r.checklist||'[]'),
+                    sacChecklist: JSON.parse(r.sac_checklist||'null'),
+                    logisticsTask: logTask,
+                    commercialTask: comTask,
+                    financialTask: finTask,
+                    occurrences: (JSON.parse(r.occurrences||'[]')||[]).map(o => typeof o === 'string' ? { name: o, note: '', images: [] } : { ...o, name: (o && o.name && o.name !== 'undefined') ? o.name : '', note: (o && o.note && o.note !== 'undefined') ? o.note : '' }),
+                    comments: JSON.parse(r.comments||'[]'),
+                    tags: JSON.parse(r.tags||'[]'),
+                    isUrgent: r.is_urgent === 1,
+                    nextSteps: r.next_steps,
+                    clientName: r.client_name,
+                    cnpjCpf: r.cnpj_cpf,
+                    osNumber: r.os_number,
+                    contacts: (() => { try { const arr = JSON.parse(r.contacts || '[]'); return Array.isArray(arr) ? arr : []; } catch(e) { return []; } })(),
+                    contactName: r.contact_name,
+                    contactPhone: r.contact_phone,
+                    contactEmail: r.contact_email,
+                    typeKey: r.type_key,
+                    openDate: r.created_at,
+                    closeDate: r.close_date,
+                    slaFrozenAt: r.sla_frozen_at,
+                    slaElapsedMs: r.sla_elapsed_ms,
+                    followUpDeadline: r.follow_up_deadline,
+                    followUpNotified: r.follow_up_notified === 1,
+                    followUpPendingJustification: r.follow_up_pending_justification === 1,
+                    aguardDeadline: r.aguard_deadline,
+                    aguardNotified: r.aguard_notified === 1,
+                    aguardPendingJustification: r.aguard_pending_justification === 1,
+                    slaOverdueNotified: r.sla_overdue_notified === 1,
+                    slaOverduePendingJustification: r.sla_overdue_pending_justification === 1,
+                    osDate: r.os_date || null,
+                    openedByFromOS: r.opened_by_from_os || null,
+                    conferido: r.conferido === 1,
+                    conferidoPor: r.conferido_por || null,
+                    conferidoAt: r.conferido_at || null,
+                    gestorSetor: (logTask && logTask.gestorSetor) || (comTask && comTask.gestorSetor) || (finTask && finTask.gestorSetor) || null
+                };
+            });
         } catch (e) { return cb(e); }
-            // Remove colunas brutas (strings JSON) que duplicam os campos ja convertidos (camelCase)
-            parsed.forEach(p => { delete p.cost_centers; delete p.logistics_task; delete p.commercial_task; delete p.financial_task; delete p.sac_checklist; });
-            parsed.forEach(p => { _sacStripDataUris(p.logisticsTask); _sacStripDataUris(p.commercialTask); _sacStripDataUris(p.financialTask); _sacStripDataUris(p.costCenters); });
-        try {
-            const _sz = {};
-            rows.forEach(r => ['timeline','cost_centers','attachments','checklist','sac_checklist','logistics_task','commercial_task','financial_task','occurrences','comments','tags','description'].forEach(k => { _sz[k] = (_sz[k] || 0) + String(r[k] || '').length; }));
-            console.log('[SAC] tamanho por campo (MB): ' + Object.keys(_sz).map(k => k + '=' + (_sz[k] / 1048576).toFixed(2)).join(' | '));
-            { let _n = 0, _b = 0; const _keys = {}; rows.forEach(r => ['logistics_task','commercial_task','financial_task','cost_centers','timeline','comments'].forEach(k => { const v = String(r[k] || ''); const m = v.match(/"data:[^"]{200,}"/g); if (m) { _n += m.length; m.forEach(x => { _b += x.length; }); } const kk = v.match(/"(\w+)":"data:/g); if (kk) kk.forEach(x => { const nm = k + '.' + x.slice(1, x.indexOf('"', 1)); _keys[nm] = (_keys[nm] || 0) + 1; }); })); console.log('[SAC] data-URIs: ' + _n + ' ocorrencias, ' + (_b / 1048576).toFixed(2) + ' MB | ' + JSON.stringify(_keys)); }
-            const _top = rows.map(r => ({ id: r.id, p: r.protocol, mb: (JSON.stringify(r).length / 1048576) })).sort((x, y) => y.mb - x.mb).slice(0, 5);
-            console.log('[SAC] maiores chamados: ' + _top.map(x => x.p + '=' + x.mb.toFixed(2) + 'MB').join(', '));
-        } catch (_e) { }
+        global._sacMaxProtocolNum = maxProto;
+        // Remove colunas brutas (strings JSON) que duplicam os campos ja convertidos (camelCase)
+        parsed.forEach(p => { delete p.cost_centers; delete p.logistics_task; delete p.commercial_task; delete p.financial_task; delete p.sac_checklist; });
+        // Persiste no banco (1 única vez) os JSONs já limpos sem data:image para reduzir drasticamente o tamanho da tabela sac_tickets
+        if (rowsToCleanInDb.length > 0) {
+            const rawRun = db._origRun || db.run;
+            rowsToCleanInDb.forEach(item => {
+                rawRun.call(db, "UPDATE sac_tickets SET logistics_task = ?, commercial_task = ?, financial_task = ?, cost_centers = ? WHERE id = ?",
+                    [item.log, item.com, item.fin, item.cc, item.id], () => {});
+            });
+            console.log(`[SAC] Persistida limpeza de data-URI em ${rowsToCleanInDb.length} chamado(s) no SQLite.`);
+        }
         const _json = JSON.stringify(parsed);
         console.log('[SAC] payload tickets: ' + parsed.length + ' chamados, ' + (_json.length / 1048576).toFixed(2) + ' MB');
         require('zlib').gzip(Buffer.from(_json), (zErr, gz) => {
@@ -56769,19 +56806,16 @@ app.delete('/api/sac/ocorrencias/:id', authenticateToken, (req, res) => {
 
 app.post('/api/sac/tickets', authenticateToken, (req, res) => {
     const t = req.body;
+    _sacStripDataUris(t.logisticsTask);
+    _sacStripDataUris(t.commercialTask);
+    _sacStripDataUris(t.financialTask);
+    _sacStripDataUris(t.costCenters);
 
-    // Geração atômica do protocolo no backend para evitar race condition
-    // db.serialize garante que o SELECT e o INSERT ocorrem sequencialmente
-    db.serialize(() => {
-        db.get(
-            `SELECT COALESCE(MAX(CAST(REPLACE(protocol, ' ', '') AS INTEGER)), 0) AS max_num FROM sac_tickets WHERE CAST(REPLACE(protocol, ' ', '') AS INTEGER) > 0`,
-            [],
-            (errMax, row) => {
-                if (errMax) return res.status(500).json({ error: errMax.message });
-                const nextNum  = (row ? row.max_num : 0) + 1;
-                const protocol = String(nextNum).padStart(4, '0');
+    const _insertTicketWithProto = (nextNum) => {
+        global._sacMaxProtocolNum = Math.max(global._sacMaxProtocolNum || 0, nextNum);
+        const protocol = String(nextNum).padStart(4, '0');
 
-    db.run(`INSERT INTO sac_tickets (
+        db.run(`INSERT INTO sac_tickets (
         id, protocol, os_number, client_name, cnpj_cpf, equipment, address,
         contact_name, contact_phone, contact_email, channel, type_key, is_urgent, occurrences,
         description, stage, next_steps, timeline, cost_centers, attachments, checklist,
@@ -56858,9 +56892,21 @@ app.post('/api/sac/tickets', authenticateToken, (req, res) => {
             }
         });
     }); // fim db.run INSERT
-            } // fim callback db.get MAX
-        ); // fim db.get
-    }); // fim db.serialize
+    };
+
+    if (global._sacMaxProtocolNum > 0) {
+        _insertTicketWithProto(global._sacMaxProtocolNum + 1);
+    } else {
+        db.get(
+            `SELECT COALESCE(MAX(CAST(REPLACE(protocol, ' ', '') AS INTEGER)), 0) AS max_num FROM sac_tickets`,
+            [],
+            (errMax, row) => {
+                if (errMax) return res.status(500).json({ error: errMax.message });
+                const nextNum = Math.max(global._sacMaxProtocolNum || 0, row ? row.max_num : 0) + 1;
+                _insertTicketWithProto(nextNum);
+            }
+        );
+    }
 }); // fim app.post /api/sac/tickets
 
 
@@ -56888,6 +56934,10 @@ app.patch('/api/sac/tickets/:id/conferido', authenticateToken, (req, res) => {
 
 app.put('/api/sac/tickets/:id', authenticateToken, (req, res) => {
     const t = req.body;
+    _sacStripDataUris(t.logisticsTask);
+    _sacStripDataUris(t.commercialTask);
+    _sacStripDataUris(t.financialTask);
+    _sacStripDataUris(t.costCenters);
     const firstContact = (Array.isArray(t.contacts) && t.contacts.length > 0) ? t.contacts[0] : null;
     const contactNameVal = (t.contactName !== undefined ? t.contactName : (firstContact ? firstContact.name : '')) || '';
     const contactPhoneVal = (t.contactPhone !== undefined ? t.contactPhone : (firstContact ? firstContact.phone : '')) || '';
@@ -56933,6 +56983,7 @@ app.patch('/api/sac/tickets/:id/auto', authenticateToken, (req, res) => {
         is_urgent = ?,
         follow_up_notified = MAX(COALESCE(follow_up_notified, 0), ?),
         follow_up_pending_justification = ?,
+        follow_up_deadline = CASE WHEN ? = 1 AND stage != 'execucao' THEN NULL ELSE follow_up_deadline END,
         aguard_notified = MAX(COALESCE(aguard_notified, 0), ?),
         aguard_pending_justification = ?,
         aguard_deadline = CASE WHEN ? = 1 AND stage NOT IN ('aguardando_setores','respondido') THEN NULL ELSE aguard_deadline END,
@@ -56945,6 +56996,7 @@ app.patch('/api/sac/tickets/:id/auto', authenticateToken, (req, res) => {
         t.isUrgent ? 1 : 0,
         t.followUpNotified ? 1 : 0,
         t.followUpPendingJustification ? 1 : 0,
+        t.followUpDeadline ? 0 : 1,
         t.aguardNotified ? 1 : 0,
         t.aguardPendingJustification ? 1 : 0,
         t.aguardDeadline ? 0 : 1,
@@ -57343,7 +57395,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
     // de departamento (campo vazio/desatualizado) também apareçam corretamente.
     // ──────────────────────────────────────────────────────────────────────────
     const query = `
-        SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.status, c.foto_base64, c.foto_path,
+        SELECT c.id, c.nome_completo, c.cargo, c.departamento, c.status, c.foto_path,
                COALESCE(ca.departamento, c.departamento) AS dept_efetivo,
                u.username
         FROM colaboradores c
@@ -57400,7 +57452,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                             departamento: c.dept_efetivo || c.departamento,
                             status: c.status,
                             username: c.username,
-                            foto_colaborador: c.foto_base64 || ('/api/colaboradores/foto/' + c.id)
+                            foto_colaborador: '/api/colaboradores/foto/' + c.id
                         };
                     }
                     // 2. Tenta casar pelo nome normalizado
@@ -57432,7 +57484,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                         departamento: c.dept_efetivo || c.departamento,
                         status: c.status,
                         username: resolvedUser ? resolvedUser.username : null,
-                        foto_colaborador: c.foto_base64 || ('/api/colaboradores/foto/' + c.id)
+                        foto_colaborador: '/api/colaboradores/foto/' + c.id
                     };
                 });
 
@@ -57475,7 +57527,7 @@ app.get('/api/sac/colaboradores-por-setor', authenticateToken, (req, res) => {
                             status: gestorColab ? gestorColab.status : 'Ativo',
                             username: gestorUser ? gestorUser.username : null,
                             foto_colaborador: gestorColab
-                                ? (gestorColab.foto_base64 || ('/api/colaboradores/foto/' + gestorColab.id))
+                                ? ('/api/colaboradores/foto/' + gestorColab.id)
                                 : null
                         };
                         result.unshift(gestorEntry);

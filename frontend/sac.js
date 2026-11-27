@@ -649,8 +649,8 @@
   }
 
   function showToast(msg, type='success') {
-    const colors = { success:'#15803d', warning:'#c2410c', info:'#1d4ed8' };
-    const bg     = { success:'#dcfce7', warning:'#fff7ed', info:'#dbeafe' };
+    const colors = { success:'#15803d', warning:'#c2410c', info:'#1d4ed8', error:'#dc2626' };
+    const bg     = { success:'#dcfce7', warning:'#fff7ed', info:'#dbeafe', error:'#fee2e2' };
     let el = document.getElementById('sac-toast');
     if (!el) {
       el = document.createElement('div');
@@ -3421,24 +3421,33 @@
           openedByFromOS: _wiz._openedBy || ''  // usuário que criou a OS
         };
 
+        window._sacLastSaveMs = Date.now();
         const _createCtrl    = new AbortController();
-        const _createTimeout = setTimeout(() => _createCtrl.abort(), 20000); // 20s timeout
-        const res = await fetch('/api/sac/tickets', {
-          method: 'POST',
-          signal: _createCtrl.signal,
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(newTicket)
-        });
-        clearTimeout(_createTimeout);
-        if (!res.ok) throw new Error('Erro ao salvar chamado no servidor');
+        const _createTimeout = setTimeout(() => _createCtrl.abort(), 60000); // 60s timeout
+        let res;
+        try {
+          res = await fetch('/api/sac/tickets', {
+            method: 'POST',
+            signal: _createCtrl.signal,
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('erp_token')||localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(newTicket)
+          });
+        } finally {
+          clearTimeout(_createTimeout);
+        }
+        if (!res.ok) {
+          const errObj = await res.json().catch(() => ({}));
+          throw new Error(errObj.error || 'Erro ao salvar chamado no servidor');
+        }
 
         // O protocolo é gerado pelo backend para evitar conflitos
         const savedData = await res.json();
         const proto = savedData.protocol || String(_tickets.length + 1).padStart(4,'0');
         newTicket.protocol = proto;
+        window._sacLastSaveMs = Date.now();
 
         fetch('/api/sac/notificar-novo-chamado', {
             method: 'POST',
@@ -3452,7 +3461,7 @@
         renderAll();
       } catch (err) {
         console.error(err);
-        showToast('Erro ao criar chamado. Tente novamente.', 'error');
+        showToast(err && err.name === 'AbortError' ? 'Tempo limite esgotado ao criar chamado. Tente novamente.' : (err?.message || 'Erro ao criar chamado. Tente novamente.'), 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-check-circle"></i> Criar Chamado'; }
       }
     },
@@ -4969,6 +4978,7 @@
           isUrgent: t.isUrgent || false,
           followUpNotified: t.followUpNotified || false,
           followUpPendingJustification: t.followUpPendingJustification || false,
+          followUpDeadline: t.followUpDeadline || null,
           aguardNotified: t.aguardNotified || false,
           aguardPendingJustification: t.aguardPendingJustification || false,
           aguardDeadline: t.aguardDeadline || null,
