@@ -442,27 +442,20 @@
         const ehObra = modResolvida === 'Obra';
         const ehEvento = modResolvida === 'Evento';
 
-        // Quando a OS é criada a partir de um contrato, Data de Entrega e Data de Retirada devem iniciar em branco
-        // Regra solicitada:
-        // - Quando for um contrato do tipo OBRA: selecionar automaticamente o Horário Comercial (entrega, retirada e manutenção).
-        // - Quando for outro tipo de contrato: o checkbox do horário comercial NÃO deve estar pré-selecionado.
-        // - Quando for EVENTO: não tem a opção de horário comercial.
-        const horarioComercialPadrao = ehObra ? true : false;
-
         return {
             modalidade_os: modResolvida,
             modalidade_obra_evento: modResolvida,
             data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : '',
-            hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : (ehObra ? '08:00 às 18:00' : (String(prop.hora_inicio || '').trim() || '')),
-            entrega_horario_comercial: ehEvento ? false : (salvo.entrega_horario_comercial !== undefined ? Boolean(salvo.entrega_horario_comercial) : horarioComercialPadrao),
+            hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : '',
+            entrega_horario_comercial: ehEvento ? false : Boolean(salvo.entrega_horario_comercial),
 
             data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : '',
-            hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : (ehObra ? '08:00 às 18:00' : (String(prop.hora_fim || '').trim() || '')),
-            retirada_horario_comercial: ehEvento ? false : (salvo.retirada_horario_comercial !== undefined ? Boolean(salvo.retirada_horario_comercial) : horarioComercialPadrao),
+            hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : '',
+            retirada_horario_comercial: ehEvento ? false : Boolean(salvo.retirada_horario_comercial),
 
             qtd_manutencoes: salvo.qtd_manutencoes || extrairQuantidadeManutencoesProposta(prop),
-            horario_manutencao: salvo.horario_manutencao || (ehObra ? 'Horário Comercial (08:00 às 18:00)' : ''),
-            manutencao_horario_comercial: ehObra ? true : Boolean(salvo.manutencao_horario_comercial),
+            horario_manutencao: salvo.horario_manutencao !== undefined ? salvo.horario_manutencao : '',
+            manutencao_horario_comercial: ehEvento ? false : Boolean(salvo.manutencao_horario_comercial),
             dias_semana_manutencao: Array.isArray(salvo.dias_semana_manutencao) ? salvo.dias_semana_manutencao : [],
 
             dias_evento: Array.isArray(salvo.dias_evento) && salvo.dias_evento.length > 0
@@ -968,14 +961,14 @@
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
                         <!-- Linha 1: Obra / Evento (ao lado esquerdo do Nº da OS), Nº da OS, Tipo *, Atendente, Data Cadastro * -->
                         <div style="display:grid; grid-template-columns:0.95fr 1fr 1.6fr 1.3fr 0.95fr; gap:1rem; margin-bottom:1rem;">
-                            <div onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
+                            <div>
                                 <label class="prop-lbl">Obra / Evento</label>
                                 <div id="cos-modalidade-custom-wrap" style="position:relative; width:100%;">
                                     <button type="button" id="cos-modalidade-custom-btn"
-                                        ${(veioDeContrato || !tipoOsPreenchido) ? 'disabled' : ''}
+                                        ${veioDeContrato ? 'disabled' : ''}
                                         onclick="window._comercialOS.toggleMenuModalidadeOs(event)"
-                                        title="${veioDeContrato ? 'A modalidade (Obra / Evento) vem automaticamente do Contrato vinculado e não pode ser alterada.' : (!tipoOsPreenchido ? lockPorTipoTitle : 'Selecionar Obra ou Evento')}"
-                                        style="width:100% !important; display:flex !important; justify-content:space-between !important; align-items:center !important; padding:0 8px !important; border:1px solid #cbd5e1; background:${(veioDeContrato || !tipoOsPreenchido) ? '#f8fafc' : '#fff'}; cursor:${(veioDeContrato || !tipoOsPreenchido) ? 'not-allowed' : 'pointer'}; ${lockPorTipoStyle}">
+                                        title="${veioDeContrato ? 'A modalidade (Obra / Evento) vem automaticamente do Contrato vinculado e não pode ser alterada.' : 'Selecionar Obra ou Evento'}"
+                                        style="width:100% !important; display:flex !important; justify-content:space-between !important; align-items:center !important; padding:0 8px !important; border:1px solid #cbd5e1; background:${veioDeContrato ? '#f8fafc' : '#fff'}; cursor:${veioDeContrato ? 'not-allowed' : 'pointer'};">
                                         <span id="cos-modalidade-custom-badge" style="display:inline-flex; align-items:center; gap:6px;">
                                             ${window.renderBadgeModalidadeObraEventoOsHtml(modalidadeAtual)}
                                         </span>
@@ -1241,9 +1234,12 @@
                                         </div>
                                         <!-- Dias da Semana (ao lado direito do Horário comercial da Manutenção, padrão OS da Logística) -->
                                         <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; padding-left:4px; border-left:1px solid #cbd5e1;">
-                                            <span title="Dias da semana da manutenção" style="background:#f59e0b; color:#fff; width:26px; height:26px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                            <button type="button" id="cos-btn-agenda-endereco" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                onclick="window._comercialOS.buscarAgendaEnderecoOs(event)"
+                                                title="Verificar manutenções programadas para esta região (Dias da semana da manutenção)"
+                                                style="background:#f59e0b !important; border:none !important; color:#fff !important; width:26px !important; height:26px !important; border-radius:4px !important; padding:0 !important; flex-shrink:0; display:inline-flex !important; align-items:center !important; justify-content:center !important; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'} !important;">
                                                 <i class="ph ph-calendar-check" style="font-size:1rem;"></i>
-                                            </span>
+                                            </button>
                                             ${[
                                                 { d: 'Seg', id: 'cos-chk-manut-seg', c: '#ef4444' },
                                                 { d: 'Ter', id: 'cos-chk-manut-ter', c: '#f97316' },
@@ -1254,13 +1250,14 @@
                                                 { d: 'Dom', id: 'cos-chk-manut-dom', c: '#ec4899' }
                                             ].map(item => {
                                                 const marcado = Array.isArray(d.dias_semana_manutencao) && d.dias_semana_manutencao.some(x => normStr(x) === normStr(item.d));
-                                                return `<label id="lbl-${item.id}" data-cor="${item.c}" style="display:inline-flex !important; align-items:center !important; gap:3px !important; height:26px !important; padding:0 7px !important; margin-bottom:0 !important; font-size:0.72rem !important; font-weight:700 !important; border-radius:4px !important; border:1.5px solid ${item.c} !important; background:${marcado ? item.c : '#fff'} !important; color:${marcado ? '#fff' : item.c} !important; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'} !important; user-select:none !important; box-sizing:border-box !important;">
+                                                return `<label id="lbl-${item.id}" data-cor="${item.c}" onclick="event.stopPropagation()" style="display:inline-flex !important; align-items:center !important; gap:3px !important; height:26px !important; padding:0 7px !important; margin-bottom:0 !important; font-size:0.72rem !important; font-weight:700 !important; border-radius:4px !important; border:1.5px solid ${item.c} !important; background:${marcado ? item.c : '#fff'} !important; color:${marcado ? '#fff' : item.c} !important; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'} !important; user-select:none !important; box-sizing:border-box !important;">
                                                     <input type="checkbox" id="${item.id}" ${marcado ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
                                                         onchange="window._comercialOS.toggleDiaSemanaManutencao('${item.d}', this.checked, this.closest('label'))"
                                                         style="margin:0 !important; width:13px !important; height:13px !important; accent-color:${item.c}; cursor:pointer;">
                                                     <span>${item.d}</span>
                                                 </label>`;
                                             }).join('')}
+                                            <div id="cos-sugestoes-dias-container" style="flex-basis:100%; font-size:0.73rem; padding:2px 4px; display:none;"></div>
                                         </div>
                                     </div>
                                 ` : ''}
@@ -1886,16 +1883,18 @@
                 state.tipoOsDraft = val;
                 if (!state.dadosOs) {
                     state.dadosOs = {
+                        modalidade_os: state.modalidadeDraft || 'Obra',
                         modalidade_obra_evento: state.modalidadeDraft || 'Obra',
                         data_entrega: '',
-                        hora_entrega: '08:00 às 18:00',
-                        entrega_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        hora_entrega: '',
+                        entrega_horario_comercial: false,
                         data_retirada: '',
-                        hora_retirada: '08:00 às 18:00',
-                        retirada_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        hora_retirada: '',
+                        retirada_horario_comercial: false,
                         qtd_manutencoes: '',
-                        horario_manutencao: 'Horário Comercial (08:00 às 18:00)',
-                        manutencao_horario_comercial: (state.modalidadeDraft !== 'Evento'),
+                        horario_manutencao: '',
+                        manutencao_horario_comercial: false,
+                        dias_semana_manutencao: [],
                         dias_evento: [],
                         fob_data_entrega: '',
                         fob_data_retirada: '',
@@ -1916,11 +1915,6 @@
                 event.stopPropagation();
             }
             if (osVeioDeContrato(state.osAtual)) return;
-            const tipoAtual = resolverTipoOsComercial(state.osAtual);
-            if (!String(tipoAtual || '').trim()) {
-                this.onClickCampoBloqueadoPorTipoOs(event);
-                return;
-            }
             const menu = document.getElementById('cos-modalidade-custom-menu');
             if (!menu) return;
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -1960,6 +1954,84 @@
             }
             this.marcarEditado();
             this.salvarSnapshotAba();
+        },
+
+        async buscarAgendaEnderecoOs(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const listaEnds = this.obterListaEnderecosOs();
+            const endereco = String(listaEnds[0] || '').trim();
+            if (!endereco) {
+                if (typeof mostrarToastAviso === 'function') {
+                    mostrarToastAviso('Preencha o campo de Instalação antes de verificar os dias da semana da manutenção.');
+                } else {
+                    Swal.fire('Atenção', 'Preencha o campo de Instalação antes de verificar os dias da semana da manutenção.', 'warning');
+                }
+                return;
+            }
+            const btn = document.getElementById('cos-btn-agenda-endereco');
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '<i class="ph ph-spinner ph-spin" style="font-size:1rem;"></i>';
+            try {
+                const params = new URLSearchParams({ endereco });
+                const cliNome = this._obterNomeClienteAtualOs();
+                if ((!Array.isArray(this._enderecosCacheAtualOs) || !this._enderecosCacheAtualOs.length) && cliNome && typeof window._obterDadosEnderecosClienteProposta === 'function') {
+                    const resEnds = await window._obterDadosEnderecosClienteProposta(cliNome).catch(() => ({ enderecosDoCliente: [] }));
+                    this._enderecosCacheAtualOs = Array.isArray(resEnds?.enderecosDoCliente) ? resEnds.enderecosDoCliente : [];
+                }
+                const matchEnd = (this._enderecosCacheAtualOs || []).find(e =>
+                    normStr(e.texto_completo) === normStr(endereco) ||
+                    (e.endereco && normStr(endereco).includes(normStr(e.endereco)))
+                );
+                if (matchEnd && matchEnd.coordenadas) {
+                    const mCoord = String(matchEnd.coordenadas).match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);
+                    if (mCoord) {
+                        params.set('lat', mCoord[1].replace(',', '.'));
+                        params.set('lng', mCoord[2].replace(',', '.'));
+                    }
+                }
+                const tk = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('token') || '';
+                const resp = await fetch(`/api/logistica/os/agenda-endereco?${params.toString()}`, {
+                    headers: tk ? { 'Authorization': 'Bearer ' + tk } : {}
+                });
+                const data = await resp.json();
+                if (typeof window.exibirModalAgendaEndereco === 'function') {
+                    window.exibirModalAgendaEndereco(data, endereco);
+                } else {
+                    const exatos = Array.isArray(data.exatos) ? data.exatos : [];
+                    const prox = Array.isArray(data.proximos) ? data.proximos : [];
+                    const resumoLinhas = [...exatos, ...prox].slice(0, 12).map(o =>
+                        `<li style="margin-bottom:4px;"><b>OS ${esc(o.numero_os || '—')}</b> — ${esc(o.cliente || '')} (${esc((Array.isArray(o.dias_semana) ? o.dias_semana : []).join(', ') || o.dias_semana || '—')})</li>`
+                    ).join('');
+                    Swal.fire({
+                        title: 'Dias da Semana na Região',
+                        html: `<div style="text-align:left; font-size:0.84rem;">${resumoLinhas ? `<ul style="padding-left:18px;">${resumoLinhas}</ul>` : 'Nenhuma OS próxima encontrada nesta região.'}</div>`,
+                        width: '620px'
+                    });
+                }
+                const contSug = document.getElementById('cos-sugestoes-dias-container');
+                if (contSug) {
+                    if (data.dias_sugeridos_2km && data.dias_sugeridos_2km.length > 0) {
+                        contSug.style.display = 'block';
+                        contSug.innerHTML = `<span style="color:#1d4ed8; font-weight:700;"><i class="ph ph-check-circle"></i> Sugeridos (≤1km): <b>${esc(data.dias_sugeridos_2km.map(x => x.dia).join(', '))}</b></span>`;
+                    } else if (data.dias_sugeridos_5km && data.dias_sugeridos_5km.length > 0) {
+                        contSug.style.display = 'block';
+                        contSug.innerHTML = `<span style="color:#b45309; font-weight:700;"><i class="ph ph-warning"></i> Sugeridos (1-3km): <b>${esc(data.dias_sugeridos_5km.map(x => x.dia).join(', '))}</b></span>`;
+                    } else {
+                        contSug.style.display = 'none';
+                        contSug.innerHTML = '';
+                    }
+                }
+            } catch (e) {
+                console.error('[COMERCIAL_OS Agenda Endereço]', e);
+                if (typeof mostrarToastAviso === 'function') {
+                    mostrarToastAviso('Erro ao buscar agenda da região. Tente novamente.');
+                }
+            } finally {
+                if (btn) btn.innerHTML = origHtml;
+            }
         },
 
         _obterNomeClienteAtualOs() {

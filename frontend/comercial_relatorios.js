@@ -1,62 +1,100 @@
 /**
  * ============================================================================
  * MÓDULO: COMERCIAL → RELATÓRIOS
- * Telas de relatórios com filtros em tempo real e exportação para Excel (.xlsx):
- *   - Clientes Cadastrados (comercial-rel-clientes)
- *   - Endereços Cadastrados (comercial-rel-enderecos)
- *   - Propostas (comercial-rel-propostas)
- *   - Contratos (comercial-rel-contratos)
- *   - OS (comercial-rel-os)
+ * Telas de relatórios otimizadas com filtros em tempo real e exportação Excel:
+ *   - Relação de Clientes   (comercial-rel-clientes)
+ *   - Relação de Endereços  (comercial-rel-enderecos)
+ *   - Relação de Propostas  (comercial-rel-propostas)
+ *   - Relação de Contratos  (comercial-rel-contratos)
+ *   - Relação de OS         (comercial-rel-os)
  * ============================================================================
  */
 (function () {
     'use strict';
 
+    const FASES_NEGOCIACAO_TODAS = [
+        'Em Elaboração',
+        'Proposta Enviada',
+        'Pré aprovada',
+        'ENVIADO PARA ASSINATURA',
+        'PROPOSTA ASSINADA',
+        'Aprovada',
+        'Reprovada',
+        'Sem Resposta',
+        'Em Negociação',
+        'Cancelada'
+    ];
+
+    const SITUACOES_CONTRATO_TODAS = [
+        'EM ELABORAÇÃO',
+        'ENVIADO PARA ASSINATURA',
+        'CONTRATO ASSINADO',
+        'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',
+        'ENTREGUE - LIBERADO PARA FATURAMENTO',
+        'REPROVADO | CANCELADO',
+        'ENCERRADO | CONCLUÍDO',
+        'NÃO ASSINA CONTRATO - ENTREGA LIBERADA',
+        'CONTRATO ESTORNADO'
+    ];
+
+    const STATUS_OS_TODOS = [
+        'EM ELABORAÇÃO',
+        'LIBERADO',
+        'ENTREGA AGENDADA',
+        'ENTREGUE - ACOMPANHAMENTO OS',
+        'RETIRADA AGENDADA',
+        'RETIRADA PARCIAL REALIZADA',
+        'RETIRADA TOTAL REALIZADA'
+    ];
+
     const REPORTS_META = {
         clientes: {
             target: 'comercial-rel-clientes',
-            titulo: 'Relatório de Clientes Cadastrados',
+            titulo: 'Relação de Clientes',
             subtitulo: 'Consulte todos os clientes cadastrados, filtre em tempo real e exporte para Excel.',
             icone: 'ph-users',
-            nomeArquivo: 'Relatorio_Clientes_Comercial'
+            nomeArquivo: 'Relacao_Clientes_Comercial'
         },
         enderecos: {
             target: 'comercial-rel-enderecos',
-            titulo: 'Relatório de Endereços Cadastrados',
+            titulo: 'Relação de Endereços',
             subtitulo: 'Consulte todos os endereços de instalação e faturamento cadastrados com filtro e exportação Excel.',
             icone: 'ph-map-pin',
-            nomeArquivo: 'Relatorio_Enderecos_Comercial'
+            nomeArquivo: 'Relacao_Enderecos_Comercial'
         },
         propostas: {
             target: 'comercial-rel-propostas',
-            titulo: 'Relatório de Propostas',
-            subtitulo: 'Listagem completa de propostas comerciais com filtros dinâmicos e exportação em Excel.',
+            titulo: 'Relação de Propostas',
+            subtitulo: 'Listagem completa de propostas comerciais com filtros dinâmicos, produtos e exportação em Excel.',
             icone: 'ph-file-text',
-            nomeArquivo: 'Relatorio_Propostas_Comercial'
+            nomeArquivo: 'Relacao_Propostas_Comercial'
         },
         contratos: {
             target: 'comercial-rel-contratos',
-            titulo: 'Relatório de Contratos',
-            subtitulo: 'Acompanhe todos os contratos gerados, situações, valores e OS vinculadas.',
+            titulo: 'Relação de Contratos',
+            subtitulo: 'Acompanhe todos os contratos gerados, situações, valores, propostas e OS vinculadas.',
             icone: 'ph-files',
-            nomeArquivo: 'Relatorio_Contratos_Comercial'
+            nomeArquivo: 'Relacao_Contratos_Comercial'
         },
         os: {
             target: 'comercial-rel-os',
-            titulo: 'Relatório de Ordens de Serviço (OS)',
-            subtitulo: 'Consulte todas as OS do Comercial por modalidade (Obra/Evento), tipo, status e datas.',
+            titulo: 'Relação de OS',
+            subtitulo: 'Consulte todas as OS do Comercial por modalidade, equipamentos, serviços, contratos e datas.',
             icone: 'ph-clipboard-text',
-            nomeArquivo: 'Relatorio_OS_Comercial'
+            nomeArquivo: 'Relacao_OS_Comercial'
         }
     };
 
     const stateByTipo = {
-        clientes: { dados: [], carregando: false, erro: '', filtros: { q: '', grupo: '', cidade: '' } },
-        enderecos: { dados: [], carregando: false, erro: '', filtros: { q: '', cliente: '', municipioUf: '' } },
-        propostas: { dados: [], carregando: false, erro: '', filtros: { q: '', tipo: '', fase: '', atendente: '', de: '', ate: '' } },
-        contratos: { dados: [], carregando: false, erro: '', filtros: { q: '', tipo: '', situacao: '', atendente: '', de: '', ate: '' } },
-        os: { dados: [], carregando: false, erro: '', filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendente: '', de: '', ate: '' } }
+        clientes:  { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', cidade: '' } },
+        enderecos: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', municipioUf: '' } },
+        propostas: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fase: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
+        contratos: { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
+        os:        { dados: [], carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
     };
+
+    let atendentesComercialLista = [];
+    let debounceTimer = null;
 
     function normStr(s) {
         return String(s || '')
@@ -95,13 +133,25 @@
         return String(nome || '').replace(/^[💎🥇🥈🥉]\s*/g, '').trim();
     }
 
-    function formatarNomeClienteInterno(nome, grupoOpcional) {
-        const raw = String(nome || '').trim();
-        if (!raw) return '—';
+    function iconePorGrupo(grupoRaw) {
+        const g = normStr(grupoRaw);
+        if (!g) return '';
+        if (g.includes('diamante')) return '💎';
+        if (g.includes('ouro')) return '🥇';
+        if (g.includes('prata')) return '🥈';
+        if (g.includes('bronze')) return '🥉';
+        return '';
+    }
+
+    function formatarNomeComGrupoRapido(nome, grupoRaw) {
+        const limpo = limparNomeClienteParaExcel(nome);
+        if (!limpo) return '—';
+        const ic = iconePorGrupo(grupoRaw);
+        if (ic) return `${ic} ${limpo}`;
         if (typeof window.formatarNomeClienteComIcone === 'function') {
-            return window.formatarNomeClienteComIcone(raw, grupoOpcional) || raw;
+            return window.formatarNomeClienteComIcone(limpo, grupoRaw) || limpo;
         }
-        return raw;
+        return limpo;
     }
 
     function getAuthHeaders() {
@@ -149,45 +199,122 @@
         }
     }
 
+    function parseJsonListaSegura(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        try {
+            const p = JSON.parse(raw);
+            return Array.isArray(p) ? p : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function extrairProdutosEServicos(row, incluirAditivosContrato = false) {
+        let prods = parseJsonListaSegura(row?.itens);
+        let servs = parseJsonListaSegura(row?.itens_servicos);
+
+        if (incluirAditivosContrato && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+            const tipoUp = String(row?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoUp !== 'ADITIVO' && String(row?.situacao_contrato || '').trim().toUpperCase() !== 'OS AVULSA') {
+                try {
+                    const mescl = window.aplicarMesclagemAditivosNoContratoAtivo(row, prods, servs);
+                    if (mescl && Array.isArray(mescl.produtos)) prods = mescl.produtos;
+                    if (mescl && Array.isArray(mescl.servicos)) servs = mescl.servicos;
+                } catch (_) {}
+            }
+        }
+
+        const prodsAtivos = prods
+            .filter(p => p && !p._substituido_por_aditivo)
+            .map(p => {
+                const qtd = Math.max(1, parseInt(p.quantidade ?? p.qtde ?? 1, 10) || 1);
+                const nome = String(p.produto || p.descricao || p.nome || '').replace(/^\d+\s*-\s*/, '').trim();
+                return nome ? `${qtd}x ${nome}` : '';
+            })
+            .filter(Boolean);
+
+        const servsAtivos = servs
+            .filter(s => s && !s._substituido_por_aditivo)
+            .map(s => {
+                const nome = String(s.servico || s.produto || s.descricao || s.nome || '').trim();
+                return nome;
+            })
+            .filter(Boolean);
+
+        return { prodsAtivos, servsAtivos };
+    }
+
+    async function carregarAtendentesComercialRelatorios() {
+        try {
+            const r = await fetch(`${getApiBase()}/comercial/atendentes?incluir_desligados=1`, { headers: getAuthHeaders() });
+            if (r.ok) {
+                const lista = await r.json();
+                if (Array.isArray(lista)) {
+                    atendentesComercialLista = lista;
+                    return lista;
+                }
+            }
+        } catch (_) {}
+        return atendentesComercialLista;
+    }
+
+    function atendentePassaFiltro(row, selecionados) {
+        if (!Array.isArray(selecionados) || selecionados.length === 0) return true;
+        const nomeResolv = normStr(resolverAtendenteNome(row.atendente));
+        const nomeRaw = normStr(row.atendente);
+        return selecionados.some(sel => {
+            const sNorm = normStr(sel);
+            return Boolean(sNorm && (nomeResolv === sNorm || nomeRaw === sNorm || nomeResolv.includes(sNorm) || sNorm.includes(nomeResolv)));
+        });
+    }
+
     async function fetchDadosRelatorio(tipo) {
         const st = stateByTipo[tipo];
         if (!st) return;
         st.carregando = true;
         st.erro = '';
+        st.page = 1;
         const apiBase = getApiBase();
 
         try {
             if (tipo === 'clientes') {
-                const resp = await fetch(`${apiBase}/clientes`, { headers: getAuthHeaders() });
+                const resp = await fetch(`${apiBase}/comercial/relatorios/clientes`, { headers: getAuthHeaders() });
                 if (!resp.ok) throw new Error('Falha ao carregar clientes cadastrados.');
                 const rows = await resp.json();
-                st.dados = Array.isArray(rows) ? rows : [];
-                if (typeof window.obterClientesCache === 'function' && st.dados.length) {
-                    window._clientesCache = st.dados;
-                }
+                const arr = Array.isArray(rows) ? rows : [];
+                arr.forEach(c => {
+                    const grupo = c.grupo_clientes || c.classificacao || '';
+                    c._grupoNorm = normStr(grupo);
+                    c._cidadeNorm = normStr(`${c.municipio || ''} ${c.uf || ''}`);
+                    c._nomeExib = formatarNomeComGrupoRapido(c.nome_razao_social || c.nome_fantasia || '—', grupo);
+                    c._search = normStr(`${c.codigo || ''} ${c.nome_razao_social || ''} ${c.nome_fantasia || ''} ${c.cpf_cnpj || ''} ${c.email || ''} ${c.celular || ''} ${c.telefone || ''} ${c.municipio || ''} ${c.uf || ''}`);
+                });
+                st.dados = arr;
             } else if (tipo === 'enderecos') {
-                const [rEnd, rCli] = await Promise.all([
-                    fetch(`${apiBase}/enderecos-entrega`, { headers: getAuthHeaders() }),
-                    fetch(`${apiBase}/clientes`, { headers: getAuthHeaders() }).catch(() => null)
-                ]);
-                if (!rEnd.ok) throw new Error('Falha ao carregar endereços cadastrados.');
-                const rows = await rEnd.json();
-                if (rCli && rCli.ok) {
-                    const clis = await rCli.json().catch(() => []);
-                    if (Array.isArray(clis) && clis.length) window._clientesCache = clis;
-                }
-                st.dados = Array.isArray(rows) ? rows : [];
+                const resp = await fetch(`${apiBase}/comercial/relatorios/enderecos`, { headers: getAuthHeaders() });
+                if (!resp.ok) throw new Error('Falha ao carregar endereços cadastrados.');
+                const rows = await resp.json();
+                const arr = Array.isArray(rows) ? rows : [];
+                arr.forEach(e => {
+                    const cliRaw = e.cliente_nome || e.cliente_razao || e.cliente_razao_social || e.razao_social || '';
+                    e._cliRaw = cliRaw;
+                    e._cliNorm = normStr(cliRaw);
+                    e._cliExib = cliRaw ? formatarNomeComGrupoRapido(cliRaw, e.grupo_clientes || '') : '—';
+                    e._munNorm = normStr(`${e.municipio || ''} ${e.uf || ''}`);
+                    e._search = normStr(`${cliRaw} ${e.nome_local || ''} ${e.endereco || ''} ${e.numero || ''} ${e.bairro || ''} ${e.municipio || ''} ${e.uf || ''} ${e.cep || ''}`);
+                });
+                st.dados = arr;
             } else {
                 const [rProp, rCli] = await Promise.all([
                     fetch(`${apiBase}/propostas`, { headers: getAuthHeaders() }),
-                    fetch(`${apiBase}/clientes`, { headers: getAuthHeaders() }).catch(() => null)
+                    carregarAtendentesComercialRelatorios(),
+                    (!Array.isArray(window._clientesCache) || !window._clientesCache.length)
+                        ? fetch(`${apiBase}/comercial/relatorios/clientes`, { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : []).then(cl => { if (Array.isArray(cl) && cl.length) window._clientesCache = cl; }).catch(() => {})
+                        : Promise.resolve()
                 ]);
                 if (!rProp.ok) throw new Error('Falha ao carregar registros do Comercial.');
                 const rows = await rProp.json();
-                if (rCli && rCli.ok) {
-                    const clis = await rCli.json().catch(() => []);
-                    if (Array.isArray(clis) && clis.length) window._clientesCache = clis;
-                }
                 const arr = Array.isArray(rows) ? rows : [];
                 window._propostasData = arr;
 
@@ -196,18 +323,40 @@
                         if (!p || String(p.status || '').toLowerCase() === 'excluída') return false;
                         const sitUp = String(p.situacao_contrato || '').trim().toUpperCase();
                         return sitUp !== 'OS AVULSA' && Boolean(String(p.codigo || '').trim());
+                    }).map(p => {
+                        const { prodsAtivos } = extrairProdutosEServicos(p, false);
+                        p._produtosList = prodsAtivos;
+                        p._produtosNorm = normStr(prodsAtivos.join(' '));
+                        p._atendExib = resolverAtendenteNome(p.atendente);
+                        p._search = normStr(`${p.codigo || ''} ${p.contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${p.tipo || ''} ${p._atendExib} ${p.fase_negociacao || ''} ${prodsAtivos.join(' ')}`);
+                        return p;
                     });
                 } else if (tipo === 'contratos') {
                     st.dados = arr.filter(p => {
                         if (!p || String(p.status || '').toLowerCase() === 'excluída') return false;
                         const tUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                         return tUp !== 'ADITIVO' && Boolean(String(p.contrato || '').trim());
+                    }).map(p => {
+                        p._atendExib = resolverAtendenteNome(p.atendente);
+                        p._search = normStr(`${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${p._atendExib} ${p.situacao_contrato || ''}`);
+                        return p;
                     });
                 } else if (tipo === 'os') {
                     st.dados = arr.filter(p => {
                         if (!p || String(p.status || '').toLowerCase() === 'excluída') return false;
                         const tUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                         return tUp !== 'ADITIVO' && Boolean(String(p.numero_os || '').trim());
+                    }).map(p => {
+                        const { prodsAtivos, servsAtivos } = extrairProdutosEServicos(p, true);
+                        p._equipamentosList = prodsAtivos;
+                        p._equipamentosNorm = normStr(prodsAtivos.join(' '));
+                        p._servicosList = servsAtivos;
+                        p._servicosNorm = normStr(servsAtivos.join(' '));
+                        p._atendExib = resolverAtendenteNome(p.atendente);
+                        p._modalidade = resolverModalidadeOs(p);
+                        p._dtsOs = extrairDatasOs(p);
+                        p._search = normStr(`${p.numero_os || ''} ${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.endereco_instalacao || ''} ${p._atendExib} ${p.os_tipo_operacao || ''} ${p._modalidade} ${p.status_os || ''} ${prodsAtivos.join(' ')} ${servsAtivos.join(' ')}`);
+                        return p;
                     });
                 }
             }
@@ -228,14 +377,12 @@
             const qCid = normStr(f.cidade);
             const gSel = normStr(f.grupo);
             return dados.filter(c => {
-                const nome = `${c.codigo || ''} ${c.nome_razao_social || ''} ${c.nome_fantasia || ''} ${c.cpf_cnpj || ''} ${c.email || ''} ${c.celular || ''} ${c.telefone || ''} ${c.municipio || ''} ${c.uf || ''}`;
-                if (q && !normStr(nome).includes(q)) return false;
-                if (qCid && !normStr(`${c.municipio || ''} ${c.uf || ''}`).includes(qCid)) return false;
+                if (q && !c._search.includes(q)) return false;
+                if (qCid && !c._cidadeNorm.includes(qCid)) return false;
                 if (gSel) {
-                    const gRow = normStr(c.grupo_clientes || c.classificacao || '');
                     if (gSel === '__sem__') {
-                        if (gRow) return false;
-                    } else if (gRow !== gSel) {
+                        if (c._grupoNorm) return false;
+                    } else if (!c._grupoNorm.includes(gSel)) {
                         return false;
                     }
                 }
@@ -247,64 +394,69 @@
             const qCli = normStr(f.cliente);
             const qMun = normStr(f.municipioUf);
             return dados.filter(e => {
-                const cli = e.cliente_nome || e.nome_razao_social || '';
-                const texto = `${cli} ${e.nome_local || ''} ${e.endereco || ''} ${e.numero || ''} ${e.bairro || ''} ${e.municipio || ''} ${e.uf || ''} ${e.cep || ''}`;
-                if (q && !normStr(texto).includes(q)) return false;
-                if (qCli && !normStr(cli).includes(qCli)) return false;
-                if (qMun && !normStr(`${e.municipio || ''} ${e.uf || ''}`).includes(qMun)) return false;
+                if (q && !e._search.includes(q)) return false;
+                if (qCli && !e._cliNorm.includes(qCli)) return false;
+                if (qMun && !e._munNorm.includes(qMun)) return false;
                 return true;
             });
         }
 
         if (tipo === 'propostas') {
-            const qAt = normStr(f.atendente);
+            const qProd = normStr(f.produto);
+            const fFaseNorm = normStr(f.fase);
             return dados.filter(p => {
-                const atd = resolverAtendenteNome(p.atendente);
-                const texto = `${p.codigo || ''} ${p.contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${p.tipo || ''} ${atd} ${p.fase_negociacao || ''}`;
-                if (q && !normStr(texto).includes(q)) return false;
+                if (q && !p._search.includes(q)) return false;
                 if (f.tipo && normStr(p.tipo) !== normStr(f.tipo)) return false;
-                if (f.fase && normStr(p.fase_negociacao || 'Em Elaboração') !== normStr(f.fase)) return false;
-                if (qAt && !normStr(atd).includes(qAt)) return false;
+                if (fFaseNorm) {
+                    let rowFase = normStr(p.fase_negociacao || 'Em Elaboração');
+                    if (rowFase === 'enviada') rowFase = 'proposta enviada';
+                    if (rowFase === 'aprovado - aditivo assinado') rowFase = 'proposta assinada';
+                    if (rowFase !== fFaseNorm) return false;
+                }
+                if (!atendentePassaFiltro(p, f.atendentes)) return false;
+                if (qProd && !p._produtosNorm.includes(qProd)) return false;
                 const dt = String(p.data_cadastro || '').substring(0, 10);
-                if (f.de && dt && dt < f.de) return false;
-                if (f.ate && dt && dt > f.ate) return false;
+                if (f.de && (!dt || dt < f.de)) return false;
+                if (f.ate && (!dt || dt > f.ate)) return false;
+                const pIni = String(p.periodo_inicio || '').substring(0, 10);
+                const pFim = String(p.periodo_fim || p.periodo_inicio || '').substring(0, 10);
+                if (f.perDe && (!pFim || pFim < f.perDe)) return false;
+                if (f.perAte && (!pIni || pIni > f.perAte)) return false;
                 return true;
             });
         }
 
         if (tipo === 'contratos') {
-            const qAt = normStr(f.atendente);
+            const fSitNorm = normStr(f.situacao);
             return dados.filter(p => {
-                const atd = resolverAtendenteNome(p.atendente);
-                const sit = String(p.situacao_contrato || 'EM ELABORAÇÃO');
-                const texto = `${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${atd} ${sit}`;
-                if (q && !normStr(texto).includes(q)) return false;
+                if (q && !p._search.includes(q)) return false;
                 if (f.tipo && normStr(p.tipo) !== normStr(f.tipo)) return false;
-                if (f.situacao && normStr(sit) !== normStr(f.situacao)) return false;
-                if (qAt && !normStr(atd).includes(qAt)) return false;
+                if (fSitNorm) {
+                    const rowSit = normStr(p.situacao_contrato || 'EM ELABORAÇÃO');
+                    if (rowSit !== fSitNorm) return false;
+                }
+                if (!atendentePassaFiltro(p, f.atendentes)) return false;
                 const dt = String(p.aprovado_em || p.data_cadastro || '').substring(0, 10);
-                if (f.de && dt && dt < f.de) return false;
-                if (f.ate && dt && dt > f.ate) return false;
+                if (f.de && (!dt || dt < f.de)) return false;
+                if (f.ate && (!dt || dt > f.ate)) return false;
                 return true;
             });
         }
 
         if (tipo === 'os') {
-            const qAt = normStr(f.atendente);
+            const qEquip = normStr(f.equipamento);
+            const qServ = normStr(f.servico);
             return dados.filter(p => {
-                const mod = resolverModalidadeOs(p);
-                const tipoOs = String(p.os_tipo_operacao || 'Envio');
-                const statusOs = String(p.status_os || 'EM ELABORAÇÃO');
-                const atd = resolverAtendenteNome(p.atendente);
-                const texto = `${p.numero_os || ''} ${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.endereco_instalacao || ''} ${atd} ${tipoOs} ${mod} ${statusOs}`;
-                if (q && !normStr(texto).includes(q)) return false;
-                if (f.modalidade && normStr(mod) !== normStr(f.modalidade)) return false;
-                if (f.tipoOs && normStr(tipoOs) !== normStr(f.tipoOs)) return false;
-                if (f.statusOs && normStr(statusOs) !== normStr(f.statusOs)) return false;
-                if (qAt && !normStr(atd).includes(qAt)) return false;
+                if (q && !p._search.includes(q)) return false;
+                if (f.modalidade && normStr(p._modalidade) !== normStr(f.modalidade)) return false;
+                if (f.tipoOs && normStr(p.os_tipo_operacao || 'Envio') !== normStr(f.tipoOs)) return false;
+                if (f.statusOs && normStr(p.status_os || 'EM ELABORAÇÃO') !== normStr(f.statusOs)) return false;
+                if (!atendentePassaFiltro(p, f.atendentes)) return false;
+                if (qEquip && !p._equipamentosNorm.includes(qEquip)) return false;
+                if (qServ && !p._servicosNorm.includes(qServ)) return false;
                 const dt = String(p.os_criada_em || p.data_cadastro || '').substring(0, 10);
-                if (f.de && dt && dt < f.de) return false;
-                if (f.ate && dt && dt > f.ate) return false;
+                if (f.de && (!dt || dt < f.de)) return false;
+                if (f.ate && (!dt || dt > f.ate)) return false;
                 return true;
             });
         }
@@ -353,7 +505,7 @@
             ];
             const linhasExcel = filtrados.map((e, idx) => ({
                 sequencia: e.sequencia || (idx + 1),
-                cliente: limparNomeClienteParaExcel(e.cliente_nome || e.nome_razao_social || ''),
+                cliente: limparNomeClienteParaExcel(e._cliRaw || ''),
                 nome_local: e.nome_local || '',
                 endereco: e.endereco || '',
                 numero: e.numero || '',
@@ -375,6 +527,7 @@
                 { key: 'atendente', label: 'Atendente', width: 22 },
                 { key: 'fase', label: 'Fase de Negociação', width: 24 },
                 { key: 'periodo', label: 'Período (Início / Fim)', width: 25 },
+                { key: 'produtos', label: 'Produtos', width: 42, tipo: 'multilinha' },
                 { key: 'valor_total', label: 'Valor Total', width: 18, tipo: 'moeda' },
                 { key: 'contrato', label: 'Contrato', width: 14 }
             ];
@@ -384,9 +537,10 @@
                 tipo: p.tipo || '',
                 cliente: limparNomeClienteParaExcel(p.cliente_nome || ''),
                 contato: p.contato_nome || '',
-                atendente: resolverAtendenteNome(p.atendente),
+                atendente: p._atendExib || resolverAtendenteNome(p.atendente),
                 fase: p.fase_negociacao || 'Em Elaboração',
                 periodo: p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—',
+                produtos: (p._produtosList && p._produtosList.length) ? p._produtosList.join('\n') : '—',
                 valor_total: Number(p.valor_total || 0),
                 contrato: p.contrato || ''
             }));
@@ -416,7 +570,7 @@
                 titulo: p.titulo_contrato || '',
                 cliente: limparNomeClienteParaExcel(p.cliente_nome || ''),
                 contato: p.contato_nome || '',
-                atendente: resolverAtendenteNome(p.atendente),
+                atendente: p._atendExib || resolverAtendenteNome(p.atendente),
                 situacao: p.situacao_contrato || 'EM ELABORAÇÃO',
                 periodo: p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—',
                 valor_total: Number(p.valor_total || 0),
@@ -435,22 +589,26 @@
             { key: 'contato', label: 'Contato', width: 24 },
             { key: 'atendente', label: 'Atendente', width: 22 },
             { key: 'status_os', label: 'Status da OS', width: 26 },
+            { key: 'equipamentos', label: 'Equipamentos', width: 40, tipo: 'multilinha' },
+            { key: 'servicos', label: 'Serviços', width: 34, tipo: 'multilinha' },
             { key: 'data_entrega', label: 'Data Entrega', width: 14 },
             { key: 'data_retirada', label: 'Data Retirada', width: 14 },
             { key: 'endereco', label: 'Endereço(s) de Instalação', width: 45 }
         ];
         const linhasExcel = filtrados.map(p => {
-            const dts = extrairDatasOs(p);
+            const dts = p._dtsOs || extrairDatasOs(p);
             return {
                 numero_os: p.numero_os || '',
-                modalidade: resolverModalidadeOs(p),
+                modalidade: p._modalidade || resolverModalidadeOs(p),
                 tipo_os: p.os_tipo_operacao || 'Envio',
                 data_cadastro: fmtDataBr(String(p.os_criada_em || '').substring(0, 10) || p.data_cadastro),
                 contrato: p.contrato || '',
                 cliente: limparNomeClienteParaExcel(p.cliente_nome || ''),
                 contato: p.contato_nome || '',
-                atendente: resolverAtendenteNome(p.atendente),
+                atendente: p._atendExib || resolverAtendenteNome(p.atendente),
                 status_os: p.status_os || 'EM ELABORAÇÃO',
+                equipamentos: (p._equipamentosList && p._equipamentosList.length) ? p._equipamentosList.join('\n') : '—',
+                servicos: (p._servicosList && p._servicosList.length) ? p._servicosList.join('\n') : '—',
                 data_entrega: dts.data_entrega ? fmtDataBr(dts.data_entrega) : '—',
                 data_retirada: dts.data_retirada ? fmtDataBr(dts.data_retirada) : '—',
                 endereco: p.endereco_instalacao || ''
@@ -459,49 +617,52 @@
         return { colunas, linhasExcel };
     }
 
-    function renderLinhasHtml(tipo, filtrados) {
-        if (!filtrados.length) {
-            return `<tr><td colspan="12" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
+    function renderListaCompactaHtml(itens, corBg = '#f1f5f9', corTxt = '#334155', corBorda = '#cbd5e1') {
+        if (!Array.isArray(itens) || !itens.length) return '<span style="color:#94a3b8;">—</span>';
+        return `<div style="display:flex; flex-direction:column; gap:3px; min-width:190px; max-width:340px;">
+            ${itens.map(item => `<div style="background:${corBg}; color:${corTxt}; border:1px solid ${corBorda}; border-radius:6px; padding:2px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal;">${esc(item)}</div>`).join('')}
+        </div>`;
+    }
+
+    function renderLinhasHtml(tipo, paginaLinhas) {
+        if (!paginaLinhas.length) {
+            return `<tr><td colspan="14" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
         }
 
         if (tipo === 'clientes') {
-            return filtrados.map(c => {
+            return paginaLinhas.map(c => {
                 const grupo = c.grupo_clientes || c.classificacao || '';
-                const nomeExib = formatarNomeClienteInterno(c.nome_razao_social || c.nome_fantasia || '—', grupo);
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                    <td style="padding:8px 10px; font-weight:700; color:#7048e8; white-space:nowrap;">${esc(c.codigo || c.id || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${esc(nomeExib)}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(c.nome_fantasia || '—')}</td>
-                    <td style="padding:8px 10px; white-space:nowrap;">${grupo ? `<span style="background:#f3f0ff; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">${esc(grupo)}</span>` : '<span style="color:#94a3b8;">—</span>'}</td>
-                    <td style="padding:8px 10px; white-space:nowrap; color:#334155;">${esc(c.cpf_cnpj || '—')}</td>
-                    <td style="padding:8px 10px; white-space:nowrap; color:#334155;">${esc(c.celular || c.telefone || '—')}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(c.email || '—')}</td>
-                    <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc([c.municipio, c.uf].filter(Boolean).join('/') || '—')}</td>
-                    <td style="padding:8px 10px; white-space:nowrap; color:#64748b;">${esc(fmtDataBr(c.criado_em))}</td>
+                    <td style="padding:7px 10px; font-weight:700; color:#7048e8; white-space:nowrap;">${esc(c.codigo || c.id || '—')}</td>
+                    <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${esc(c._nomeExib || c.nome_razao_social || '—')}</td>
+                    <td style="padding:7px 10px; color:#475569;">${esc(c.nome_fantasia || '—')}</td>
+                    <td style="padding:7px 10px; white-space:nowrap;">${grupo ? `<span style="background:#f3f0ff; color:#5f3dc4; border:1px solid #d0bfff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">${esc(grupo)}</span>` : '<span style="color:#94a3b8;">—</span>'}</td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#334155;">${esc(c.cpf_cnpj || '—')}</td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#334155;">${esc(c.celular || c.telefone || '—')}</td>
+                    <td style="padding:7px 10px; color:#475569;">${esc(c.email || '—')}</td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#475569;">${esc([c.municipio, c.uf].filter(Boolean).join('/') || '—')}</td>
+                    <td style="padding:7px 10px; white-space:nowrap; color:#64748b;">${esc(fmtDataBr(c.criado_em))}</td>
                 </tr>`;
             }).join('');
         }
 
         if (tipo === 'enderecos') {
-            return filtrados.map((e, idx) => {
-                const cliExib = formatarNomeClienteInterno(e.cliente_nome || e.nome_razao_social || '—');
-                return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                    <td style="padding:8px 10px; font-weight:700; color:#64748b; text-align:center;">${esc(e.sequencia || (idx + 1))}</td>
-                    <td style="padding:8px 10px; font-weight:700; color:#0f172a;">${esc(cliExib)}</td>
-                    <td style="padding:8px 10px; font-weight:600; color:#5f3dc4;">${esc(e.nome_local || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155;">${esc(e.endereco || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(e.numero || 'S/N')}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(e.bairro || '—')}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(e.municipio || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(e.uf || '—')}</td>
-                    <td style="padding:8px 10px; white-space:nowrap; color:#64748b;">${esc(e.cep || '—')}</td>
-                </tr>`;
-            }).join('');
+            return paginaLinhas.map((e, idx) => `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <td style="padding:7px 10px; font-weight:700; color:#64748b; text-align:center;">${esc(e.sequencia || (idx + 1))}</td>
+                <td style="padding:7px 10px; font-weight:700; color:#0f172a;">${esc(e._cliExib || '—')}</td>
+                <td style="padding:7px 10px; font-weight:600; color:#5f3dc4;">${esc(e.nome_local || '—')}</td>
+                <td style="padding:7px 10px; color:#334155;">${esc(e.endereco || '—')}</td>
+                <td style="padding:7px 10px; color:#334155; white-space:nowrap;">${esc(e.numero || 'S/N')}</td>
+                <td style="padding:7px 10px; color:#475569;">${esc(e.bairro || '—')}</td>
+                <td style="padding:7px 10px; color:#475569;">${esc(e.municipio || '—')}</td>
+                <td style="padding:7px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(e.uf || '—')}</td>
+                <td style="padding:7px 10px; white-space:nowrap; color:#64748b;">${esc(e.cep || '—')}</td>
+            </tr>`).join('');
         }
 
         if (tipo === 'propostas') {
-            return filtrados.map(p => {
-                const cliExib = formatarNomeClienteInterno(p.cliente_nome || '—');
+            return paginaLinhas.map(p => {
+                const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
                 const faseHtml = typeof window.renderBadgeFaseNegociacaoHtml === 'function'
                     ? window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração')
                     : esc(p.fase_negociacao || 'Em Elaboração');
@@ -515,18 +676,19 @@
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
                     <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
                     <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(resolverAtendenteNome(p.atendente))}</td>
+                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${faseHtml}</td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
+                    <td style="padding:8px 10px;">${renderListaCompactaHtml(p._produtosList, '#f8fafc', '#1e293b', '#e2e8f0')}</td>
                     <td style="padding:8px 10px; text-align:right; font-weight:700; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(p.valor_total))}</td>
-                    <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.contrato ? `<span style="background:#fef08a; color:#854d0e; border:1px solid #eab308; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.74rem;">${esc(p.contrato)}</span>` : '—'}</td>
+                    <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.contrato ? `<button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(p.contrato)}</button>` : '—'}</td>
                 </tr>`;
             }).join('');
         }
 
         if (tipo === 'contratos') {
-            return filtrados.map(p => {
-                const cliExib = formatarNomeClienteInterno(p.cliente_nome || '—');
+            return paginaLinhas.map(p => {
+                const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
                 const sitHtml = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato || 'EM ELABORAÇÃO', false)
                     : esc(p.situacao_contrato || 'EM ELABORAÇÃO');
@@ -537,31 +699,34 @@
                         <button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})"
                             style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.75rem; cursor:pointer;">${esc(p.contrato || '—')}</button>
                     </td>
-                    <td style="padding:8px 10px; text-align:center; white-space:nowrap; font-weight:700; color:#2563eb;">${esc(p.codigo || '—')}</td>
+                    <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
+                        ${p.codigo ? `<button type="button" onclick="if(window.abrirPropostaDiretoId) window.abrirPropostaDiretoId(${Number(p.id)})"
+                            style="background:#2563eb; color:#ffffff; border:none; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.75rem; cursor:pointer;">${esc(p.codigo)}</button>` : '—'}
+                    </td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtEm)}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
                     <td style="padding:8px 10px; color:#334155;">${esc(p.titulo_contrato || '—')}</td>
                     <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
                     <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(resolverAtendenteNome(p.atendente))}</td>
+                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${sitHtml}</td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
                     <td style="padding:8px 10px; text-align:right; font-weight:700; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(p.valor_total))}</td>
-                    <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.numero_os ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.74rem;">${esc(p.numero_os)}</span>` : '—'}</td>
+                    <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.numero_os ? `<button type="button" onclick="if(window.abrirOsComercialDaProposta) window.abrirOsComercialDaProposta(${Number(p.id)})" style="background:#16a34a; color:#ffffff; border:none; padding:3px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(p.numero_os)}</button>` : '—'}</td>
                 </tr>`;
             }).join('');
         }
 
-        return filtrados.map(p => {
-            const cliExib = formatarNomeClienteInterno(p.cliente_nome || '—');
-            const mod = resolverModalidadeOs(p);
+        return paginaLinhas.map(p => {
+            const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
+            const mod = p._modalidade || resolverModalidadeOs(p);
             const modHtml = typeof window.renderBadgeModalidadeObraEventoOsHtml === 'function'
                 ? window.renderBadgeModalidadeObraEventoOsHtml(mod)
                 : esc(mod);
             const stHtml = typeof window.renderBadgeStatusOsComercialHtml === 'function'
                 ? window.renderBadgeStatusOsComercialHtml(p.status_os || 'EM ELABORAÇÃO')
                 : esc(p.status_os || 'EM ELABORAÇÃO');
-            const dts = extrairDatasOs(p);
+            const dts = p._dtsOs || extrairDatasOs(p);
             const dtCad = fmtDataBr(String(p.os_criada_em || '').substring(0, 10) || p.data_cadastro);
             return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                 <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
@@ -571,11 +736,16 @@
                 <td style="padding:8px 10px; white-space:nowrap;">${modHtml}</td>
                 <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.os_tipo_operacao || 'Envio')}</td>
                 <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtCad)}</td>
-                <td style="padding:8px 10px; text-align:center; white-space:nowrap; font-weight:700; color:#854d0e;">${esc(p.contrato || '—')}</td>
+                <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
+                    ${p.contrato ? `<button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})"
+                        style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:3px 10px; border-radius:6px; font-weight:800; font-size:0.75rem; cursor:pointer;">${esc(p.contrato)}</button>` : '—'}
+                </td>
                 <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${esc(cliExib)}</td>
                 <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
-                <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(resolverAtendenteNome(p.atendente))}</td>
+                <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                 <td style="padding:8px 10px; white-space:nowrap;">${stHtml}</td>
+                <td style="padding:8px 10px;">${renderListaCompactaHtml(p._equipamentosList, '#fefce8', '#854d0e', '#fde68a')}</td>
+                <td style="padding:8px 10px;">${renderListaCompactaHtml(p._servicosList, '#eff6ff', '#1e40af', '#bfdbfe')}</td>
                 <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${dts.data_entrega ? esc(fmtDataBr(dts.data_entrega)) : '—'}</td>
                 <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${dts.data_retirada ? esc(fmtDataBr(dts.data_retirada)) : '—'}</td>
                 <td style="padding:8px 10px; color:#475569; max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(p.endereco_instalacao || '')}">${esc(p.endereco_instalacao || '—')}</td>
@@ -583,22 +753,95 @@
         }).join('');
     }
 
+    function renderAtendenteMultiHtml(tipo, flexCss = 'flex:1.2 1 200px;') {
+        const st = stateByTipo[tipo];
+        const sel = Array.isArray(st?.filtros?.atendentes) ? st.filtros.atendentes : [];
+        const resumo = sel.length === 0
+            ? 'Todos os atendentes'
+            : (sel.length === 1 ? sel[0] : `${sel.length} selecionado(s)`);
+        const lblSt = 'display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:3px;';
+        return `
+            <div style="${flexCss}">
+                <label style="${lblSt}">Atendente(s)</label>
+                <div id="comrel-${tipo}-atend-wrap" class="comrel-atend-wrap" style="position:relative; width:100%;">
+                    <button type="button" id="comrel-${tipo}-atend-btn" onclick="window._comercialRelatorios.toggleDropdownAtendentes('${tipo}', event)"
+                        style="width:100%; height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#1e293b; font-size:0.81rem; font-weight:${sel.length ? '700' : '500'}; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
+                        <span id="comrel-${tipo}-atend-lbl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(resumo)}</span>
+                        <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b; flex-shrink:0;"></i>
+                    </button>
+                    <div id="comrel-${tipo}-atend-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:290px; width:100%; max-height:290px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.16); z-index:1150; overflow:hidden;">
+                        <div style="padding:7px 8px; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="comrel-${tipo}-atend-busca" value="${esc(st.filtros.atendBusca || '')}"
+                                oninput="window._comercialRelatorios.filtrarListaAtendentes('${tipo}', this.value)"
+                                placeholder="Digite para filtrar colaborador..."
+                                style="flex:1; height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.78rem; text-transform:none; outline:none;">
+                            <button type="button" onclick="window._comercialRelatorios.limparAtendentes('${tipo}', event)" title="Limpar seleção"
+                                style="height:28px; padding:0 8px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">Limpar</button>
+                        </div>
+                        <div id="comrel-${tipo}-atend-lista" style="max-height:230px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderListaOpcoesAtendentes(tipo) {
+        const listEl = document.getElementById(`comrel-${tipo}-atend-lista`);
+        const st = stateByTipo[tipo];
+        if (!listEl || !st) return;
+        const busca = normStr(st.filtros.atendBusca || '');
+        const selecionados = Array.isArray(st.filtros.atendentes) ? st.filtros.atendentes : [];
+
+        // Garante ordem: Ativos primeiro, Desligados depois
+        const baseOrdenada = [...atendentesComercialLista].sort((a, b) => {
+            if (Boolean(a.desligado) !== Boolean(b.desligado)) return a.desligado ? 1 : -1;
+            return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+        });
+        const filtrados = busca
+            ? baseOrdenada.filter(a => normStr(a.nome).includes(busca) || normStr(a.username).includes(busca))
+            : baseOrdenada;
+
+        if (!filtrados.length) {
+            listEl.innerHTML = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:0.78rem;">Nenhum colaborador encontrado.</div>';
+            return;
+        }
+
+        listEl.innerHTML = filtrados.map(a => {
+            const nome = String(a.nome || '').trim();
+            const marcado = selecionados.some(x => normStr(x) === normStr(nome));
+            const desligado = Boolean(a.desligado || String(a.status || '').toLowerCase() === 'desligado');
+            const badgeHtml = desligado
+                ? '<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:1px 7px; border-radius:999px; font-size:0.66rem; font-weight:800;">Desligado</span>'
+                : '<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; padding:1px 7px; border-radius:999px; font-size:0.66rem; font-weight:800;">Ativo</span>';
+            const nomeEsc = nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<label style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; border-bottom:1px solid #f1f5f9; cursor:pointer; font-size:0.79rem; background:${marcado ? '#f5f3ff' : '#fff'};"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${marcado ? '#f5f3ff' : '#fff'}'">
+                <span style="display:flex; align-items:center; gap:7px; color:#1e293b; font-weight:${marcado ? '700' : '600'};">
+                    <input type="checkbox" ${marcado ? 'checked' : ''} onchange="window._comercialRelatorios.toggleItemAtendente('${tipo}', '${nomeEsc}', this.checked)"
+                        style="width:14px; height:14px; accent-color:#7048e8; cursor:pointer; margin:0;">
+                    <span>${esc(nome)}</span>
+                </span>
+                ${badgeHtml}
+            </label>`;
+        }).join('');
+    }
+
     function renderFiltrosHtml(tipo) {
         const st = stateByTipo[tipo];
         const f = st.filtros;
-        const inpSt = 'height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.82rem; background:#fff; color:#1e293b; box-sizing:border-box; outline:none; text-transform:none;';
+        const inpSt = 'height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.81rem; background:#fff; color:#1e293b; box-sizing:border-box; outline:none; text-transform:none;';
         const lblSt = 'display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:3px;';
 
         if (tipo === 'clientes') {
             return `
                 <div style="flex:2 1 260px;">
                     <label style="${lblSt}">Pesquisar</label>
-                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value)"
+                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
                         placeholder="Digite código, razão social, fantasia, CNPJ/CPF, e-mail..." style="width:100%; ${inpSt}">
                 </div>
                 <div style="flex:1 1 160px;">
                     <label style="${lblSt}">Grupo de Clientes</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'grupo', this.value)" style="width:100%; ${inpSt}">
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'grupo', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todos</option>
                         ${['Diamante', 'Ouro', 'Prata', 'Bronze'].map(g => `<option value="${g}" ${f.grupo === g ? 'selected' : ''}>${g}</option>`).join('')}
                         <option value="__sem__" ${f.grupo === '__sem__' ? 'selected' : ''}>Sem Grupo</option>
@@ -606,7 +849,7 @@
                 </div>
                 <div style="flex:1 1 180px;">
                     <label style="${lblSt}">Município / UF</label>
-                    <input type="text" data-filtro="cidade" value="${esc(f.cidade)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cidade', this.value)"
+                    <input type="text" data-filtro="cidade" value="${esc(f.cidade)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cidade', this.value, true)"
                         placeholder="Filtrar cidade ou UF..." style="width:100%; ${inpSt}">
                 </div>
             `;
@@ -616,17 +859,17 @@
             return `
                 <div style="flex:2 1 280px;">
                     <label style="${lblSt}">Pesquisar</label>
-                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value)"
+                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
                         placeholder="Digite endereço, local, bairro, CEP..." style="width:100%; ${inpSt}">
                 </div>
                 <div style="flex:1.4 1 200px;">
                     <label style="${lblSt}">Cliente</label>
-                    <input type="text" data-filtro="cliente" value="${esc(f.cliente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cliente', this.value)"
+                    <input type="text" data-filtro="cliente" value="${esc(f.cliente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'cliente', this.value, true)"
                         placeholder="Filtrar por cliente..." style="width:100%; ${inpSt}">
                 </div>
                 <div style="flex:1 1 180px;">
                     <label style="${lblSt}">Município / UF</label>
-                    <input type="text" data-filtro="municipioUf" value="${esc(f.municipioUf)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'municipioUf', this.value)"
+                    <input type="text" data-filtro="municipioUf" value="${esc(f.municipioUf)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'municipioUf', this.value, true)"
                         placeholder="Filtrar cidade ou UF..." style="width:100%; ${inpSt}">
                 </div>
             `;
@@ -634,124 +877,192 @@
 
         if (tipo === 'propostas') {
             const tiposOpts = Array.from(new Set(st.dados.map(d => String(d.tipo || '').trim()).filter(Boolean))).sort();
-            const fasesOpts = Array.from(new Set(st.dados.map(d => String(d.fase_negociacao || 'Em Elaboração').trim()).filter(Boolean))).sort();
+            const fasesSet = new Set(FASES_NEGOCIACAO_TODAS);
+            st.dados.forEach(d => {
+                const fn = String(d.fase_negociacao || '').trim();
+                if (fn && normStr(fn) !== 'enviada' && normStr(fn) !== 'aprovado - aditivo assinado') {
+                    const jaExiste = Array.from(fasesSet).some(x => normStr(x) === normStr(fn));
+                    if (!jaExiste) fasesSet.add(fn);
+                }
+            });
+            const fasesOpts = Array.from(fasesSet);
             return `
-                <div style="flex:2 1 230px;">
+                <div style="flex:1.6 1 210px;">
                     <label style="${lblSt}">Pesquisar</label>
-                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value)"
+                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
                         placeholder="Nº proposta, cliente, contato, evento..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:1 1 140px;">
+                <div style="flex:0.9 1 135px;">
                     <label style="${lblSt}">Tipo</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipo', this.value)" style="width:100%; ${inpSt}">
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipo', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todos</option>
                         ${tiposOpts.map(t => `<option value="${esc(t)}" ${f.tipo === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1 1 160px;">
+                <div style="flex:1.1 1 170px;">
                     <label style="${lblSt}">Fase de Negociação</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'fase', this.value)" style="width:100%; ${inpSt}">
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'fase', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todas</option>
                         ${fasesOpts.map(fs => `<option value="${esc(fs)}" ${f.fase === fs ? 'selected' : ''}>${esc(fs)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1 1 150px;">
-                    <label style="${lblSt}">Atendente</label>
-                    <input type="text" data-filtro="atendente" value="${esc(f.atendente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'atendente', this.value)"
-                        placeholder="Filtrar atendente..." style="width:100%; ${inpSt}">
+                ${renderAtendenteMultiHtml('propostas', 'flex:1.2 1 195px;')}
+                <div style="flex:1.2 1 175px;">
+                    <label style="${lblSt}">Produto</label>
+                    <input type="text" data-filtro="produto" value="${esc(f.produto)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'produto', this.value, true)"
+                        placeholder="Filtrar por produto..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.7 1 125px;">
+                <div style="flex:0.65 1 120px;">
+                    <label style="${lblSt}">Período Início (Prop.)</label>
+                    <input type="date" value="${esc(f.perDe)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perDe', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
+                <div style="flex:0.65 1 120px;">
+                    <label style="${lblSt}">Período Até (Prop.)</label>
+                    <input type="date" value="${esc(f.perAte)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perAte', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
+                <div style="flex:0.65 1 120px;">
                     <label style="${lblSt}">Cadastro De</label>
-                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value)" style="width:100%; ${inpSt}">
+                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.7 1 125px;">
-                    <label style="${lblSt}">Até</label>
-                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value)" style="width:100%; ${inpSt}">
+                <div style="flex:0.65 1 120px;">
+                    <label style="${lblSt}">Cadastro Até</label>
+                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
             `;
         }
 
         if (tipo === 'contratos') {
             const tiposOpts = Array.from(new Set(st.dados.map(d => String(d.tipo || '').trim()).filter(Boolean))).sort();
-            const sitsOpts = Array.from(new Set(st.dados.map(d => String(d.situacao_contrato || 'EM ELABORAÇÃO').trim()).filter(Boolean))).sort();
+            const sitsSet = new Set(SITUACOES_CONTRATO_TODAS);
+            st.dados.forEach(d => {
+                const s = String(d.situacao_contrato || '').trim();
+                if (s) {
+                    const jaExiste = Array.from(sitsSet).some(x => normStr(x) === normStr(s));
+                    if (!jaExiste) sitsSet.add(s);
+                }
+            });
+            const sitsOpts = Array.from(sitsSet);
             return `
-                <div style="flex:2 1 230px;">
+                <div style="flex:1.8 1 220px;">
                     <label style="${lblSt}">Pesquisar</label>
-                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value)"
+                    <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
                         placeholder="Nº contrato, título, cliente, evento..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:1 1 140px;">
+                <div style="flex:0.9 1 135px;">
                     <label style="${lblSt}">Tipo</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipo', this.value)" style="width:100%; ${inpSt}">
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipo', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todos</option>
                         ${tiposOpts.map(t => `<option value="${esc(t)}" ${f.tipo === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1 1 180px;">
+                <div style="flex:1.2 1 190px;">
                     <label style="${lblSt}">Situação do Contrato</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'situacao', this.value)" style="width:100%; ${inpSt}">
+                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'situacao', this.value, false)" style="width:100%; ${inpSt}">
                         <option value="">Todas</option>
                         ${sitsOpts.map(s => `<option value="${esc(s)}" ${f.situacao === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1 1 140px;">
-                    <label style="${lblSt}">Atendente</label>
-                    <input type="text" data-filtro="atendente" value="${esc(f.atendente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'atendente', this.value)"
-                        placeholder="Filtrar atendente..." style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.7 1 125px;">
+                ${renderAtendenteMultiHtml('contratos', 'flex:1.2 1 200px;')}
+                <div style="flex:0.65 1 120px;">
                     <label style="${lblSt}">Emissão De</label>
-                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value)" style="width:100%; ${inpSt}">
+                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.7 1 125px;">
+                <div style="flex:0.65 1 120px;">
                     <label style="${lblSt}">Até</label>
-                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value)" style="width:100%; ${inpSt}">
+                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
             `;
         }
 
-        const statusOpts = Array.from(new Set(st.dados.map(d => String(d.status_os || 'EM ELABORAÇÃO').trim()).filter(Boolean))).sort();
+        const statusSet = new Set(STATUS_OS_TODOS);
+        st.dados.forEach(d => {
+            const s = String(d.status_os || '').trim();
+            if (s && !Array.from(statusSet).some(x => normStr(x) === normStr(s))) statusSet.add(s);
+        });
+        const statusOpts = Array.from(statusSet);
         const tiposOsOpts = ['Envio', 'Visita técnica', 'Limpa fossa', 'Compras', 'Equipamentos'];
         return `
-            <div style="flex:2 1 220px;">
+            <div style="flex:1.6 1 200px;">
                 <label style="${lblSt}">Pesquisar</label>
-                <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value)"
+                <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
                     placeholder="Nº OS, contrato, cliente, endereço..." style="width:100%; ${inpSt}">
             </div>
-            <div style="flex:0.8 1 115px;">
+            <div style="flex:0.7 1 105px;">
                 <label style="${lblSt}">Modalidade</label>
-                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'modalidade', this.value)" style="width:100%; ${inpSt}">
+                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'modalidade', this.value, false)" style="width:100%; ${inpSt}">
                     <option value="">Todas</option>
                     <option value="Obra" ${f.modalidade === 'Obra' ? 'selected' : ''}>Obra</option>
                     <option value="Evento" ${f.modalidade === 'Evento' ? 'selected' : ''}>Evento</option>
                 </select>
             </div>
-            <div style="flex:1 1 140px;">
+            <div style="flex:0.9 1 130px;">
                 <label style="${lblSt}">Tipo de OS</label>
-                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipoOs', this.value)" style="width:100%; ${inpSt}">
+                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'tipoOs', this.value, false)" style="width:100%; ${inpSt}">
                     <option value="">Todos</option>
                     ${tiposOsOpts.map(t => `<option value="${esc(t)}" ${f.tipoOs === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                 </select>
             </div>
-            <div style="flex:1 1 170px;">
+            <div style="flex:1.1 1 165px;">
                 <label style="${lblSt}">Status da OS</label>
-                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'statusOs', this.value)" style="width:100%; ${inpSt}">
+                <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'statusOs', this.value, false)" style="width:100%; ${inpSt}">
                     <option value="">Todos</option>
                     ${statusOpts.map(s => `<option value="${esc(s)}" ${f.statusOs === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
                 </select>
             </div>
-            <div style="flex:1 1 130px;">
-                <label style="${lblSt}">Atendente</label>
-                <input type="text" data-filtro="atendente" value="${esc(f.atendente)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'atendente', this.value)"
-                    placeholder="Atendente..." style="width:100%; ${inpSt}">
+            ${renderAtendenteMultiHtml('os', 'flex:1.1 1 185px;')}
+            <div style="flex:1 1 155px;">
+                <label style="${lblSt}">Equipamento</label>
+                <input type="text" data-filtro="equipamento" value="${esc(f.equipamento)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'equipamento', this.value, true)"
+                    placeholder="Filtrar equipamento..." style="width:100%; ${inpSt}">
             </div>
-            <div style="flex:0.7 1 120px;">
+            <div style="flex:1 1 155px;">
+                <label style="${lblSt}">Serviço</label>
+                <input type="text" data-filtro="servico" value="${esc(f.servico)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'servico', this.value, true)"
+                    placeholder="Filtrar serviço..." style="width:100%; ${inpSt}">
+            </div>
+            <div style="flex:0.6 1 115px;">
                 <label style="${lblSt}">Cadastro De</label>
-                <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value)" style="width:100%; ${inpSt}">
+                <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
             </div>
-            <div style="flex:0.7 1 120px;">
+            <div style="flex:0.6 1 115px;">
                 <label style="${lblSt}">Até</label>
-                <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value)" style="width:100%; ${inpSt}">
+                <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
+            </div>
+        `;
+    }
+
+    function renderPaginacaoBarra(tipo, total) {
+        const barEl = document.getElementById(`comrel-${tipo}-paginacao`);
+        if (!barEl) return;
+        const st = stateByTipo[tipo];
+        const size = st.pageSize || 100;
+        const totalPages = size >= 999999 ? 1 : Math.max(1, Math.ceil(total / size));
+        if (st.page > totalPages) st.page = totalPages;
+        if (st.page < 1) st.page = 1;
+        const iniIdx = total === 0 ? 0 : (size >= 999999 ? 1 : ((st.page - 1) * size + 1));
+        const fimIdx = total === 0 ? 0 : (size >= 999999 ? total : Math.min(total, st.page * size));
+
+        barEl.innerHTML = `
+            <div style="font-size:0.78rem; color:#475569; font-weight:600;">
+                Exibindo <b>${iniIdx}–${fimIdx}</b> de <b>${total}</b> registro(s)
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <label style="font-size:0.76rem; color:#475569; font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+                    Por página:
+                    <select onchange="window._comercialRelatorios.alterarPageSize('${tipo}', Number(this.value))"
+                        style="height:28px; padding:0 6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.78rem; background:#fff;">
+                        ${[50, 100, 250, 999999].map(v => `<option value="${v}" ${size === v ? 'selected' : ''}>${v >= 999999 ? 'Todos' : v}</option>`).join('')}
+                    </select>
+                </label>
+                ${totalPages > 1 ? `
+                    <div style="display:inline-flex; align-items:center; gap:4px;">
+                        <button type="button" ${st.page <= 1 ? 'disabled' : ''} onclick="window._comercialRelatorios.irParaPagina('${tipo}', ${st.page - 1})"
+                            style="height:28px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; background:${st.page <= 1 ? '#f1f5f9' : '#fff'}; color:#334155; font-size:0.76rem; font-weight:700; cursor:${st.page <= 1 ? 'not-allowed' : 'pointer'};">Anterior</button>
+                        <span style="font-size:0.76rem; font-weight:700; color:#1e293b; padding:0 4px;">Pág. ${st.page} / ${totalPages}</span>
+                        <button type="button" ${st.page >= totalPages ? 'disabled' : ''} onclick="window._comercialRelatorios.irParaPagina('${tipo}', ${st.page + 1})"
+                            style="height:28px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; background:${st.page >= totalPages ? '#f1f5f9' : '#fff'}; color:#334155; font-size:0.76rem; font-weight:700; cursor:${st.page >= totalPages ? 'not-allowed' : 'pointer'};">Próxima</button>
+                    </div>
+                ` : ''}
             </div>
         `;
     }
@@ -760,7 +1071,7 @@
         const meta = REPORTS_META[tipo];
         const st = stateByTipo[tipo];
         const filtrados = obterFiltrados(tipo);
-        const cfg = montarConfiguracaoTabelaEExcel(tipo, filtrados);
+        const cfg = montarConfiguracaoTabelaEExcel(tipo, []);
 
         const countEl = document.getElementById(`comrel-${tipo}-count`);
         if (countEl) countEl.textContent = `${filtrados.length} registro(s)`;
@@ -778,6 +1089,12 @@
             </tr>`;
         }
 
+        const size = st.pageSize || 100;
+        const totalPages = size >= 999999 ? 1 : Math.max(1, Math.ceil(filtrados.length / size));
+        if (st.page > totalPages) st.page = totalPages;
+        if (st.page < 1) st.page = 1;
+        const paginaLinhas = size >= 999999 ? filtrados : filtrados.slice((st.page - 1) * size, st.page * size);
+
         const tbodyEl = document.getElementById(`comrel-${tipo}-tbody`);
         if (tbodyEl) {
             if (st.carregando) {
@@ -785,9 +1102,10 @@
             } else if (st.erro) {
                 tbodyEl.innerHTML = `<tr><td colspan="${cfg.colunas.length}" style="text-align:center; padding:2rem; color:#dc2626; font-weight:700;">${esc(st.erro)}</td></tr>`;
             } else {
-                tbodyEl.innerHTML = renderLinhasHtml(tipo, filtrados);
+                tbodyEl.innerHTML = renderLinhasHtml(tipo, paginaLinhas);
             }
         }
+        renderPaginacaoBarra(tipo, filtrados.length);
     }
 
     function renderShellRelatorio(tipo) {
@@ -839,14 +1157,15 @@
                     ${renderFiltrosHtml(tipo)}
                 </div>
 
-                <!-- Tabela -->
+                <!-- Tabela + Paginação -->
                 <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(15,23,42,0.03);">
-                    <div style="max-height:66vh; overflow:auto;">
+                    <div style="max-height:62vh; overflow:auto;">
                         <table style="width:100%; border-collapse:collapse; font-size:0.81rem; text-align:left;">
                             <thead id="comrel-${tipo}-thead"></thead>
                             <tbody id="comrel-${tipo}-tbody"></tbody>
                         </table>
                     </div>
+                    <div id="comrel-${tipo}-paginacao" style="padding:0.65rem 1rem; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;"></div>
                 </div>
             </div>
         `;
@@ -854,17 +1173,98 @@
     }
 
     window._comercialRelatorios = {
-        onInputFiltro(tipo, campo, valor) {
+        onInputFiltro(tipo, campo, valor, comDebounce = true) {
             const st = stateByTipo[tipo];
             if (!st) return;
             st.filtros[campo] = valor;
+            st.page = 1;
+            if (debounceTimer) clearTimeout(debounceTimer);
+            if (comDebounce) {
+                debounceTimer = setTimeout(() => renderCorpoTabela(tipo), 130);
+            } else {
+                renderCorpoTabela(tipo);
+            }
+        },
+
+        alterarPageSize(tipo, novoSize) {
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            st.pageSize = novoSize || 100;
+            st.page = 1;
+            renderCorpoTabela(tipo);
+        },
+
+        irParaPagina(tipo, novaPag) {
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            st.page = Math.max(1, novaPag);
+            renderCorpoTabela(tipo);
+        },
+
+        async toggleDropdownAtendentes(tipo, event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById(`comrel-${tipo}-atend-dropdown`);
+            if (!drop) return;
+            if (drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            if (!atendentesComercialLista.length) {
+                await carregarAtendentesComercialRelatorios();
+            }
+            renderListaOpcoesAtendentes(tipo);
+            drop.style.display = 'block';
+            document.getElementById(`comrel-${tipo}-atend-busca`)?.focus();
+        },
+
+        filtrarListaAtendentes(tipo, termo) {
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            st.filtros.atendBusca = termo;
+            renderListaOpcoesAtendentes(tipo);
+        },
+
+        toggleItemAtendente(tipo, nome, checked) {
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            const list = Array.isArray(st.filtros.atendentes) ? [...st.filtros.atendentes] : [];
+            const idx = list.findIndex(x => normStr(x) === normStr(nome));
+            if (checked && idx === -1) list.push(nome);
+            if (!checked && idx >= 0) list.splice(idx, 1);
+            st.filtros.atendentes = list;
+            st.page = 1;
+            const lbl = document.getElementById(`comrel-${tipo}-atend-lbl`);
+            const btn = document.getElementById(`comrel-${tipo}-atend-btn`);
+            if (lbl) lbl.textContent = list.length === 0 ? 'Todos os atendentes' : (list.length === 1 ? list[0] : `${list.length} selecionado(s)`);
+            if (btn) btn.style.fontWeight = list.length ? '700' : '500';
+            renderListaOpcoesAtendentes(tipo);
+            renderCorpoTabela(tipo);
+        },
+
+        limparAtendentes(tipo, event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const st = stateByTipo[tipo];
+            if (!st) return;
+            st.filtros.atendentes = [];
+            st.filtros.atendBusca = '';
+            st.page = 1;
+            const lbl = document.getElementById(`comrel-${tipo}-atend-lbl`);
+            const btn = document.getElementById(`comrel-${tipo}-atend-btn`);
+            const busca = document.getElementById(`comrel-${tipo}-atend-busca`);
+            if (lbl) lbl.textContent = 'Todos os atendentes';
+            if (btn) btn.style.fontWeight = '500';
+            if (busca) busca.value = '';
+            renderListaOpcoesAtendentes(tipo);
             renderCorpoTabela(tipo);
         },
 
         limparFiltros(tipo) {
             const st = stateByTipo[tipo];
             if (!st) return;
-            Object.keys(st.filtros).forEach(k => { st.filtros[k] = ''; });
+            Object.keys(st.filtros).forEach(k => {
+                st.filtros[k] = Array.isArray(st.filtros[k]) ? [] : '';
+            });
+            st.page = 1;
             renderShellRelatorio(tipo);
         },
 
@@ -936,6 +1336,16 @@
             }
         }
     };
+
+    document.addEventListener('click', (e) => {
+        ['propostas', 'contratos', 'os'].forEach(tipo => {
+            const wrap = document.getElementById(`comrel-${tipo}-atend-wrap`);
+            const drop = document.getElementById(`comrel-${tipo}-atend-dropdown`);
+            if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+                drop.style.display = 'none';
+            }
+        });
+    });
 
     window.renderRelatorioComercial = async function (tipo) {
         const st = stateByTipo[tipo];

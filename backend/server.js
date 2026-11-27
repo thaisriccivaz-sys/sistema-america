@@ -51567,6 +51567,34 @@ app.delete('/api/comercial/eventos/:id', authenticateToken, (req, res) => {
   });
 });
 
+// GET /api/comercial/relatorios/clientes - Consulta leve e rápida para Relação de Clientes
+app.get('/api/comercial/relatorios/clientes', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT id, codigo, nome_razao_social, nome_fantasia, grupo_clientes, cpf_cnpj, celular, telefone, email, municipio, uf, criado_em
+    FROM clientes
+    ORDER BY CAST(codigo AS INTEGER) DESC, id DESC
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
+// GET /api/comercial/relatorios/enderecos - Consulta leve e rápida para Relação de Endereços com nome e grupo do cliente
+app.get('/api/comercial/relatorios/enderecos', authenticateToken, (req, res) => {
+  db.all(`
+    SELECT e.id, e.sequencia, e.cliente_id,
+           COALESCE(NULLIF(TRIM(e.razao_social), ''), c.nome_razao_social, c.nome_fantasia, '') AS cliente_nome,
+           COALESCE(c.grupo_clientes, '') AS grupo_clientes,
+           e.nome_local, e.endereco, e.numero, e.bairro, e.municipio, e.uf, e.cep
+    FROM clientes_enderecos_entrega e
+    LEFT JOIN clientes c ON c.id = e.cliente_id
+    ORDER BY e.sequencia ASC, e.id ASC
+  `, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows || []);
+  });
+});
+
 // POST /api/comercial/relatorios/exportar-excel - Exporta qualquer relatório do Comercial em .xlsx estilizado
 app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (req, res) => {
   try {
@@ -51618,7 +51646,7 @@ app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (r
 
     linhas.forEach((rowObj, idxR) => {
       const row = ws.getRow(idxR + 3);
-      row.height = 20;
+      let maxQuebras = 1;
       const zebraFill = idxR % 2 === 1
         ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
         : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
@@ -51634,8 +51662,14 @@ app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (r
           cell.numFmt = 'R$ #,##0.00';
           cell.alignment = { vertical: 'middle', horizontal: 'right' };
         } else {
-          cell.value = limparPrefixoGrupo(val);
-          cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+          const txtLimpo = limparPrefixoGrupo(val);
+          const ehMulti = col.tipo === 'multilinha' || txtLimpo.includes('\n');
+          if (ehMulti) {
+            const q = txtLimpo.split('\n').length;
+            if (q > maxQuebras) maxQuebras = q;
+          }
+          cell.value = txtLimpo;
+          cell.alignment = { vertical: ehMulti ? 'top' : 'middle', horizontal: 'left', wrapText: Boolean(ehMulti) };
         }
         cell.font = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
         cell.fill = zebraFill;
@@ -51646,13 +51680,16 @@ app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (r
           right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
         };
       });
+      row.height = maxQuebras > 1 ? Math.min(Math.max(20, maxQuebras * 15 + 6), 240) : 20;
     });
 
     colunas.forEach((col, i) => {
       let maxLen = String(col.label || '').length + 4;
       linhas.forEach(r => {
-        const s = String((r && r[col.key]) ?? '');
-        if (s.length + 2 > maxLen) maxLen = s.length + 2;
+        const parts = String((r && r[col.key]) ?? '').split('\n');
+        parts.forEach(pLine => {
+          if (pLine.length + 2 > maxLen) maxLen = pLine.length + 2;
+        });
       });
       ws.getColumn(i + 1).width = col.width ? Number(col.width) : Math.min(Math.max(maxLen, 12), 55);
     });
