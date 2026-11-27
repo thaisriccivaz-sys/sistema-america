@@ -3631,8 +3631,8 @@
       }
     },
     deleteTicket(id) {
-      const pwd = prompt('Digite a senha para excluir permanentemente esta OS:');
-      if (pwd !== 'abc') {
+      const pwd = prompt('Digite a senha para excluir permanentemente este chamado:');
+      if (pwd !== 'proc123') {
           if (pwd !== null) showToast('Senha incorreta.', 'error');
           return;
       }
@@ -3640,6 +3640,7 @@
       fetch(`/api/sac/tickets/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${token}`} })
         .then(r => r.ok ? r.json() : Promise.reject(r))
         .then(() => {
+          window._sacLastSaveMs = Date.now();
           _tickets = _tickets.filter(t => t.id !== id);
           SAC.closeModal({ target: document.getElementById('sac-modal-overlay') });
           showToast('OS excluída com sucesso.','warning');
