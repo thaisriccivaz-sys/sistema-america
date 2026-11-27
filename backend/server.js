@@ -42821,17 +42821,18 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
       return false;
     };
 
-    const qAll = (sql, params = []) => new Promise((res) => db.all(sql, params, (e, r) => res(Array.isArray(r) ? r : [])));
+    const qAll = (sql, params = []) => new Promise((res) => db.all(sql, params, (e, r) => {
+      if (e) console.error('[ATENDENTES_COMERCIAL SQL]', e.message);
+      res(Array.isArray(r) ? r : []);
+    }));
     const sqlColabs = incluirDesligados
-      ? `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.status, c.data_desligamento,
-                COALESCE(NULLIF(TRIM(c.departamento), ''), ca.departamento) AS depto_efetivo
+      ? `SELECT c.*,
+                (SELECT ca.departamento FROM cargos ca WHERE LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo)) LIMIT 1) AS cargo_departamento
+         FROM colaboradores c`
+      : `SELECT c.*,
+                (SELECT ca.departamento FROM cargos ca WHERE LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo)) LIMIT 1) AS cargo_departamento
          FROM colaboradores c
-         LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))`
-      : `SELECT c.id, c.nome_completo, c.email, c.email_corporativo, c.departamento, c.cargo, c.status, c.data_desligamento,
-                COALESCE(NULLIF(TRIM(c.departamento), ''), ca.departamento) AS depto_efetivo
-         FROM colaboradores c
-         LEFT JOIN cargos ca ON LOWER(TRIM(ca.nome)) = LOWER(TRIM(c.cargo))
-         WHERE c.status IS NULL OR LOWER(TRIM(c.status)) != 'desligado'`;
+         WHERE c.status IS NULL OR LOWER(TRIM(c.status)) NOT IN ('desligado', 'inativo')`;
 
     Promise.all([
       qAll(sqlColabs),
@@ -42910,8 +42911,15 @@ function obterListaAtendentesComercial(incluirDesligados = false) {
 
       // 1) Colaboradores do departamento Comercial (pelo departamento direto ou pelo cargo)
       colabs.forEach(c => {
-        const depEf = normStr(c.depto_efetivo || c.departamento || '');
-        if (depEf.includes('comercial')) {
+        const depDireto = normStr(c.departamento || '');
+        const depCargo = normStr(c.cargo_departamento || '');
+        const cargoNorm = normStr(c.cargo || '');
+        const ehComercial = depDireto.includes('comercial')
+          || depCargo.includes('comercial')
+          || cargoNorm.includes('comercial')
+          || cargoNorm.includes('vendedor')
+          || cargoNorm.includes('vendas');
+        if (ehComercial) {
           const ehGestor = (gestorColabId && Number(c.id) === gestorColabId) || (gestorNomeRef && matchNomeFlex(c.nome_completo, gestorNomeRef));
           adicionarPessoa(c, null, ehGestor);
         }
@@ -43902,6 +43910,21 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
       const novoClienteNome = (ehAvulsaSemCtr && b.cliente_nome !== undefined) ? String(b.cliente_nome || '').trim() : (prop.cliente_nome || '');
       const novoContatoNome = b.contato_nome !== undefined ? String(b.contato_nome || '').trim() : (prop.contato_nome || '');
       const novoNomeEvento = (ehAvulsaSemCtr && b.nome_evento !== undefined) ? String(b.nome_evento || '').trim() : (prop.nome_evento || '');
+      const novosItensJson = (ehAvulsaSemCtr && b.itens !== undefined)
+        ? (typeof b.itens === 'string' ? b.itens : JSON.stringify(Array.isArray(b.itens) ? b.itens : []))
+        : (prop.itens || '[]');
+      const novosServicosJson = (ehAvulsaSemCtr && b.itens_servicos !== undefined)
+        ? (typeof b.itens_servicos === 'string' ? b.itens_servicos : JSON.stringify(Array.isArray(b.itens_servicos) ? b.itens_servicos : []))
+        : (prop.itens_servicos || '[]');
+      const novoServFreteFob = (ehAvulsaSemCtr && b.servico_frete_fob !== undefined)
+        ? (Number(b.servico_frete_fob) ? 1 : 0)
+        : (Number(prop.servico_frete_fob) ? 1 : 0);
+      const novoTipoFrete = (ehAvulsaSemCtr && b.tipo_frete !== undefined)
+        ? String(b.tipo_frete || '').trim()
+        : (prop.tipo_frete || '');
+      const novoValorTotal = (ehAvulsaSemCtr && b.valor_total !== undefined)
+        ? (Number(b.valor_total) || 0)
+        : (Number(prop.valor_total) || 0);
 
       db.run(
         `UPDATE propostas SET
@@ -43921,9 +43944,14 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
           cliente_nome = ?,
           contato_nome = ?,
           nome_evento = ?,
+          itens = ?,
+          itens_servicos = ?,
+          servico_frete_fob = ?,
+          tipo_frete = ?,
+          valor_total = ?,
           atualizado_em = ?
          WHERE id = ?`,
-        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, novoAtendente, novoTipoModalidade, novoClienteNome, novoContatoNome, novoNomeEvento, agora, propId],
+        [novoStatusOs, novoTipoOpOs, novaDataOs, novoTitulo, novasObs, novoEnd, novosContatosJson, novoContatoInst, novasDatasEntrega, novasDatasRetirada, novosDadosOsComercialJson, novoAtendente, novoTipoModalidade, novoClienteNome, novoContatoNome, novoNomeEvento, novosItensJson, novosServicosJson, novoServFreteFob, novoTipoFrete, novoValorTotal, agora, propId],
         function(errUp) {
           if (errUp) return res.status(500).json({ error: errUp.message });
           if (String(prop.status_os || 'EM ELABORAÇÃO') !== novoStatusOs) {
@@ -43979,18 +44007,29 @@ app.post('/api/comercial/os-avulsa', authenticateToken, async (req, res) => {
       const dadosJson = typeof b.os_comercial_dados_json === 'string'
         ? b.os_comercial_dados_json
         : JSON.stringify(b.os_comercial_dados_json || {});
+      const itensJson = typeof b.itens === 'string'
+        ? b.itens
+        : JSON.stringify(Array.isArray(b.itens) ? b.itens : []);
+      const itensServicosJson = typeof b.itens_servicos === 'string'
+        ? b.itens_servicos
+        : JSON.stringify(Array.isArray(b.itens_servicos) ? b.itens_servicos : []);
+      const servFreteFob = Number(b.servico_frete_fob) ? 1 : 0;
+      const tipoFrete = String(b.tipo_frete || (servFreteFob ? 'FOB' : '')).trim();
+      const valorTotal = Number(b.valor_total) || 0;
 
       db.run(
         `INSERT INTO propostas (
            codigo, contrato, tipo, atendente, data_cadastro, fase_negociacao, situacao_contrato,
            titulo_contrato, cliente_nome, contato_nome, endereco_instalacao, nome_evento,
            observacoes, numero_os, status_os, os_criada_em, os_tipo_operacao, os_comercial_dados_json,
+           itens, itens_servicos, servico_frete_fob, tipo_frete, valor_total,
            criado_em, atualizado_em
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           '', '', tipoModalidade, atendente, dataCriada, 'OS Avulsa', 'OS AVULSA',
           titulo, clienteNome, contatoNome, enderecoInst, nomeEvento,
           obs, novoNumOs, statusOs, dataCriada, tipoOpOs, dadosJson,
+          itensJson, itensServicosJson, servFreteFob, tipoFrete, valorTotal,
           agora, agora
         ],
         function(errIns) {

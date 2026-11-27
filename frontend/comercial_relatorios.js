@@ -84,7 +84,7 @@
         clientes:  { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', atendentes: [], atendBusca: '', contratosAtivos: '', cidade: '' } },
         enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', zona: '', municipioUf: '' } },
         propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fases: [], faseBusca: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
-        contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
+        contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacoes: [], sitBusca: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
         os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
     };
 
@@ -446,13 +446,20 @@
         }
 
         if (tipo === 'contratos') {
-            const fSitNorm = normStr(f.situacao);
+            const sitsSelNorm = Array.isArray(f.situacoes) ? f.situacoes.map(x => normStr(x)).filter(Boolean) : [];
             return dados.filter(p => {
                 if (q && !p._search.includes(q)) return false;
                 if (f.tipo && normStr(p.tipo) !== normStr(f.tipo)) return false;
-                if (fSitNorm) {
-                    const rowSit = normStr(p.situacao_contrato || 'EM ELABORAÇÃO');
-                    if (rowSit !== fSitNorm) return false;
+                if (sitsSelNorm.length > 0) {
+                    let rowSit = normStr(p.situacao_contrato || 'EM ELABORAÇÃO');
+                    if (!rowSit || rowSit === 'aguardando assinatura' || rowSit === 'aprovada' || rowSit === 'aprovado') {
+                        rowSit = 'em elaboracao';
+                    } else if (rowSit === 'contrato digital assinado' || rowSit === 'contrato assinado/entrega liberada') {
+                        rowSit = 'contrato assinado';
+                    } else if (rowSit === 'estornado') {
+                        rowSit = 'contrato estornado';
+                    }
+                    if (!sitsSelNorm.includes(rowSit)) return false;
                 }
                 if (!atendentePassaFiltro(p, f.atendentes)) return false;
                 const dt = String(p.aprovado_em || p.data_cadastro || '').substring(0, 10);
@@ -577,11 +584,11 @@
                 { key: 'codigo', label: 'Nº Proposta', width: 14, widthPx: 95 },
                 { key: 'data_emissao', label: 'Data Emissão', width: 14, widthPx: 105 },
                 { key: 'tipo', label: 'Tipo', width: 18, widthPx: 120 },
-                { key: 'titulo', label: 'Título', width: 30, widthPx: 185 },
-                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 240 },
-                { key: 'contato', label: 'Contato', width: 24, widthPx: 145 },
-                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145 },
-                { key: 'situacao', label: 'Situação do Contrato', width: 26, widthPx: 205 },
+                { key: 'titulo', label: 'Título', width: 30, widthPx: 190 },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 250 },
+                { key: 'contato', label: 'Contato', width: 24, widthPx: 145, ocultarTela: true },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145, ocultarTela: true },
+                { key: 'situacao', label: 'Situação do Contrato', width: 26, widthPx: 215 },
                 { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 175 },
                 { key: 'produtos', label: 'Produtos', width: 42, widthPx: 220, tipo: 'multilinha' },
                 { key: 'valor_total', label: 'Valor Total', width: 18, widthPx: 125, tipo: 'moeda' },
@@ -806,9 +813,7 @@
         if (tipo === 'contratos') {
             return paginaLinhas.map(p => {
                 const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
-                const sitHtml = typeof window.renderBadgeSituacaoContratoHtml === 'function'
-                    ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato || 'EM ELABORAÇÃO', false)
-                    : esc(p.situacao_contrato || 'EM ELABORAÇÃO');
+                const sitHtml = renderBadgeSituacaoContratoFiltroHtml(p.situacao_contrato || 'EM ELABORAÇÃO', false);
                 const dtEm = fmtDataBr(String(p.aprovado_em || '').substring(0, 10) || p.data_cadastro);
                 const perStr = p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—';
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
@@ -824,8 +829,6 @@
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
                     <td style="padding:8px 10px; color:#334155; overflow-wrap:break-word;">${esc(p.titulo_contrato || '—')}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${esc(cliExib)}</td>
-                    <td style="padding:8px 10px; color:#475569; overflow-wrap:break-word;">${esc(p.contato_nome || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${sitHtml}</td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
                     <td style="padding:8px 10px;">${renderProdutosExpansivelHtml(p._produtosList, 'ctr_' + p.id)}</td>
@@ -1030,6 +1033,132 @@
         }).join('');
     }
 
+    function obterConfigSituacaoContratoLocal(sitRaw) {
+        if (typeof window.obterConfigSituacaoContrato === 'function') {
+            const cfg = window.obterConfigSituacaoContrato(sitRaw);
+            if (cfg && cfg.icon && cfg.icon !== 'ph-circle') return cfg;
+        }
+        const s = normStr(sitRaw);
+        if (!s || s === 'em elaboracao' || s === 'aguardando assinatura' || s === 'aprovada' || s === 'aprovado') {
+            return { nome: 'EM ELABORAÇÃO', bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-pencil' };
+        }
+        if (s === 'enviado para assinatura') {
+            return { nome: 'ENVIADO PARA ASSINATURA', bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' };
+        }
+        if (s === 'contrato assinado' || s === 'contrato digital assinado' || s === 'contrato assinado/entrega liberada') {
+            return { nome: 'CONTRATO ASSINADO', bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-signature' };
+        }
+        if (s === 'solicitacao de retirada em andamento') {
+            return { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO', bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-truck' };
+        }
+        if (s === 'entregue - liberado para faturamento') {
+            return { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-receipt' };
+        }
+        if (s.includes('reprovado') || s.includes('cancelado')) {
+            return { nome: 'REPROVADO | CANCELADO', bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-x-circle' };
+        }
+        if (s.includes('encerrado') || s.includes('concluido')) {
+            return { nome: 'ENCERRADO | CONCLUÍDO', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', icon: 'ph-archive' };
+        }
+        if (s.includes('nao assina contrato')) {
+            return { nome: 'NÃO ASSINA CONTRATO - ENTREGA LIBERADA', bg: '#ccfbf1', text: '#0f766e', border: '#99f6e4', icon: 'ph-seal-check' };
+        }
+        if (s.includes('estornado')) {
+            return { nome: 'CONTRATO ESTORNADO', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', icon: 'ph-arrow-counter-clockwise' };
+        }
+        return { nome: String(sitRaw || 'EM ELABORAÇÃO').toUpperCase(), bg: '#f1f5f9', text: '#475569', border: '#cbd5e1', icon: 'ph-circle' };
+    }
+
+    function renderBadgeSituacaoContratoFiltroHtml(sitRaw, compacto = false) {
+        const cfg = obterConfigSituacaoContratoLocal(sitRaw);
+        const pad = compacto ? '1px 8px' : '2px 9px';
+        const fz = compacto ? '0.67rem' : '0.71rem';
+        return `<span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border || cfg.bg}; padding:${pad}; border-radius:999px; font-size:${fz}; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase;">
+            <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${esc(String(cfg.nome || sitRaw || '').toUpperCase())}
+        </span>`;
+    }
+
+    function obterOpcoesSituacoesContratos() {
+        const st = stateByTipo.contratos;
+        const sitsSet = new Set(SITUACOES_CONTRATO_TODAS);
+        (st?.dados || []).forEach(d => {
+            const s = String(d.situacao_contrato || '').trim();
+            if (s && normStr(s) !== 'os avulsa' && normStr(s) !== 'aguardando assinatura') {
+                const jaExiste = Array.from(sitsSet).some(x => normStr(x) === normStr(s));
+                if (!jaExiste) sitsSet.add(s);
+            }
+        });
+        return Array.from(sitsSet);
+    }
+
+    function renderResumoBotaoSituacaoContratos() {
+        const st = stateByTipo.contratos;
+        const sel = Array.isArray(st?.filtros?.situacoes) ? st.filtros.situacoes : [];
+        if (sel.length === 0) {
+            return '<span style="color:#475569; font-weight:500;">Todas</span>';
+        }
+        if (sel.length === 1) {
+            return renderBadgeSituacaoContratoFiltroHtml(sel[0], true);
+        }
+        return `<span style="background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; text-transform:uppercase;">${sel.length} SITUAÇÕES SELECIONADAS</span>`;
+    }
+
+    function renderSituacaoContratoMultiHtml(flexCss = 'flex:1.35 1 225px;') {
+        const st = stateByTipo.contratos;
+        const lblSt = 'display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:3px;';
+        return `
+            <div style="${flexCss}">
+                <label style="${lblSt}">Situação do Contrato</label>
+                <div id="comrel-contratos-sit-wrap" style="position:relative; width:100%;">
+                    <button type="button" id="comrel-contratos-sit-btn" onclick="window._comercialRelatorios.toggleDropdownSituacoesContrato(event)"
+                        style="width:100%; height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#1e293b; font-size:0.81rem; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
+                        <span id="comrel-contratos-sit-lbl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-flex; align-items:center;">${renderResumoBotaoSituacaoContratos()}</span>
+                        <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b; flex-shrink:0;"></i>
+                    </button>
+                    <div id="comrel-contratos-sit-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:345px; width:100%; max-height:340px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.16); z-index:1155; overflow:hidden;">
+                        <div style="padding:7px 8px; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="comrel-contratos-sit-busca" value="${esc(st.filtros.sitBusca || '')}"
+                                oninput="window._comercialRelatorios.filtrarListaSituacoesContrato(this.value)"
+                                placeholder="Digite para filtrar situação..."
+                                style="flex:1; height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.78rem; text-transform:none; outline:none;">
+                            <button type="button" onclick="window._comercialRelatorios.limparSituacoesContrato(event)" title="Limpar seleção"
+                                style="height:28px; padding:0 8px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">Limpar</button>
+                        </div>
+                        <div id="comrel-contratos-sit-lista" style="max-height:280px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderListaOpcoesSituacoesContrato() {
+        const listEl = document.getElementById('comrel-contratos-sit-lista');
+        const st = stateByTipo.contratos;
+        if (!listEl || !st) return;
+        const busca = normStr(st.filtros.sitBusca || '');
+        const selecionadas = Array.isArray(st.filtros.situacoes) ? st.filtros.situacoes : [];
+        const todas = obterOpcoesSituacoesContratos();
+        const filtradas = busca
+            ? todas.filter(s => normStr(s).includes(busca) || normStr(obterConfigSituacaoContratoLocal(s).nome).includes(busca))
+            : todas;
+
+        if (!filtradas.length) {
+            listEl.innerHTML = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:0.78rem;">Nenhuma situação encontrada.</div>';
+            return;
+        }
+
+        listEl.innerHTML = filtradas.map(s => {
+            const marcado = selecionadas.some(x => normStr(x) === normStr(s));
+            const sEsc = String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<label style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid #f1f5f9; cursor:pointer; background:${marcado ? '#f5f3ff' : '#fff'};"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${marcado ? '#f5f3ff' : '#fff'}'">
+                <input type="checkbox" ${marcado ? 'checked' : ''} onchange="window._comercialRelatorios.toggleItemSituacaoContrato('${sEsc}', this.checked)"
+                    style="width:14px; height:14px; accent-color:#7048e8; cursor:pointer; margin:0; flex-shrink:0;">
+                ${renderBadgeSituacaoContratoFiltroHtml(s, false)}
+            </label>`;
+        }).join('');
+    }
+
     function renderFiltrosHtml(tipo) {
         const st = stateByTipo[tipo];
         const f = st.filtros;
@@ -1118,41 +1247,35 @@
                     <input type="text" data-filtro="produto" value="${esc(f.produto)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'produto', this.value, true)"
                         placeholder="Filtrar por produto..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.75 1 135px; max-width:210px;">
-                    <label style="${lblSt}">Cadastro De</label>
-                    <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.75 1 135px; max-width:210px;">
-                    <label style="${lblSt}">Cadastro Até</label>
-                    <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.75 1 135px; max-width:210px;">
-                    <label style="${lblSt}">Período Início (Prop.)</label>
-                    <input type="date" value="${esc(f.perDe)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perDe', this.value, false)" style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.75 1 135px; max-width:210px;">
-                    <label style="${lblSt}">Período Até (Prop.)</label>
-                    <input type="date" value="${esc(f.perAte)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perAte', this.value, false)" style="width:100%; ${inpSt}">
+                <!-- Grupo indivisível das 4 datas lado a lado: Cadastro De -> Cadastro Até -> Período Início (Prop.) -> Período Até (Prop.) -->
+                <div style="display:flex; gap:0.65rem; flex:1 1 580px; flex-wrap:nowrap; align-items:flex-end;">
+                    <div style="flex:1 1 135px; max-width:195px;">
+                        <label style="${lblSt}">Cadastro De</label>
+                        <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
+                    </div>
+                    <div style="flex:1 1 135px; max-width:195px;">
+                        <label style="${lblSt}">Cadastro Até</label>
+                        <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
+                    </div>
+                    <div style="flex:1 1 135px; max-width:195px;">
+                        <label style="${lblSt}">Período Início (Prop.)</label>
+                        <input type="date" value="${esc(f.perDe)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perDe', this.value, false)" style="width:100%; ${inpSt}">
+                    </div>
+                    <div style="flex:1 1 135px; max-width:195px;">
+                        <label style="${lblSt}">Período Até (Prop.)</label>
+                        <input type="date" value="${esc(f.perAte)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perAte', this.value, false)" style="width:100%; ${inpSt}">
+                    </div>
                 </div>
             `;
         }
 
         if (tipo === 'contratos') {
             const tiposOpts = Array.from(new Set(st.dados.map(d => String(d.tipo || '').trim()).filter(Boolean))).sort();
-            const sitsSet = new Set(SITUACOES_CONTRATO_TODAS);
-            st.dados.forEach(d => {
-                const s = String(d.situacao_contrato || '').trim();
-                if (s) {
-                    const jaExiste = Array.from(sitsSet).some(x => normStr(x) === normStr(s));
-                    if (!jaExiste) sitsSet.add(s);
-                }
-            });
-            const sitsOpts = Array.from(sitsSet);
             return `
                 <div style="flex:1.8 1 220px;">
                     <label style="${lblSt}">Pesquisar</label>
                     <input type="text" data-filtro="q" value="${esc(f.q)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'q', this.value, true)"
-                        placeholder="Nº contrato, título, cliente, evento..." style="width:100%; ${inpSt}">
+                        placeholder="Nº contrato, título, cliente, produto, evento..." style="width:100%; ${inpSt}">
                 </div>
                 <div style="flex:0.9 1 135px;">
                     <label style="${lblSt}">Tipo</label>
@@ -1161,19 +1284,13 @@
                         ${tiposOpts.map(t => `<option value="${esc(t)}" ${f.tipo === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1.2 1 190px;">
-                    <label style="${lblSt}">Situação do Contrato</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'situacao', this.value, false)" style="width:100%; ${inpSt}">
-                        <option value="">Todas</option>
-                        ${sitsOpts.map(s => `<option value="${esc(s)}" ${f.situacao === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
-                    </select>
-                </div>
+                ${renderSituacaoContratoMultiHtml('flex:1.35 1 225px;')}
                 ${renderAtendenteMultiHtml('contratos', 'flex:1.2 1 200px;')}
-                <div style="flex:0.65 1 120px;">
+                <div style="flex:0.65 1 130px; max-width:185px;">
                     <label style="${lblSt}">Emissão De</label>
                     <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.65 1 120px;">
+                <div style="flex:0.65 1 130px; max-width:185px;">
                     <label style="${lblSt}">Até</label>
                     <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
@@ -1545,6 +1662,56 @@
             renderCorpoTabela('propostas');
         },
 
+        toggleDropdownSituacoesContrato(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('comrel-contratos-sit-dropdown');
+            if (!drop) return;
+            if (drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            renderListaOpcoesSituacoesContrato();
+            drop.style.display = 'block';
+            document.getElementById('comrel-contratos-sit-busca')?.focus();
+        },
+
+        filtrarListaSituacoesContrato(termo) {
+            const st = stateByTipo.contratos;
+            if (!st) return;
+            st.filtros.sitBusca = termo;
+            renderListaOpcoesSituacoesContrato();
+        },
+
+        toggleItemSituacaoContrato(sitNome, checked) {
+            const st = stateByTipo.contratos;
+            if (!st) return;
+            const list = Array.isArray(st.filtros.situacoes) ? [...st.filtros.situacoes] : [];
+            const idx = list.findIndex(x => normStr(x) === normStr(sitNome));
+            if (checked && idx === -1) list.push(sitNome);
+            if (!checked && idx >= 0) list.splice(idx, 1);
+            st.filtros.situacoes = list;
+            st.page = 1;
+            const lbl = document.getElementById('comrel-contratos-sit-lbl');
+            if (lbl) lbl.innerHTML = renderResumoBotaoSituacaoContratos();
+            renderListaOpcoesSituacoesContrato();
+            renderCorpoTabela('contratos');
+        },
+
+        limparSituacoesContrato(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const st = stateByTipo.contratos;
+            if (!st) return;
+            st.filtros.situacoes = [];
+            st.filtros.sitBusca = '';
+            st.page = 1;
+            const lbl = document.getElementById('comrel-contratos-sit-lbl');
+            const busca = document.getElementById('comrel-contratos-sit-busca');
+            if (lbl) lbl.innerHTML = renderResumoBotaoSituacaoContratos();
+            if (busca) busca.value = '';
+            renderListaOpcoesSituacoesContrato();
+            renderCorpoTabela('contratos');
+        },
+
         limparFiltros(tipo) {
             const st = stateByTipo[tipo];
             if (!st) return;
@@ -1648,20 +1815,33 @@
         }
     };
 
-    document.addEventListener('click', (e) => {
-        ['clientes', 'propostas', 'contratos', 'os'].forEach(tipo => {
-            const wrap = document.getElementById(`comrel-${tipo}-atend-wrap`);
-            const drop = document.getElementById(`comrel-${tipo}-atend-dropdown`);
-            if (drop && drop.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+    function fecharDropdownsAbertosRelatoriosPorAlvo(targetEl) {
+        const pares = [
+            ['comrel-clientes-atend-wrap', 'comrel-clientes-atend-dropdown'],
+            ['comrel-propostas-atend-wrap', 'comrel-propostas-atend-dropdown'],
+            ['comrel-contratos-atend-wrap', 'comrel-contratos-atend-dropdown'],
+            ['comrel-os-atend-wrap', 'comrel-os-atend-dropdown'],
+            ['comrel-propostas-fase-wrap', 'comrel-propostas-fase-dropdown'],
+            ['comrel-contratos-sit-wrap', 'comrel-contratos-sit-dropdown']
+        ];
+        pares.forEach(([wrapId, dropId]) => {
+            const drop = document.getElementById(dropId);
+            if (!drop || drop.style.display === 'none' || !drop.style.display) return;
+            const wrap = document.getElementById(wrapId);
+            if (!targetEl || !wrap || !wrap.contains(targetEl)) {
                 drop.style.display = 'none';
             }
         });
-        const faseWrap = document.getElementById('comrel-propostas-fase-wrap');
-        const faseDrop = document.getElementById('comrel-propostas-fase-dropdown');
-        if (faseDrop && faseDrop.style.display === 'block' && faseWrap && !faseWrap.contains(e.target)) {
-            faseDrop.style.display = 'none';
-        }
-    });
+    }
+
+    // Fase de captura (true) garante fechamento imediato ao clicar fora ou clicar/focar em outro campo/dropdown
+    document.addEventListener('mousedown', (e) => {
+        fecharDropdownsAbertosRelatoriosPorAlvo(e.target);
+    }, true);
+
+    document.addEventListener('focusin', (e) => {
+        fecharDropdownsAbertosRelatoriosPorAlvo(e.target);
+    }, true);
 
     function renderBadgeStatusFaturamentoHist(st) {
         const raw = String(st || 'Aberto').trim();

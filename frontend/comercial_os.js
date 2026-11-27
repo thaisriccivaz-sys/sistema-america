@@ -76,9 +76,13 @@
         statusNovoDraft: 'EM ELABORAÇÃO',
         tipoOsDraft: '',
         modalidadeDraft: 'Obra',
+        itensProdutosDraft: [],
+        itensServicosDraft: [],
+        freteFobDraft: false,
         secoesAbertas: {
             periodo: true,
             produtos: true,
+            servicos: true,
             fob: true,
             anexos: false
         },
@@ -359,14 +363,93 @@
     }
 
     function propostaTemFreteFob(prop) {
-        if (!prop) return false;
+        if (!prop || !prop.id) {
+            if (state.freteFobDraft) return true;
+            const draftServs = Array.isArray(state.itensServicosDraft) ? state.itensServicosDraft : [];
+            return draftServs.some(s => Boolean(s && (s.frete_fob || normStr(s.servico || s.produto || s.descricao || '').includes('fob'))));
+        }
         if (Number(prop.servico_frete_fob) === 1 || prop.servico_frete_fob === true) return true;
         if (String(prop.tipo_frete || '').trim().toUpperCase() === 'FOB') return true;
         let servs = [];
         try {
             servs = typeof prop.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop.itens_servicos) ? prop.itens_servicos : []);
         } catch (_) { servs = []; }
-        return (Array.isArray(servs) ? servs : []).some(s => normStr(s?.servico || s?.produto || s?.descricao || '').includes('fob'));
+        return (Array.isArray(servs) ? servs : []).some(s => Boolean(s && (s.frete_fob || normStr(s?.servico || s?.produto || s?.descricao || '').includes('fob'))));
+    }
+
+    function obterListaEnderecosEstadoAtualOs(prop, dadosOs) {
+        const domEl = document.getElementById('cos-endereco-instalacao');
+        const raw = domEl
+            ? String(domEl.value || '')
+            : String((prop && prop.id ? prop.endereco_instalacao : (dadosOs && dadosOs.endereco_instalacao_draft)) || '');
+        return raw.split(/\s*\|\s*/).map(s => String(s || '').trim()).filter(Boolean);
+    }
+
+    function obterRegrasProdutosEServicosOs(prop, dadosOs) {
+        const tipoOsVal = resolverTipoOsComercial(prop);
+        const tNorm = normStr(tipoOsVal);
+        const modAtual = resolverModalidadeObraEventoOs(prop, dadosOs);
+        const ehObra = normStr(modAtual) !== 'evento';
+        const temFob = propostaTemFreteFob(prop);
+        const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+        const servsAtivos = obterServicosMescladosOs(prop).filter(s => s && !s._substituido_por_aditivo);
+
+        // Regra de obrigatoriedade de Produtos:
+        // - Envio: obrigatório ter produto
+        // - Equipamentos: obrigatório ter produto
+        const produtoObrigatorio = (tNorm === 'envio' || tNorm === 'equipamentos');
+
+        // Regra de obrigatoriedade de Serviços:
+        // - Limpa fossa: obrigatório selecionar um serviço
+        // - Mesma regra da tela de Proposta: em Obra (exceto Equipamentos / Evento), serviço é obrigatório salvo quando marcado Frete FOB
+        const obraExigeServicoComoProposta = ehObra && tNorm !== 'equipamentos' && (tNorm === 'envio' || itensAtivos.length > 0);
+        const servicoObrigatorio = (tNorm === 'limpa fossa') || (obraExigeServicoComoProposta && !temFob);
+
+        return {
+            tipoOsVal,
+            tNorm,
+            ehObra,
+            temFob,
+            itensAtivos,
+            servsAtivos,
+            produtoObrigatorio,
+            servicoObrigatorio
+        };
+    }
+
+    function validarDistribuicaoProdutosEnderecosOs(prop, dadosOs) {
+        const listaEnds = obterListaEnderecosEstadoAtualOs(prop, dadosOs);
+        const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+        if (listaEnds.length <= 1 || itensAtivos.length === 0) {
+            return { exigido: false, ok: true, pendencias: [] };
+        }
+        const dist = (dadosOs && Array.isArray(dadosOs.distribuicao_enderecos)) ? dadosOs.distribuicao_enderecos : [];
+        const pendencias = [];
+
+        itensAtivos.forEach((it, pIdx) => {
+            const qtdTotal = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+            let soma = 0;
+            for (let eIdx = 0; eIdx < listaEnds.length; eIdx++) {
+                const q = parseInt(dist[eIdx]?.quantidades?.[pIdx] ?? 0, 10) || 0;
+                soma += Math.max(0, q);
+            }
+            if (soma !== qtdTotal) {
+                pendencias.push(`Distribuir ${assoc.nome}: ${soma} de ${qtdTotal} vinculado(s) nos endereços`);
+            }
+        });
+
+        listaEnds.forEach((endTxt, eIdx) => {
+            let somaEnd = 0;
+            itensAtivos.forEach((_, pIdx) => {
+                somaEnd += Math.max(0, parseInt(dist[eIdx]?.quantidades?.[pIdx] ?? 0, 10) || 0);
+            });
+            if (somaEnd <= 0) {
+                pendencias.push(`Vincular pelo menos 1 produto ao Endereço #${eIdx + 1}`);
+            }
+        });
+
+        return { exigido: true, ok: pendencias.length === 0, pendencias };
     }
 
     function formatarTextoQtdManutencoes(raw) {
@@ -482,6 +565,8 @@
             fob_placa_veiculo: salvo.fob_placa_veiculo || '',
             fob_nome_motorista: salvo.fob_nome_motorista || '',
 
+            distribuicao_enderecos: Array.isArray(salvo.distribuicao_enderecos) ? salvo.distribuicao_enderecos : [],
+
             enviada_logistica: Boolean(salvo.enviada_logistica)
         };
     }
@@ -493,15 +578,25 @@
     function verificarCamposObrigatoriosOsPreenchidos() {
         const prop = state.osAtual;
         const d = state.dadosOs;
-        if (!prop || !prop.id || !d) return { ok: false, pendencias: ['Carregue uma OS válida'] };
+        if (!prop || !prop.id || !d) return { ok: false, pendencias: ['Carregue ou salve uma OS válida'] };
 
         const pendencias = [];
         const modAtual = resolverModalidadeObraEventoOs(prop, d);
         const ehEvento = modAtual === 'Evento';
-        const temFob = propostaTemFreteFob(prop);
+        const regrasPS = obterRegrasProdutosEServicosOs(prop, d);
+        const temFob = regrasPS.temFob;
 
-        const tipoOsVal = resolverTipoOsComercial(prop);
+        const tipoOsVal = regrasPS.tipoOsVal;
         if (!String(tipoOsVal || '').trim()) pendencias.push('Tipo de OS');
+
+        if (regrasPS.produtoObrigatorio && regrasPS.itensAtivos.length === 0) {
+            pendencias.push(`Adicionar pelo menos 1 Produto (obrigatório para OS de ${tipoOsVal})`);
+        }
+        if (regrasPS.servicoObrigatorio && regrasPS.servsAtivos.length === 0) {
+            pendencias.push(regrasPS.tNorm === 'limpa fossa'
+                ? 'Selecionar pelo menos 1 Serviço (obrigatório para OS de Limpa fossa)'
+                : 'Selecionar pelo menos 1 Serviço ou marcar Frete FOB (obrigatório para OS de Obra)');
+        }
 
         if (!String(d.data_entrega || '').trim()) pendencias.push('Data de Entrega');
         if (!d.entrega_horario_comercial && !String(d.hora_entrega || '').trim()) {
@@ -516,9 +611,14 @@
             }
         }
 
-        const listaEndsCheck = String(prop.endereco_instalacao || '').split(/\s*\|\s*/).map(x => x.trim()).filter(Boolean);
+        const listaEndsCheck = obterListaEnderecosEstadoAtualOs(prop, d);
         if (listaEndsCheck.length === 0) {
             pendencias.push('Endereço de Instalação');
+        }
+
+        const checkDist = validarDistribuicaoProdutosEnderecosOs(prop, d);
+        if (checkDist.exigido && !checkDist.ok) {
+            checkDist.pendencias.forEach(m => pendencias.push(m));
         }
 
         if (ehEvento) {
@@ -621,6 +721,9 @@
     }
 
     function obterProdutosMescladosOs(prop) {
+        if (!prop || !prop.id) {
+            return Array.isArray(state.itensProdutosDraft) ? state.itensProdutosDraft.filter(Boolean) : [];
+        }
         let itensBase = [];
         try {
             itensBase = typeof prop?.itens === 'string' ? JSON.parse(prop.itens || '[]') : (Array.isArray(prop?.itens) ? prop.itens : []);
@@ -637,9 +740,155 @@
         return itensBase;
     }
 
+    function obterServicosMescladosOs(prop) {
+        if (!prop || !prop.id) {
+            return Array.isArray(state.itensServicosDraft) ? state.itensServicosDraft.filter(Boolean) : [];
+        }
+        let servsBase = [];
+        try {
+            servsBase = typeof prop?.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop?.itens_servicos) ? prop.itens_servicos : []);
+        } catch (_) { servsBase = []; }
+        servsBase = Array.isArray(servsBase) ? servsBase.filter(Boolean) : [];
+        if (prop && prop.id && osVeioDeContrato(prop) && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+            try {
+                const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(prop, [], servsBase);
+                if (mesclados && Array.isArray(mesclados.servicos)) {
+                    return mesclados.servicos.filter(Boolean);
+                }
+            } catch (_) {}
+        }
+        return servsBase;
+    }
+
+    function normalizarEstruturaDistribuicaoEnderecos(prop, dadosOs) {
+        if (!dadosOs) return [];
+        const listaEnds = obterListaEnderecosEstadoAtualOs(prop, dadosOs);
+        const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+        if (listaEnds.length <= 1 || itensAtivos.length === 0) {
+            dadosOs.distribuicao_enderecos = [];
+            return [];
+        }
+        const prev = Array.isArray(dadosOs.distribuicao_enderecos) ? dadosOs.distribuicao_enderecos : [];
+        const nova = listaEnds.map((endTxt, eIdx) => {
+            const existentePorNome = prev.find(d => d && normStr(d.endereco) === normStr(endTxt));
+            const origem = existentePorNome || prev[eIdx] || { quantidades: {} };
+            const quantidades = {};
+            itensAtivos.forEach((it, pIdx) => {
+                const maxQtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+                let q = parseInt(origem.quantidades?.[pIdx] ?? 0, 10) || 0;
+                if (q < 0) q = 0;
+                if (q > maxQtd) q = maxQtd;
+                quantidades[pIdx] = q;
+            });
+            return { endereco: endTxt, quantidades };
+        });
+
+        // Garante que a soma em cada produto nunca ultrapasse o total da OS
+        itensAtivos.forEach((it, pIdx) => {
+            const maxQtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+            let acum = 0;
+            nova.forEach(entry => {
+                const atual = entry.quantidades[pIdx] || 0;
+                if (acum + atual > maxQtd) {
+                    entry.quantidades[pIdx] = Math.max(0, maxQtd - acum);
+                }
+                acum += entry.quantidades[pIdx];
+            });
+        });
+
+        nova.forEach(entry => {
+            entry.resumo_itens = itensAtivos.map((it, pIdx) => {
+                const q = entry.quantidades[pIdx] || 0;
+                if (q <= 0) return null;
+                const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+                return { produto: assoc.nome, icone: assoc.icone || '', quantidade: q };
+            }).filter(Boolean);
+        });
+
+        dadosOs.distribuicao_enderecos = nova;
+        return nova;
+    }
+
+    function renderDistribuicaoProdutosEnderecosHtml(prop) {
+        if (!state.dadosOs) state.dadosOs = {};
+        const listaEnds = obterListaEnderecosEstadoAtualOs(prop, state.dadosOs);
+        const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+        if (listaEnds.length <= 1 || itensAtivos.length === 0) {
+            return '';
+        }
+        const dist = normalizarEstruturaDistribuicaoEnderecos(prop, state.dadosOs);
+        const tipoOk = Boolean(String(resolverTipoOsComercial(prop) || '').trim());
+
+        const badgesResumoHtml = itensAtivos.map((it, pIdx) => {
+            const qtdTotal = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+            const alocado = dist.reduce((acc, d) => acc + (parseInt(d.quantidades?.[pIdx] ?? 0, 10) || 0), 0);
+            const falta = qtdTotal - alocado;
+            const completo = falta === 0;
+            return `<span id="cos-dist-resumo-prod-${pIdx}" style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:800; background:${completo ? '#dcfce7' : '#ffedd5'}; color:${completo ? '#15803d' : '#c2410c'}; border:1px solid ${completo ? '#86efac' : '#fdba74'};">
+                <span>${assoc.icone ? assoc.icone + ' ' : ''}${esc(assoc.nome)}:</span>
+                <span>${alocado} / ${qtdTotal}</span>
+                <span>${completo ? '✓' : `(Falta ${falta})`}</span>
+            </span>`;
+        }).join('');
+
+        const cardsEnderecosHtml = listaEnds.map((endTxt, eIdx) => {
+            const somaEnd = itensAtivos.reduce((acc, _, pIdx) => acc + (parseInt(dist[eIdx]?.quantidades?.[pIdx] ?? 0, 10) || 0), 0);
+            const itensInputsHtml = itensAtivos.map((it, pIdx) => {
+                const qtdTotal = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+                const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+                const valAtual = parseInt(dist[eIdx]?.quantidades?.[pIdx] ?? 0, 10) || 0;
+                return `<div style="display:inline-flex; align-items:center; gap:6px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:7px; padding:4px 8px;">
+                    <span style="font-size:0.73rem; font-weight:700; color:#1e293b; white-space:nowrap;">${assoc.icone ? assoc.icone + ' ' : ''}${esc(assoc.nome)} <span style="color:#64748b; font-weight:600;">(de ${qtdTotal})</span></span>
+                    <div style="display:inline-flex; align-items:center; gap:2px;">
+                        <button type="button" ${!tipoOk ? 'disabled' : ''} onclick="window._comercialOS.ajustarDeltaDistribuicao(${eIdx}, ${pIdx}, -1)"
+                            style="width:22px !important; height:22px !important; padding:0 !important; background:#e2e8f0; color:#334155; border:none; font-weight:800;">-</button>
+                        <input type="number" id="cos-dist-inp-${eIdx}-${pIdx}" min="0" max="${qtdTotal}" value="${valAtual}" ${!tipoOk ? 'disabled' : ''}
+                            oninput="window._comercialOS.atualizarQtdProdutoNoEndereco(${eIdx}, ${pIdx}, this.value)"
+                            style="width:48px !important; height:22px !important; text-align:center; font-weight:800; padding:0 4px !important;">
+                        <button type="button" ${!tipoOk ? 'disabled' : ''} onclick="window._comercialOS.ajustarDeltaDistribuicao(${eIdx}, ${pIdx}, 1)"
+                            style="width:22px !important; height:22px !important; padding:0 !important; background:#dbeafe; color:#1d4ed8; border:none; font-weight:800;">+</button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            return `<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                    <div style="display:inline-flex; align-items:center; gap:6px; min-width:0; flex:1;">
+                        <span style="background:#10b981; color:#fff; border-radius:999px; padding:1px 7px; font-size:0.68rem; font-weight:800; flex-shrink:0;">Endereço #${eIdx + 1}</span>
+                        <span style="font-size:0.74rem; font-weight:700; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${esc(endTxt)}">${esc(endTxt)}</span>
+                    </div>
+                    <span id="cos-dist-total-end-${eIdx}" style="font-size:0.7rem; font-weight:800; padding:1px 8px; border-radius:999px; background:${somaEnd > 0 ? '#eff6ff' : '#fee2e2'}; color:${somaEnd > 0 ? '#1d4ed8' : '#b91c1c'}; border:1px solid ${somaEnd > 0 ? '#bfdbfe' : '#fecaca'};">
+                        ${somaEnd > 0 ? `${somaEnd} unid. neste endereço` : 'Nenhum produto vinculado'}
+                    </span>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                    ${itensInputsHtml}
+                </div>
+            </div>`;
+        }).join('');
+
+        return `<div style="margin-top:0.55rem; background:#fffbeb; border:1.5px solid #f59e0b; border-radius:8px; padding:0.55rem 0.75rem;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                <span style="font-size:0.75rem; font-weight:800; color:#92400e; display:inline-flex; align-items:center; gap:5px;">
+                    <i class="ph ph-git-branch" style="font-size:0.95rem; color:#d97706;"></i> Vínculo Fracionado de Produtos por Endereço <span style="color:#dc2626;">*</span>
+                </span>
+                <span style="font-size:0.7rem; color:#78350f; font-weight:600;">Altere a quantidade em um endereço para calcular o restante automaticamente</span>
+            </div>
+            <div id="cos-dist-resumo-bar" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:7px;">
+                ${badgesResumoHtml}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                ${cardsEnderecosHtml}
+            </div>
+        </div>`;
+    }
+
     function renderProdutosGridHtml(prop) {
+        const veioDeCtr = osVeioDeContrato(prop);
         const itensTodos = obterProdutosMescladosOs(prop);
         const itensAtivos = itensTodos.filter(it => it && !it._substituido_por_aditivo);
+        const totalCols = veioDeCtr ? 4 : 5;
 
         const badge = document.getElementById('cos-produtos-count-badge');
         const somaQtd = itensAtivos.reduce((acc, it) => acc + (Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1)), 0);
@@ -653,19 +902,19 @@
         }
 
         if (itensTodos.length === 0) {
-            return `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
+            return `<tr><td colspan="${totalCols}" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum produto vinculado a esta OS.</td></tr>`;
         }
 
-        const tipoUp = String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const ehEv = ['EVENTO', 'EQUIPAMENTOS', 'EQUIPAMENTO'].includes(tipoUp);
+        const modAtual = resolverModalidadeObraEventoOs(prop, state.dadosOs);
+        const ehEv = normStr(modAtual) === 'evento' || ['EVENTO', 'EQUIPAMENTOS', 'EQUIPAMENTO'].includes(String(prop?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, ''));
         const temAditivosMesclados = itensTodos.some(it => it && (it._from_aditivo_dinamico || it._substituido_por_aditivo));
 
-        return itensTodos.map(it => {
-            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+        return itensTodos.map((it, idx) => {
+            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop || { tipo: ehEv ? 'EVENTO' : 'OBRA MENSAL' });
             const obs = String(it.observacao || '').trim();
             const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
             const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
-            const nDiarias = ehEv ? (diasArr.length > 0 ? diasArr.length : Math.max(1, parseInt(prop?.dias_contrato || 1, 10) || 1)) : 1;
+            const nDiarias = ehEv ? (diasArr.length > 0 ? diasArr.length : Math.max(1, parseInt(it.diarias ?? prop?.dias_contrato ?? 1, 10) || 1)) : 1;
             const manutStr = ehEv ? `${nDiarias} diária(s)` : (it.manut_semana ? `${it.manut_semana}x/sem.` : '—');
             const substPorCod = it._substituido_por_aditivo ? String(it._substituido_por_aditivo) : '';
             const ehFromAditivo = Boolean(it._from_aditivo_dinamico);
@@ -689,10 +938,65 @@
                         </div>
                     </td>
                     <td style="padding:6px 8px; color:#475569; ${strikeStyle}">${esc(obs || '—')}</td>
-                    <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a; ${strikeStyle}">${qtd}</td>
+                    <td style="padding:6px 6px; text-align:center; font-weight:800; color:#0f172a; ${strikeStyle}">
+                        ${!veioDeCtr ? `<input type="number" min="1" value="${qtd}" onchange="window._comercialOS.alterarQtdProdutoOsAvulsa(${idx}, this.value)" style="width:56px !important; text-align:center; font-weight:800;">` : qtd}
+                    </td>
                     <td style="padding:6px 6px; text-align:center; color:#475569; font-weight:600; ${strikeStyle}">${esc(manutStr)}</td>
+                    ${!veioDeCtr ? `<td style="padding:6px; text-align:center;">
+                        <button type="button" onclick="window._comercialOS.removerProdutoOsAvulsa(${idx})" title="Remover produto da OS"
+                            style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:24px !important; padding:0 !important;">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </td>` : ''}
                 </tr>
             `;
+        }).join('');
+    }
+
+    function renderServicosGridHtml(prop) {
+        const veioDeCtr = osVeioDeContrato(prop);
+        const servsTodos = obterServicosMescladosOs(prop);
+        const servsAtivos = servsTodos.filter(s => s && !s._substituido_por_aditivo);
+        const totalCols = veioDeCtr ? 3 : 4;
+
+        const badge = document.getElementById('cos-servicos-count-badge');
+        if (badge) {
+            if (servsAtivos.length > 0) {
+                badge.style.display = 'inline-flex';
+                badge.textContent = `${servsAtivos.length} serviço(s)`;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        if (servsTodos.length === 0) {
+            return `<tr><td colspan="${totalCols}" style="text-align:center; color:#94a3b8; padding:1rem; font-size:0.78rem; font-style:italic;">Nenhum serviço vinculado a esta OS.</td></tr>`;
+        }
+
+        return servsTodos.map((s, idx) => {
+            const nome = String(s.servico || s.produto || s.descricao || s.nome || '—').trim();
+            const obs = String(s.observacao || '').trim();
+            const ehFob = Boolean(s.frete_fob || normStr(nome).includes('fob'));
+            const valNum = Number(s.valor_total ?? s.valor ?? s.valor_unitario ?? 0) || 0;
+            const valTxt = ehFob ? 'Frete FOB' : (valNum > 0 ? `R$ ${fmtMoeda(valNum)}` : 'Cortesia / Incluso');
+            const substPorCod = s._substituido_por_aditivo ? String(s._substituido_por_aditivo) : '';
+            const strikeStyle = substPorCod ? 'text-decoration:line-through; color:#94a3b8;' : '';
+            return `<tr style="border-bottom:1px solid #e2e8f0; ${substPorCod ? 'opacity:0.65; background:#f8fafc;' : ''}">
+                <td style="padding:6px 8px; font-weight:700; color:#1e293b; ${strikeStyle}">
+                    <span style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span><i class="ph ph-wrench" style="color:#2563eb; margin-right:4px;"></i>${esc(nome)}</span>
+                        ${ehFob ? '<span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:1px 7px; border-radius:999px; font-size:0.65rem; font-weight:800;">FRETE FOB</span>' : ''}
+                    </span>
+                </td>
+                <td style="padding:6px 8px; color:#475569; ${strikeStyle}">${esc(obs || '—')}</td>
+                <td style="padding:6px 8px; text-align:right; font-weight:700; color:#0f172a; white-space:nowrap; ${strikeStyle}">${esc(valTxt)}</td>
+                ${!veioDeCtr ? `<td style="padding:6px; text-align:center;">
+                    <button type="button" onclick="window._comercialOS.removerServicoOsAvulsa(${idx})" title="Remover serviço da OS"
+                        style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:24px !important; padding:0 !important;">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </td>` : ''}
+            </tr>`;
         }).join('');
     }
 
@@ -780,7 +1084,8 @@
             ? window.formatarNomeClienteComIcone(clienteNomeRaw)
             : clienteNomeRaw;
 
-        const temFob = !isNovo && propostaTemFreteFob(prop);
+        const regrasPS = obterRegrasProdutosEServicosOs(prop, d);
+        const temFob = regrasPS.temFob;
         const checkObrig = verificarCamposObrigatoriosOsPreenchidos();
         const lockPorTipoAttr = !tipoOsPreenchido ? 'disabled' : '';
         const lockPorTipoTitle = !tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos.' : '';
@@ -1152,28 +1457,40 @@
                                             title="${veioDeContrato ? 'O cliente vem do Contrato vinculado e não pode ser alterado.' : 'Selecionar Cliente'}">
                                             <i class="ph ph-magnifying-glass"></i>
                                         </button>
+                                        <button type="button" ${(!tipoOsPreenchido || veioDeContrato) ? 'disabled' : ''} onclick="window._comercialOS.abrirModalNovoClienteOs(event)"
+                                            style="background:#eab308; color:white; border:none; width:26px !important; padding:0 !important; flex-shrink:0; opacity:${(!tipoOsPreenchido || veioDeContrato) ? '0.5' : '1'}; cursor:${(!tipoOsPreenchido || veioDeContrato) ? 'not-allowed' : 'pointer'};"
+                                            title="${veioDeContrato ? 'O cliente vem do Contrato vinculado e não pode ser alterado.' : 'Cadastrar Novo Cliente'}">
+                                            <i class="ph ph-plus"></i>
+                                        </button>
                                     </div>
                                 </div>
 
                                 <div>
                                     <label class="prop-lbl">Contato <span style="color:#ef4444;">*</span></label>
-                                    <div id="cos-contato-combo-wrap" style="position:relative; width:100%;">
-                                        <input type="text" id="cos-contato" value="${esc(isNovo ? (d.contato_nome_draft || '') : v('contato_nome'))}"
-                                            ${!tipoOsPreenchido ? 'disabled' : ''}
-                                            autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
-                                            placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite o contato do cliente...'}"
-                                            onfocus="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
-                                            onclick="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
-                                            oninput="window._comercialOS.onInputContatoOs(this.value);"
-                                            onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-contato-dropdown'); if(dd) dd.style.display='none'; }"
-                                            style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
-                                        ${tipoOsPreenchido ? `
-                                            <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownContatosOs(event)" title="Selecionar contato do cliente"
-                                                style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
-                                                <i class="ph ph-caret-down"></i>
-                                            </button>
-                                        ` : ''}
-                                        <div id="cos-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                    <div style="display:flex; gap:0.35rem; align-items:center;">
+                                        <div id="cos-contato-combo-wrap" style="position:relative; flex:1; min-width:0;">
+                                            <input type="text" id="cos-contato" value="${esc(isNovo ? (d.contato_nome_draft || '') : v('contato_nome'))}"
+                                                ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other"
+                                                placeholder="${!tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS...' : 'Selecione ou digite o contato do cliente...'}"
+                                                onfocus="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
+                                                onclick="if(!this.disabled) window._comercialOS.abrirDropdownContatosOs(true);"
+                                                oninput="window._comercialOS.onInputContatoOs(this.value);"
+                                                onkeydown="if(event.key==='Escape'){ const dd=document.getElementById('cos-contato-dropdown'); if(dd) dd.style.display='none'; }"
+                                                style="width:100%; padding-right:1.8rem !important; ${tipoOsPreenchido ? 'background:#fff !important;' : ''}">
+                                            ${tipoOsPreenchido ? `
+                                                <button type="button" tabindex="-1" onclick="window._comercialOS.toggleDropdownContatosOs(event)" title="Selecionar contato do cliente"
+                                                    style="position:absolute; right:2px; top:50%; transform:translateY(-50%); background:transparent !important; border:none !important; color:#64748b; width:22px !important; height:22px !important; padding:0 !important;">
+                                                    <i class="ph ph-caret-down"></i>
+                                                </button>
+                                            ` : ''}
+                                            <div id="cos-contato-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.12); z-index:1100;"></div>
+                                        </div>
+                                        <button type="button" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.abrirModalNovoContatoOs(event)"
+                                            style="background:#eab308; color:white; border:none; width:26px !important; padding:0 !important; flex-shrink:0; opacity:${!tipoOsPreenchido ? '0.5' : '1'}; cursor:${!tipoOsPreenchido ? 'not-allowed' : 'pointer'};"
+                                            title="Cadastrar Novo Contato">
+                                            <i class="ph ph-plus"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1436,11 +1753,11 @@
                             </div>
                         ` : ''}
 
-                        <!-- Seção: Produtos (Com associação e ícones da OS da Logística para Próprio Avulso e Pacote Obra; Quadro Serviços ocultado) -->
-                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}">
+                        <!-- Seção: Produtos + Vínculo Fracionado por Endereço -->
+                        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <div onclick="window._comercialOS.toggleSecao('produtos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
                                 <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important;">
-                                    <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span style="color:#dc2626;">*</span>
+                                    <i class="ph ph-package" style="color:#7048e8;"></i> Produtos <span id="cos-produtos-obrig-ast" style="color:#dc2626; display:${regrasPS.produtoObrigatorio ? 'inline' : 'none'};">*</span>
                                     <span id="cos-produtos-count-badge" style="display:none; background:#fef9c3; color:#854d0e; border:1px solid #fde047; font-size:0.68rem; font-weight:800; padding:1px 8px; border-radius:999px;"></span>
                                 </h4>
                                 <button type="button" onclick="window._comercialOS.toggleSecao('produtos', event)"
@@ -1449,6 +1766,54 @@
                                 </button>
                             </div>
                             <div id="cos-secao-produtos-body" style="display:${state.secoesAbertas.produtos ? 'block' : 'none'}; margin-top:0.45rem;">
+                                ${!veioDeContrato ? `
+                                    <div style="display:grid; grid-template-columns:2fr 1.6fr 0.55fr 0.7fr 0.85fr auto; gap:0.45rem; align-items:end; margin-bottom:0.5rem;">
+                                        <div>
+                                            <label class="prop-lbl">Produto / Equipamento ${regrasPS.produtoObrigatorio ? '<span style="color:#dc2626;">*</span>' : ''}</label>
+                                            <div style="display:flex; gap:0.25rem; align-items:center;">
+                                                <div id="cos-prod-combo-wrap" style="position:relative; flex:1; min-width:0;">
+                                                    <input type="text" id="cos-prod-input" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                        placeholder="Digite ou pesquise o produto..."
+                                                        onfocus="if(!this.disabled) window._comercialOS.filtrarDropdownProdutosOs(this.value, true);"
+                                                        onclick="if(!this.disabled) window._comercialOS.filtrarDropdownProdutosOs(this.value, true);"
+                                                        oninput="window._comercialOS.filtrarDropdownProdutosOs(this.value, true);"
+                                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.abrirModalPesquisaProdutosOs(); }"
+                                                        style="width:100%;">
+                                                    <div id="cos-prod-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; min-width:340px; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1120;"></div>
+                                                </div>
+                                                <button type="button" id="btn-cos-pesq-prod" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.abrirModalPesquisaProdutosOs()"
+                                                    title="Pesquisar Produto no Catálogo"
+                                                    style="background:#2563eb; color:#fff; border:none; width:26px !important; padding:0 !important; flex-shrink:0;">
+                                                    <i class="ph ph-magnifying-glass"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Observação</label>
+                                            <input type="text" id="cos-prod-obs" ${!tipoOsPreenchido ? 'disabled' : ''} placeholder="Observação do produto..." style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Qtd.</label>
+                                            <input type="number" id="cos-prod-qtd" min="1" value="1" ${!tipoOsPreenchido ? 'disabled' : ''} style="width:100%; text-align:center; font-weight:700;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">${ehEvento ? 'Diárias' : 'Manut./Sem.'}</label>
+                                            <input type="number" id="cos-prod-manut" min="1" value="1" ${!tipoOsPreenchido ? 'disabled' : ''} style="width:100%; text-align:center;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Valor Unit. (R$)</label>
+                                            <input type="text" inputmode="numeric" id="cos-prod-valor" value="0,00" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this);"
+                                                style="width:100%; font-weight:700;">
+                                        </div>
+                                        <div>
+                                            <button type="button" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.adicionarProdutoOsAvulsa()"
+                                                style="background:#16a34a; color:#fff; border:none; font-weight:700;">
+                                                <i class="ph ph-plus-circle"></i> Adicionar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ` : ''}
                                 <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden;">
                                     <table style="width:100%; border-collapse:collapse; text-align:left;">
                                         <thead>
@@ -1457,10 +1822,94 @@
                                                 <th style="padding:8px;">Observação</th>
                                                 <th style="padding:8px 6px; text-align:center;">Qtd.</th>
                                                 <th style="padding:8px 6px; text-align:center;">Diárias / Manut.</th>
+                                                ${!veioDeContrato ? '<th style="padding:8px 6px; text-align:center; width:52px;">Ações</th>' : ''}
                                             </tr>
                                         </thead>
                                         <tbody id="cos-produtos-tbody">
                                             ${renderProdutosGridHtml(prop)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="cos-distribuicao-enderecos-wrap">
+                                    ${renderDistribuicaoProdutosEnderecosHtml(prop)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Seção: Serviços -->
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
+                            <div onclick="window._comercialOS.toggleSecao('servicos', event)" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;">
+                                <h4 style="margin:0 !important; border-bottom:none !important; padding-bottom:0 !important; color:#1e3a8a !important;">
+                                    <i class="ph ph-wrench" style="color:#2563eb;"></i> Serviços <span id="cos-servicos-obrig-ast" style="color:#dc2626; display:${regrasPS.servicoObrigatorio ? 'inline' : 'none'};">*</span>
+                                    <span id="cos-servicos-count-badge" style="display:none; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; font-size:0.68rem; font-weight:800; padding:1px 8px; border-radius:999px;"></span>
+                                </h4>
+                                <button type="button" onclick="window._comercialOS.toggleSecao('servicos', event)"
+                                    style="width:24px !important; padding:0 !important; border:1px solid #93c5fd; background:#dbeafe; color:#1e40af;">
+                                    <i id="cos-caret-servicos" class="ph ph-caret-down" style="transition:transform 0.2s; transform:${state.secoesAbertas.servicos ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+                                </button>
+                            </div>
+                            <div id="cos-secao-servicos-body" style="display:${state.secoesAbertas.servicos ? 'block' : 'none'}; margin-top:0.45rem;">
+                                ${!veioDeContrato ? `
+                                    <div style="display:grid; grid-template-columns:2fr 1.8fr 0.9fr ${ehObra ? 'auto' : ''} auto; gap:0.45rem; align-items:end; margin-bottom:0.5rem;">
+                                        <div>
+                                            <label class="prop-lbl">Serviço ${regrasPS.servicoObrigatorio ? '<span style="color:#dc2626;">*</span>' : ''}</label>
+                                            <div style="display:flex; gap:0.25rem; align-items:center;">
+                                                <div id="cos-serv-combo-wrap" style="position:relative; flex:1; min-width:0;">
+                                                    <input type="text" id="cos-serv-input" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                        placeholder="Digite ou pesquise o serviço..."
+                                                        onfocus="if(!this.disabled) window._comercialOS.filtrarDropdownServicosOs(this.value, true);"
+                                                        onclick="if(!this.disabled) window._comercialOS.filtrarDropdownServicosOs(this.value, true);"
+                                                        oninput="window._comercialOS.filtrarDropdownServicosOs(this.value, true);"
+                                                        onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.abrirModalPesquisaServicosOs(); }"
+                                                        style="width:100%;">
+                                                    <div id="cos-serv-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; min-width:340px; max-height:220px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:6px; box-shadow:0 8px 20px rgba(15,23,42,0.14); z-index:1120;"></div>
+                                                </div>
+                                                <button type="button" id="btn-cos-pesq-serv" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.abrirModalPesquisaServicosOs()"
+                                                    title="Pesquisar Serviço no Catálogo"
+                                                    style="background:#2563eb; color:#fff; border:none; width:26px !important; padding:0 !important; flex-shrink:0;">
+                                                    <i class="ph ph-magnifying-glass"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Observação</label>
+                                            <input type="text" id="cos-serv-obs" ${!tipoOsPreenchido ? 'disabled' : ''} placeholder="Observação do serviço..." style="width:100%;">
+                                        </div>
+                                        <div>
+                                            <label class="prop-lbl">Valor (R$)</label>
+                                            <input type="text" inputmode="numeric" id="cos-serv-valor" value="0,00" ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                oninput="if(typeof window.aplicarMascaraCentavosInput==='function') window.aplicarMascaraCentavosInput(this);"
+                                                style="width:100%; font-weight:700;">
+                                        </div>
+                                        ${ehObra ? `
+                                            <div>
+                                                <label class="prop-chk-inline-lbl-blue" title="Marcar Frete FOB (dispensa serviço obrigatório na Obra e habilita quadro de veículo/motorista FOB)">
+                                                    <input type="checkbox" id="cos-serv-fob-geral" ${temFob ? 'checked' : ''} ${!tipoOsPreenchido ? 'disabled' : ''}
+                                                        onchange="window._comercialOS.onToggleFreteFobOsAvulsa(this.checked)">
+                                                    <span>Frete FOB</span>
+                                                </label>
+                                            </div>
+                                        ` : ''}
+                                        <div>
+                                            <button type="button" ${!tipoOsPreenchido ? 'disabled' : ''} onclick="window._comercialOS.adicionarServicoOsAvulsa()"
+                                                style="background:#16a34a; color:#fff; border:none; font-weight:700;">
+                                                <i class="ph ph-plus-circle"></i> Adicionar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div style="border:1px solid #e2e8f0; border-radius:8px; background:#fff; overflow:hidden;">
+                                    <table style="width:100%; border-collapse:collapse; text-align:left;">
+                                        <thead>
+                                            <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.7rem; text-transform:uppercase;">
+                                                <th style="padding:8px;">Serviço</th>
+                                                <th style="padding:8px;">Observação</th>
+                                                <th style="padding:8px; text-align:right; width:130px;">Valor</th>
+                                                ${!veioDeContrato ? '<th style="padding:8px 6px; text-align:center; width:52px;">Ações</th>' : ''}
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cos-servicos-tbody">
+                                            ${renderServicosGridHtml(prop)}
                                         </tbody>
                                     </table>
                                 </div>
@@ -1515,6 +1964,7 @@
         `;
 
         renderProdutosGridHtml(prop);
+        renderServicosGridHtml(prop);
         if (window._comercialOS && typeof window._comercialOS.sincronizarChipsEnderecosOs === 'function') {
             window._comercialOS.sincronizarChipsEnderecosOs();
         }
@@ -1758,24 +2208,24 @@
     }
 
     function indexarListaClientesRapidaOs(clientesBrutos) {
+        // IMPORTANTE: Nunca chamar window.formatarNomeClienteComIcone dentro do loop de 6000+ clientes!
+        // Quando grupo === '', formatarNomeClienteComIcone percorre todo window._clientesCache causando O(N²) (~38 milhões de iterações) e travando a aba.
         const arr = (Array.isArray(clientesBrutos) ? clientesBrutos : []).map(c => {
             const nomeRaw = String(c.nome_razao_social || c.razao_social || c.cliente_nome || '').trim();
-            const nomeLimpo = typeof window.limparPrefixoGrupoCliente === 'function'
-                ? window.limparPrefixoGrupoCliente(nomeRaw)
-                : nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
-            const grupo = String(c.grupo_clientes || c.grupo || '').trim();
+            const nomeLimpo = nomeRaw.replace(/^[💎🥇🥈🥉]\s*/, '').trim();
+            const grupo = String(c.grupo_clientes || c.classificacao || c.grupo || '').trim();
             const icone = resolverIcoGrupoOs(grupo);
-            const nomeExib = (typeof window.formatarNomeClienteComIcone === 'function')
-                ? window.formatarNomeClienteComIcone(nomeLimpo, grupo)
-                : (icone ? `${icone} ${nomeLimpo}` : nomeLimpo);
+            const nomeExib = icone ? `${icone} ${nomeLimpo}` : nomeLimpo;
+            const doc = String(c.cpf_cnpj || c.cnpj || '').trim();
             return {
                 id: c.id || null,
+                codigo: c.codigo || '',
                 nome_limpo: nomeLimpo,
                 grupo,
                 icone,
                 nome_exib: nomeExib,
-                cpf_cnpj: String(c.cpf_cnpj || c.cnpj || '').trim(),
-                search_norm: normStr(nomeLimpo + ' ' + String(c.nome_fantasia || ''))
+                cpf_cnpj: doc,
+                search_norm: normStr(`${c.codigo || ''} ${nomeLimpo} ${c.nome_fantasia || ''} ${doc}`)
             };
         }).filter(c => Boolean(c.nome_limpo));
         arr.sort((a, b) => (a.nome_limpo < b.nome_limpo ? -1 : (a.nome_limpo > b.nome_limpo ? 1 : 0)));
@@ -1878,7 +2328,13 @@
                 <div style="text-align:left; font-family:'Inter', sans-serif; display:flex; flex-direction:column; padding:0; border-radius:12px; overflow:hidden;">
                     <div style="font-size:1.1rem; font-weight:800; color:#1e293b; border-bottom:1px solid #e2e8f0; padding:14px 18px; background:#f8fafc; display:flex; align-items:center; justify-content:space-between; gap:6px;">
                         <span style="display:flex; align-items:center; gap:6px;"><i class="ph ph-buildings" style="color:#2563eb; font-size:1.3rem;"></i> Selecionar Cliente</span>
-                        <button type="button" onclick="Swal.close()" style="background:none; border:none; color:#64748b; font-size:1.3rem; cursor:pointer; line-height:1;">&times;</button>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" onclick="const q=document.getElementById('modal-cos-cli-search')?.value||''; Swal.close(); setTimeout(()=>window._comercialOS.abrirModalNovoClienteOs(null, q), 120);"
+                                style="background:#16a34a; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                                <i class="ph ph-plus-circle"></i> Cadastrar Novo Cliente
+                            </button>
+                            <button type="button" onclick="Swal.close()" style="background:none; border:none; color:#64748b; font-size:1.3rem; cursor:pointer; line-height:1;">&times;</button>
+                        </div>
                     </div>
 
                     <div style="padding:16px; background:#f1f5f9; display:flex; flex-direction:column; gap:12px;">
@@ -1943,12 +2399,12 @@
 
     window._comercialOS = {
         async init() {
-            garantirCacheClientesRapidoOs().catch(() => {});
             if (window._comercialOsAbrirPropostaId) {
                 const pid = window._comercialOsAbrirPropostaId;
                 window._comercialOsAbrirPropostaId = null;
                 window._comercialOsTipoOperacaoForcado = '';
                 await this.carregarOsPorPropostaId(pid);
+                setTimeout(() => { garantirCacheClientesRapidoOs().catch(() => {}); }, 450);
                 return;
             }
             const tabKey = obterTabIdAtivaOsComercial();
@@ -1961,11 +2417,15 @@
                 state.statusNovoDraft = snap.statusNovoDraft || 'EM ELABORAÇÃO';
                 state.tipoOsDraft = snap.tipoOsDraft || '';
                 state.modalidadeDraft = snap.modalidadeDraft || 'Obra';
+                state.itensProdutosDraft = Array.isArray(snap.itensProdutosDraft) ? JSON.parse(JSON.stringify(snap.itensProdutosDraft)) : [];
+                state.itensServicosDraft = Array.isArray(snap.itensServicosDraft) ? JSON.parse(JSON.stringify(snap.itensServicosDraft)) : [];
+                state.freteFobDraft = Boolean(snap.freteFobDraft);
                 state.anexosAtuais = Array.isArray(snap.anexosAtuais) ? snap.anexosAtuais : [];
             } else {
                 this.resetarParaNovaAba();
             }
             renderFormOS();
+            setTimeout(() => { garantirCacheClientesRapidoOs().catch(() => {}); }, 350);
         },
 
         salvarSnapshotAba(tabIdOverride) {
@@ -1979,6 +2439,9 @@
                 statusNovoDraft: state.statusNovoDraft || 'EM ELABORAÇÃO',
                 tipoOsDraft: state.tipoOsDraft || '',
                 modalidadeDraft: state.modalidadeDraft || 'Obra',
+                itensProdutosDraft: Array.isArray(state.itensProdutosDraft) ? JSON.parse(JSON.stringify(state.itensProdutosDraft)) : [],
+                itensServicosDraft: Array.isArray(state.itensServicosDraft) ? JSON.parse(JSON.stringify(state.itensServicosDraft)) : [],
+                freteFobDraft: Boolean(state.freteFobDraft),
                 anexosAtuais: Array.isArray(state.anexosAtuais) ? JSON.parse(JSON.stringify(state.anexosAtuais)) : []
             };
         },
@@ -1998,6 +2461,9 @@
             state.statusNovoDraft = 'EM ELABORAÇÃO';
             state.tipoOsDraft = '';
             state.modalidadeDraft = 'Obra';
+            state.itensProdutosDraft = [];
+            state.itensServicosDraft = [];
+            state.freteFobDraft = false;
             state.anexosAtuais = [];
         },
 
@@ -2021,13 +2487,6 @@
                     Swal.fire('Aviso', 'Uma OS só pode existir para contratos assinados.', 'warning');
                     return;
                 }
-                // Atualiza a lista de propostas em memória para mesclar aditivos aprovados (Contrato Base / Aditivo / riscado)
-                if (typeof window.apiGet === 'function') {
-                    const todasProps = await window.apiGet('/propostas').catch(() => null);
-                    if (Array.isArray(todasProps) && todasProps.length > 0) {
-                        window._propostasData = todasProps;
-                    }
-                }
                 p.os_tipo_operacao = resolverTipoOsComercial(p);
                 if (!p.status_os) p.status_os = 'EM ELABORAÇÃO';
                 state.propostaIdAtiva = p.id;
@@ -2035,10 +2494,29 @@
                 state.dadosOs = inicializarDadosOsComercial(p);
                 state.tipoOsDraft = p.os_tipo_operacao || '';
                 state.modalidadeDraft = resolverModalidadeObraEventoOs(p, state.dadosOs);
+                state.itensProdutosDraft = [];
+                state.itensServicosDraft = [];
+                state.freteFobDraft = false;
                 state.editadoNaoSalvo = false;
                 state.anexosAtuais = [];
                 this.salvarSnapshotAba();
                 renderFormOS();
+
+                // Carrega lista de propostas apenas em segundo plano se vier de contrato e ainda não estiver em memória
+                if (osVeioDeContrato(p) && typeof window.apiGet === 'function' && (!Array.isArray(window._propostasData) || !window._propostasData.length)) {
+                    window.apiGet('/propostas').then(todasProps => {
+                        if (Array.isArray(todasProps) && todasProps.length > 0) {
+                            window._propostasData = todasProps;
+                            if (state.osAtual && Number(state.osAtual.id) === idNum) {
+                                const tbodyP = document.getElementById('cos-produtos-tbody');
+                                if (tbodyP) tbodyP.innerHTML = renderProdutosGridHtml(state.osAtual);
+                                const tbodyS = document.getElementById('cos-servicos-tbody');
+                                if (tbodyS) tbodyS.innerHTML = renderServicosGridHtml(state.osAtual);
+                                this.sincronizarPainelDistribuicaoEnderecos();
+                            }
+                        }
+                    }).catch(() => {});
+                }
             } catch (e) {
                 console.error('[COMERCIAL_OS] Erro ao carregar OS:', e);
             }
@@ -2519,6 +2997,7 @@
             if (lista.length === 0) {
                 chipsEl.innerHTML = '';
                 chipsEl.style.display = 'none';
+                this.sincronizarPainelDistribuicaoEnderecos();
                 return;
             }
             chipsEl.style.display = 'flex';
@@ -2536,6 +3015,611 @@
                     <i class="ph ph-plus-circle" style="font-size:0.85rem;"></i> Adicionar outro endereço
                 </button>
             ` : '');
+            this.sincronizarPainelDistribuicaoEnderecos();
+        },
+
+        sincronizarPainelDistribuicaoEnderecos() {
+            const wrap = document.getElementById('cos-distribuicao-enderecos-wrap');
+            if (wrap) {
+                wrap.innerHTML = renderDistribuicaoProdutosEnderecosHtml(state.osAtual);
+            }
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        ajustarDeltaDistribuicao(endIdx, prodIdx, delta) {
+            const inp = document.getElementById(`cos-dist-inp-${endIdx}-${prodIdx}`);
+            const cur = parseInt(inp?.value ?? 0, 10) || 0;
+            const novo = Math.max(0, cur + delta);
+            if (inp) inp.value = String(novo);
+            this.atualizarQtdProdutoNoEndereco(endIdx, prodIdx, novo);
+        },
+
+        atualizarQtdProdutoNoEndereco(endIdx, prodIdx, valorRaw) {
+            if (!state.dadosOs) state.dadosOs = {};
+            const prop = state.osAtual;
+            const listaEnds = obterListaEnderecosEstadoAtualOs(prop, state.dadosOs);
+            const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+            if (listaEnds.length <= 1 || !itensAtivos[prodIdx]) return;
+
+            const dist = normalizarEstruturaDistribuicaoEnderecos(prop, state.dadosOs);
+            const qtdTotal = Math.max(1, parseInt(itensAtivos[prodIdx].quantidade ?? itensAtivos[prodIdx].qtde ?? 1, 10) || 1);
+            let novoVal = Math.max(0, parseInt(valorRaw, 10) || 0);
+            if (novoVal > qtdTotal) novoVal = qtdTotal;
+
+            if (listaEnds.length === 2) {
+                // Com 2 endereços, ao atualizar um endereço o outro recebe automaticamente o restante!
+                const outroIdx = endIdx === 0 ? 1 : 0;
+                dist[endIdx].quantidades[prodIdx] = novoVal;
+                dist[outroIdx].quantidades[prodIdx] = Math.max(0, qtdTotal - novoVal);
+            } else {
+                // Com 3+ endereços, se editar qualquer endereço antes do último, calcula o saldo restante automaticamente no último endereço
+                const lastIdx = listaEnds.length - 1;
+                if (endIdx !== lastIdx) {
+                    let somaOutrosFixos = 0;
+                    for (let i = 0; i < lastIdx; i++) {
+                        if (i !== endIdx) somaOutrosFixos += (parseInt(dist[i]?.quantidades?.[prodIdx] ?? 0, 10) || 0);
+                    }
+                    const maxPermitidoAqui = Math.max(0, qtdTotal - somaOutrosFixos);
+                    if (novoVal > maxPermitidoAqui) novoVal = maxPermitidoAqui;
+                    dist[endIdx].quantidades[prodIdx] = novoVal;
+                    dist[lastIdx].quantidades[prodIdx] = Math.max(0, qtdTotal - somaOutrosFixos - novoVal);
+                } else {
+                    let somaAnteriores = 0;
+                    for (let i = 0; i < lastIdx; i++) {
+                        somaAnteriores += (parseInt(dist[i]?.quantidades?.[prodIdx] ?? 0, 10) || 0);
+                    }
+                    const maxNoUltimo = Math.max(0, qtdTotal - somaAnteriores);
+                    if (novoVal > maxNoUltimo) novoVal = maxNoUltimo;
+                    dist[lastIdx].quantidades[prodIdx] = novoVal;
+                }
+            }
+
+            // Atualiza resumo_itens e reflete valores no DOM em tempo real sem perder o foco do campo digitado
+            dist.forEach((entry, eIdx) => {
+                entry.resumo_itens = itensAtivos.map((it, pI) => {
+                    const q = entry.quantidades[pI] || 0;
+                    if (q <= 0) return null;
+                    const assoc = associarProdutoComEquipamentoOsLogistica(it, prop);
+                    return { produto: assoc.nome, icone: assoc.icone || '', quantidade: q };
+                }).filter(Boolean);
+
+                const inpCell = document.getElementById(`cos-dist-inp-${eIdx}-${prodIdx}`);
+                if (inpCell && String(inpCell.value) !== String(entry.quantidades[prodIdx])) {
+                    inpCell.value = String(entry.quantidades[prodIdx]);
+                }
+                const somaEnd = itensAtivos.reduce((acc, _, pI) => acc + (parseInt(entry.quantidades?.[pI] ?? 0, 10) || 0), 0);
+                const badgeEnd = document.getElementById(`cos-dist-total-end-${eIdx}`);
+                if (badgeEnd) {
+                    badgeEnd.textContent = somaEnd > 0 ? `${somaEnd} unid. neste endereço` : 'Nenhum produto vinculado';
+                    badgeEnd.style.background = somaEnd > 0 ? '#eff6ff' : '#fee2e2';
+                    badgeEnd.style.color = somaEnd > 0 ? '#1d4ed8' : '#b91c1c';
+                    badgeEnd.style.borderColor = somaEnd > 0 ? '#bfdbfe' : '#fecaca';
+                }
+            });
+
+            const assocProd = associarProdutoComEquipamentoOsLogistica(itensAtivos[prodIdx], prop);
+            const alocadoProd = dist.reduce((acc, d) => acc + (parseInt(d.quantidades?.[prodIdx] ?? 0, 10) || 0), 0);
+            const faltaProd = qtdTotal - alocadoProd;
+            const completoProd = faltaProd === 0;
+            const resProdEl = document.getElementById(`cos-dist-resumo-prod-${prodIdx}`);
+            if (resProdEl) {
+                resProdEl.style.background = completoProd ? '#dcfce7' : '#ffedd5';
+                resProdEl.style.color = completoProd ? '#15803d' : '#c2410c';
+                resProdEl.style.borderColor = completoProd ? '#86efac' : '#fdba74';
+                resProdEl.innerHTML = `<span>${assocProd.icone ? assocProd.icone + ' ' : ''}${esc(assocProd.nome)}:</span> <span>${alocadoProd} / ${qtdTotal}</span> <span>${completoProd ? '✓' : `(Falta ${faltaProd})`}</span>`;
+            }
+
+            state.dadosOs.distribuicao_enderecos = dist;
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            atualizarVisibilidadeBotaoEnviarLogistica();
+        },
+
+        async abrirModalNovoClienteOs(event, prefilledName = '') {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (osVeioDeContrato(state.osAtual)) return;
+            if (!String(resolverTipoOsComercial(state.osAtual) || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs();
+                return;
+            }
+            if (typeof window.abrirModalCadastroCliente !== 'function') {
+                Swal.fire('Aviso', 'Modal de cadastro de clientes não disponível.', 'warning');
+                return;
+            }
+            const nomeIni = prefilledName || this._obterNomeClienteAtualOs() || '';
+            window._onOsComercialClienteSalvo = (razaoSocial, grupoClientes, clienteIdNovo) => {
+                window._cosClientesIndexadosCache = null;
+                garantirCacheClientesRapidoOs(true).catch(() => {});
+                this.selecionarClienteNaOs(razaoSocial, grupoClientes || '', clienteIdNovo || null);
+                window._onOsComercialClienteSalvo = null;
+            };
+            await window.abrirModalCadastroCliente(null, nomeIni);
+        },
+
+        async abrirModalNovoContatoOs(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (!String(resolverTipoOsComercial(state.osAtual) || '').trim()) {
+                this.onClickCampoBloqueadoPorTipoOs();
+                return;
+            }
+            const cliNome = this._obterNomeClienteAtualOs();
+            if (!cliNome) {
+                Swal.fire('Selecione o Cliente', 'Selecione o Cliente primeiro antes de cadastrar um novo contato.', 'warning');
+                return;
+            }
+            if (typeof window.cadastrarNovoContatoProposta !== 'function') {
+                Swal.fire('Aviso', 'Modal de cadastro de contatos não disponível.', 'warning');
+                return;
+            }
+            const nomeDigitado = String(document.getElementById('cos-contato')?.value || '').trim();
+            window._onOsComercialContatoSalvo = (contatoNome, empRazao) => {
+                this._contatosCacheAtualOs = null;
+                if (empRazao && !this._obterNomeClienteAtualOs()) {
+                    this.selecionarClienteNaOs(empRazao, '', null);
+                }
+                this.selecionarContatoOs(contatoNome);
+                window._onOsComercialContatoSalvo = null;
+            };
+            await window.cadastrarNovoContatoProposta(nomeDigitado, false, 'os_comercial');
+        },
+
+        async _obterCatalogoEquipamentosOs() {
+            if (Array.isArray(window._equipamentosEstoqueData) && window._equipamentosEstoqueData.length > 0) {
+                return window._equipamentosEstoqueData;
+            }
+            if (typeof window.apiGet === 'function') {
+                try {
+                    const lista = await window.apiGet('/estoque-equipamentos');
+                    if (Array.isArray(lista)) {
+                        window._equipamentosEstoqueData = lista;
+                        return lista;
+                    }
+                } catch (_) {}
+            }
+            return [];
+        },
+
+        _obterListaProdutosMutavelOs() {
+            if (state.osAtual && state.osAtual.id) {
+                let arr = [];
+                try {
+                    arr = typeof state.osAtual.itens === 'string' ? JSON.parse(state.osAtual.itens || '[]') : (Array.isArray(state.osAtual.itens) ? state.osAtual.itens : []);
+                } catch (_) { arr = []; }
+                return Array.isArray(arr) ? arr : [];
+            }
+            if (!Array.isArray(state.itensProdutosDraft)) state.itensProdutosDraft = [];
+            return state.itensProdutosDraft;
+        },
+
+        _salvarListaProdutosMutavelOs(novaLista) {
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.itens = novaLista;
+            } else {
+                state.itensProdutosDraft = novaLista;
+            }
+        },
+
+        _obterListaServicosMutavelOs() {
+            if (state.osAtual && state.osAtual.id) {
+                let arr = [];
+                try {
+                    arr = typeof state.osAtual.itens_servicos === 'string' ? JSON.parse(state.osAtual.itens_servicos || '[]') : (Array.isArray(state.osAtual.itens_servicos) ? state.osAtual.itens_servicos : []);
+                } catch (_) { arr = []; }
+                return Array.isArray(arr) ? arr : [];
+            }
+            if (!Array.isArray(state.itensServicosDraft)) state.itensServicosDraft = [];
+            return state.itensServicosDraft;
+        },
+
+        _salvarListaServicosMutavelOs(novaLista) {
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.itens_servicos = novaLista;
+            } else {
+                state.itensServicosDraft = novaLista;
+            }
+        },
+
+        async filtrarDropdownProdutosOs(termo = '', abrir = true) {
+            const drop = document.getElementById('cos-prod-dropdown');
+            const inp = document.getElementById('cos-prod-input');
+            if (!drop || !inp || inp.disabled) return;
+            const catalogo = await this._obterCatalogoEquipamentosOs();
+            const prods = catalogo.filter(p => {
+                const g = normStr(p.grupo_produto);
+                return g !== 'servicos' && g !== 'servico';
+            });
+            const q = normStr(termo);
+            const filtrados = !q
+                ? prods.slice(0, 60)
+                : prods.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''} ${p.fonte_fornecimento || ''} ${p.grupo_produto || ''}`).includes(q)).slice(0, 60);
+            if (!filtrados.length) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.75rem; color:#64748b;">Nenhum produto encontrado (você pode digitar manualmente ou usar a lupa).</div>`;
+            } else {
+                drop.innerHTML = filtrados.map(p => {
+                    const cod = String(p.codigo || p.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const nome = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const fonte = String(p.fonte_fornecimento || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const modAt = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+                    const tipoTab = normStr(modAt) === 'evento' ? 'EVENTO' : 'OBRA MENSAL';
+                    const vTab = typeof window.obterValorTabelaPorTipoEProduto === 'function' ? window.obterValorTabelaPorTipoEProduto(tipoTab, p) : null;
+                    const vParam = (vTab !== null && vTab !== undefined && !isNaN(Number(vTab))) ? Number(vTab) : 0;
+                    return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarProdutoDropdownOs('${cod}', '${nome}', ${vParam}, '${fonte}')"
+                        style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                        onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                        <div style="font-size:0.76rem; font-weight:700; color:#1e293b;">${esc(p.codigo ? `${p.codigo} - ${p.nome}` : p.nome)}</div>
+                        <div style="font-size:0.69rem; color:#64748b;">${esc([p.fonte_fornecimento, p.grupo_produto].filter(Boolean).join(' • '))}</div>
+                    </div>`;
+                }).join('');
+            }
+            if (abrir) drop.style.display = 'block';
+        },
+
+        selecionarProdutoDropdownOs(cod, nome, valorUnit, fonte) {
+            const inp = document.getElementById('cos-prod-input');
+            const drop = document.getElementById('cos-prod-dropdown');
+            const valEl = document.getElementById('cos-prod-valor');
+            if (inp) {
+                inp.value = nome;
+                inp.dataset.codigo = cod || '';
+                inp.dataset.nome = nome || '';
+                inp.dataset.fonte = fonte || '';
+            }
+            if (valEl && Number(valorUnit) > 0) {
+                valEl.value = typeof window.formatarMoedaCentavosProposta === 'function'
+                    ? window.formatarMoedaCentavosProposta(Number(valorUnit))
+                    : fmtMoeda(Number(valorUnit));
+            }
+            if (drop) drop.style.display = 'none';
+        },
+
+        async abrirModalPesquisaProdutosOs() {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const catalogo = await this._obterCatalogoEquipamentosOs();
+            const prods = catalogo.filter(p => {
+                const g = normStr(p.grupo_produto);
+                return g !== 'servicos' && g !== 'servico';
+            });
+            const termoIni = String(document.getElementById('cos-prod-input')?.value || '').trim();
+            const modAt = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+            const tipoTab = normStr(modAt) === 'evento' ? 'EVENTO' : 'OBRA MENSAL';
+
+            let renderizados = prods;
+            window._cosSelProdModalIdx = (idx) => {
+                const p = renderizados[idx];
+                if (!p) return;
+                const vTab = typeof window.obterValorTabelaPorTipoEProduto === 'function' ? window.obterValorTabelaPorTipoEProduto(tipoTab, p) : null;
+                Swal.close();
+                this.selecionarProdutoDropdownOs(String(p.codigo || p.id || ''), String(p.nome || ''), Number(vTab) || 0, String(p.fonte_fornecimento || ''));
+            };
+
+            const renderRows = (list) => {
+                renderizados = list;
+                if (!list.length) return '<tr><td colspan="4" style="padding:1.5rem; text-align:center; color:#94a3b8;">Nenhum equipamento encontrado.</td></tr>';
+                return list.slice(0, 150).map((p, idx) => `
+                    <tr onclick="window._cosSelProdModalIdx(${idx})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:8px 10px; font-weight:700; color:#7048e8; width:90px;">${esc(p.codigo || p.id)}</td>
+                        <td style="padding:8px 10px; font-weight:600; color:#1e293b;">${esc(p.nome || '—')}</td>
+                        <td style="padding:8px 10px; color:#475569; width:150px;">${esc(p.fonte_fornecimento || '—')}</td>
+                        <td style="padding:8px 10px; color:#475569; width:130px;">${esc(p.grupo_produto || '—')}</td>
+                    </tr>
+                `).join('');
+            };
+
+            Swal.fire({
+                title: '',
+                width: '880px',
+                showConfirmButton: false,
+                showCloseButton: true,
+                customClass: { popup: 'custom-swal-padding-zero' },
+                html: `<div style="text-align:left; font-family:'Inter',sans-serif;">
+                    <div style="padding:14px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:800; font-size:1.02rem; color:#1e293b;">
+                        <i class="ph ph-package" style="color:#7048e8;"></i> Selecionar Produto / Equipamento
+                    </div>
+                    <div style="padding:14px 16px; background:#f1f5f9; display:flex; flex-direction:column; gap:10px;">
+                        <input type="text" id="modal-cos-prod-q" value="${esc(termoIni)}" placeholder="Digite código, nome, fonte ou grupo..."
+                            style="width:100%; height:36px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.84rem; text-transform:none; box-sizing:border-box;">
+                        <div style="max-height:360px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.8rem;">
+                                <thead><tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
+                                    <th style="padding:8px 10px; width:90px;">Código</th>
+                                    <th style="padding:8px 10px;">Equipamento</th>
+                                    <th style="padding:8px 10px; width:150px;">Fonte</th>
+                                    <th style="padding:8px 10px; width:130px;">Grupo</th>
+                                </tr></thead>
+                                <tbody id="modal-cos-prod-tbody">${renderRows(termoIni ? prods.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''} ${p.fonte_fornecimento || ''}`).includes(normStr(termoIni))) : prods)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`,
+                didOpen: () => {
+                    const inp = document.getElementById('modal-cos-prod-q');
+                    const tb = document.getElementById('modal-cos-prod-tbody');
+                    inp?.addEventListener('input', () => {
+                        const q = normStr(inp.value);
+                        const f = q ? prods.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''} ${p.fonte_fornecimento || ''} ${p.grupo_produto || ''}`).includes(q)) : prods;
+                        if (tb) tb.innerHTML = renderRows(f);
+                    });
+                    setTimeout(() => inp?.focus(), 40);
+                }
+            });
+        },
+
+        adicionarProdutoOsAvulsa() {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const inp = document.getElementById('cos-prod-input');
+            const nomeRaw = String(inp?.value || '').trim();
+            if (!nomeRaw) {
+                Swal.fire('Produto obrigatório', 'Digite ou selecione um produto para adicionar à OS.', 'warning');
+                return;
+            }
+            const qtd = Math.max(1, parseInt(document.getElementById('cos-prod-qtd')?.value || '1', 10) || 1);
+            const manut = Math.max(1, parseInt(document.getElementById('cos-prod-manut')?.value || '1', 10) || 1);
+            const obs = String(document.getElementById('cos-prod-obs')?.value || '').trim();
+            const parseM = typeof window.parseMoedaProposta === 'function'
+                ? window.parseMoedaProposta
+                : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
+            const valUnit = Math.max(0, parseM(document.getElementById('cos-prod-valor')?.value || '0'));
+            const modAt = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+            const ehEv = normStr(modAt) === 'evento';
+
+            const lista = this._obterListaProdutosMutavelOs();
+            lista.push({
+                codigo: inp?.dataset?.codigo || '',
+                produto: nomeRaw,
+                descricao: nomeRaw,
+                fonte_fornecimento: inp?.dataset?.fonte || '',
+                observacao: obs,
+                quantidade: qtd,
+                manut_semana: ehEv ? undefined : manut,
+                diarias: ehEv ? manut : 1,
+                valor_unitario: valUnit,
+                valor_total: valUnit * qtd * (ehEv ? manut : 1)
+            });
+            this._salvarListaProdutosMutavelOs(lista);
+
+            if (inp) { inp.value = ''; inp.dataset.codigo = ''; inp.dataset.nome = ''; inp.dataset.fonte = ''; }
+            const obsEl = document.getElementById('cos-prod-obs'); if (obsEl) obsEl.value = '';
+            const qtdEl = document.getElementById('cos-prod-qtd'); if (qtdEl) qtdEl.value = '1';
+            const valEl = document.getElementById('cos-prod-valor'); if (valEl) valEl.value = '0,00';
+
+            const tbody = document.getElementById('cos-produtos-tbody');
+            if (tbody) tbody.innerHTML = renderProdutosGridHtml(state.osAtual);
+            const regrasPS = obterRegrasProdutosEServicosOs(state.osAtual, state.dadosOs);
+            const astServ = document.getElementById('cos-servicos-obrig-ast');
+            if (astServ) astServ.style.display = regrasPS.servicoObrigatorio ? 'inline' : 'none';
+            this.sincronizarPainelDistribuicaoEnderecos();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
+        alterarQtdProdutoOsAvulsa(idx, novaQtdRaw) {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const lista = this._obterListaProdutosMutavelOs();
+            if (!lista[idx]) return;
+            const qtd = Math.max(1, parseInt(novaQtdRaw, 10) || 1);
+            lista[idx].quantidade = qtd;
+            lista[idx].valor_total = (Number(lista[idx].valor_unitario) || 0) * qtd;
+            this._salvarListaProdutosMutavelOs(lista);
+            const tbody = document.getElementById('cos-produtos-tbody');
+            if (tbody) tbody.innerHTML = renderProdutosGridHtml(state.osAtual);
+            this.sincronizarPainelDistribuicaoEnderecos();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
+        removerProdutoOsAvulsa(idx) {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const lista = this._obterListaProdutosMutavelOs();
+            if (idx < 0 || idx >= lista.length) return;
+            lista.splice(idx, 1);
+            this._salvarListaProdutosMutavelOs(lista);
+            if (state.dadosOs && Array.isArray(state.dadosOs.distribuicao_enderecos)) {
+                state.dadosOs.distribuicao_enderecos = [];
+            }
+            const tbody = document.getElementById('cos-produtos-tbody');
+            if (tbody) tbody.innerHTML = renderProdutosGridHtml(state.osAtual);
+            const regrasPS = obterRegrasProdutosEServicosOs(state.osAtual, state.dadosOs);
+            const astServ = document.getElementById('cos-servicos-obrig-ast');
+            if (astServ) astServ.style.display = regrasPS.servicoObrigatorio ? 'inline' : 'none';
+            this.sincronizarPainelDistribuicaoEnderecos();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
+        async filtrarDropdownServicosOs(termo = '', abrir = true) {
+            const drop = document.getElementById('cos-serv-dropdown');
+            const inp = document.getElementById('cos-serv-input');
+            if (!drop || !inp || inp.disabled) return;
+            const catalogo = await this._obterCatalogoEquipamentosOs();
+            const servs = catalogo.filter(p => {
+                const g = normStr(p.grupo_produto);
+                return g === 'servicos' || g === 'servico';
+            });
+            const q = normStr(termo);
+            const filtrados = !q
+                ? servs.slice(0, 60)
+                : servs.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''}`).includes(q)).slice(0, 60);
+            if (!filtrados.length) {
+                drop.innerHTML = `<div style="padding:8px 10px; font-size:0.75rem; color:#64748b;">Nenhum serviço encontrado (você pode digitar manualmente ou usar a lupa).</div>`;
+            } else {
+                const modAt = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+                const tipoTab = normStr(modAt) === 'evento' ? 'EVENTO' : 'OBRA MENSAL';
+                drop.innerHTML = filtrados.map(p => {
+                    const cod = String(p.codigo || p.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const nome = String(p.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const vTab = typeof window.obterValorTabelaPorTipoEProduto === 'function' ? window.obterValorTabelaPorTipoEProduto(tipoTab, p) : null;
+                    const vParam = (vTab !== null && vTab !== undefined && !isNaN(Number(vTab))) ? Number(vTab) : 0;
+                    return `<div onmousedown="event.preventDefault(); window._comercialOS.selecionarServicoDropdownOs('${cod}', '${nome}', ${vParam})"
+                        style="padding:6px 10px; cursor:pointer; border-bottom:1px solid #f1f5f9;"
+                        onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                        <div style="font-size:0.76rem; font-weight:700; color:#1e293b;">${esc(p.codigo ? `${p.codigo} - ${p.nome}` : p.nome)}</div>
+                    </div>`;
+                }).join('');
+            }
+            if (abrir) drop.style.display = 'block';
+        },
+
+        selecionarServicoDropdownOs(cod, nome, valor) {
+            const inp = document.getElementById('cos-serv-input');
+            const drop = document.getElementById('cos-serv-dropdown');
+            const valEl = document.getElementById('cos-serv-valor');
+            const limpo = String(nome || '').replace(/^\d+\s*-\s*/, '').trim();
+            if (inp) {
+                inp.value = limpo;
+                inp.dataset.codigo = cod || '';
+                inp.dataset.nome = limpo;
+            }
+            if (valEl && Number(valor) > 0) {
+                valEl.value = typeof window.formatarMoedaCentavosProposta === 'function'
+                    ? window.formatarMoedaCentavosProposta(Number(valor))
+                    : fmtMoeda(Number(valor));
+            }
+            if (drop) drop.style.display = 'none';
+        },
+
+        async abrirModalPesquisaServicosOs() {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const catalogo = await this._obterCatalogoEquipamentosOs();
+            const servs = catalogo.filter(p => {
+                const g = normStr(p.grupo_produto);
+                return g === 'servicos' || g === 'servico';
+            });
+            const termoIni = String(document.getElementById('cos-serv-input')?.value || '').trim();
+            const modAt = resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+            const tipoTab = normStr(modAt) === 'evento' ? 'EVENTO' : 'OBRA MENSAL';
+
+            let renderizados = servs;
+            window._cosSelServModalIdx = (idx) => {
+                const p = renderizados[idx];
+                if (!p) return;
+                const vTab = typeof window.obterValorTabelaPorTipoEProduto === 'function' ? window.obterValorTabelaPorTipoEProduto(tipoTab, p) : null;
+                Swal.close();
+                this.selecionarServicoDropdownOs(String(p.codigo || p.id || ''), String(p.nome || ''), Number(vTab) || 0);
+            };
+
+            const renderRows = (list) => {
+                renderizados = list;
+                if (!list.length) return '<tr><td colspan="2" style="padding:1.5rem; text-align:center; color:#94a3b8;">Nenhum serviço encontrado.</td></tr>';
+                return list.slice(0, 150).map((p, idx) => `
+                    <tr onclick="window._cosSelServModalIdx(${idx})" style="cursor:pointer; border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="padding:8px 10px; font-weight:700; color:#7048e8; width:95px;">${esc(p.codigo || p.id)}</td>
+                        <td style="padding:8px 10px; font-weight:600; color:#1e293b;">${esc(p.nome || '—')}</td>
+                    </tr>
+                `).join('');
+            };
+
+            Swal.fire({
+                title: '',
+                width: '780px',
+                showConfirmButton: false,
+                showCloseButton: true,
+                customClass: { popup: 'custom-swal-padding-zero' },
+                html: `<div style="text-align:left; font-family:'Inter',sans-serif;">
+                    <div style="padding:14px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-weight:800; font-size:1.02rem; color:#1e293b;">
+                        <i class="ph ph-wrench" style="color:#2563eb;"></i> Selecionar Serviço
+                    </div>
+                    <div style="padding:14px 16px; background:#f1f5f9; display:flex; flex-direction:column; gap:10px;">
+                        <input type="text" id="modal-cos-serv-q" value="${esc(termoIni)}" placeholder="Digite o código ou nome do serviço..."
+                            style="width:100%; height:36px; padding:0 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-size:0.84rem; text-transform:none; box-sizing:border-box;">
+                        <div style="max-height:360px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px; background:#fff;">
+                            <table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:0.8rem;">
+                                <thead><tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase;">
+                                    <th style="padding:8px 10px; width:95px;">Código</th>
+                                    <th style="padding:8px 10px;">Serviço</th>
+                                </tr></thead>
+                                <tbody id="modal-cos-serv-tbody">${renderRows(termoIni ? servs.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''}`).includes(normStr(termoIni))) : servs)}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`,
+                didOpen: () => {
+                    const inp = document.getElementById('modal-cos-serv-q');
+                    const tb = document.getElementById('modal-cos-serv-tbody');
+                    inp?.addEventListener('input', () => {
+                        const q = normStr(inp.value);
+                        const f = q ? servs.filter(p => normStr(`${p.codigo || ''} ${p.nome || ''}`).includes(q)) : servs;
+                        if (tb) tb.innerHTML = renderRows(f);
+                    });
+                    setTimeout(() => inp?.focus(), 40);
+                }
+            });
+        },
+
+        onToggleFreteFobOsAvulsa(checked) {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const flag = Boolean(checked);
+            if (state.osAtual && state.osAtual.id) {
+                state.osAtual.servico_frete_fob = flag ? 1 : 0;
+                state.osAtual.tipo_frete = flag ? 'FOB' : '';
+            } else {
+                state.freteFobDraft = flag;
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+            renderFormOS();
+        },
+
+        adicionarServicoOsAvulsa() {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const inp = document.getElementById('cos-serv-input');
+            const nomeRaw = String(inp?.value || '').trim();
+            if (!nomeRaw) {
+                Swal.fire('Serviço obrigatório', 'Digite ou selecione um serviço para adicionar à OS.', 'warning');
+                return;
+            }
+            const obs = String(document.getElementById('cos-serv-obs')?.value || '').trim();
+            const parseM = typeof window.parseMoedaProposta === 'function'
+                ? window.parseMoedaProposta
+                : (v => parseFloat(String(v || '0').replace(/\./g, '').replace(',', '.')) || 0);
+            const valNum = Math.max(0, parseM(document.getElementById('cos-serv-valor')?.value || '0'));
+            const ehFobServ = normStr(nomeRaw).includes('fob');
+
+            const lista = this._obterListaServicosMutavelOs();
+            lista.push({
+                codigo: inp?.dataset?.codigo || '',
+                servico: nomeRaw,
+                descricao: nomeRaw,
+                observacao: obs,
+                valor_unitario: valNum,
+                valor_total: valNum,
+                frete_fob: ehFobServ
+            });
+            this._salvarListaServicosMutavelOs(lista);
+            if (ehFobServ) {
+                if (state.osAtual && state.osAtual.id) {
+                    state.osAtual.servico_frete_fob = 1;
+                    state.osAtual.tipo_frete = 'FOB';
+                } else {
+                    state.freteFobDraft = true;
+                }
+            }
+
+            if (inp) { inp.value = ''; inp.dataset.codigo = ''; inp.dataset.nome = ''; }
+            const obsEl = document.getElementById('cos-serv-obs'); if (obsEl) obsEl.value = '';
+            const valEl = document.getElementById('cos-serv-valor'); if (valEl) valEl.value = '0,00';
+
+            if (ehFobServ) {
+                renderFormOS();
+            } else {
+                const tbody = document.getElementById('cos-servicos-tbody');
+                if (tbody) tbody.innerHTML = renderServicosGridHtml(state.osAtual);
+                atualizarVisibilidadeBotaoEnviarLogistica();
+            }
+            this.marcarEditado();
+            this.salvarSnapshotAba();
+        },
+
+        removerServicoOsAvulsa(idx) {
+            if (osVeioDeContrato(state.osAtual)) return;
+            const lista = this._obterListaServicosMutavelOs();
+            if (idx < 0 || idx >= lista.length) return;
+            lista.splice(idx, 1);
+            this._salvarListaServicosMutavelOs(lista);
+            const tbody = document.getElementById('cos-servicos-tbody');
+            if (tbody) tbody.innerHTML = renderServicosGridHtml(state.osAtual);
+            atualizarVisibilidadeBotaoEnviarLogistica();
+            this.marcarEditado();
+            this.salvarSnapshotAba();
         },
 
         async iniciarAdicaoOutroEnderecoOs(event) {
@@ -3093,6 +4177,46 @@
                 ? listaEndSalvar.join(' | ')
                 : String(document.getElementById('cos-endereco-instalacao')?.value || (state.osAtual && state.osAtual.endereco_instalacao) || '').trim().replace(/\s*\|\s*$/, '');
             state.dadosOs.enderecos_instalacao = listaEndSalvar;
+            normalizarEstruturaDistribuicaoEnderecos(state.osAtual, state.dadosOs);
+
+            // Valida regras obrigatórias de Produtos, Serviços e Distribuição Fracionada por Endereço
+            const regrasPS = obterRegrasProdutosEServicosOs(state.osAtual, state.dadosOs);
+            if (!veioDeContrato) {
+                if (regrasPS.produtoObrigatorio && regrasPS.itensAtivos.length === 0) {
+                    if (!silencioso) {
+                        Swal.fire('Produto obrigatório', `Para OS do tipo "${tipoOperacao}", é obrigatório adicionar pelo menos um produto.`, 'warning');
+                    }
+                    return false;
+                }
+                if (regrasPS.servicoObrigatorio && regrasPS.servsAtivos.length === 0) {
+                    if (!silencioso) {
+                        const msgServ = regrasPS.tNorm === 'limpa fossa'
+                            ? 'Para OS do tipo "Limpa fossa", é obrigatório selecionar pelo menos um serviço.'
+                            : 'Para OS de Obra, é obrigatório adicionar pelo menos um serviço (ou marcar Frete FOB), seguindo a mesma regra da Proposta.';
+                        Swal.fire('Serviço obrigatório', msgServ, 'warning');
+                    }
+                    return false;
+                }
+            }
+
+            const checkDist = validarDistribuicaoProdutosEnderecosOs(state.osAtual, state.dadosOs);
+            if (checkDist.exigido && !checkDist.ok) {
+                if (!silencioso) {
+                    Swal.fire(
+                        'Vínculo de produtos por endereço',
+                        `Como há mais de um endereço na OS, distribua todos os produtos entre os endereços:\n• ${checkDist.pendencias.join('\n• ')}`,
+                        'warning'
+                    );
+                }
+                return false;
+            }
+
+            const listaProdsAvulsa = !veioDeContrato ? this._obterListaProdutosMutavelOs() : [];
+            const listaServsAvulsa = !veioDeContrato ? this._obterListaServicosMutavelOs() : [];
+            const somaTotalAvulsa = !veioDeContrato
+                ? (listaProdsAvulsa.reduce((a, x) => a + (Number(x.valor_total) || 0), 0) + listaServsAvulsa.reduce((a, x) => a + (x.frete_fob ? 0 : (Number(x.valor_total) || 0)), 0))
+                : 0;
+            const flagFobAvulsa = !veioDeContrato ? (propostaTemFreteFob(state.osAtual) ? 1 : 0) : 0;
 
             const payload = {
                 status_os: document.getElementById('cos-status-os')?.value || (state.osAtual && state.osAtual.status_os) || state.statusNovoDraft || 'EM ELABORAÇÃO',
@@ -3108,7 +4232,12 @@
                     tipo: modAtual === 'Evento' ? 'Proposta Evento' : 'Proposta Obra',
                     titulo_contrato: String(document.getElementById('cos-titulo-contrato')?.value || '').trim(),
                     cliente_nome: clienteLimpo,
-                    nome_evento: String(document.getElementById('cos-nome-evento')?.value || '').trim()
+                    nome_evento: String(document.getElementById('cos-nome-evento')?.value || '').trim(),
+                    itens: JSON.stringify(listaProdsAvulsa),
+                    itens_servicos: JSON.stringify(listaServsAvulsa),
+                    servico_frete_fob: flagFobAvulsa,
+                    tipo_frete: flagFobAvulsa ? 'FOB' : '',
+                    valor_total: somaTotalAvulsa
                 } : {})
             };
 
@@ -3185,33 +4314,33 @@
         }
     };
 
-    document.addEventListener('click', (e) => {
-        const wrap = document.getElementById('cos-status-custom-wrap');
-        const menu = document.getElementById('cos-status-custom-menu');
-        if (menu && menu.style.display === 'block' && wrap && !wrap.contains(e.target)) {
-            menu.style.display = 'none';
-        }
-        const wrapMod = document.getElementById('cos-modalidade-custom-wrap');
-        const menuMod = document.getElementById('cos-modalidade-custom-menu');
-        if (menuMod && menuMod.style.display === 'block' && wrapMod && !wrapMod.contains(e.target)) {
-            menuMod.style.display = 'none';
-        }
-        const wrapAtend = document.getElementById('cos-atendente-combo-wrap');
-        const dropAtend = document.getElementById('cos-atendente-dropdown');
-        if (dropAtend && dropAtend.style.display === 'block' && wrapAtend && !wrapAtend.contains(e.target)) {
-            dropAtend.style.display = 'none';
-        }
-        const wrapCt = document.getElementById('cos-contato-combo-wrap');
-        const dropCt = document.getElementById('cos-contato-dropdown');
-        if (dropCt && dropCt.style.display === 'block' && wrapCt && !wrapCt.contains(e.target)) {
-            dropCt.style.display = 'none';
-        }
-        const wrapEnd = document.getElementById('cos-endereco-combo-wrap');
-        const dropEnd = document.getElementById('cos-endereco-dropdown');
-        if (dropEnd && dropEnd.style.display === 'block' && wrapEnd && !wrapEnd.contains(e.target)) {
-            dropEnd.style.display = 'none';
-        }
-    });
+    function fecharDropdownsAbertosOsPorAlvo(targetEl) {
+        const pares = [
+            ['cos-status-custom-wrap', 'cos-status-custom-menu'],
+            ['cos-modalidade-custom-wrap', 'cos-modalidade-custom-menu'],
+            ['cos-atendente-combo-wrap', 'cos-atendente-dropdown'],
+            ['cos-contato-combo-wrap', 'cos-contato-dropdown'],
+            ['cos-endereco-combo-wrap', 'cos-endereco-dropdown'],
+            ['cos-prod-combo-wrap', 'cos-prod-dropdown'],
+            ['cos-serv-combo-wrap', 'cos-serv-dropdown']
+        ];
+        pares.forEach(([wrapId, menuId]) => {
+            const menu = document.getElementById(menuId);
+            if (!menu || menu.style.display === 'none' || !menu.style.display) return;
+            const wrap = document.getElementById(wrapId);
+            if (!targetEl || !wrap || !wrap.contains(targetEl)) {
+                menu.style.display = 'none';
+            }
+        });
+    }
+
+    document.addEventListener('mousedown', (e) => {
+        fecharDropdownsAbertosOsPorAlvo(e.target);
+    }, true);
+
+    document.addEventListener('focusin', (e) => {
+        fecharDropdownsAbertosOsPorAlvo(e.target);
+    }, true);
 
     window.renderTelaOSComercial = function () {
         window._comercialOS.init();

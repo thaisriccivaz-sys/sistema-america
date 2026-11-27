@@ -8720,6 +8720,9 @@ window.modalSalvarCliente = async function(clientId) {
                 if (typeof window._onAprovacaoClienteSalvo === 'function') {
                     window._onAprovacaoClienteSalvo(razaoSocial, payload.grupo_clientes);
                 }
+                if (typeof window._onOsComercialClienteSalvo === 'function') {
+                    window._onOsComercialClienteSalvo(razaoSocial, payload.grupo_clientes, finalModalCliId);
+                }
             }
 
             // Se o cadastro foi aberto a partir da tela ou modal de Endereços (+), selecionar o cliente recém-cadastrado
@@ -9623,6 +9626,10 @@ window.salvarNovoContatoModalProposta = async function() {
                 if (typeof window._onAprovacaoContatoSalvo === 'function') {
                     window._onAprovacaoContatoSalvo(conNome, empRazao);
                 }
+            } else if (window._novoContatoModalOrigemTarget === 'os_comercial') {
+                if (typeof window._onOsComercialContatoSalvo === 'function') {
+                    window._onOsComercialContatoSalvo(conNome, empRazao);
+                }
             } else {
                 const propContatoInput = document.getElementById('prop-contato');
                 if (propContatoInput) propContatoInput.value = conNome;
@@ -9659,7 +9666,9 @@ window.cadastrarNovoContatoProposta = async function(nomeInicial = null, origemA
         ? (document.getElementById('prop-interveniente')?.value || '')
         : (targetOrigem === 'aprovacao'
             ? (document.getElementById('caprv-inp-cliente')?.value || document.getElementById('prop-cliente')?.value || '')
-            : (document.getElementById('prop-cliente')?.value || ''));
+            : (targetOrigem === 'os_comercial'
+                ? (document.getElementById('cos-cliente')?.value || document.getElementById('prop-cliente')?.value || '')
+                : (document.getElementById('prop-cliente')?.value || '')));
     const clienteNome = (typeof window.limparPrefixoGrupoCliente === 'function' ? window.limparPrefixoGrupoCliente(rawClienteRef) : rawClienteRef).trim();
     const { foundCli } = await window._obterDadosContatosClienteProposta(clienteNome);
     let fullCli = foundCli;
