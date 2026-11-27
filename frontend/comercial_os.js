@@ -2220,6 +2220,10 @@
         if (!isNovo) {
             carregarAnexosOs(prop.id);
         }
+        if (typeof window._cosMontarDrawerComentarios === 'function') {
+            window._cosMontarDrawerComentarios();
+            window.carregarComentariosOsAtiva(isNovo ? null : prop.id, false);
+        }
     }
 
     async function carregarAnexosOs(propId) {
@@ -4869,6 +4873,994 @@
     document.addEventListener('focusin', (e) => {
         fecharDropdownsAbertosOsPorAlvo(e.target);
     }, true);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       ABA INFERIOR (DRAWER MEIA TELA) DE COMENTÁRIOS DA OS DO COMERCIAL
+       (Mesma aparência e todas as funções da tela de Contratos)
+       ═══════════════════════════════════════════════════════════════════════════ */
+    window._comentariosOsCache = [];
+    window._comentariosOsTotalGeral = 0;
+    window._comentariosOsReplyAberto = {};
+    window._comentariosOsAnexosPendentes = {};
+    window._cosDrawerComentariosAberto = false;
+
+    function _obterUrlArquivoAnexoOs(anexoId, download = false, propIdOverride = null) {
+        const propId = Number(propIdOverride || (state.osAtual && state.osAtual.id));
+        if (!propId || !anexoId) return '';
+        const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+        return `/api/propostas/${propId}/anexos-os-comercial/${encodeURIComponent(String(anexoId))}/arquivo?${download ? 'download=1&' : 'inline=1&'}${token ? `token=${encodeURIComponent(token)}` : ''}`;
+    }
+
+    window.abrirArquivoAnexoOsComercial = function (anexoId, download = false, propIdOverride = null) {
+        const url = _obterUrlArquivoAnexoOs(anexoId, download, propIdOverride);
+        if (url) window.open(url, '_blank');
+    };
+
+    function _formatarTamBytesOs(bytes) {
+        if (typeof window._formatarTamanhoBytesAnexoContrato === 'function') {
+            return window._formatarTamanhoBytesAnexoContrato(bytes);
+        }
+        const b = Number(bytes || 0);
+        if (!b || b <= 0) return '';
+        if (b < 1024) return `${b} B`;
+        if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+        return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function _iconeArquivoAnexoOs(nomeArquivo, mimeType) {
+        if (typeof window._iconePorArquivoAnexoContrato === 'function') {
+            return window._iconePorArquivoAnexoContrato(nomeArquivo, mimeType);
+        }
+        const ext = String(nomeArquivo || '').split('.').pop().toLowerCase();
+        const mime = String(mimeType || '').toLowerCase();
+        if (ext === 'pdf' || mime.includes('pdf')) return { icon: 'ph-file-pdf', color: '#dc2626', bg: '#fef2f2', label: 'PDF', kind: 'pdf' };
+        if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext) || mime.startsWith('image/')) return { icon: 'ph-image', color: '#0284c7', bg: '#f0f9ff', label: (ext || 'IMG').toUpperCase(), kind: 'image' };
+        return { icon: 'ph-file-text', color: '#475569', bg: '#f8fafc', label: (ext && ext.length <= 5 ? ext.toUpperCase() : 'ARQ'), kind: 'doc' };
+    }
+
+    function _gerarHtmlMiniaturaAnexoOs(anexo, tamanhoPx = 46) {
+        const a = anexo || {};
+        const ic = _iconeArquivoAnexoOs(a.nome_arquivo, a.mime_type);
+        const idJsSafe = esc(String(a.id || '')).replace(/'/g, "\\'");
+        const propIdJs = Number(a.proposta_id || (state.osAtual && state.osAtual.id) || 0);
+        const urlInline = _obterUrlArquivoAnexoOs(a.id, false, propIdJs);
+        const w = Number(tamanhoPx) || 46;
+        const h = Number(tamanhoPx) || 46;
+        const badgeExt = `<span style="position:absolute; bottom:2px; right:2px; background:${ic.color}; color:#fff; font-size:0.56rem; font-weight:800; padding:1px 4px; border-radius:3px; line-height:1.1; pointer-events:none; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${esc(ic.label || 'ARQ')}</span>`;
+
+        if (ic.kind === 'image' && urlInline) {
+            return `<div onclick="window.abrirArquivoAnexoOsComercial('${idJsSafe}', false, ${propIdJs})" title="Clique para visualizar ${esc(a.nome_arquivo || 'imagem')}"
+                style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #cbd5e1; background:${ic.bg}; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+                <img src="${esc(urlInline)}" alt="${esc(a.nome_arquivo || '')}"
+                    style="width:100%; height:100%; object-fit:cover; display:block;"
+                    onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; flex-direction:column; color:${ic.color};">
+                    <i class="ph ${ic.icon}" style="font-size:1.35rem;"></i>
+                </div>
+                ${badgeExt}
+            </div>`;
+        }
+        if (ic.kind === 'pdf' && urlInline) {
+            return `<div onclick="window.abrirArquivoAnexoOsComercial('${idJsSafe}', false, ${propIdJs})" title="Clique para visualizar ${esc(a.nome_arquivo || 'PDF')}"
+                style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #fca5a5; background:#ffffff; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+                <iframe src="${esc(urlInline)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" tabindex="-1"
+                    style="width:220px; height:220px; border:none; transform:scale(${(w / 220).toFixed(3)}); transform-origin:top left; pointer-events:none; position:absolute; top:0; left:0; background:#fff;"></iframe>
+                ${badgeExt}
+            </div>`;
+        }
+        return `<div onclick="window.abrirArquivoAnexoOsComercial('${idJsSafe}', false, ${propIdJs})" title="Clique para abrir ${esc(a.nome_arquivo || 'documento')}"
+            style="width:${w}px; height:${h}px; border-radius:8px; overflow:hidden; position:relative; flex-shrink:0; border:1.5px solid #cbd5e1; background:linear-gradient(145deg, #ffffff 0%, ${ic.bg} 100%); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+            <div style="position:absolute; top:0; right:0; width:12px; height:12px; background:#e2e8f0; border-bottom-left-radius:4px;"></div>
+            <i class="ph ${ic.icon}" style="font-size:1.35rem; color:${ic.color}; margin-bottom:6px;"></i>
+            ${badgeExt}
+        </div>`;
+    }
+
+    function _obterChaveUsuarioComentariosOsVistos() {
+        const u = (typeof window.obterNomeUsuarioLogado === 'function' ? window.obterNomeUsuarioLogado() : '') || localStorage.getItem('username') || 'default';
+        return `_cosComentariosVistos_${String(u).toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+    }
+
+    function _obterMapaComentariosOsVistos() {
+        try {
+            const raw = localStorage.getItem(_obterChaveUsuarioComentariosOsVistos());
+            const parsed = raw ? JSON.parse(raw) : null;
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch (_) {
+            return {};
+        }
+    }
+
+    function _salvarMapaComentariosOsVistos(mapa) {
+        try {
+            localStorage.setItem(_obterChaveUsuarioComentariosOsVistos(), JSON.stringify(mapa || {}));
+        } catch (_) {}
+    }
+
+    function _calcularComentariosNovosNaoVistosOs(escopoKey, lista) {
+        const arr = Array.isArray(lista) ? lista : [];
+        if (!arr.length) return 0;
+        const key = String(escopoKey || 'all');
+        const mapa = _obterMapaComentariosOsVistos();
+        const lastSeenId = Number(mapa[key] || 0);
+        const maxId = arr.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0);
+        if (window._cosDrawerComentariosAberto) {
+            if (maxId > lastSeenId) {
+                mapa[key] = maxId;
+                _salvarMapaComentariosOsVistos(mapa);
+            }
+            return 0;
+        }
+        const meuNomeNorm = normStr(typeof window.obterNomeUsuarioLogado === 'function' ? window.obterNomeUsuarioLogado() : '');
+        let novos = 0;
+        arr.forEach(c => {
+            const cid = Number(c.id) || 0;
+            if (cid > lastSeenId) {
+                const autorNorm = normStr(c.autor_nome);
+                const userNorm = normStr(c.usuario_username);
+                if (!meuNomeNorm || (autorNorm !== meuNomeNorm && userNorm !== meuNomeNorm)) {
+                    novos++;
+                }
+            }
+        });
+        return novos;
+    }
+
+    function _marcarComentariosOsComoVistos(escopoKey, lista) {
+        const arr = Array.isArray(lista) ? lista : (window._comentariosOsCache || []);
+        const key = String(escopoKey || 'all');
+        const maxId = arr.reduce((m, c) => Math.max(m, Number(c.id) || 0), 0);
+        const mapa = _obterMapaComentariosOsVistos();
+        if (maxId > Number(mapa[key] || 0)) {
+            mapa[key] = maxId;
+            _salvarMapaComentariosOsVistos(mapa);
+        }
+        const badgeNovos = document.getElementById('cos-comentarios-os-novos-badge');
+        if (badgeNovos) {
+            badgeNovos.style.display = 'none';
+            badgeNovos.textContent = '0';
+        }
+    }
+
+    function _atualizarBadgesContagemComentariosOs(totalCount, novosCount) {
+        const badgeTotal = document.getElementById('cos-comentarios-os-count-badge');
+        if (badgeTotal) badgeTotal.textContent = String(Number(totalCount) || 0);
+        const badgeNovos = document.getElementById('cos-comentarios-os-novos-badge');
+        if (badgeNovos) {
+            const n = Number(novosCount) || 0;
+            if (n > 0) {
+                badgeNovos.textContent = String(n);
+                badgeNovos.style.display = 'inline-flex';
+            } else {
+                badgeNovos.textContent = '0';
+                badgeNovos.style.display = 'none';
+            }
+        }
+    }
+
+    function _formatarDataHoraComentarioOs(dtStr) {
+        if (typeof window._formatarDataHoraComentarioContrato === 'function') {
+            return window._formatarDataHoraComentarioContrato(dtStr);
+        }
+        const raw = String(dtStr || '').trim();
+        const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s]+(\d{2}):(\d{2}))?/);
+        if (m) return (m[4] && m[5]) ? `${m[3]}/${m[2]}/${m[1]} às ${m[4]}:${m[5]}` : `${m[3]}/${m[2]}/${m[1]}`;
+        return raw || '—';
+    }
+
+    function _obterIniciaisAutorOs(nome) {
+        if (typeof window._obterIniciaisAutorComentario === 'function') {
+            return window._obterIniciaisAutorComentario(nome);
+        }
+        const limpo = String(nome || '').trim();
+        if (!limpo) return 'US';
+        const partes = limpo.split(/\s+/).filter(Boolean);
+        return partes.length === 1 ? partes[0].substring(0, 2).toUpperCase() : (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+    }
+
+    window._cosMontarDrawerComentarios = function () {
+        let wrapper = document.getElementById('cos-comentarios-drawer-wrapper');
+        if (!wrapper) {
+            wrapper = document.createElement('div');
+            wrapper.id = 'cos-comentarios-drawer-wrapper';
+            wrapper.style.cssText = [
+                'position:fixed',
+                'bottom:32px',
+                'left:60px',
+                'right:0',
+                'z-index:9500',
+                'display:none',
+                'flex-direction:column',
+                'align-items:flex-start',
+                'pointer-events:none'
+            ].join(';');
+
+            wrapper.innerHTML = `
+                <div id="cos-comentarios-btn-row" style="padding:0 0 0 12px; pointer-events:auto;">
+                    <button type="button" id="cos-comentarios-toggle-btn"
+                        title="Comentários da OS"
+                        style="
+                            display:flex; align-items:center; gap:6px;
+                            background:#f1f5f9; border:1.5px solid #cbd5e1;
+                            border-bottom:none; border-radius:8px 8px 0 0;
+                            padding:5px 16px; cursor:pointer;
+                            color:#475569; font-size:0.78rem; font-weight:700;
+                            box-shadow:0 -2px 8px rgba(0,0,0,0.06);
+                            transition:background 0.15s, color 0.15s;
+                        "
+                        onmouseenter="this.style.background='#e2e8f0'; this.style.color='#1e293b';"
+                        onmouseleave="this.style.background='#f1f5f9'; this.style.color='#475569';"
+                        onclick="window._cosToggleDrawerComentarios()"
+                    >
+                        <i id="cos-comentarios-drawer-icon" class="ph ph-caret-up-bold" style="font-size:0.9rem;"></i>
+                        <span>Comentários</span>
+                        <span id="cos-comentarios-os-count-badge" title="Total de comentários" style="background:#e2e8f0; color:#334155; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800;">0</span>
+                        <span id="cos-comentarios-os-novos-badge" title="Comentários novos não lidos" style="display:none; background:#dc2626; color:#ffffff; border-radius:99px; padding:1px 8px; font-size:0.68rem; font-weight:800; box-shadow:0 1px 4px rgba(220,38,38,0.35);">0</span>
+                    </button>
+                </div>
+
+                <div id="cos-comentarios-drawer-panel"
+                    style="
+                        width:100%; background:#ffffff;
+                        border-top:none;
+                        box-shadow:none;
+                        max-height:0; overflow:hidden;
+                        transition:max-height 0.32s cubic-bezier(.4,0,.2,1);
+                        display:flex; flex-direction:column;
+                        order:-1; pointer-events:auto;
+                    "
+                >
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc; flex-wrap:wrap; flex-shrink:0;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <i class="ph ph-chats-circle" style="color:#6d28d9; font-size:1.15rem;"></i>
+                            <span id="cos-comentarios-drawer-titulo" style="font-weight:800; font-size:0.86rem; color:#1e293b;">Comentários da OS</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-left:auto;">
+                            <input type="text" id="cos-comentarios-filtro-usuario" list="cos-comentarios-datalist-usuarios"
+                                placeholder="Filtrar usuário..." oninput="window.filtrarComentariosOsEmTempoReal()"
+                                style="height:28px; width:145px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.74rem; background:#fff; text-transform:none;">
+                            <datalist id="cos-comentarios-datalist-usuarios"></datalist>
+
+                            <input type="text" id="cos-comentarios-filtro-departamento" list="cos-comentarios-datalist-departamentos"
+                                placeholder="Filtrar depto..." oninput="window.filtrarComentariosOsEmTempoReal()"
+                                style="height:28px; width:130px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.74rem; background:#fff; text-transform:none;">
+                            <datalist id="cos-comentarios-datalist-departamentos"></datalist>
+
+                            <input type="date" id="cos-comentarios-filtro-data" onchange="window.filtrarComentariosOsEmTempoReal()"
+                                style="height:28px; padding:0 6px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.74rem; background:#fff;">
+
+                            <button type="button" onclick="window.limparFiltrosComentariosOs()" title="Limpar filtros"
+                                style="height:28px; padding:0 8px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">
+                                Limpar
+                            </button>
+
+                            <button type="button" onclick="window.carregarComentariosOsAtiva(null, true)" title="Atualizar comentários"
+                                style="height:28px; padding:0 10px; background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="ph ph-arrows-clockwise"></i> Atualizar
+                            </button>
+
+                            <button type="button" onclick="window._cosToggleDrawerComentarios(false)" title="Fechar aba de comentários"
+                                style="height:28px; width:28px; background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; font-size:0.9rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="cos-comentarios-os-lista-wrap" style="overflow-y:auto; flex:1; padding:12px 16px; background:#f8fafc; min-height:180px;">
+                        <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                            Carregando histórico de comentários desta OS...
+                        </div>
+                    </div>
+
+                    <div id="cos-comentarios-composer-footer" style="padding:10px 16px; border-top:1px solid #e2e8f0; background:#ffffff; flex-shrink:0;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                            <label style="display:block; font-size:0.76rem; font-weight:800; color:#4c1d95; margin:0; text-transform:none;">
+                                <i class="ph ph-chat-centered-text"></i> Comentários
+                            </label>
+                            <span style="font-size:0.71rem; color:#64748b; font-weight:600;">
+                                <i class="ph ph-paperclip"></i> Anexe vários arquivos na pasta ou cole imagens/documentos com <strong>Ctrl+V</strong> (vão automaticamente para o quadro Anexos da OS)
+                            </span>
+                        </div>
+                        <div id="cos-comentario-anexos-pending-main" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:6px; padding:6px 8px; background:#f5f3ff; border:1px dashed #c4b5fd; border-radius:8px;"></div>
+                        <div style="display:flex; gap:8px; align-items:flex-end;">
+                            <input type="file" id="cos-comentario-files-inp-main" multiple style="display:none;" onchange="window.adicionarArquivosPendentesComentarioOs(this.files, 'main'); this.value='';">
+                            <button type="button" onclick="document.getElementById('cos-comentario-files-inp-main')?.click()"
+                                title="Selecionar um ou vários documentos/imagens na pasta para anexar ao comentário e ao quadro Anexos da OS"
+                                style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:8px; padding:0 0.85rem; font-size:0.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; height:42px; transition:background 0.15s;"
+                                onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+                                <i class="ph ph-paperclip" style="font-size:1.05rem;"></i> Anexar
+                            </button>
+                            <textarea id="cos-comentario-os-novo-texto" rows="2"
+                                placeholder="Digite um comentário ou cole imagem/arquivo com Ctrl+V... (Ctrl+Enter para enviar)"
+                                onpaste="window.tratarPasteAnexoComentarioOs(event, 'main')"
+                                onkeydown="if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){ event.preventDefault(); window.enviarComentarioOs(null); }"
+                                style="flex:1; padding:0.5rem 0.7rem; border:1px solid #cbd5e1; border-radius:8px; font-size:0.83rem; resize:none; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                            <button type="button" id="cos-btn-enviar-comentario-os" onclick="window.enviarComentarioOs(null)"
+                                style="background:#6d28d9; color:#ffffff; border:none; border-radius:8px; padding:0 1.1rem; font-size:0.82rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; height:42px; transition:background 0.15s;"
+                                onmouseover="this.style.background='#5b21b6'" onmouseout="this.style.background='#6d28d9'">
+                                <i class="ph ph-paper-plane-right" style="font-size:1rem;"></i> Adicionar Comentário
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(wrapper);
+
+            document.addEventListener('mousedown', function _cosClickForaComentarios(e) {
+                if (!window._cosDrawerComentariosAberto) return;
+                const w = document.getElementById('cos-comentarios-drawer-wrapper');
+                if (w && !w.contains(e.target) && !e.target.closest('.swal2-container')) {
+                    window._cosToggleDrawerComentarios(false);
+                }
+            });
+
+            document.addEventListener('paste', function _cosPasteGlobalComentarios(e) {
+                if (!window._cosDrawerComentariosAberto) return;
+                const active = document.activeElement;
+                if (active && (active.id === 'cos-comentario-os-novo-texto' || String(active.id || '').startsWith('cos-comentario-reply-texto-'))) {
+                    return;
+                }
+                const cd = e.clipboardData;
+                if (!cd) return;
+                const hasFile = (cd.items && Array.from(cd.items).some(it => it && it.kind === 'file')) || (cd.files && cd.files.length > 0);
+                if (hasFile) {
+                    window.tratarPasteAnexoComentarioOs(e, 'main');
+                }
+            });
+        }
+        window._cosAtualizarVisibilidadeDrawerComentarios();
+    };
+
+    window._cosToggleDrawerComentarios = function (forcarEstado) {
+        window._cosMontarDrawerComentarios();
+        const panel = document.getElementById('cos-comentarios-drawer-panel');
+        const icon = document.getElementById('cos-comentarios-drawer-icon');
+        if (!panel) return;
+        const novoEstado = (typeof forcarEstado === 'boolean') ? forcarEstado : !window._cosDrawerComentariosAberto;
+        window._cosDrawerComentariosAberto = novoEstado;
+        panel.style.maxHeight = novoEstado ? '50vh' : '0';
+        panel.style.height = novoEstado ? '50vh' : 'auto';
+        panel.style.borderTop = novoEstado ? '1.5px solid #cbd5e1' : 'none';
+        panel.style.boxShadow = novoEstado ? '0 -8px 28px rgba(15,23,42,0.16)' : 'none';
+        if (icon) {
+            icon.className = novoEstado ? 'ph ph-caret-down-bold' : 'ph ph-caret-up-bold';
+        }
+        if (novoEstado) {
+            const propId = Number(state.osAtual && state.osAtual.id) || null;
+            window.carregarComentariosOsAtiva(propId, false);
+            setTimeout(() => {
+                _marcarComentariosOsComoVistos(propId ? `os_${propId}` : 'all', window._comentariosOsCache || []);
+                const wrap = document.getElementById('cos-comentarios-os-lista-wrap');
+                if (wrap) wrap.scrollTop = wrap.scrollHeight;
+                if (propId) document.getElementById('cos-comentario-os-novo-texto')?.focus();
+            }, 150);
+        }
+    };
+
+    window._cosAtualizarVisibilidadeDrawerComentarios = function () {
+        const w = document.getElementById('cos-comentarios-drawer-wrapper');
+        if (!w) return;
+        const viewOs = document.getElementById('view-comercial-os');
+        const formOs = document.getElementById('form-comercial-os');
+        const isVisivel = Boolean(viewOs && viewOs.offsetParent !== null && formOs && formOs.offsetParent !== null);
+        if (isVisivel) {
+            if (w.style.display !== 'flex') {
+                w.style.display = 'flex';
+                const propId = Number(state.osAtual && state.osAtual.id) || null;
+                window.carregarComentariosOsAtiva(propId, false);
+            }
+        } else {
+            if (w.style.display !== 'none') {
+                w.style.display = 'none';
+                if (window._cosDrawerComentariosAberto) {
+                    const panel = document.getElementById('cos-comentarios-drawer-panel');
+                    const icon = document.getElementById('cos-comentarios-drawer-icon');
+                    if (panel) {
+                        panel.style.maxHeight = '0';
+                        panel.style.height = 'auto';
+                        panel.style.borderTop = 'none';
+                        panel.style.boxShadow = 'none';
+                    }
+                    if (icon) icon.className = 'ph ph-caret-up-bold';
+                    window._cosDrawerComentariosAberto = false;
+                }
+            }
+        }
+    };
+
+    if (!window._cosComentariosVisibilityInterval) {
+        window._cosComentariosVisibilityInterval = setInterval(() => {
+            if (typeof window._cosAtualizarVisibilidadeDrawerComentarios === 'function') {
+                window._cosAtualizarVisibilidadeDrawerComentarios();
+            }
+        }, 450);
+    }
+
+    if (!window._cosComentariosPollNovosInterval) {
+        window._cosComentariosPollNovosInterval = setInterval(() => {
+            const w = document.getElementById('cos-comentarios-drawer-wrapper');
+            if (!w || w.style.display === 'none') return;
+            const propId = Number(state.osAtual && state.osAtual.id) || null;
+            if (typeof window.carregarComentariosOsAtiva === 'function') {
+                window.carregarComentariosOsAtiva(propId, false, true);
+            }
+        }, 25000);
+    }
+
+    window.carregarComentariosOsAtiva = async function (propIdOpcional, mostrarFeedback = false, isPollingBackground = false) {
+        const propId = Number(propIdOpcional !== null && propIdOpcional !== undefined ? propIdOpcional : (state.osAtual && state.osAtual.id));
+        if (!propId) {
+            try {
+                const resRec = await window.apiGet('/comercial/os/comentarios-recentes?limit=50');
+                const listaRec = (resRec && Array.isArray(resRec.comentarios)) ? resRec.comentarios : [];
+                const totalGeral = (resRec && Number(resRec.total_geral) > 0) ? Number(resRec.total_geral) : listaRec.length;
+                window._comentariosOsCache = listaRec;
+                window._comentariosOsTotalGeral = totalGeral;
+                window.atualizarDatalistsFiltrosComentariosOs(listaRec);
+                if (!isPollingBackground || window._cosDrawerComentariosAberto) {
+                    window.renderizarListaComentariosOs(listaRec);
+                } else {
+                    const novosRec = _calcularComentariosNovosNaoVistosOs('all', listaRec);
+                    _atualizarBadgesContagemComentariosOs(totalGeral, novosRec);
+                }
+                if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
+                    mostrarToastSucesso(`Últimos comentários das OS atualizados (${listaRec.length} exibido(s)).`);
+                }
+            } catch (_) {
+                if (!isPollingBackground) {
+                    window._comentariosOsCache = [];
+                    window._comentariosOsTotalGeral = 0;
+                    window.renderizarListaComentariosOs([]);
+                }
+            }
+            return;
+        }
+        try {
+            const res = await window.apiGet(`/propostas/${propId}/comentarios-os-comercial`);
+            const lista = (res && Array.isArray(res.comentarios)) ? res.comentarios : [];
+            window._comentariosOsCache = lista;
+            window._comentariosOsTotalGeral = lista.length;
+            window.atualizarDatalistsFiltrosComentariosOs(lista);
+            if (!isPollingBackground || window._cosDrawerComentariosAberto) {
+                window.renderizarListaComentariosOs(lista);
+            } else {
+                const novosOs = _calcularComentariosNovosNaoVistosOs(`os_${propId}`, lista);
+                _atualizarBadgesContagemComentariosOs(lista.length, novosOs);
+            }
+            if (mostrarFeedback && typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`Histórico de comentários atualizado (${lista.length} comentário(s)).`);
+            }
+        } catch (_) {
+            if (!isPollingBackground) {
+                window.renderizarListaComentariosOs([]);
+            }
+        }
+    };
+
+    window.atualizarDatalistsFiltrosComentariosOs = function (lista) {
+        const arr = Array.isArray(lista) ? lista : (window._comentariosOsCache || []);
+        const dlUsers = document.getElementById('cos-comentarios-datalist-usuarios');
+        const dlDeptos = document.getElementById('cos-comentarios-datalist-departamentos');
+        if (dlUsers) {
+            const nomesUnicos = Array.from(new Set(arr.map(c => String(c.autor_nome || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            dlUsers.innerHTML = nomesUnicos.map(n => `<option value="${esc(n)}"></option>`).join('');
+        }
+        if (dlDeptos) {
+            const deptosUnicos = Array.from(new Set(arr.map(c => String(c.autor_departamento || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            dlDeptos.innerHTML = deptosUnicos.map(d => `<option value="${esc(d)}"></option>`).join('');
+        }
+    };
+
+    window.filtrarComentariosOsEmTempoReal = function () {
+        window.renderizarListaComentariosOs(window._comentariosOsCache || []);
+    };
+
+    window.limparFiltrosComentariosOs = function () {
+        const elU = document.getElementById('cos-comentarios-filtro-usuario');
+        const elD = document.getElementById('cos-comentarios-filtro-departamento');
+        const elDt = document.getElementById('cos-comentarios-filtro-data');
+        if (elU) elU.value = '';
+        if (elD) elD.value = '';
+        if (elDt) elDt.value = '';
+        window.renderizarListaComentariosOs(window._comentariosOsCache || []);
+    };
+
+    window.toggleResponderComentarioOs = function (comentarioId, autorNome) {
+        const key = String(comentarioId);
+        const box = document.getElementById(`cos-comentario-reply-box-${key}`);
+        if (!box) return;
+        const novoEstado = box.style.display === 'none';
+        window._comentariosOsReplyAberto[key] = novoEstado;
+        box.style.display = novoEstado ? 'block' : 'none';
+        if (novoEstado) {
+            const txt = document.getElementById(`cos-comentario-reply-texto-${key}`);
+            if (txt) {
+                if (autorNome && !txt.value.trim()) {
+                    txt.placeholder = `Responder ao comentário de ${autorNome}...`;
+                }
+                setTimeout(() => txt.focus(), 40);
+            }
+        }
+    };
+
+    window.adicionarArquivosPendentesComentarioOs = function (fileList, targetKey = 'main') {
+        const files = Array.from(fileList || []);
+        if (!files.length) return;
+        const key = String(targetKey || 'main');
+        if (!Array.isArray(window._comentariosOsAnexosPendentes[key])) {
+            window._comentariosOsAnexosPendentes[key] = [];
+        }
+        const now = Date.now();
+        files.forEach((f, idx) => {
+            if (!f) return;
+            let fileObj = f;
+            if (/^image\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name || '')) {
+                const ext = (f.name.split('.').pop() || 'png').toLowerCase();
+                const dt = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                const customName = `Print_${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}_${pad(dt.getHours())}h${pad(dt.getMinutes())}m${pad(dt.getSeconds())}s_${idx + 1}.${ext}`;
+                try { fileObj = new File([f], customName, { type: f.type || 'image/png' }); } catch (_) { fileObj = f; }
+            }
+            const isImg = String(fileObj.type || '').toLowerCase().startsWith('image/');
+            const previewUrl = isImg && typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(fileObj) : '';
+            window._comentariosOsAnexosPendentes[key].push({
+                uid: `${now}_${Math.random().toString(36).slice(2, 7)}`,
+                file: fileObj,
+                name: fileObj.name || 'anexo',
+                size: fileObj.size || 0,
+                type: fileObj.type || '',
+                previewUrl
+            });
+        });
+        window.renderizarAnexosPendentesComentarioOs(key);
+    };
+
+    window.removerArquivoPendenteComentarioOs = function (targetKey, uid) {
+        const key = String(targetKey || 'main');
+        const arr = window._comentariosOsAnexosPendentes[key];
+        if (!Array.isArray(arr)) return;
+        const item = arr.find(x => x.uid === uid);
+        if (item && item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+            try { URL.revokeObjectURL(item.previewUrl); } catch (_) {}
+        }
+        window._comentariosOsAnexosPendentes[key] = arr.filter(x => x.uid !== uid);
+        window.renderizarAnexosPendentesComentarioOs(key);
+    };
+
+    window.limparArquivosPendentesComentarioOs = function (targetKey) {
+        const key = String(targetKey || 'main');
+        const arr = window._comentariosOsAnexosPendentes[key];
+        if (Array.isArray(arr)) {
+            arr.forEach(item => {
+                if (item && item.previewUrl && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+                    try { URL.revokeObjectURL(item.previewUrl); } catch (_) {}
+                }
+            });
+        }
+        window._comentariosOsAnexosPendentes[key] = [];
+        window.renderizarAnexosPendentesComentarioOs(key);
+    };
+
+    window.renderizarAnexosPendentesComentarioOs = function (targetKey = 'main') {
+        const key = String(targetKey || 'main');
+        const box = document.getElementById(`cos-comentario-anexos-pending-${key}`);
+        if (!box) return;
+        const arr = Array.isArray(window._comentariosOsAnexosPendentes[key]) ? window._comentariosOsAnexosPendentes[key] : [];
+        if (!arr.length) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+        box.style.display = 'flex';
+        box.innerHTML = arr.map(item => {
+            const ic = _iconeArquivoAnexoOs(item.name, item.type);
+            const tam = _formatarTamBytesOs(item.size);
+            const thumb = item.previewUrl
+                ? `<img src="${esc(item.previewUrl)}" style="width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid #cbd5e1; flex-shrink:0;">`
+                : `<div style="width:34px; height:34px; border-radius:6px; background:${ic.bg}; color:${ic.color}; border:1px solid #cbd5e1; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="ph ${ic.icon}" style="font-size:1.05rem;"></i>
+                    <span style="font-size:0.48rem; font-weight:800; line-height:1;">${esc(ic.label || 'ARQ')}</span>
+                </div>`;
+            return `
+                <div style="display:inline-flex; align-items:center; gap:7px; background:#ffffff; border:1px solid #c4b5fd; border-radius:8px; padding:4px 8px; max-width:260px; box-shadow:0 1px 2px rgba(15,23,42,0.05);">
+                    ${thumb}
+                    <div style="min-width:0; flex:1;">
+                        <div style="font-size:0.74rem; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(item.name)}">${esc(item.name)}</div>
+                        <div style="font-size:0.66rem; color:#64748b;">${esc(tam || ic.label || '')}</div>
+                    </div>
+                    <button type="button" onclick="window.removerArquivoPendenteComentarioOs('${esc(key)}', '${esc(item.uid)}')" title="Remover anexo pendente"
+                        style="background:#fee2e2; color:#dc2626; border:none; width:20px; height:20px; border-radius:50%; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; flex-shrink:0;">
+                        &times;
+                    </button>
+                </div>
+            `;
+        }).join('');
+    };
+
+    window.tratarPasteAnexoComentarioOs = function (event, targetKey = 'main') {
+        const cd = event && (event.clipboardData || (event.originalEvent && event.originalEvent.clipboardData));
+        if (!cd) return;
+        const files = [];
+        if (cd.items && cd.items.length) {
+            for (let i = 0; i < cd.items.length; i++) {
+                const it = cd.items[i];
+                if (it && it.kind === 'file') {
+                    const f = it.getAsFile();
+                    if (f) files.push(f);
+                }
+            }
+        } else if (cd.files && cd.files.length) {
+            for (let i = 0; i < cd.files.length; i++) files.push(cd.files[i]);
+        }
+        if (files.length > 0) {
+            window.adicionarArquivosPendentesComentarioOs(files, targetKey);
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(`${files.length} arquivo(s) colado(s)! Clique em Adicionar Comentário para enviar.`);
+            }
+        }
+    };
+
+    window.enviarComentarioOs = async function (parentIdOpcional) {
+        const propId = Number(state.osAtual && state.osAtual.id);
+        if (!propId) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'OS não salva', text: 'Salve ou carregue uma OS antes de registrar comentários.' });
+            }
+            return;
+        }
+        const parentId = (parentIdOpcional && Number(parentIdOpcional) > 0) ? Number(parentIdOpcional) : null;
+        const targetKey = parentId ? `reply_${parentId}` : 'main';
+        const inputEl = parentId
+            ? document.getElementById(`cos-comentario-reply-texto-${parentId}`)
+            : document.getElementById('cos-comentario-os-novo-texto');
+        const texto = inputEl ? String(inputEl.value || '').trim() : '';
+        const pendentes = Array.isArray(window._comentariosOsAnexosPendentes[targetKey]) ? window._comentariosOsAnexosPendentes[targetKey] : [];
+
+        if (!texto && pendentes.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'Comentário vazio', text: 'Digite uma mensagem ou anexe um documento antes de enviar o comentário.' });
+            }
+            if (inputEl) inputEl.focus();
+            return;
+        }
+
+        const btnEl = parentId
+            ? document.getElementById(`cos-btn-enviar-reply-comentario-${parentId}`)
+            : document.getElementById('cos-btn-enviar-comentario-os');
+        const htmlOrig = btnEl ? btnEl.innerHTML : '';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Enviando...';
+        }
+
+        try {
+            const token = window.currentToken || localStorage.getItem('erp_token') || localStorage.getItem('rh_token') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+            let anexosInseridos = [];
+
+            if (pendentes.length > 0) {
+                const fd = new FormData();
+                pendentes.forEach(item => {
+                    if (item && item.file) fd.append('arquivos', item.file);
+                });
+                const titPadrao = texto ? `Anexo de comentário: ${texto.slice(0, 60)}` : 'Anexo enviado via Comentários';
+                fd.append('titulo', titPadrao);
+
+                const respAnexo = await fetch(`/api/propostas/${propId}/anexos-os-comercial`, {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                    body: fd
+                });
+                const dataAnexo = await respAnexo.json().catch(() => ({}));
+                if (!respAnexo.ok || dataAnexo.error) {
+                    throw new Error(dataAnexo.error || 'Falha ao enviar documento(s) anexo(s) do comentário.');
+                }
+                if (Array.isArray(dataAnexo.inseridos) && dataAnexo.inseridos.length > 0) {
+                    anexosInseridos = dataAnexo.inseridos;
+                } else if (Array.isArray(dataAnexo.anexos)) {
+                    anexosInseridos = dataAnexo.anexos.slice(-pendentes.length);
+                }
+            }
+
+            const resp = await fetch(`/api/propostas/${propId}/comentarios-os-comercial`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({
+                    comentario: texto,
+                    parent_id: parentId,
+                    anexos_json: anexosInseridos
+                })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.error) {
+                throw new Error(data.error || 'Não foi possível registrar o comentário.');
+            }
+            if (inputEl) inputEl.value = '';
+            window.limparArquivosPendentesComentarioOs(targetKey);
+            if (parentId) {
+                window._comentariosOsReplyAberto[String(parentId)] = false;
+            }
+            await window.carregarComentariosOsAtiva(propId, false);
+            _marcarComentariosOsComoVistos(`os_${propId}`, window._comentariosOsCache || []);
+            if (anexosInseridos.length > 0) {
+                await carregarAnexosOs(propId);
+            }
+            if (typeof mostrarToastSucesso === 'function') {
+                mostrarToastSucesso(
+                    anexosInseridos.length > 0
+                        ? `Comentário registrado e ${anexosInseridos.length} documento(s) incluído(s) no quadro Anexos da OS!`
+                        : (parentId ? 'Resposta adicionada ao comentário!' : 'Comentário registrado no histórico da OS!')
+                );
+            }
+        } catch (e) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Erro ao comentar', text: e.message || 'Erro ao salvar comentário.' });
+            }
+        } finally {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = htmlOrig;
+            }
+        }
+    };
+
+    window.renderizarListaComentariosOs = function (lista) {
+        const arrOrig = Array.isArray(lista) ? lista : (window._comentariosOsCache || []);
+        const arr = [...arrOrig].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+        const propIdAtu = Number(state.osAtual && state.osAtual.id);
+        const ehModoTodasOs = !propIdAtu;
+        const escopoKey = ehModoTodasOs ? 'all' : `os_${propIdAtu}`;
+        const totalBadgeVal = ehModoTodasOs
+            ? (Number(window._comentariosOsTotalGeral) > 0 ? Number(window._comentariosOsTotalGeral) : arr.length)
+            : arr.length;
+        const novosCount = _calcularComentariosNovosNaoVistosOs(escopoKey, arr);
+        _atualizarBadgesContagemComentariosOs(totalBadgeVal, novosCount);
+
+        const tituloEl = document.getElementById('cos-comentarios-drawer-titulo');
+        if (tituloEl) {
+            const numOsAtu = !ehModoTodasOs && state.osAtual && state.osAtual.numero_os
+                ? `OS Nº ${String(state.osAtual.numero_os).padStart(2, '0')}`
+                : 'OS';
+            tituloEl.textContent = ehModoTodasOs
+                ? 'Últimos Comentários das OS (até 50 recentes)'
+                : `Comentários da ${numOsAtu}`;
+        }
+        const footerComposer = document.getElementById('cos-comentarios-composer-footer');
+        if (footerComposer) {
+            footerComposer.style.display = ehModoTodasOs ? 'none' : 'block';
+        }
+
+        const wrap = document.getElementById('cos-comentarios-os-lista-wrap');
+        if (!wrap) return;
+
+        if (!arr.length) {
+            wrap.innerHTML = `
+                <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:1.2rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                    ${ehModoTodasOs
+                        ? 'Nenhum comentário registrado nas OS até o momento.'
+                        : 'Nenhum comentário registrado nesta OS até o momento. Adicione um comentário no campo abaixo.'}
+                </div>
+            `;
+            return;
+        }
+
+        const fUsuario = normStr((document.getElementById('cos-comentarios-filtro-usuario') || {}).value);
+        const fDepto = normStr((document.getElementById('cos-comentarios-filtro-departamento') || {}).value);
+        const fData = String(((document.getElementById('cos-comentarios-filtro-data') || {}).value) || '').trim();
+        const temFiltroAtivo = Boolean(fUsuario || fDepto || fData);
+
+        const itemCombinaFiltro = (c) => {
+            if (!temFiltroAtivo) return true;
+            if (fUsuario) {
+                const nomeNorm = normStr(c.autor_nome);
+                const userNorm = normStr(c.usuario_username);
+                if (!nomeNorm.includes(fUsuario) && !userNorm.includes(fUsuario)) return false;
+            }
+            if (fDepto) {
+                const depNorm = normStr(c.autor_departamento);
+                if (!depNorm.includes(fDepto)) return false;
+            }
+            if (fData) {
+                const mDt = String(c.criado_em || '').trim().match(/^(\d{4}-\d{2}-\d{2})/);
+                const dataIso = mDt ? mDt[1] : '';
+                if (dataIso !== fData) return false;
+            }
+            return true;
+        };
+
+        const byId = new Map();
+        const childrenMap = new Map();
+        arr.forEach(c => {
+            const idNum = Number(c.id);
+            byId.set(idNum, c);
+            childrenMap.set(idNum, []);
+        });
+
+        const roots = [];
+        arr.forEach(c => {
+            const pId = c.parent_id ? Number(c.parent_id) : null;
+            if (pId && childrenMap.has(pId)) {
+                childrenMap.get(pId).push(c);
+            } else {
+                roots.push(c);
+            }
+        });
+
+        const memoVisivel = new Map();
+        const deveExibirNo = (c, ancestralCombina = false) => {
+            const idNum = Number(c.id);
+            const proprioCombina = itemCombinaFiltro(c);
+            const filhos = childrenMap.get(idNum) || [];
+            const algumFilhoVisivel = filhos.some(f => deveExibirNo(f, ancestralCombina || proprioCombina));
+            const visivel = !temFiltroAtivo || proprioCombina || ancestralCombina || algumFilhoVisivel;
+            memoVisivel.set(idNum, { visivel, proprioCombina });
+            return visivel;
+        };
+
+        const rootsVisiveis = roots.filter(r => deveExibirNo(r, false));
+        if (!rootsVisiveis.length) {
+            wrap.innerHTML = `
+                <div style="text-align:center; color:#64748b; font-size:0.82rem; padding:0.95rem; background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px;">
+                    Nenhum comentário encontrado para os filtros selecionados (usuário, departamento ou data).
+                </div>
+            `;
+            return;
+        }
+
+        const renderizarNoComentario = (c, nivel = 0, ancestralCombina = false) => {
+            const idNum = Number(c.id);
+            const infoVis = memoVisivel.get(idNum) || { visivel: true, proprioCombina: true };
+            if (!infoVis.visivel) return '';
+            const filhos = (childrenMap.get(idNum) || []).filter(f => {
+                const fVis = memoVisivel.get(Number(f.id));
+                return fVis ? fVis.visivel : deveExibirNo(f, ancestralCombina || infoVis.proprioCombina);
+            });
+            const iniciais = _obterIniciaisAutorOs(c.autor_nome);
+            const fotoUrl = String(c.autor_foto_url || '').trim() || (c.colaborador_id ? `/api/colaboradores/foto/${Number(c.colaborador_id)}` : '');
+            const dataHoraFmt = _formatarDataHoraComentarioOs(c.criado_em);
+            const deptoTxt = String(c.autor_departamento || 'Geral').trim() || 'Geral';
+            const replyAberto = Boolean(window._comentariosOsReplyAberto && window._comentariosOsReplyAberto[String(idNum)]);
+            const parentObj = c.parent_id ? byId.get(Number(c.parent_id)) : null;
+            const destaqueFiltro = temFiltroAtivo && infoVis.proprioCombina;
+            const numOsExib = String(c.numero_os || c.proposta_id || '').trim().padStart(2, '0');
+            const cliNomeRaw = limparPrefixoGrupoSeguroOs(c.cliente_nome || '');
+            const cliNomeComIcone = (cliNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
+                ? window.formatarNomeClienteComIcone(cliNomeRaw)
+                : cliNomeRaw;
+            const propIdCard = Number(c.proposta_id || propIdAtu || 0);
+
+            return `
+                <div id="cos-comentario-card-${idNum}" style="${nivel > 0 ? 'margin-left:1.35rem; margin-top:0.5rem; border-left:2.5px solid #c4b5fd; padding-left:0.7rem;' : 'margin-bottom:0.6rem;'}">
+                    <div style="background:${destaqueFiltro ? '#faf5ff' : '#ffffff'}; border:1px solid ${destaqueFiltro ? '#a855f7' : (nivel > 0 ? '#e9d5ff' : '#dbeafe')}; border-radius:9px; padding:0.65rem 0.8rem; box-shadow:0 1px 2px rgba(15,23,42,0.03);">
+                        ${ehModoTodasOs && propIdCard ? `
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.45rem; padding-bottom:0.4rem; border-bottom:1px dashed #e2e8f0;">
+                                <button type="button" onclick="window._cosToggleDrawerComentarios(false); window._comercialOS.carregarOsPorPropostaId(${propIdCard});"
+                                    title="Clique para abrir a OS Nº ${esc(numOsExib)}"
+                                    style="background:#16a34a; color:#ffffff; border:1px solid #15803d; padding:2px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s;"
+                                    onmouseover="this.style.background='#15803d'; this.style.transform='scale(1.04)'"
+                                    onmouseout="this.style.background='#16a34a'; this.style.transform='scale(1)'">
+                                    <i class="ph ph-clipboard-text"></i> OS Nº ${esc(numOsExib)}
+                                </button>
+                                ${cliNomeComIcone ? `<span style="font-size:0.79rem; font-weight:800; color:#0f172a;">${esc(cliNomeComIcone)}</span>` : ''}
+                            </div>
+                        ` : ''}
+                        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:9px; min-width:0;">
+                                <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; flex-shrink:0; position:relative; background:#ede9fe; border:1.5px solid #c4b5fd; display:flex; align-items:center; justify-content:center;">
+                                    ${fotoUrl ? `<img src="${esc(fotoUrl)}" alt="${esc(c.autor_nome)}" style="width:100%; height:100%; object-fit:cover; display:block;" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">` : ''}
+                                    <span style="display:${fotoUrl ? 'none' : 'flex'}; width:100%; height:100%; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; color:#5b21b6; letter-spacing:0.02em;">
+                                        ${esc(iniciais)}
+                                    </span>
+                                </div>
+                                <div style="min-width:0;">
+                                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                        <span style="font-size:0.83rem; font-weight:800; color:#1e293b;">${esc(c.autor_nome || 'Colaborador')}</span>
+                                        <span style="background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; font-size:0.69rem; font-weight:700; padding:1px 7px; border-radius:999px;">
+                                            ${esc(deptoTxt)}
+                                        </span>
+                                        ${parentObj ? `
+                                            <span style="font-size:0.71rem; color:#6d28d9; font-weight:600; display:inline-flex; align-items:center; gap:3px;">
+                                                <i class="ph ph-arrow-bend-down-right"></i> em resposta a <strong>${esc(parentObj.autor_nome || 'comentário')}</strong>
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                    <div style="font-size:0.72rem; color:#64748b; display:flex; align-items:center; gap:4px; margin-top:1px;">
+                                        <i class="ph ph-clock" style="font-size:0.8rem; color:#7c3aed;"></i>
+                                        <span>${esc(dataHoraFmt)}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                                ${!ehModoTodasOs ? `
+                                    <button type="button" onclick="window.toggleResponderComentarioOs(${idNum}, '${esc(String(c.autor_nome || '').replace(/'/g, ''))}')" title="Deixar um comentário dentro deste comentário" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; border-radius:6px; padding:3px 9px; font-size:0.73rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='#f5f3ff'">
+                                        <i class="ph ph-arrow-bend-down-right"></i> Responder
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        ${c.comentario ? `<div style="margin-top:0.45rem; padding-left:45px; font-size:0.83rem; color:#1e293b; line-height:1.45; white-space:pre-wrap; word-break:break-word;">${esc(c.comentario)}</div>` : ''}
+                        ${(() => {
+                            let anexosCom = [];
+                            try {
+                                if (c.anexos_json) {
+                                    anexosCom = typeof c.anexos_json === 'string' ? JSON.parse(c.anexos_json || '[]') : (Array.isArray(c.anexos_json) ? c.anexos_json : []);
+                                }
+                            } catch (_) {}
+                            if (!Array.isArray(anexosCom) || !anexosCom.length) return '';
+                            return `
+                                <div style="margin-top:0.5rem; padding-left:45px; display:flex; flex-wrap:wrap; gap:8px;">
+                                    ${anexosCom.map(ax => {
+                                        const axObj = Object.assign({ proposta_id: c.proposta_id || propIdAtu }, ax);
+                                        const idAxSafe = esc(String(axObj.id || '')).replace(/'/g, "\\'");
+                                        const thumbAx = _gerarHtmlMiniaturaAnexoOs(axObj, 46);
+                                        const tamAx = _formatarTamBytesOs(axObj.tamanho);
+                                        return `
+                                            <div style="display:inline-flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:5px 9px; max-width:310px;">
+                                                ${thumbAx}
+                                                <div style="min-width:0; flex:1;">
+                                                    <div style="font-size:0.75rem; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(axObj.nome_arquivo || axObj.titulo || 'Anexo')}">
+                                                        ${esc(axObj.nome_arquivo || axObj.titulo || 'Anexo')}
+                                                    </div>
+                                                    <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                                        ${tamAx ? `<span style="font-size:0.67rem; color:#64748b;">${esc(tamAx)}</span>` : ''}
+                                                        <button type="button" onclick="window.abrirArquivoAnexoOsComercial('${idAxSafe}', false, ${propIdCard})" style="background:transparent; border:none; color:#2563eb; font-size:0.7rem; font-weight:700; cursor:pointer; padding:0;">Visualizar</button>
+                                                        <button type="button" onclick="window.abrirArquivoAnexoOsComercial('${idAxSafe}', true, ${propIdCard})" style="background:transparent; border:none; color:#15803d; font-size:0.7rem; font-weight:700; cursor:pointer; padding:0;">Baixar</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `;
+                        })()}
+
+                        <div id="cos-comentario-reply-box-${idNum}" style="display:${replyAberto ? 'block' : 'none'}; margin-top:0.55rem; margin-left:45px; background:#f8fafc; border:1px solid #ddd6fe; border-radius:8px; padding:0.5rem 0.65rem;">
+                            <div style="font-size:0.72rem; font-weight:700; color:#5b21b6; margin-bottom:4px;">
+                                <i class="ph ph-arrow-bend-down-right"></i> Responder ao comentário de ${esc(c.autor_nome || 'Colaborador')}
+                            </div>
+                            <div id="cos-comentario-anexos-pending-reply_${idNum}" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:6px; padding:5px 7px; background:#f5f3ff; border:1px dashed #c4b5fd; border-radius:7px;"></div>
+                            <div style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap;">
+                                <input type="file" id="cos-comentario-files-inp-reply_${idNum}" multiple style="display:none;" onchange="window.adicionarArquivosPendentesComentarioOs(this.files, 'reply_${idNum}'); this.value='';">
+                                <button type="button" onclick="document.getElementById('cos-comentario-files-inp-reply_${idNum}')?.click()"
+                                    title="Anexar documentos/imagens nesta resposta"
+                                    style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; border-radius:6px; padding:0 0.65rem; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; height:34px;">
+                                    <i class="ph ph-paperclip"></i> Anexar
+                                </button>
+                                <textarea id="cos-comentario-reply-texto-${idNum}" rows="2"
+                                    placeholder="Escreva sua resposta ou cole imagem/arquivo com Ctrl+V..."
+                                    onpaste="window.tratarPasteAnexoComentarioOs(event, 'reply_${idNum}')"
+                                    onkeydown="if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){ event.preventDefault(); window.enviarComentarioOs(${idNum}); }"
+                                    style="flex:1; min-width:200px; padding:0.45rem 0.6rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.8rem; resize:vertical; box-sizing:border-box; text-transform:none; font-family:inherit;"></textarea>
+                                <div style="display:flex; gap:5px;">
+                                    <button type="button" id="cos-btn-enviar-reply-comentario-${idNum}" onclick="window.enviarComentarioOs(${idNum})" style="background:#6d28d9; color:#ffffff; border:none; border-radius:6px; padding:0.42rem 0.8rem; font-size:0.76rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; height:34px;">
+                                        <i class="ph ph-paper-plane-right"></i> Enviar Resposta
+                                    </button>
+                                    <button type="button" onclick="window.toggleResponderComentarioOs(${idNum})" style="background:#ffffff; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; padding:0.42rem 0.65rem; font-size:0.75rem; font-weight:600; cursor:pointer; height:34px;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${filhos.length ? `
+                        <div style="display:flex; flex-direction:column;">
+                            ${filhos.map(filho => renderizarNoComentario(filho, nivel + 1, ancestralCombina || infoVis.proprioCombina)).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        };
+
+        wrap.innerHTML = rootsVisiveis.map(r => renderizarNoComentario(r, 0, false)).join('');
+        setTimeout(() => {
+            if (wrap) wrap.scrollTop = wrap.scrollHeight;
+        }, 30);
+    };
 
     window.renderTelaOSComercial = function () {
         window._comercialOS.init();

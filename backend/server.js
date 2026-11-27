@@ -44211,6 +44211,278 @@ app.delete('/api/propostas/:id/anexos-os-comercial/:anexoId', authenticateToken,
   });
 });
 
+// ── COMENTÁRIOS DA OS DO COMERCIAL (aba inferior idêntica à tela de Contrato) ──
+db.run(`CREATE TABLE IF NOT EXISTS comercial_os_comentarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposta_id INTEGER NOT NULL,
+  parent_id INTEGER DEFAULT NULL,
+  usuario_id INTEGER,
+  usuario_username TEXT DEFAULT '',
+  colaborador_id INTEGER,
+  autor_nome TEXT NOT NULL,
+  autor_departamento TEXT DEFAULT '',
+  autor_foto_url TEXT DEFAULT '',
+  comentario TEXT NOT NULL DEFAULT '',
+  anexos_json TEXT DEFAULT '[]',
+  criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+)`, (errComOs) => {
+  if (errComOs) console.error('[OS_COMERCIAL_COMENTARIOS] Erro ao criar tabela comercial_os_comentarios:', errComOs.message);
+  db.run("ALTER TABLE comercial_os_comentarios ADD COLUMN anexos_json TEXT DEFAULT '[]'", () => {});
+});
+
+// GET /api/comercial/os/comentarios-recentes - Últimos 50 comentários de todas as OS do Comercial
+app.get('/api/comercial/os/comentarios-recentes', authenticateToken, (req, res) => {
+  const limite = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  db.get('SELECT COUNT(*) as total_geral FROM comercial_os_comentarios', [], (errCnt, rowCnt) => {
+    const totalGeral = (!errCnt && rowCnt && rowCnt.total_geral) ? Number(rowCnt.total_geral) : 0;
+    db.all(
+      `SELECT c.id, c.proposta_id, c.parent_id, c.usuario_id, c.usuario_username, c.colaborador_id,
+              c.autor_nome, c.autor_departamento, c.autor_foto_url, c.comentario, c.anexos_json, c.criado_em,
+              p.numero_os, p.contrato as numero_contrato, p.codigo as proposta_codigo, p.cliente_nome, p.titulo_contrato
+       FROM comercial_os_comentarios c
+       LEFT JOIN propostas p ON p.id = c.proposta_id
+       ORDER BY c.id DESC
+       LIMIT ?`,
+      [limite],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const lista = (Array.isArray(rows) ? rows : []).reverse();
+        if (!lista.length) return res.json({ success: true, total_geral: totalGeral, comentarios: [] });
+        db.all('SELECT id, username, nome, email, departamento, role FROM usuarios', [], (errU, usuarios) => {
+          db.all('/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+            const mapUsers = new Map();
+            (Array.isArray(usuarios) ? usuarios : []).forEach(u => mapUsers.set(Number(u.id), u));
+            const listaColabs = Array.isArray(colabs) ? colabs : [];
+            const mapColabs = new Map();
+            listaColabs.forEach(col => mapColabs.set(Number(col.id), col));
+
+            const enriquecidos = lista.map(item => {
+              let colab = item.colaborador_id ? mapColabs.get(Number(item.colaborador_id)) : null;
+              const uRow = item.usuario_id ? mapUsers.get(Number(item.usuario_id)) : null;
+              if (!colab && uRow && global.matchUsuarioComColaborador) {
+                colab = global.matchUsuarioComColaborador(uRow, listaColabs);
+              }
+              const nomeFinal = (colab && colab.nome_completo && String(colab.nome_completo).trim())
+                ? String(colab.nome_completo).trim()
+                : String(item.autor_nome || (uRow && (uRow.nome || uRow.username)) || 'Colaborador').trim();
+              const deptoFinal = (colab && colab.departamento && String(colab.departamento).trim())
+                ? String(colab.departamento).trim()
+                : String(item.autor_departamento || (uRow && (uRow.departamento || uRow.role)) || 'Geral').trim();
+              const temFotoColab = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
+              const fotoFinal = (colab && colab.id && temFotoColab)
+                ? `/api/colaboradores/foto/${colab.id}`
+                : (item.autor_foto_url || '');
+              return {
+                ...item,
+                colaborador_id: (colab && colab.id) ? Number(colab.id) : (item.colaborador_id || null),
+                autor_nome: nomeFinal,
+                autor_departamento: deptoFinal,
+                autor_foto_url: fotoFinal
+              };
+            });
+            res.json({ success: true, total_geral: totalGeral, comentarios: enriquecidos });
+          });
+        });
+      }
+    );
+  });
+});
+
+// GET /api/propostas/:id/comentarios-os-comercial - Listar histórico completo de comentários da OS
+app.get('/api/propostas/:id/comentarios-os-comercial', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID inválido' });
+  db.all(
+    'SELECT id, proposta_id, parent_id, usuario_id, usuario_username, colaborador_id, autor_nome, autor_departamento, autor_foto_url, comentario, anexos_json, criado_em FROM comercial_os_comentarios WHERE proposta_id = ? ORDER BY id ASC',
+    [propId],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const lista = Array.isArray(rows) ? rows : [];
+      if (!lista.length) return res.json({ success: true, comentarios: [] });
+      db.all('SELECT id, username, nome, email, departamento, role FROM usuarios', [], (errU, usuarios) => {
+        db.all('/* INCLUIR_SERVICO */ SELECT id, nome_completo, email, email_corporativo, departamento, cargo, status, foto_base64, foto_path FROM colaboradores', [], (errC, colabs) => {
+          const mapUsers = new Map();
+          (Array.isArray(usuarios) ? usuarios : []).forEach(u => mapUsers.set(Number(u.id), u));
+          const listaColabs = Array.isArray(colabs) ? colabs : [];
+          const mapColabs = new Map();
+          listaColabs.forEach(c => mapColabs.set(Number(c.id), c));
+
+          const enriquecidos = lista.map(item => {
+            let colab = item.colaborador_id ? mapColabs.get(Number(item.colaborador_id)) : null;
+            const uRow = item.usuario_id ? mapUsers.get(Number(item.usuario_id)) : null;
+            if (!colab && uRow && global.matchUsuarioComColaborador) {
+              colab = global.matchUsuarioComColaborador(uRow, listaColabs);
+            }
+            const nomeFinal = (colab && colab.nome_completo && String(colab.nome_completo).trim())
+              ? String(colab.nome_completo).trim()
+              : String(item.autor_nome || (uRow && (uRow.nome || uRow.username)) || 'Colaborador').trim();
+            const deptoFinal = (colab && colab.departamento && String(colab.departamento).trim())
+              ? String(colab.departamento).trim()
+              : String(item.autor_departamento || (uRow && (uRow.departamento || uRow.role)) || 'Geral').trim();
+            const temFotoColab = Boolean(colab && ((colab.foto_base64 && String(colab.foto_base64).trim().length > 20) || (colab.foto_path && String(colab.foto_path).trim())));
+            const fotoFinal = (colab && colab.id && temFotoColab)
+              ? `/api/colaboradores/foto/${colab.id}`
+              : (item.autor_foto_url || '');
+            return {
+              ...item,
+              colaborador_id: (colab && colab.id) ? Number(colab.id) : (item.colaborador_id || null),
+              autor_nome: nomeFinal,
+              autor_departamento: deptoFinal,
+              autor_foto_url: fotoFinal
+            };
+          });
+          res.json({ success: true, comentarios: enriquecidos });
+        });
+      });
+    }
+  );
+});
+
+// POST /api/propostas/:id/comentarios-os-comercial - Adicionar comentário ou resposta dentro de comentário na OS
+app.post('/api/propostas/:id/comentarios-os-comercial', authenticateToken, (req, res) => {
+  const propId = Number(req.params.id);
+  if (!propId) return res.status(400).json({ error: 'ID da OS inválido' });
+  const textoComentario = String((req.body && req.body.comentario) || '').trim();
+  const anexosRaw = req.body && req.body.anexos_json
+    ? (typeof req.body.anexos_json === 'string' ? req.body.anexos_json : JSON.stringify(req.body.anexos_json))
+    : '[]';
+  let anexosArr = [];
+  try {
+    const pAn = JSON.parse(anexosRaw || '[]');
+    if (Array.isArray(pAn)) anexosArr = pAn;
+  } catch (_) {}
+  const anexosJsonStr = JSON.stringify(anexosArr);
+  if (!textoComentario && anexosArr.length === 0) {
+    return res.status(400).json({ error: 'Digite um comentário ou anexe um documento antes de enviar.' });
+  }
+  const parentIdRaw = req.body && req.body.parent_id ? Number(req.body.parent_id) : null;
+  const parentIdVal = (parentIdRaw && Number.isFinite(parentIdRaw) && parentIdRaw > 0) ? parentIdRaw : null;
+
+  const prosseguirInsercao = () => {
+    resolverDadosAutorComentarioContrato(req.user, (autor) => {
+      const agora = new Date(new Date().getTime() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+      db.run(
+        `INSERT INTO comercial_os_comentarios (
+          proposta_id, parent_id, usuario_id, usuario_username, colaborador_id,
+          autor_nome, autor_departamento, autor_foto_url, comentario, anexos_json, criado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          propId,
+          parentIdVal,
+          autor.usuario_id,
+          autor.usuario_username,
+          autor.colaborador_id,
+          autor.autor_nome,
+          autor.autor_departamento,
+          autor.autor_foto_url,
+          textoComentario,
+          anexosJsonStr,
+          agora
+        ],
+        function (errIns) {
+          if (errIns) return res.status(500).json({ error: errIns.message });
+          const novoId = this.lastID;
+
+          db.get('SELECT id, numero_os, codigo, contrato, titulo_contrato, tipo, cliente_nome FROM propostas WHERE id = ?', [propId], (errProp, propRow) => {
+            const numOs = String((propRow && propRow.numero_os) || propId).padStart(2, '0');
+            const numContrato = (propRow && propRow.contrato) ? String(propRow.contrato).trim() : '';
+            const cliNome = (propRow && propRow.cliente_nome) ? limparEmojiGrupoClienteHist(propRow.cliente_nome) : 'Cliente não informado';
+            const titCtr = (propRow && propRow.titulo_contrato) ? String(propRow.titulo_contrato).trim() : '';
+            const mDt = agora.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+            const dataHoraFmt = mDt ? `${mDt[3]}/${mDt[2]}/${mDt[1]} às ${mDt[4]}:${mDt[5]}` : agora;
+            const resumoAnexos = anexosArr.length > 0 ? ` (${anexosArr.length} documento(s) anexado(s): ${anexosArr.map(a => a.nome_arquivo || a.titulo || 'anexo').join(', ')})` : '';
+            const textoParaNotif = (textoComentario || 'Documento(s) anexado(s) no comentário') + resumoAnexos;
+            const msgNotif = `Novo comentário na OS Nº ${numOs} (${cliNome}) deixado por ${autor.autor_nome}: "${textoParaNotif}"`;
+            const dadosJson = JSON.stringify({
+              proposta_id: propId,
+              comentario_id: novoId,
+              numero_os: numOs,
+              numero_contrato: numContrato,
+              titulo_contrato: titCtr,
+              cliente_nome: cliNome,
+              autor_nome: autor.autor_nome,
+              autor_departamento: autor.autor_departamento,
+              data_hora: dataHoraFmt,
+              comentario: textoParaNotif
+            });
+
+            db.all("SELECT DISTINCT usuario_id FROM config_notificacoes WHERE tipo IN ('informacoes_adicionais_os', 'informacoes_adicionais_contrato')", [], (errCN, rowsCN) => {
+              if (!errCN && Array.isArray(rowsCN) && rowsCN.length > 0) {
+                rowsCN.forEach(r => {
+                  db.run(
+                    "INSERT INTO notificacoes_usuarios (usuario_id, tipo, mensagem, dados) VALUES (?, ?, ?, ?)",
+                    [r.usuario_id, 'informacoes_adicionais_os', msgNotif, dadosJson],
+                    () => {}
+                  );
+                });
+              }
+            });
+
+            const escHtmlMail = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const logoPath = require('path').join(__dirname, '..', 'frontend', 'assets', 'logo-header.png');
+            const systemUrl = (typeof obterUrlPublicaSistema === 'function') ? obterUrlPublicaSistema(process.env.BASE_URL) : 'https://fluxoar.com.br';
+            const subject = `💬 Novo Comentário na OS Nº ${numOs} - ${cliNome}`;
+            const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+              <div style="text-align:center;background:#fff;border-bottom:1px solid #eee;">
+                <img src="cid:empresa-logo" alt="América Rental" style="width:100%;max-width:600px;height:auto;display:block;">
+              </div>
+              <div style="padding:24px;">
+                <div style="background:#6d28d9;border-radius:10px;padding:14px 20px;margin-bottom:20px;text-align:center;">
+                  <span style="color:#fff;font-size:1.15rem;font-weight:800;">💬 Novo Comentário na OS Nº ${escHtmlMail(numOs)}</span>
+                </div>
+                <p style="color:#334155;font-size:0.95rem;">Um novo comentário foi registrado na aba de <strong>Comentários</strong> da OS:</p>
+                <div style="background:#f5f3ff;border-left:4px solid #6d28d9;padding:14px 16px;border-radius:6px;margin:16px 0;font-size:0.9rem;color:#1e293b;line-height:1.5;">
+                  <div><strong>OS Nº:</strong> ${escHtmlMail(numOs)}${numContrato ? ' (Contrato Nº ' + escHtmlMail(numContrato) + ')' : ''}${titCtr ? ' — ' + escHtmlMail(titCtr) : ''}</div>
+                  <div><strong>Cliente:</strong> ${escHtmlMail(cliNome)}</div>
+                  <div><strong>Comentado por:</strong> ${escHtmlMail(autor.autor_nome)} (${escHtmlMail(autor.autor_departamento || 'Geral')})</div>
+                  <div><strong>Data e Hora:</strong> ${escHtmlMail(dataHoraFmt)}</div>
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #c4b5fd;white-space:pre-wrap;"><strong>Comentário:</strong><br>${escHtmlMail(textoParaNotif)}</div>
+                </div>
+                <div style="text-align:center;margin-top:22px;">
+                  <a href="${systemUrl}" style="background:#6d28d9;color:#fff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:700;font-size:0.9rem;display:inline-block;">Acessar Sistema</a>
+                </div>
+              </div>
+            </div>`;
+            sendEmailParaNotificados('informacoes_adicionais_os', {
+              subject,
+              html,
+              attachments: [{ filename: 'logo-header.png', path: logoPath, cid: 'empresa-logo' }]
+            });
+          });
+
+          res.status(201).json({
+            success: true,
+            comentario: {
+              id: novoId,
+              proposta_id: propId,
+              parent_id: parentIdVal,
+              usuario_id: autor.usuario_id,
+              usuario_username: autor.usuario_username,
+              colaborador_id: autor.colaborador_id,
+              autor_nome: autor.autor_nome,
+              autor_departamento: autor.autor_departamento,
+              autor_foto_url: autor.autor_foto_url,
+              comentario: textoComentario,
+              anexos_json: anexosJsonStr,
+              criado_em: agora
+            }
+          });
+        }
+      );
+    });
+  };
+
+  if (parentIdVal) {
+    db.get('SELECT id, proposta_id FROM comercial_os_comentarios WHERE id = ? AND proposta_id = ?', [parentIdVal, propId], (errP, parentRow) => {
+      if (errP) return res.status(500).json({ error: errP.message });
+      if (!parentRow) return res.status(400).json({ error: 'Comentário pai não encontrado nesta OS.' });
+      prosseguirInsercao();
+    });
+  } else {
+    prosseguirInsercao();
+  }
+});
+
 // ── APROVAÇÃO COMERCIAL (Kanban: Solicitação, Aguardando setor, Respondida, Aprovado, Reprovado) ──
 db.run(`CREATE TABLE IF NOT EXISTS comercial_aprovacoes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
