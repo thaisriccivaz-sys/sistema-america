@@ -204,6 +204,17 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}`;
     }
 
+    // Regra de corte da Academia (ciclo dia 27 ao dia 26):
+    // - Saiu / Desligou até o dia 26 do mês M (dia <= 26): cobra o mês M (Ativo amarelo) e a partir de M + 1 fica Inativo (R$ 0,00).
+    // - Saiu / Desligou a partir do dia 27 do mês M (dia >= 27): cobra o mês M e M + 1 (Ativo amarelo) e a partir de M + 2 fica Inativo (R$ 0,00).
+    function calcMesUltimoAtivo(dtStr) {
+        const iso = isoDate(dtStr);
+        if (!iso || iso.startsWith('2000-')) return null;
+        const ym = iso.slice(0, 7);
+        const dia = parseInt(iso.slice(8, 10), 10);
+        return dia >= 27 ? addMes(ym, 1) : ym;
+    }
+
     function formatarObsSaida(obs, dataSaida) {
         const iso = isoDate(dataSaida);
         if (!iso || iso.startsWith('2000-')) return String(obs || '').trim();
@@ -268,12 +279,20 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         const mesBaseAntigo = (envMin && mesValido(envMin.m)) ? envMin.m : '2026-10';
         const mesHojeRef = mesValido(mesHojeCliente) ? mesHojeCliente : '2026-11';
 
-        // Colaboradores cujo status mudou para Desligado hoje na auditoria
-        const audDesligHoje = await dbAll(`SELECT DISTINCT registro_id FROM auditoria
+        // Colaboradores cujo status mudou para Desligado na auditoria (guarda a última data de desligamento)
+        const audDesligAll = await dbAll(`SELECT registro_id, MAX(data_hora) AS data_hora FROM auditoria
             WHERE programa = 'Colaboradores' AND campo = 'status'
               AND LOWER(TRIM(COALESCE(conteudo_atual,''))) = 'desligado'
-              AND SUBSTR(data_hora, 1, 10) = ?`, [hoje]);
-        const idsDesligHoje = new Set(audDesligHoje.map(a => Number(a.registro_id)));
+            GROUP BY registro_id`);
+        const mapDataDeslig = {};
+        const idsDesligHoje = new Set();
+        audDesligAll.forEach(a => {
+            const dt = isoDate(a.data_hora);
+            if (dt) {
+                mapDataDeslig[Number(a.registro_id)] = dt;
+                if (dt === hoje) idsDesligHoje.add(Number(a.registro_id));
+            }
+        });
 
         const acRows = await dbAll(`SELECT ac.colaborador_id, ac.observacoes, ac.era_desligado, ac.mes_desligamento,
                                            c.status AS colab_status, c.nome_completo, c.academia_participa
@@ -295,16 +314,27 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 let mesDeslig = r.mes_desligamento;
                 let eraDeslig = r.era_desligado ? 1 : 0;
                 const desligadoHoje = idsDesligHoje.has(Number(r.colaborador_id)) || normTxt(r.nome_completo) === 'teste';
+                const dtSaidaValida = (!temSim && ultPer && ultPer.data_saida && !String(ultPer.data_saida).startsWith('2000-'))
+                    ? isoDate(ultPer.data_saida)
+                    : null;
+                const dtAudDeslig = mapDataDeslig[Number(r.colaborador_id)] || null;
+                const dtEventoDeslig = (dtSaidaValida && dtAudDeslig)
+                    ? (dtSaidaValida < dtAudDeslig ? dtSaidaValida : dtAudDeslig)
+                    : (dtSaidaValida || dtAudDeslig);
+                const mesCorteEvento = dtEventoDeslig ? calcMesUltimoAtivo(dtEventoDeslig) : null;
 
-                if (desligadoHoje && (!mesValido(mesDeslig) || mesDeslig < mesHojeRef)) {
-                    mesDeslig = mesHojeRef;
+                if (mesValido(mesCorteEvento)) {
+                    mesDeslig = mesCorteEvento;
+                    eraDeslig = 1;
+                } else if (desligadoHoje) {
+                    mesDeslig = calcMesUltimoAtivo(hoje) || mesHojeRef;
                     eraDeslig = 1;
                 } else if (!mesValido(mesDeslig)) {
                     if (!_initDesligadosDone) {
                         mesDeslig = mesBaseAntigo;
                         eraDeslig = 1;
                     } else {
-                        mesDeslig = mesValido(mesHojeCliente) ? mesHojeCliente : (mesValido(mesContexto) ? mesContexto : mesHojeRef);
+                        mesDeslig = calcMesUltimoAtivo(hoje) || (mesValido(mesHojeCliente) ? mesHojeCliente : (mesValido(mesContexto) ? mesContexto : mesHojeRef));
                         eraDeslig = 1;
                     }
                 } else {
@@ -360,21 +390,19 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             const mesDeslig = mesValido(r.mes_desligamento) ? r.mes_desligamento : mes;
             const dataSaida = (!temSim && ult && ult.data_saida) ? isoDate(ult.data_saida) : null;
 
-            // Regra de corte da Academia (ciclo dia 25 ao dia 26):
-            // - Se o colaborador mudou de Sim para Não até o dia 26 do mês M (dia <= 26), já é considerado Não (Inativo) a partir do fechamento de M.
-            // - Se o colaborador mudou de Sim para Não no dia 27 ou depois do mês M (dia >= 27), permanece Ativo (com valor) em M e no próximo mês (M+1),
-            //   passando a Inativo apenas no outro fechamento (M+2 em diante).
+            // Regra de corte da Academia (ciclo dia 27 ao dia 26):
+            // - Saiu / Desligou até o dia 26 do mês M (dia <= 26): cobra o mês M (Ativo amarelo) e a partir de M + 1 fica Inativo (R$ 0,00).
+            // - Saiu / Desligou a partir do dia 27 do mês M (dia >= 27): cobra o mês M e M + 1 (Ativo amarelo) e a partir de M + 2 fica Inativo (R$ 0,00).
             let ativoPorCorteSaida = false;
             if (!temSim && dataSaida && !dataSaida.startsWith('2000-')) {
-                const ymSaida = dataSaida.slice(0, 7);
-                const diaSaida = parseInt(dataSaida.slice(8, 10), 10);
                 const ymEntrada = (ult && isoDate(ult.data_entrada)) ? isoDate(ult.data_entrada).slice(0, 7) : '2000-01';
-                const mesUltimoAtivo = diaSaida >= 27 ? addMes(ymSaida, 1) : addMes(ymSaida, -1);
-                ativoPorCorteSaida = (mes >= ymEntrada && mes <= mesUltimoAtivo);
+                const mesUltimoAtivo = calcMesUltimoAtivo(dataSaida);
+                ativoPorCorteSaida = !!(mesUltimoAtivo && mes >= ymEntrada && mes <= mesUltimoAtivo);
             }
 
             const ativoAcademia = temSim || ativoPorCorteSaida;
             const isAtivo = !desligado ? ativoAcademia : (ativoAcademia && mes <= mesDeslig);
+            const ativoAmarelo = !!(isAtivo && (!temSim || desligado));
 
             let obsFinal = r.observacoes || '';
             if (!temSim && dataSaida && !dataSaida.startsWith('2000-')) {
@@ -390,6 +418,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 data_nascimento: r.data_nascimento || '',
                 cpf: r.cpf || '',
                 status: isAtivo ? 'ativo' : 'inativo',
+                ativo_amarelo: ativoAmarelo,
                 data_saida: dataSaida || (ult ? ult.data_saida : null),
                 desligado,
                 mes_desligamento: desligado ? mesDeslig : null,
@@ -398,7 +427,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
                 observacoes: obsFinal
             };
         });
-        itens.sort((a, b) => (a.status === b.status ? 0 : (a.status === 'ativo' ? -1 : 1)) || a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
+        itens.sort((a, b) => (a.status === b.status ? ((a.ativo_amarelo ? 1 : 0) - (b.ativo_amarelo ? 1 : 0)) : (a.status === 'ativo' ? -1 : 1)) || a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' }));
         const qtdAtivos = itens.filter(i => i.status === 'ativo').length;
         return {
             mes, valor_unitario: unit, itens,
@@ -432,12 +461,14 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
         });
         itens.forEach(i => {
             const isAtivo = i.status === 'ativo';
+            const isAmarelo = isAtivo && !!i.ativo_amarelo;
             const valCell = isAtivo ? (i.valor != null && i.valor > 0 ? i.valor : unit) : null;
             const r = ws.addRow([i.nome, fmtDataBR(i.data_nascimento), i.cpf, isAtivo ? 'Ativo' : 'Inativo', valCell, i.observacoes || '']);
             if (isAtivo) r.getCell(5).numFmt = '"R$" #,##0.00';
             r.getCell(2).alignment = { horizontal: 'center' };
             r.getCell(4).alignment = { horizontal: 'center' };
-            r.getCell(4).font = { bold: true, color: { argb: isAtivo ? 'FF15803D' : 'FF64748B' } };
+            r.getCell(4).font = { bold: true, color: { argb: isAmarelo ? 'FFB45309' : (isAtivo ? 'FF15803D' : 'FF64748B') } };
+            if (isAmarelo) r.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
             r.getCell(6).alignment = { wrapText: true, vertical: 'top' };
         });
         const total = itens.reduce((acc, i) => acc + (i.status === 'ativo' ? (i.valor != null && i.valor > 0 ? i.valor : unit) : 0), 0);
@@ -656,7 +687,7 @@ module.exports = function registerAcademiaRoutes(app, db, authenticateToken, r2,
             } else {
                 console.warn('[R2] Storage não configurado — planilha da academia guardada apenas como snapshot no banco.');
             }
-            const snapshot = lista.itens.map(i => ({ nome: i.nome, data_nascimento: i.data_nascimento, cpf: i.cpf, status: i.status, cobrado_mes: i.cobrado_mes, valor: i.valor, observacoes: i.observacoes }));
+            const snapshot = lista.itens.map(i => ({ nome: i.nome, data_nascimento: i.data_nascimento, cpf: i.cpf, status: i.status, ativo_amarelo: !!i.ativo_amarelo, cobrado_mes: i.cobrado_mes, valor: i.valor, observacoes: i.observacoes }));
             const ins = await dbRun(`INSERT INTO academia_envios (mes_ref, valor_total, valor_unitario, qtd_colaboradores, email_destino, assunto, mensagem, snapshot_json, r2_key, nome_arquivo, enviado_por)
                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [mes, lista.total, lista.valor_unitario, lista.qtd_mes, em.lista.join(', '), assunto, mensagem, JSON.stringify(snapshot), r2Key, nomeArq, usuarioReq(req)]);

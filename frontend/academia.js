@@ -118,7 +118,9 @@
         const linhas = d.itens.map(i => {
             const ativo = i.status === 'ativo';
             const badge = ativo
-                ? '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Ativo</span>'
+                ? (i.ativo_amarelo
+                    ? `<span title="Último ciclo cobrado após solicitar Não / desligamento" style="background:#fef3c7;color:#b45309;border:1px solid #fcd34d;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Ativo</span>`
+                    : '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Ativo</span>')
                 : `<span title="${i.data_saida ? 'Inativo desde ' + esc(fmtData(i.data_saida)) : 'Inativo'}" style="background:#e2e8f0;color:#475569;border-radius:999px;padding:3px 10px;font-size:0.75rem;font-weight:700;">Inativo</span>`;
             const valor = ativo ? esc(brl(i.valor)) : '<span style="color:#94a3b8;font-weight:600;">' + esc(brl(0)) + '</span>';
             return `<tr style="${ativo ? '' : 'opacity:0.78;'}">
