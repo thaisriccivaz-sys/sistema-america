@@ -83,13 +83,14 @@
     const stateByTipo = {
         clientes:  { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', grupo: '', atendentes: [], atendBusca: '', contratosAtivos: '', cidade: '' } },
         enderecos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', cliente: '', zona: '', municipioUf: '' } },
-        propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fase: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
+        propostas: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', fases: [], faseBusca: '', atendentes: [], atendBusca: '', produto: '', de: '', ate: '', perDe: '', perAte: '' } },
         contratos: { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', tipo: '', situacao: '', atendentes: [], atendBusca: '', de: '', ate: '' } },
         os:        { dados: [], carregado: false, carregando: false, erro: '', page: 1, pageSize: 100, filtros: { q: '', modalidade: '', tipoOs: '', statusOs: '', atendentes: [], atendBusca: '', equipamento: '', servico: '', de: '', ate: '' } }
     };
 
     let atendentesComercialLista = [];
     let debounceTimer = null;
+    const produtosExpandidosSet = new Set();
 
     function normStr(s) {
         return String(s || '')
@@ -340,8 +341,11 @@
                         const tUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
                         return tUp !== 'ADITIVO' && Boolean(String(p.contrato || '').trim());
                     }).map(p => {
+                        const { prodsAtivos } = extrairProdutosEServicos(p, true);
+                        p._produtosList = prodsAtivos;
+                        p._produtosNorm = normStr(prodsAtivos.join(' '));
                         p._atendExib = resolverAtendenteNome(p.atendente);
-                        p._search = normStr(`${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${p._atendExib} ${p.situacao_contrato || ''}`);
+                        p._search = normStr(`${p.contrato || ''} ${p.codigo || ''} ${p.titulo_contrato || ''} ${p.cliente_nome || ''} ${p.contato_nome || ''} ${p.nome_evento || ''} ${p._atendExib} ${p.situacao_contrato || ''} ${prodsAtivos.join(' ')}`);
                         return p;
                     });
                 } else if (tipo === 'os') {
@@ -414,15 +418,19 @@
 
         if (tipo === 'propostas') {
             const qProd = normStr(f.produto);
-            const fFaseNorm = normStr(f.fase);
+            const fasesSelNorm = Array.isArray(f.fases) ? f.fases.map(x => normStr(x)).filter(Boolean) : [];
             return dados.filter(p => {
                 if (q && !p._search.includes(q)) return false;
                 if (f.tipo && normStr(p.tipo) !== normStr(f.tipo)) return false;
-                if (fFaseNorm) {
+                if (fasesSelNorm.length > 0) {
                     let rowFase = normStr(p.fase_negociacao || 'Em Elaboração');
                     if (rowFase === 'enviada') rowFase = 'proposta enviada';
                     if (rowFase === 'aprovado - aditivo assinado') rowFase = 'proposta assinada';
-                    if (rowFase !== fFaseNorm) return false;
+                    if (rowFase === 'aprovado') rowFase = 'aprovada';
+                    if (rowFase === 'reprovado') rowFase = 'reprovada';
+                    if (rowFase === 'cancelado') rowFase = 'cancelada';
+                    if (rowFase === 'pre-aprovada') rowFase = 'pre aprovada';
+                    if (!fasesSelNorm.includes(rowFase)) return false;
                 }
                 if (!atendentePassaFiltro(p, f.atendentes)) return false;
                 if (qProd && !p._produtosNorm.includes(qProd)) return false;
@@ -478,11 +486,11 @@
     function montarConfiguracaoTabelaEExcel(tipo, filtrados) {
         if (tipo === 'clientes') {
             const colunas = [
-                { key: 'codigo', label: 'Código', width: 12, widthPx: 80 },
-                { key: 'razao_social', label: 'Razão Social / Nome Fantasia', width: 42, widthPx: 310, tipo: 'multilinha' },
+                { key: 'codigo', label: 'Código', width: 12, widthPx: 80, ocultarTela: true },
+                { key: 'razao_social', label: 'Razão Social / Nome Fantasia', width: 42, widthPx: 320, tipo: 'multilinha' },
                 { key: 'grupo', label: 'Grupo', width: 15, widthPx: 120 },
                 { key: 'cpf_cnpj', label: 'CPF / CNPJ', width: 20, widthPx: 155 },
-                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 165 },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 170 },
                 { key: 'contratos_ativos', label: 'Ctr. Ativos', width: 14, widthPx: 115 },
                 { key: 'contratos_inativos', label: 'Ctr. Inativos', width: 14, widthPx: 120 },
                 { key: 'cidade_uf', label: 'Município / UF', width: 24, widthPx: 165 },
@@ -509,10 +517,9 @@
 
         if (tipo === 'enderecos') {
             const colunas = [
-                { key: 'sequencia', label: 'Seq.', width: 10, widthPx: 65 },
-                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 260 },
-                { key: 'nome_local', label: 'Nome do Local', width: 26, widthPx: 180 },
-                { key: 'endereco', label: 'Logradouro', width: 36, widthPx: 250 },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 270 },
+                { key: 'nome_local', label: 'Nome do Local', width: 26, widthPx: 185 },
+                { key: 'endereco', label: 'Logradouro', width: 36, widthPx: 260 },
                 { key: 'numero', label: 'Nº', width: 10, widthPx: 75 },
                 { key: 'bairro', label: 'Bairro', width: 22, widthPx: 150 },
                 { key: 'municipio', label: 'Município', width: 22, widthPx: 145 },
@@ -520,8 +527,7 @@
                 { key: 'cep', label: 'CEP', width: 14, widthPx: 105 },
                 { key: 'zona', label: 'Zona', width: 18, widthPx: 135 }
             ];
-            const linhasExcel = filtrados.map((e, idx) => ({
-                sequencia: e.sequencia || (idx + 1),
+            const linhasExcel = filtrados.map(e => ({
                 cliente: limparNomeClienteParaExcel(e._cliRaw || ''),
                 nome_local: e.nome_local || '',
                 endereco: e.endereco || '',
@@ -538,14 +544,14 @@
         if (tipo === 'propostas') {
             const colunas = [
                 { key: 'codigo', label: 'Nº Proposta', width: 14, widthPx: 95 },
-                { key: 'data_cadastro', label: 'Data Cadastro', width: 14, widthPx: 105 },
+                { key: 'data_cadastro', label: 'Data Cadastro', width: 14, widthPx: 110 },
                 { key: 'tipo', label: 'Tipo', width: 18, widthPx: 125 },
-                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 250 },
-                { key: 'contato', label: 'Contato', width: 24, widthPx: 155 },
-                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 150 },
-                { key: 'fase', label: 'Fase de Negociação', width: 24, widthPx: 170 },
-                { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 175 },
-                { key: 'produtos', label: 'Produtos', width: 42, widthPx: 260, tipo: 'multilinha' },
+                { key: 'cliente', label: 'Cliente', width: 38, widthPx: 260 },
+                { key: 'contato', label: 'Contato', width: 24, widthPx: 155, ocultarTela: true },
+                { key: 'atendente', label: 'Atendente', width: 22, widthPx: 150, ocultarTela: true },
+                { key: 'fase', label: 'Fase de Negociação', width: 24, widthPx: 185 },
+                { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 180 },
+                { key: 'produtos', label: 'Produtos', width: 42, widthPx: 220, tipo: 'multilinha' },
                 { key: 'valor_total', label: 'Valor Total', width: 18, widthPx: 125, tipo: 'moeda' },
                 { key: 'contrato', label: 'Contrato', width: 14, widthPx: 95 }
             ];
@@ -571,12 +577,13 @@
                 { key: 'codigo', label: 'Nº Proposta', width: 14, widthPx: 95 },
                 { key: 'data_emissao', label: 'Data Emissão', width: 14, widthPx: 105 },
                 { key: 'tipo', label: 'Tipo', width: 18, widthPx: 120 },
-                { key: 'titulo', label: 'Título', width: 30, widthPx: 190 },
+                { key: 'titulo', label: 'Título', width: 30, widthPx: 185 },
                 { key: 'cliente', label: 'Cliente', width: 38, widthPx: 240 },
-                { key: 'contato', label: 'Contato', width: 24, widthPx: 150 },
+                { key: 'contato', label: 'Contato', width: 24, widthPx: 145 },
                 { key: 'atendente', label: 'Atendente', width: 22, widthPx: 145 },
                 { key: 'situacao', label: 'Situação do Contrato', width: 26, widthPx: 205 },
                 { key: 'periodo', label: 'Período (Início / Fim)', width: 25, widthPx: 175 },
+                { key: 'produtos', label: 'Produtos', width: 42, widthPx: 220, tipo: 'multilinha' },
                 { key: 'valor_total', label: 'Valor Total', width: 18, widthPx: 125, tipo: 'moeda' },
                 { key: 'numero_os', label: 'Nº OS', width: 12, widthPx: 85 }
             ];
@@ -591,6 +598,7 @@
                 atendente: p._atendExib || resolverAtendenteNome(p.atendente),
                 situacao: p.situacao_contrato || 'EM ELABORAÇÃO',
                 periodo: p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—',
+                produtos: (p._produtosList && p._produtosList.length) ? p._produtosList.join('\n') : '—',
                 valor_total: Number(p.valor_total || 0),
                 numero_os: p.numero_os || ''
             }));
@@ -668,6 +676,56 @@
             onmouseout="this.style.color='#1e293b'; this.style.textDecorationColor='#cbd5e1';">${esc(txt)}</button>`;
     }
 
+    function renderProdutosExpansivelHtml(itens, uidKey) {
+        if (!Array.isArray(itens) || !itens.length) {
+            return '<span style="color:#94a3b8;">—</span>';
+        }
+        const safeKey = String(uidKey || '').replace(/[^\w\-]/g, '_');
+        const aberto = produtosExpandidosSet.has(safeKey);
+        const qtdLabel = itens.length === 1 ? '1 produto' : `${itens.length} produtos`;
+        return `<div style="min-width:0; max-width:100%;">
+            <button type="button" onclick="window._comercialRelatorios.toggleDetalhesProdutos('${safeKey}', this)"
+                style="width:100%; background:${aberto ? '#eef2ff' : '#f8fafc'}; color:${aberto ? '#4338ca' : '#334155'}; border:1px solid ${aberto ? '#c7d2fe' : '#cbd5e1'}; border-radius:7px; padding:4px 9px; font-size:0.74rem; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
+                <span style="display:inline-flex; align-items:center; gap:5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <i class="ph ph-package" style="font-size:0.86rem; color:#6366f1; flex-shrink:0;"></i>
+                    <span>${esc(qtdLabel)}</span>
+                </span>
+                <i class="ph ph-caret-down comrel-prod-seta" style="font-size:0.82rem; flex-shrink:0; transition:transform 0.18s ease; transform:${aberto ? 'rotate(180deg)' : 'rotate(0deg)'};"></i>
+            </button>
+            <div id="comrel-prod-det-${safeKey}" style="display:${aberto ? 'flex' : 'none'}; flex-direction:column; gap:3px; margin-top:5px; min-width:0; max-width:100%;">
+                ${itens.map(item => `<div style="background:#f8fafc; color:#1e293b; border:1px solid #e2e8f0; border-radius:6px; padding:3px 7px; font-size:0.72rem; font-weight:700; line-height:1.25; white-space:normal; overflow-wrap:break-word;">${esc(item)}</div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    function obterConfigFaseBadgeLocal(faseRaw) {
+        if (typeof window.obterConfigFaseNegociacao === 'function') {
+            const cfg = window.obterConfigFaseNegociacao(faseRaw);
+            if (cfg && cfg.icon && cfg.icon !== 'ph-circle') return cfg;
+        }
+        const fn = normStr(faseRaw);
+        if (!fn || fn === 'em elaboracao') return { nome: 'EM ELABORAÇÃO', bg: '#fef9c3', text: '#a16207', border: '#fde047', icon: 'ph-pencil' };
+        if (fn === 'proposta enviada' || fn === 'enviada') return { nome: 'PROPOSTA ENVIADA', bg: '#f3e8ff', text: '#7e22ce', border: '#d8b4fe', icon: 'ph-paper-plane-right' };
+        if (fn === 'pre aprovada' || fn === 'pre-aprovada') return { nome: 'PRÉ APROVADA', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', icon: 'ph-seal-check' };
+        if (fn === 'enviado para assinatura') return { nome: 'ENVIADO PARA ASSINATURA', bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' };
+        if (fn === 'proposta assinada' || fn === 'aprovado - aditivo assinado') return { nome: 'PROPOSTA ASSINADA', bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-seal-check' };
+        if (fn === 'aprovada' || fn === 'aprovado') return { nome: 'APROVADA', bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-check-circle' };
+        if (fn === 'reprovada' || fn === 'reprovado') return { nome: 'REPROVADA', bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', icon: 'ph-x-circle' };
+        if (fn === 'sem resposta') return { nome: 'SEM RESPOSTA', bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-clock-countdown' };
+        if (fn === 'em negociacao') return { nome: 'EM NEGOCIAÇÃO', bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-arrows-left-right' };
+        if (fn === 'cancelada' || fn === 'cancelado') return { nome: 'CANCELADA', bg: '#0f172a', text: '#ffffff', border: '#0f172a', icon: 'ph-prohibit' };
+        return { nome: String(faseRaw || 'EM ELABORAÇÃO').toUpperCase(), bg: '#e2e8f0', text: '#475569', border: '#cbd5e1', icon: 'ph-circle' };
+    }
+
+    function renderBadgeFaseMaiusculaHtml(faseRaw, compacto = false) {
+        const cfg = obterConfigFaseBadgeLocal(faseRaw);
+        const pad = compacto ? '1px 8px' : '2px 10px';
+        const fz = compacto ? '0.68rem' : '0.72rem';
+        return `<span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border || cfg.bg}; padding:${pad}; border-radius:999px; font-size:${fz}; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase;">
+            <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${esc(String(cfg.nome || faseRaw || '').toUpperCase())}
+        </span>`;
+    }
+
     function renderLinhasHtml(tipo, paginaLinhas, totalCols = 10) {
         if (!paginaLinhas.length) {
             return `<tr><td colspan="${totalCols}" style="text-align:center; padding:2rem; color:#94a3b8; font-style:italic;">Nenhum registro encontrado para os filtros informados.</td></tr>`;
@@ -688,7 +746,6 @@
                 const cAtivos = Number(c._contratosAtivos) || 0;
                 const cInativos = Number(c._contratosInativos) || 0;
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                    <td style="padding:7px 10px; font-weight:700; color:#7048e8; white-space:nowrap;">${esc(c.codigo || c.id || '—')}</td>
                     <td style="padding:7px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">
                         <div>${nomeHtml}</div>
                         ${mostrarFantasiaAbaixo ? `<div style="margin-top:2px; font-size:0.73rem; font-weight:500; color:#64748b; overflow-wrap:break-word;">${esc(fantTxt)}</div>` : ''}
@@ -709,15 +766,9 @@
         }
 
         if (tipo === 'enderecos') {
-            return paginaLinhas.map((e, idx) => {
-                const nomeHtml = renderNomeClienteClicavelHtml(e._cliExib || '—', {
-                    clienteId: e.cliente_id || '',
-                    clienteNomeLimpo: limparNomeClienteParaExcel(e._cliRaw || ''),
-                    grupo: e.grupo_clientes || ''
-                });
+            return paginaLinhas.map(e => {
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                <td style="padding:7px 10px; font-weight:700; color:#64748b; text-align:center;">${esc(e.sequencia || (idx + 1))}</td>
-                <td style="padding:7px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${nomeHtml}</td>
+                <td style="padding:7px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${esc(e._cliExib || '—')}</td>
                 <td style="padding:7px 10px; font-weight:600; color:#5f3dc4; overflow-wrap:break-word;">${esc(e.nome_local || '—')}</td>
                 <td style="padding:7px 10px; color:#334155; overflow-wrap:break-word;">${esc(e.endereco || '—')}</td>
                 <td style="padding:7px 10px; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(e.numero || 'S/N')}</td>
@@ -733,14 +784,7 @@
         if (tipo === 'propostas') {
             return paginaLinhas.map(p => {
                 const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
-                const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
-                    clienteId: '',
-                    clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
-                    grupo: ''
-                });
-                const faseHtml = typeof window.renderBadgeFaseNegociacaoHtml === 'function'
-                    ? window.renderBadgeFaseNegociacaoHtml(p.fase_negociacao || 'Em Elaboração')
-                    : esc(p.fase_negociacao || 'Em Elaboração');
+                const faseHtml = renderBadgeFaseMaiusculaHtml(p.fase_negociacao || 'Em Elaboração');
                 const perStr = p.periodo_inicio ? `${fmtDataBr(p.periodo_inicio)} até ${fmtDataBr(p.periodo_fim || p.periodo_inicio)}` : '—';
                 return `<tr style="border-bottom:1px solid #e2e8f0;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
                     <td style="padding:8px 10px; text-align:center; white-space:nowrap;">
@@ -749,12 +793,10 @@
                     </td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(fmtDataBr(p.data_cadastro))}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
+                    <td style="padding:8px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${esc(cliExib)}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${faseHtml}</td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
-                    <td style="padding:8px 10px;">${renderListaCompactaHtml(p._produtosList, '#f8fafc', '#1e293b', '#e2e8f0')}</td>
+                    <td style="padding:8px 10px;">${renderProdutosExpansivelHtml(p._produtosList, 'prop_' + p.id)}</td>
                     <td style="padding:8px 10px; text-align:right; font-weight:700; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(p.valor_total))}</td>
                     <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.contrato ? `<button type="button" onclick="if(window.abrirContratoDaProposta) window.abrirContratoDaProposta(${Number(p.id)})" style="background:#eab308; color:#0f172a; border:1px solid #ca8a04; padding:2px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(p.contrato)}</button>` : '—'}</td>
                 </tr>`;
@@ -764,11 +806,6 @@
         if (tipo === 'contratos') {
             return paginaLinhas.map(p => {
                 const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
-                const nomeHtml = renderNomeClienteClicavelHtml(cliExib, {
-                    clienteId: '',
-                    clienteNomeLimpo: limparNomeClienteParaExcel(p.cliente_nome || ''),
-                    grupo: ''
-                });
                 const sitHtml = typeof window.renderBadgeSituacaoContratoHtml === 'function'
                     ? window.renderBadgeSituacaoContratoHtml(p.situacao_contrato || 'EM ELABORAÇÃO', false)
                     : esc(p.situacao_contrato || 'EM ELABORAÇÃO');
@@ -785,12 +822,13 @@
                     </td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(dtEm)}</td>
                     <td style="padding:8px 10px; font-weight:700; color:#334155; white-space:nowrap;">${esc(p.tipo || '—')}</td>
-                    <td style="padding:8px 10px; color:#334155;">${esc(p.titulo_contrato || '—')}</td>
-                    <td style="padding:8px 10px; font-weight:600; color:#0f172a;">${nomeHtml}</td>
-                    <td style="padding:8px 10px; color:#475569;">${esc(p.contato_nome || '—')}</td>
+                    <td style="padding:8px 10px; color:#334155; overflow-wrap:break-word;">${esc(p.titulo_contrato || '—')}</td>
+                    <td style="padding:8px 10px; font-weight:700; color:#0f172a; overflow-wrap:break-word;">${esc(cliExib)}</td>
+                    <td style="padding:8px 10px; color:#475569; overflow-wrap:break-word;">${esc(p.contato_nome || '—')}</td>
                     <td style="padding:8px 10px; color:#334155; white-space:nowrap;">${esc(p._atendExib || '—')}</td>
                     <td style="padding:8px 10px; white-space:nowrap;">${sitHtml}</td>
                     <td style="padding:8px 10px; white-space:nowrap; color:#475569;">${esc(perStr)}</td>
+                    <td style="padding:8px 10px;">${renderProdutosExpansivelHtml(p._produtosList, 'ctr_' + p.id)}</td>
                     <td style="padding:8px 10px; text-align:right; font-weight:700; color:#15803d; white-space:nowrap;">${esc(fmtMoeda(p.valor_total))}</td>
                     <td style="padding:8px 10px; text-align:center; white-space:nowrap;">${p.numero_os ? `<button type="button" onclick="if(window.abrirOsComercialDaProposta) window.abrirOsComercialDaProposta(${Number(p.id)})" style="background:#16a34a; color:#ffffff; border:none; padding:3px 9px; border-radius:6px; font-weight:800; font-size:0.74rem; cursor:pointer;">${esc(p.numero_os)}</button>` : '—'}</td>
                 </tr>`;
@@ -911,6 +949,87 @@
         }).join('');
     }
 
+    function obterOpcoesFasesPropostas() {
+        const st = stateByTipo.propostas;
+        const fasesSet = new Set(FASES_NEGOCIACAO_TODAS);
+        (st?.dados || []).forEach(d => {
+            const fn = String(d.fase_negociacao || '').trim();
+            if (fn && normStr(fn) !== 'enviada' && normStr(fn) !== 'aprovado - aditivo assinado') {
+                const jaExiste = Array.from(fasesSet).some(x => normStr(x) === normStr(fn));
+                if (!jaExiste) fasesSet.add(fn);
+            }
+        });
+        return Array.from(fasesSet);
+    }
+
+    function renderResumoBotaoFasePropostas() {
+        const st = stateByTipo.propostas;
+        const sel = Array.isArray(st?.filtros?.fases) ? st.filtros.fases : [];
+        if (sel.length === 0) {
+            return '<span style="color:#475569; font-weight:500;">Todas</span>';
+        }
+        if (sel.length === 1) {
+            return renderBadgeFaseMaiusculaHtml(sel[0], true);
+        }
+        return `<span style="background:#ede9fe; color:#5f3dc4; border:1px solid #d0bfff; padding:1px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; text-transform:uppercase;">${sel.length} FASES SELECIONADAS</span>`;
+    }
+
+    function renderFaseMultiHtml(flexCss = 'flex:1.25 1 205px;') {
+        const st = stateByTipo.propostas;
+        const lblSt = 'display:block; font-size:0.72rem; font-weight:700; color:#475569; margin-bottom:3px;';
+        return `
+            <div style="${flexCss}">
+                <label style="${lblSt}">Fase de Negociação</label>
+                <div id="comrel-propostas-fase-wrap" style="position:relative; width:100%;">
+                    <button type="button" id="comrel-propostas-fase-btn" onclick="window._comercialRelatorios.toggleDropdownFases(event)"
+                        style="width:100%; height:34px; padding:0 10px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#1e293b; font-size:0.81rem; display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; box-sizing:border-box;">
+                        <span id="comrel-propostas-fase-lbl" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-flex; align-items:center;">${renderResumoBotaoFasePropostas()}</span>
+                        <i class="ph ph-caret-down" style="font-size:0.85rem; color:#64748b; flex-shrink:0;"></i>
+                    </button>
+                    <div id="comrel-propostas-fase-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; min-width:285px; width:100%; max-height:330px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.16); z-index:1155; overflow:hidden;">
+                        <div style="padding:7px 8px; border-bottom:1px solid #e2e8f0; background:#f8fafc; display:flex; gap:6px; align-items:center;">
+                            <input type="text" id="comrel-propostas-fase-busca" value="${esc(st.filtros.faseBusca || '')}"
+                                oninput="window._comercialRelatorios.filtrarListaFases(this.value)"
+                                placeholder="Digite para filtrar fase..."
+                                style="flex:1; height:28px; padding:0 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.78rem; text-transform:none; outline:none;">
+                            <button type="button" onclick="window._comercialRelatorios.limparFases(event)" title="Limpar seleção"
+                                style="height:28px; padding:0 8px; border:1px solid #fecaca; background:#fef2f2; color:#dc2626; border-radius:6px; font-size:0.72rem; font-weight:700; cursor:pointer;">Limpar</button>
+                        </div>
+                        <div id="comrel-propostas-fase-lista" style="max-height:270px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderListaOpcoesFases() {
+        const listEl = document.getElementById('comrel-propostas-fase-lista');
+        const st = stateByTipo.propostas;
+        if (!listEl || !st) return;
+        const busca = normStr(st.filtros.faseBusca || '');
+        const selecionadas = Array.isArray(st.filtros.fases) ? st.filtros.fases : [];
+        const todas = obterOpcoesFasesPropostas();
+        const filtradas = busca
+            ? todas.filter(fs => normStr(fs).includes(busca) || normStr(obterConfigFaseBadgeLocal(fs).nome).includes(busca))
+            : todas;
+
+        if (!filtradas.length) {
+            listEl.innerHTML = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:0.78rem;">Nenhuma fase encontrada.</div>';
+            return;
+        }
+
+        listEl.innerHTML = filtradas.map(fs => {
+            const marcado = selecionadas.some(x => normStr(x) === normStr(fs));
+            const fsEsc = String(fs).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return `<label style="display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid #f1f5f9; cursor:pointer; background:${marcado ? '#f5f3ff' : '#fff'};"
+                onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='${marcado ? '#f5f3ff' : '#fff'}'">
+                <input type="checkbox" ${marcado ? 'checked' : ''} onchange="window._comercialRelatorios.toggleItemFase('${fsEsc}', this.checked)"
+                    style="width:14px; height:14px; accent-color:#7048e8; cursor:pointer; margin:0; flex-shrink:0;">
+                ${renderBadgeFaseMaiusculaHtml(fs, false)}
+            </label>`;
+        }).join('');
+    }
+
     function renderFiltrosHtml(tipo) {
         const st = stateByTipo[tipo];
         const f = st.filtros;
@@ -979,15 +1098,6 @@
 
         if (tipo === 'propostas') {
             const tiposOpts = Array.from(new Set(st.dados.map(d => String(d.tipo || '').trim()).filter(Boolean))).sort();
-            const fasesSet = new Set(FASES_NEGOCIACAO_TODAS);
-            st.dados.forEach(d => {
-                const fn = String(d.fase_negociacao || '').trim();
-                if (fn && normStr(fn) !== 'enviada' && normStr(fn) !== 'aprovado - aditivo assinado') {
-                    const jaExiste = Array.from(fasesSet).some(x => normStr(x) === normStr(fn));
-                    if (!jaExiste) fasesSet.add(fn);
-                }
-            });
-            const fasesOpts = Array.from(fasesSet);
             return `
                 <div style="flex:1.6 1 210px;">
                     <label style="${lblSt}">Pesquisar</label>
@@ -1001,34 +1111,28 @@
                         ${tiposOpts.map(t => `<option value="${esc(t)}" ${f.tipo === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}
                     </select>
                 </div>
-                <div style="flex:1.1 1 170px;">
-                    <label style="${lblSt}">Fase de Negociação</label>
-                    <select onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'fase', this.value, false)" style="width:100%; ${inpSt}">
-                        <option value="">Todas</option>
-                        ${fasesOpts.map(fs => `<option value="${esc(fs)}" ${f.fase === fs ? 'selected' : ''}>${esc(fs)}</option>`).join('')}
-                    </select>
-                </div>
+                ${renderFaseMultiHtml('flex:1.25 1 205px;')}
                 ${renderAtendenteMultiHtml('propostas', 'flex:1.2 1 195px;')}
                 <div style="flex:1.2 1 175px;">
                     <label style="${lblSt}">Produto</label>
                     <input type="text" data-filtro="produto" value="${esc(f.produto)}" oninput="window._comercialRelatorios.onInputFiltro('${tipo}', 'produto', this.value, true)"
                         placeholder="Filtrar por produto..." style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.65 1 120px;">
-                    <label style="${lblSt}">Período Início (Prop.)</label>
-                    <input type="date" value="${esc(f.perDe)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perDe', this.value, false)" style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.65 1 120px;">
-                    <label style="${lblSt}">Período Até (Prop.)</label>
-                    <input type="date" value="${esc(f.perAte)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perAte', this.value, false)" style="width:100%; ${inpSt}">
-                </div>
-                <div style="flex:0.65 1 120px;">
+                <div style="flex:0.75 1 135px; max-width:210px;">
                     <label style="${lblSt}">Cadastro De</label>
                     <input type="date" value="${esc(f.de)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'de', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
-                <div style="flex:0.65 1 120px;">
+                <div style="flex:0.75 1 135px; max-width:210px;">
                     <label style="${lblSt}">Cadastro Até</label>
                     <input type="date" value="${esc(f.ate)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'ate', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
+                <div style="flex:0.75 1 135px; max-width:210px;">
+                    <label style="${lblSt}">Período Início (Prop.)</label>
+                    <input type="date" value="${esc(f.perDe)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perDe', this.value, false)" style="width:100%; ${inpSt}">
+                </div>
+                <div style="flex:0.75 1 135px; max-width:210px;">
+                    <label style="${lblSt}">Período Até (Prop.)</label>
+                    <input type="date" value="${esc(f.perAte)}" onchange="window._comercialRelatorios.onInputFiltro('${tipo}', 'perAte', this.value, false)" style="width:100%; ${inpSt}">
                 </div>
             `;
         }
@@ -1186,9 +1290,10 @@
 
         const tableEl = document.getElementById(`comrel-${tipo}-table`);
         const colgroupEl = document.getElementById(`comrel-${tipo}-colgroup`);
-        const totalWidthPx = cfg.colunas.reduce((acc, col) => acc + (Number(col.widthPx) || 140), 0);
+        const colunasTela = cfg.colunas.filter(col => !col.ocultarTela);
+        const totalWidthPx = colunasTela.reduce((acc, col) => acc + (Number(col.widthPx) || 140), 0);
         if (colgroupEl) {
-            colgroupEl.innerHTML = cfg.colunas.map(col => `<col style="width:${Number(col.widthPx) || 140}px;">`).join('');
+            colgroupEl.innerHTML = colunasTela.map(col => `<col style="width:${Number(col.widthPx) || 140}px;">`).join('');
         }
         if (tableEl) {
             tableEl.style.width = `${totalWidthPx}px`;
@@ -1199,7 +1304,7 @@
         const theadEl = document.getElementById(`comrel-${tipo}-thead`);
         if (theadEl) {
             theadEl.innerHTML = `<tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.03em;">
-                ${cfg.colunas.map(col => `<th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:10px; text-align:${col.tipo === 'moeda' ? 'right' : (col.key === 'contratos_ativos' || col.key === 'contratos_inativos' ? 'center' : 'left')}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(col.label)}</th>`).join('')}
+                ${colunasTela.map(col => `<th style="position:sticky; top:0; z-index:2; background:#f8fafc; padding:10px; text-align:${col.tipo === 'moeda' ? 'right' : (col.key === 'contratos_ativos' || col.key === 'contratos_inativos' ? 'center' : 'left')}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(col.label)}</th>`).join('')}
             </tr>`;
         }
 
@@ -1212,11 +1317,11 @@
         const tbodyEl = document.getElementById(`comrel-${tipo}-tbody`);
         if (tbodyEl) {
             if (st.carregando) {
-                tbodyEl.innerHTML = `<tr><td colspan="${cfg.colunas.length}" style="text-align:center; padding:2.5rem; color:#64748b;"><i class="ph ph-spinner ph-spin" style="font-size:1.3rem;"></i> Carregando ${esc(meta.titulo)}...</td></tr>`;
+                tbodyEl.innerHTML = `<tr><td colspan="${colunasTela.length}" style="text-align:center; padding:2.5rem; color:#64748b;"><i class="ph ph-spinner ph-spin" style="font-size:1.3rem;"></i> Carregando ${esc(meta.titulo)}...</td></tr>`;
             } else if (st.erro) {
-                tbodyEl.innerHTML = `<tr><td colspan="${cfg.colunas.length}" style="text-align:center; padding:2rem; color:#dc2626; font-weight:700;">${esc(st.erro)}</td></tr>`;
+                tbodyEl.innerHTML = `<tr><td colspan="${colunasTela.length}" style="text-align:center; padding:2rem; color:#dc2626; font-weight:700;">${esc(st.erro)}</td></tr>`;
             } else {
-                tbodyEl.innerHTML = renderLinhasHtml(tipo, paginaLinhas, cfg.colunas.length);
+                tbodyEl.innerHTML = renderLinhasHtml(tipo, paginaLinhas, colunasTela.length);
             }
         }
         renderPaginacaoBarra(tipo, filtrados.length);
@@ -1370,6 +1475,76 @@
             renderCorpoTabela(tipo);
         },
 
+        toggleDetalhesProdutos(safeKey, btnEl) {
+            const detEl = document.getElementById(`comrel-prod-det-${safeKey}`);
+            if (!detEl) return;
+            const abrir = detEl.style.display === 'none' || !detEl.style.display;
+            if (abrir) {
+                produtosExpandidosSet.add(safeKey);
+                detEl.style.display = 'flex';
+            } else {
+                produtosExpandidosSet.delete(safeKey);
+                detEl.style.display = 'none';
+            }
+            if (btnEl) {
+                btnEl.style.background = abrir ? '#eef2ff' : '#f8fafc';
+                btnEl.style.color = abrir ? '#4338ca' : '#334155';
+                btnEl.style.borderColor = abrir ? '#c7d2fe' : '#cbd5e1';
+                const seta = btnEl.querySelector('.comrel-prod-seta');
+                if (seta) seta.style.transform = abrir ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+        },
+
+        toggleDropdownFases(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const drop = document.getElementById('comrel-propostas-fase-dropdown');
+            if (!drop) return;
+            if (drop.style.display === 'block') {
+                drop.style.display = 'none';
+                return;
+            }
+            renderListaOpcoesFases();
+            drop.style.display = 'block';
+            document.getElementById('comrel-propostas-fase-busca')?.focus();
+        },
+
+        filtrarListaFases(termo) {
+            const st = stateByTipo.propostas;
+            if (!st) return;
+            st.filtros.faseBusca = termo;
+            renderListaOpcoesFases();
+        },
+
+        toggleItemFase(faseNome, checked) {
+            const st = stateByTipo.propostas;
+            if (!st) return;
+            const list = Array.isArray(st.filtros.fases) ? [...st.filtros.fases] : [];
+            const idx = list.findIndex(x => normStr(x) === normStr(faseNome));
+            if (checked && idx === -1) list.push(faseNome);
+            if (!checked && idx >= 0) list.splice(idx, 1);
+            st.filtros.fases = list;
+            st.page = 1;
+            const lbl = document.getElementById('comrel-propostas-fase-lbl');
+            if (lbl) lbl.innerHTML = renderResumoBotaoFasePropostas();
+            renderListaOpcoesFases();
+            renderCorpoTabela('propostas');
+        },
+
+        limparFases(event) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            const st = stateByTipo.propostas;
+            if (!st) return;
+            st.filtros.fases = [];
+            st.filtros.faseBusca = '';
+            st.page = 1;
+            const lbl = document.getElementById('comrel-propostas-fase-lbl');
+            const busca = document.getElementById('comrel-propostas-fase-busca');
+            if (lbl) lbl.innerHTML = renderResumoBotaoFasePropostas();
+            if (busca) busca.value = '';
+            renderListaOpcoesFases();
+            renderCorpoTabela('propostas');
+        },
+
         limparFiltros(tipo) {
             const st = stateByTipo[tipo];
             if (!st) return;
@@ -1481,6 +1656,11 @@
                 drop.style.display = 'none';
             }
         });
+        const faseWrap = document.getElementById('comrel-propostas-fase-wrap');
+        const faseDrop = document.getElementById('comrel-propostas-fase-dropdown');
+        if (faseDrop && faseDrop.style.display === 'block' && faseWrap && !faseWrap.contains(e.target)) {
+            faseDrop.style.display = 'none';
+        }
     });
 
     function renderBadgeStatusFaturamentoHist(st) {
@@ -1525,7 +1705,7 @@
             if (clienteId) qs.set('cliente_id', String(clienteId));
             if (nomeLimpo) qs.set('cliente_nome', nomeLimpo);
 
-            const resp = await fetch(`${getApiBase()}/clientes/historico-movimentacoes?${qs.toString()}`, {
+            const resp = await fetch(`${getApiBase()}/comercial/clientes/historico-movimentacoes?${qs.toString()}`, {
                 headers: getAuthHeaders()
             });
             const data = await resp.json().catch(() => ({}));

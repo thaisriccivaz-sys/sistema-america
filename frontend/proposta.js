@@ -152,13 +152,22 @@ window.obterConfigFaseNegociacao = function(faseRaw) {
     if (f === 'SEM RESPOSTA') {
         return { nome: 'Sem Resposta', ...PROP_STATUS_CORES['Sem Resposta'] };
     }
+    if (f === 'EM NEGOCIACAO') {
+        return { nome: 'Em Negociação', ...PROP_STATUS_CORES['Em Negociação'] };
+    }
+    if (f === 'AGUARDANDO APROVACAO') {
+        return { nome: 'Aguardando Aprovação', ...PROP_STATUS_CORES['Aguardando Aprovação'] };
+    }
+    if (f === 'CONVERTIDA EM OS') {
+        return { nome: 'Convertida em OS', ...PROP_STATUS_CORES['Convertida em OS'] };
+    }
     return { nome: String(faseRaw || 'Em Elaboração'), bg: '#e2e8f0', text: '#475569', border: '#cbd5e1', icon: 'ph-circle' };
 };
 
 window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
     const cfg = window.obterConfigFaseNegociacao(faseRaw);
     return `<span style="background:${cfg.bg}; color:${cfg.text}; border:1px solid ${cfg.border || cfg.bg}; padding:2px 10px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; text-transform:uppercase;">
-        <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${cfg.nome}
+        <i class="ph ${cfg.icon || 'ph-circle'}" style="font-size:0.82rem;"></i> ${String(cfg.nome || '').toUpperCase()}
     </span>`;
 };
 

@@ -47537,6 +47537,9 @@ app.get('/api/clientes', authenticateToken, (req, res) => {
 
 // GET /api/clientes/:id - Buscar cliente por ID ou Código
 app.get('/api/clientes/:id', authenticateToken, (req, res) => {
+  if (req.params.id === 'historico-movimentacoes' && typeof global.handleHistoricoMovimentacoesCliente === 'function') {
+    return global.handleHistoricoMovimentacoesCliente(req, res);
+  }
   db.get('SELECT * FROM clientes WHERE id = ? OR codigo = ? ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END LIMIT 1', [req.params.id, req.params.id, req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!row) return res.status(404).json({ error: 'Cliente não encontrado' });
@@ -51860,8 +51863,8 @@ function registrarMovimentacaoFaturamentoCliente(dados, cb) {
 }
 global.registrarMovimentacaoFaturamentoCliente = registrarMovimentacaoFaturamentoCliente;
 
-// GET /api/clientes/historico-movimentacoes - Histórico consolidado do cliente (Propostas, Contratos, OS e Faturamento Financeiro)
-app.get('/api/clientes/historico-movimentacoes', authenticateToken, (req, res) => {
+// GET /api/comercial/clientes/historico-movimentacoes - Histórico consolidado do cliente (Propostas, Contratos, OS e Faturamento Financeiro)
+function handleHistoricoMovimentacoesCliente(req, res) {
   const clienteIdParam = Number(req.query.cliente_id) || 0;
   const clienteNomeParam = limparEmojiGrupoClienteHist(req.query.cliente_nome || '');
   const clienteNomeNormParam = normNomeClienteHist(clienteNomeParam);
@@ -52010,7 +52013,10 @@ app.get('/api/clientes/historico-movimentacoes', authenticateToken, (req, res) =
       );
     }
   );
-});
+}
+global.handleHistoricoMovimentacoesCliente = handleHistoricoMovimentacoesCliente;
+app.get('/api/clientes/historico-movimentacoes', authenticateToken, handleHistoricoMovimentacoesCliente);
+app.get('/api/comercial/clientes/historico-movimentacoes', authenticateToken, handleHistoricoMovimentacoesCliente);
 
 // POST /api/comercial/relatorios/exportar-excel - Exporta qualquer relatório do Comercial em .xlsx estilizado
 app.post('/api/comercial/relatorios/exportar-excel', authenticateToken, async (req, res) => {
