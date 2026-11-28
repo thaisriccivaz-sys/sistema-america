@@ -27,7 +27,7 @@
 
     const SITUACOES_CONTRATO_TODAS = [
         'EM ELABORAÇÃO',
-        'ENVIADO PARA ASSINATURA',
+        'ENVIADO PARA ASSINATURA DIGITAL',
         'CONTRATO ASSINADO',
         'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',
         'ENTREGUE - LIBERADO PARA FATURAMENTO',
@@ -169,7 +169,11 @@
     }
 
     function resolverModalidadeOs(row) {
+        const tipoOpNorm = normStr(row?.os_tipo_operacao || '');
         const tipoUp = String(row?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if (tipoOpNorm === 'limpa fossa' || tipoOpNorm === 'compras' || tipoUp.startsWith('LIMPA FOSSA') || tipoUp === 'COMPRAS') {
+            return '-';
+        }
         if (tipoUp.includes('EVENTO')) return 'Evento';
         if (tipoUp.includes('OBRA')) return 'Obra';
         try {
@@ -177,6 +181,7 @@
                 ? JSON.parse(row.os_comercial_dados_json || '{}')
                 : (row?.os_comercial_dados_json || {});
             const m = String(d?.modalidade_os || d?.modalidade_obra_evento || '').toLowerCase();
+            if (m === '-') return '-';
             if (m === 'evento') return 'Evento';
         } catch (_) {}
         return 'Obra';
@@ -207,7 +212,7 @@
         }
     }
 
-    function extrairProdutosEServicos(row, incluirAditivosContrato = false) {
+    function extrairProdutosEServicos(row, incluirAditivosContrato = false, modoOs = false) {
         let prods = parseJsonListaSegura(row?.itens);
         let servs = parseJsonListaSegura(row?.itens_servicos);
 
@@ -219,6 +224,25 @@
                     if (mescl && Array.isArray(mescl.produtos)) prods = mescl.produtos;
                     if (mescl && Array.isArray(mescl.servicos)) servs = mescl.servicos;
                 } catch (_) {}
+            }
+        }
+
+        if (modoOs) {
+            const tipoOpNorm = normStr(row?.os_tipo_operacao || '');
+            const tipoCtrUp = String(row?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+            if (tipoOpNorm === 'limpa fossa' || tipoCtrUp.startsWith('LIMPA FOSSA')) {
+                let dOs = {};
+                try {
+                    dOs = typeof row?.os_comercial_dados_json === 'string'
+                        ? JSON.parse(row.os_comercial_dados_json || '{}')
+                        : (row?.os_comercial_dados_json || {});
+                } catch (_) {}
+                if (Array.isArray(dOs?.servicos_os_limpa_fossa)) {
+                    servs = dOs.servicos_os_limpa_fossa;
+                } else if (!servs.length && prods.length) {
+                    servs = prods.map(p => ({ servico: p.produto || p.descricao || p.nome || 'LIMPA FOSSA' }));
+                }
+                prods = [];
             }
         }
 
@@ -362,7 +386,7 @@
                         if (tipoOpNorm === 'compras' || tUp === 'COMPRAS') return false;
                         return tUp !== 'ADITIVO' && Boolean(String(p.numero_os || '').trim());
                     }).map(p => {
-                        const { prodsAtivos, servsAtivos } = extrairProdutosEServicos(p, true);
+                        const { prodsAtivos, servsAtivos } = extrairProdutosEServicos(p, true, true);
                         p._equipamentosList = prodsAtivos;
                         p._equipamentosNorm = normStr(prodsAtivos.join(' '));
                         p._servicosList = servsAtivos;
@@ -462,6 +486,8 @@
                     let rowSit = normStr(p.situacao_contrato || 'EM ELABORAÇÃO');
                     if (!rowSit || rowSit === 'aguardando assinatura' || rowSit === 'aprovada' || rowSit === 'aprovado') {
                         rowSit = 'em elaboracao';
+                    } else if (rowSit === 'enviado para assinatura') {
+                        rowSit = 'enviado para assinatura digital';
                     } else if (rowSit === 'contrato digital assinado' || rowSit === 'contrato assinado/entrega liberada') {
                         rowSit = 'contrato assinado';
                     } else if (rowSit === 'estornado') {
@@ -861,7 +887,9 @@
             const cliExib = formatarNomeComGrupoRapido(p.cliente_nome || '—', '');
             const mod = p._modalidade || resolverModalidadeOs(p);
             const ehModEv = normStr(mod) === 'evento';
-            const modHtml = `<span style="background:${ehModEv ? '#faf5ff' : '#eff6ff'}; color:${ehModEv ? '#8E24AA' : '#156EB6'}; border:1px solid ${ehModEv ? '#e9d5ff' : '#bfdbfe'}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-block;">${ehModEv ? 'Evento' : 'Obra'}</span>`;
+            const modHtml = String(mod).trim() === '-'
+                ? '<span style="color:#94a3b8; font-weight:800;">-</span>'
+                : `<span style="background:${ehModEv ? '#faf5ff' : '#eff6ff'}; color:${ehModEv ? '#8E24AA' : '#156EB6'}; border:1px solid ${ehModEv ? '#e9d5ff' : '#bfdbfe'}; padding:2px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; white-space:nowrap; display:inline-block;">${ehModEv ? 'Evento' : 'Obra'}</span>`;
             const stHtml = renderBadgeStatusOsFiltroHtml(p.status_os || 'EM ELABORAÇÃO', false);
             const dts = p._dtsOs || extrairDatasOs(p);
             const dtCad = fmtDataBr(String(p.os_criada_em || '').substring(0, 10) || p.data_cadastro);
@@ -1052,8 +1080,8 @@
         if (!s || s === 'em elaboracao' || s === 'aguardando assinatura' || s === 'aprovada' || s === 'aprovado') {
             return { nome: 'EM ELABORAÇÃO', bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', icon: 'ph-pencil' };
         }
-        if (s === 'enviado para assinatura') {
-            return { nome: 'ENVIADO PARA ASSINATURA', bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' };
+        if (s === 'enviado para assinatura digital' || s === 'enviado para assinatura') {
+            return { nome: 'ENVIADO PARA ASSINATURA DIGITAL', bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', icon: 'ph-paper-plane-tilt' };
         }
         if (s === 'contrato assinado' || s === 'contrato digital assinado' || s === 'contrato assinado/entrega liberada') {
             return { nome: 'CONTRATO ASSINADO', bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', icon: 'ph-signature' };

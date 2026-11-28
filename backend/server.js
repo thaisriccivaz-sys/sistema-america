@@ -42477,8 +42477,8 @@ db.run(`CREATE TABLE IF NOT EXISTS propostas (
                     ? 'CONTRATO ESTORNADO'
                     : (foiAssinadoCtr
                         ? 'CONTRATO ASSINADO'
-                        : (foiEnviadoAssinafyCtr && (!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO')
-                            ? 'ENVIADO PARA ASSINATURA'
+                        : (foiEnviadoAssinafyCtr && (!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'ENVIADO PARA ASSINATURA')
+                            ? 'ENVIADO PARA ASSINATURA DIGITAL'
                             : ((!sitAtual || sitUp === 'AGUARDANDO ASSINATURA' || sitUp === 'EM ELABORAÇÃO' || sitUp === 'EM ELABORACAO' || sitUp === 'APROVADA' || sitUp === 'APROVADO')
                                 ? 'EM ELABORAÇÃO'
                                 : sitAtual)));
@@ -42581,7 +42581,7 @@ app.get('/api/contratos/ativos', authenticateToken, async (req, res) => {
       db.all(
         `SELECT id FROM propostas
          WHERE assinafy_id IS NOT NULL AND TRIM(COALESCE(assinafy_id, '')) != ''
-           AND UPPER(TRIM(COALESCE(situacao_contrato, ''))) = 'ENVIADO PARA ASSINATURA'
+           AND UPPER(TRIM(COALESCE(situacao_contrato, ''))) IN ('ENVIADO PARA ASSINATURA DIGITAL', 'ENVIADO PARA ASSINATURA')
            AND UPPER(TRIM(COALESCE(tipo, ''))) NOT IN ('ADITIVO', 'PROPOSTA ADITIVO', 'VENDA', 'PROPOSTA VENDA')`,
         [],
         (errP, rowsP) => resolve(!errP && Array.isArray(rowsP) ? rowsP : [])
@@ -43027,25 +43027,7 @@ app.post('/api/propostas/:id/registrar-acao', authenticateToken, async (req, res
       const propRow = await new Promise((resolve) => {
         db.get('SELECT * FROM propostas WHERE id = ?', [proposalId], (e, r) => resolve(r || null));
       });
-      let novaSitContrato = propRow ? (propRow.situacao_contrato || 'AGUARDANDO ASSINATURA') : 'ENVIADO PARA ASSINATURA';
-      if (propRow && !req.body.nao_mudar_situacao_contrato) {
-        const sitAtualNorm = String(propRow.situacao_contrato || 'AGUARDANDO ASSINATURA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-        if (!sitAtualNorm || sitAtualNorm === 'AGUARDANDO ASSINATURA' || sitAtualNorm === 'EM ELABORACAO') {
-          novaSitContrato = 'ENVIADO PARA ASSINATURA';
-          await new Promise((resolve) => {
-            db.run("UPDATE propostas SET situacao_contrato = 'ENVIADO PARA ASSINATURA', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [proposalId], () => resolve());
-          });
-          sincronizarContratoDaProposta(proposalId);
-          const snapCtrEnv = JSON.stringify(Object.assign({}, propRow, {
-            _origem_log: 'contrato',
-            situacao_contrato: 'ENVIADO PARA ASSINATURA'
-          }));
-          db.run(
-            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Situação do Contrato', ?, 'ENVIADO PARA ASSINATURA', ?, ?)`,
-            [autor, String(propRow.situacao_contrato || 'AGUARDANDO ASSINATURA'), proposalId, snapCtrEnv]
-          );
-        }
-      }
+      const novaSitContrato = propRow ? (propRow.situacao_contrato || 'EM ELABORAÇÃO') : 'EM ELABORAÇÃO';
       if (acao && !apenas_mudar_situacao_contrato) {
         const snapAcaoCtr = JSON.stringify(Object.assign({}, propRow || {}, {
           _origem_log: 'contrato',
@@ -43782,13 +43764,22 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
       }
 
       if (prop.numero_os && String(prop.numero_os).trim()) {
+        const tipoCtrExist = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        const ehLfCtrExist = tipoCtrExist === 'LIMPA FOSSA' || tipoCtrExist.startsWith('LIMPA FOSSA');
+        const tipoOpExist = (ehLfCtrExist && (!prop.os_tipo_operacao || String(prop.os_tipo_operacao).trim().toLowerCase() === 'envio'))
+          ? 'Limpa fossa'
+          : (prop.os_tipo_operacao || 'Envio');
+        if (ehLfCtrExist && tipoOpExist !== prop.os_tipo_operacao) {
+          db.run('UPDATE propostas SET os_tipo_operacao = ? WHERE id = ?', ['Limpa fossa', propId]);
+          prop.os_tipo_operacao = 'Limpa fossa';
+        }
         return res.json({
           success: true,
           ja_existia: true,
           numero_os: String(prop.numero_os).trim(),
           status_os: prop.status_os || 'EM ELABORAÇÃO',
           os_criada_em: prop.os_criada_em || '',
-          os_tipo_operacao: prop.os_tipo_operacao || 'Envio',
+          os_tipo_operacao: tipoOpExist,
           proposta: prop
         });
       }
@@ -43804,7 +43795,7 @@ app.post('/api/propostas/:id/gerar-os-comercial', authenticateToken, async (req,
         // - Quando for contrato de LIMPA FOSSA → 'Limpa fossa'
         const resolverTipoOsComercialDoContrato = (propRow) => {
           const tipoCtr = String(propRow?.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-          if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
+          if (tipoCtr === 'LIMPA FOSSA' || tipoCtr.startsWith('LIMPA FOSSA')) return 'Limpa fossa';
           let itensArr = [];
           try {
             itensArr = typeof propRow?.itens === 'string' ? JSON.parse(propRow.itens || '[]') : (Array.isArray(propRow?.itens) ? propRow.itens : []);
@@ -45764,6 +45755,7 @@ app.put('/api/propostas/:id', authenticateToken, (req, res) => {
       const oldSitNormPut = String(oldRow.situacao_contrato || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
       const reqSitNormPut = String(d.situacao_contrato || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
       const sitsCtrVoltamElabPut = [
+        'ENVIADO PARA ASSINATURA DIGITAL',
         'ENVIADO PARA ASSINATURA',
         'AGUARDANDO ASSINATURA',
         'CONTRATO ASSINADO',
@@ -46325,23 +46317,9 @@ app.post('/api/propostas/:id/enviar-email', authenticateToken, async (req, res) 
       const ctx = await resolverContextoUsuarioComercial(req.user).catch(() => ({}));
       const loggedUser = ctx.nome_colaborador || req.user?.username || req.user?.nome || 'unknown';
       const faseAtualNorm = String(p.fase_negociacao || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-      let novaSitContratoEmail = p.situacao_contrato || 'AGUARDANDO ASSINATURA';
+      let novaSitContratoEmail = p.situacao_contrato || 'EM ELABORAÇÃO';
       if (ehContratoEmail) {
-        const sitAtuNorm = String(p.situacao_contrato || 'AGUARDANDO ASSINATURA').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
-        if (!sitAtuNorm || sitAtuNorm === 'AGUARDANDO ASSINATURA' || sitAtuNorm === 'EM ELABORACAO') {
-          novaSitContratoEmail = 'ENVIADO PARA ASSINATURA';
-          db.run("UPDATE propostas SET situacao_contrato = 'ENVIADO PARA ASSINATURA', atualizado_em = CURRENT_TIMESTAMP WHERE id = ?", [p.id], () => {
-            sincronizarContratoDaProposta(p.id);
-          });
-          const snapCtrEmail = JSON.stringify(Object.assign({}, p, {
-            _origem_log: 'contrato',
-            situacao_contrato: 'ENVIADO PARA ASSINATURA'
-          }));
-          db.run(
-            `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json) VALUES (?, 'Proposta', 'Situação do Contrato', ?, 'ENVIADO PARA ASSINATURA', ?, ?)`,
-            [loggedUser, String(p.situacao_contrato || 'AGUARDANDO ASSINATURA'), p.id, snapCtrEmail]
-          );
-        }
+        novaSitContratoEmail = p.situacao_contrato || 'EM ELABORAÇÃO';
       } else if (faseAtualNorm !== 'APROVADA' && faseAtualNorm !== 'PRE APROVADA' && faseAtualNorm !== 'PROPOSTA ENVIADA' && faseAtualNorm !== 'ENVIADO PARA ASSINATURA' && faseAtualNorm !== 'APROVADO - ADITIVO ASSINADO') {
         const snapEmail = JSON.stringify(Object.assign({}, p, {
           fase_negociacao: 'Proposta Enviada',
@@ -46646,7 +46624,7 @@ async function pollPropostasAditivoAssinafy(specificPropId = null) {
 
     const sqlWhere = specificPropId
       ? "WHERE id = ? AND assinafy_id IS NOT NULL AND TRIM(assinafy_id) != ''"
-      : "WHERE assinafy_id IS NOT NULL AND TRIM(assinafy_id) != '' AND (UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'ENVIADO PARA ASSINATURA' OR COALESCE(assinafy_status, '') IN ('Pendente', 'Assinatura Parcial') OR (COALESCE(assinafy_status, '') = 'Assinado' AND (assinafy_signed_r2_key IS NULL OR assinafy_signatarios_json LIKE '%17:%' OR assinafy_signatarios_json LIKE '%18:%' OR assinafy_signatarios_json LIKE '%19:%' OR assinafy_signatarios_json LIKE '%20:%')))";
+      : "WHERE assinafy_id IS NOT NULL AND TRIM(assinafy_id) != '' AND (UPPER(TRIM(COALESCE(fase_negociacao, ''))) = 'ENVIADO PARA ASSINATURA' OR UPPER(TRIM(COALESCE(situacao_contrato, ''))) IN ('ENVIADO PARA ASSINATURA DIGITAL', 'ENVIADO PARA ASSINATURA') OR COALESCE(assinafy_status, '') IN ('Pendente', 'Assinatura Parcial') OR (COALESCE(assinafy_status, '') = 'Assinado' AND (assinafy_signed_r2_key IS NULL OR assinafy_signatarios_json LIKE '%17:%' OR assinafy_signatarios_json LIKE '%18:%' OR assinafy_signatarios_json LIKE '%19:%' OR assinafy_signatarios_json LIKE '%20:%')))";
     const params = specificPropId ? [specificPropId] : [];
 
     const pendentes = await new Promise((resolve, reject) => {
@@ -47206,7 +47184,7 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
       const agora = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
       const faseAnterior = p.fase_negociacao || 'Em Elaboração';
       const faseNovaAssinafy = ehContratoAssinafy ? (p.fase_negociacao || 'Aprovada') : 'ENVIADO PARA ASSINATURA';
-      const sitContratoNovaAssinafy = ehContratoAssinafy ? 'ENVIADO PARA ASSINATURA' : (p.situacao_contrato || null);
+      const sitContratoNovaAssinafy = ehContratoAssinafy ? 'ENVIADO PARA ASSINATURA DIGITAL' : (p.situacao_contrato || null);
       const signatariosJsonSalvo = JSON.stringify(resultadoAssinafy.signatarios || []);
 
       const prodsAprovArr = Array.isArray(produtos_aprovados) ? produtos_aprovados.map(x => String(x || '').trim()).filter(Boolean) : [];
@@ -47282,7 +47260,7 @@ app.post('/api/propostas/:id/aprovar-aditivo-assinafy', authenticateToken, async
         : (reenviar ? 'Reenvio para Assinatura (Assinafy)' : 'Fase de Negociação');
       const antAuditoria = ehContratoAssinafy ? (p.situacao_contrato || 'AGUARDANDO ASSINATURA') : faseAnterior;
       const atuAuditoria = ehContratoAssinafy
-        ? `ENVIADO PARA ASSINATURA (Assinafy: ${emailSig})`
+        ? `ENVIADO PARA ASSINATURA DIGITAL (Assinafy: ${emailSig})`
         : `ENVIADO PARA ASSINATURA (Assinafy: ${emailSig})`;
       db.run(
         `INSERT INTO auditoria (usuario, programa, campo, conteudo_anterior, conteudo_atual, registro_id, snapshot_json)

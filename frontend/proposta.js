@@ -173,7 +173,8 @@ window.renderBadgeFaseNegociacaoHtml = function(faseRaw) {
 
 const CONTRATO_SITUACOES_CONFIG = [
     { nome: 'EM ELABORAÇÃO',                          cor: 'ORANGE',  bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', status: 'Aberto',  icon: 'ph-pencil' },
-    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt', somenteAutomatico: true },
+    { nome: 'ENVIADO PARA ASSINATURA DIGITAL',        cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt', somenteAutomatico: true, apenasQuandoAtivo: true },
+    { nome: 'ENVIADO PARA ASSINATURA',                cor: 'TEAL',    bg: '#ccfbf1', text: '#0f766e', border: '#5eead4', status: 'Aberto',  icon: 'ph-paper-plane-tilt', somenteAutomatico: true, ocultoContrato: true },
     { nome: 'CONTRATO ASSINADO',                      cor: 'GREEN',   bg: '#dcfce7', text: '#15803d', border: '#bbf7d0', status: 'Ativo',   icon: 'ph-signature' },
     { nome: 'SOLICITAÇÃO DE RETIRADA EM ANDAMENTO',   cor: 'RED',     bg: '#fee2e2', text: '#b91c1c', border: '#fecaca', status: 'Ativo',   icon: 'ph-truck' },
     { nome: 'ENTREGUE - LIBERADO PARA FATURAMENTO',   cor: 'DEFAULT', bg: '#dbeafe', text: '#1d4ed8', border: '#bfdbfe', status: 'Ativo',   icon: 'ph-receipt', ocultoContrato: true },
@@ -273,7 +274,7 @@ window.avaliarBloqueioSituacaoContratoOpcao = function(cfgAlvo, sitAtualRaw) {
     if (cfgAlvo.somenteAutomatico) {
         return {
             disabled: true,
-            title: 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy'
+            title: 'Definido automaticamente ao enviar o contrato para assinatura digital'
         };
     }
 
@@ -321,9 +322,14 @@ window.reconstruirOpcoesMenuSituacaoContrato = function(sitAtualRaw) {
     if (window._modoTelaComercial !== 'contrato') return;
     const sitVal = sitAtualRaw !== undefined ? sitAtualRaw : (document.getElementById('prop-fase')?.value || '');
     const sitSelNome = window.obterConfigSituacaoContrato(sitVal).nome;
+    const visivelNoMenuCtr = (cfg) => {
+        if (cfg.ocultoContrato) return sitSelNome.toUpperCase() === cfg.nome.toUpperCase();
+        if (cfg.apenasQuandoAtivo) return sitSelNome.toUpperCase() === cfg.nome.toUpperCase();
+        return true;
+    };
     const sel = document.getElementById('prop-fase');
     if (sel) {
-        sel.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
+        sel.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(visivelNoMenuCtr).map(cfg => {
             const isSel = sitSelNome.toUpperCase() === cfg.nome.toUpperCase();
             const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
             return `<option value="${cfg.nome}" ${isSel ? 'selected' : ''} ${bloq.disabled ? `disabled title="${_escHtmlProp(bloq.title)}"` : ''}>${cfg.nome} (${cfg.status.toUpperCase()})</option>`;
@@ -332,7 +338,7 @@ window.reconstruirOpcoesMenuSituacaoContrato = function(sitAtualRaw) {
     }
     const menu = document.getElementById('prop-fase-custom-menu');
     if (menu) {
-        menu.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
+        menu.innerHTML = CONTRATO_SITUACOES_CONFIG.filter(visivelNoMenuCtr).map(cfg => {
             const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const bloq = window.avaliarBloqueioSituacaoContratoOpcao(cfg, sitVal);
             const isDisCtr = Boolean(bloq.disabled);
@@ -1653,7 +1659,7 @@ window.enviarContratoParaAssinaturaPeloQuadro = async function() {
             await abrirFormProposta(finalId);
             Swal.fire({
                 icon: 'success',
-                title: 'Enviado para Assinatura!',
+                title: ehModoContrato ? 'Enviado para Assinatura Digital!' : 'Enviado para Assinatura!',
                 html: `O ${ehModoContrato ? 'PDF do contrato' : 'PDF da proposta'} foi enviado para <strong>${listaSignatariosEscolhidos.length} signatário(s)</strong>:<br><div style="margin-top:8px; font-size:0.84rem; color:#334155;">${listaSignatariosEscolhidos.map(s => `• <strong>${_escHtmlProp(s.nome)}</strong> (${_escHtmlProp(s.tipo)}) — ${_escHtmlProp(s.email)}`).join('<br>')}</div>`,
                 confirmButtonColor: '#0f766e'
             });
@@ -5091,20 +5097,27 @@ function _renderFormPropostaInt() {
                                 </button>
                                 <div id="prop-fase-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
                                     ${window._modoTelaComercial === 'contrato'
-                                        ? CONTRATO_SITUACOES_CONFIG.filter(cfg => !cfg.ocultoContrato).map(cfg => {
-                                            const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                                            const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
-                                                ? window.avaliarBloqueioSituacaoContratoOpcao(cfg, v('situacao_contrato'))
-                                                : { disabled: Boolean(cfg.somenteAutomatico), title: 'Definido automaticamente ao clicar em Baixar PDF, Enviar WhatsApp, Enviar E-mail ou Enviar para Assinatura via Assinafy' };
-                                            const isDisCtr = Boolean(bloq.disabled);
-                                            const titleDisCtr = bloq.title ? `title="${_escHtmlProp(bloq.title)}"` : '';
-                                            return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', ${isDisCtr ? 'true' : 'false'}, event)"
-                                                ${titleDisCtr}
-                                                style="padding:6px 8px; border-radius:6px; cursor:${isDisCtr ? 'not-allowed' : 'pointer'}; opacity:${isDisCtr ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
-                                                onmouseover="if(!${isDisCtr}) this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                                                ${window.renderBadgeSituacaoContratoHtml(cfg.nome, true)}
-                                            </div>`;
-                                        }).join('')
+                                        ? (() => {
+                                            const sitIniNome = window.obterConfigSituacaoContrato(v('situacao_contrato')).nome;
+                                            return CONTRATO_SITUACOES_CONFIG.filter(cfg => {
+                                                if (cfg.ocultoContrato) return sitIniNome.toUpperCase() === cfg.nome.toUpperCase();
+                                                if (cfg.apenasQuandoAtivo) return sitIniNome.toUpperCase() === cfg.nome.toUpperCase();
+                                                return true;
+                                            }).map(cfg => {
+                                                const nomeEsc = cfg.nome.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                                                const bloq = typeof window.avaliarBloqueioSituacaoContratoOpcao === 'function'
+                                                    ? window.avaliarBloqueioSituacaoContratoOpcao(cfg, v('situacao_contrato'))
+                                                    : { disabled: Boolean(cfg.somenteAutomatico), title: 'Definido automaticamente ao enviar o contrato para assinatura digital' };
+                                                const isDisCtr = Boolean(bloq.disabled);
+                                                const titleDisCtr = bloq.title ? `title="${_escHtmlProp(bloq.title)}"` : '';
+                                                return `<div onclick="window.selecionarFasePropostaCustom('${nomeEsc}', ${isDisCtr ? 'true' : 'false'}, event)"
+                                                    ${titleDisCtr}
+                                                    style="padding:6px 8px; border-radius:6px; cursor:${isDisCtr ? 'not-allowed' : 'pointer'}; opacity:${isDisCtr ? '0.48' : '1'}; display:flex; align-items:center; justify-content:flex-start; transition:background 0.12s;"
+                                                    onmouseover="if(!${isDisCtr}) this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                                                    ${window.renderBadgeSituacaoContratoHtml(cfg.nome, true)}
+                                                </div>`;
+                                            }).join('');
+                                        })()
                                         : PROP_FASES.map(f => {
                                             const ehTipoAssinafyOpt = window.propostaTipoUsaAssinafy && window.propostaTipoUsaAssinafy(v('tipo'));
                                             const foiAssinadaAssinafyOpt = Boolean(window.propostaFoiAssinadaViaAssinafy && window.propostaFoiAssinadaViaAssinafy(prop));
@@ -6410,6 +6423,7 @@ window.marcarPropostaComoEditada = function(opcoes = {}) {
             const faseNorm = String(selFase.value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
             if (isModoCtrEdicao) {
                 const sitsVoltamElaboracao = [
+                    'ENVIADO PARA ASSINATURA DIGITAL',
                     'ENVIADO PARA ASSINATURA',
                     'AGUARDANDO ASSINATURA',
                     'CONTRATO ASSINADO',
@@ -10325,6 +10339,7 @@ window.salvarPropostaNova = async function() {
         const sitNormSalvar = String(fase || (propExistAssinafy && propExistAssinafy.situacao_contrato) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
         const oldSitCtrSalvar = String((propExistAssinafy && propExistAssinafy.situacao_contrato) || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
         const sitsVoltamElabSalvar = [
+            'ENVIADO PARA ASSINATURA DIGITAL',
             'ENVIADO PARA ASSINATURA',
             'AGUARDANDO ASSINATURA',
             'CONTRATO ASSINADO',
@@ -10337,7 +10352,7 @@ window.salvarPropostaNova = async function() {
             'CANCELADA',
             'CANCELADO'
         ];
-        if (sitsVoltamElabSalvar.includes(sitNormSalvar) && (sitNormSalvar === oldSitCtrSalvar || sitNormSalvar === 'ENVIADO PARA ASSINATURA' || sitNormSalvar === 'AGUARDANDO ASSINATURA' || sitNormSalvar === 'CONTRATO ASSINADO' || sitNormSalvar === 'CONTRATO DIGITAL ASSINADO')) {
+        if (sitsVoltamElabSalvar.includes(sitNormSalvar) && (sitNormSalvar === oldSitCtrSalvar || sitNormSalvar === 'ENVIADO PARA ASSINATURA DIGITAL' || sitNormSalvar === 'ENVIADO PARA ASSINATURA' || sitNormSalvar === 'AGUARDANDO ASSINATURA' || sitNormSalvar === 'CONTRATO ASSINADO' || sitNormSalvar === 'CONTRATO DIGITAL ASSINADO')) {
             fase = 'EM ELABORAÇÃO';
             const selF = document.getElementById('prop-fase');
             if (selF) selF.value = 'EM ELABORAÇÃO';
@@ -11499,7 +11514,7 @@ window.aprovarPropostaEdicao = async function() {
                 await abrirFormProposta(finalId);
                 if (typeof mostrarToastSucesso === 'function') {
                     mostrarToastSucesso(ehModoContratoAssinafy
-                        ? `PDF do Contrato enviado para assinatura via Assinafy (${respAssinafy.email_signatario || ''})!`
+                        ? `PDF do Contrato enviado para assinatura via Assinafy (${respAssinafy.email_signatario || ''})! Situação: ENVIADO PARA ASSINATURA DIGITAL.`
                         : `${labelDocAssinafy} enviado(a) para assinatura via Assinafy (${respAssinafy.email_signatario || ''})! Situação: ENVIADO PARA ASSINATURA.`);
                 }
             } else {
@@ -12434,37 +12449,17 @@ window._marcarPropostaComoEnviadaAuto = function(propId, sincronizarServidor = f
 
 window._marcarContratoComoEnviadoAssinaturaAuto = function(propId, sincronizarServidor = true, acao = '', detalhe = '') {
     if (window._modoTelaComercial !== 'contrato') return;
-    const normSit = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
-    const selFase = document.getElementById('prop-fase');
-    if (selFase) {
-        const sAtual = normSit(selFase.value || 'AGUARDANDO ASSINATURA');
-        if (!sAtual || sAtual === 'AGUARDANDO ASSINATURA' || sAtual === 'EM ELABORACAO') {
-            selFase.value = 'ENVIADO PARA ASSINATURA';
-            if (typeof window.atualizarBadgeSituacaoContratoForm === 'function') {
-                window.atualizarBadgeSituacaoContratoForm('ENVIADO PARA ASSINATURA');
-            }
-        }
-    }
     const idAlvo = propId || _propostasEditandoId;
-    if (idAlvo && Array.isArray(_propostasData)) {
-        const pObj = _propostasData.find(pr => Number(pr.id) === Number(idAlvo));
-        if (pObj) {
-            const sObj = normSit(pObj.situacao_contrato || 'AGUARDANDO ASSINATURA');
-            if (!sObj || sObj === 'AGUARDANDO ASSINATURA' || sObj === 'EM ELABORACAO') {
-                pObj.situacao_contrato = 'ENVIADO PARA ASSINATURA';
-            }
-        }
-    }
     if (typeof window.atualizarVisibilidadeBotoesPosSalvoProposta === 'function') {
         window.atualizarVisibilidadeBotoesPosSalvoProposta();
     }
-    if (sincronizarServidor && idAlvo) {
+    if (sincronizarServidor && idAlvo && acao) {
         try {
             apiPost('/propostas/' + idAlvo + '/registrar-acao', {
                 modo_contrato: true,
-                apenas_mudar_situacao_contrato: !acao,
-                acao: acao || undefined,
-                detalhe: detalhe || acao || undefined
+                nao_mudar_situacao_contrato: true,
+                acao: acao,
+                detalhe: detalhe || acao
             });
         } catch (_) {}
     }
@@ -23989,38 +23984,34 @@ window.tipoPropostaEhLimpaFossa = function(tipo) {
 window._propDiasLimpaFossaDraft = window._propDiasLimpaFossaDraft || [];
 window._propDiasLimpaFossaExpandidoMap = window._propDiasLimpaFossaExpandidoMap || {};
 
-window._garantirTamanhoArrayDiasLimpaFossa = function(arrAtual, qtdAlvo, dataSugerida = '') {
+window._garantirTamanhoArrayDiasLimpaFossa = function(arrAtual, qtdAlvo) {
     const qtd = Math.max(0, parseInt(qtdAlvo, 10) || 0);
-    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
-        ? window.obterIntervaloPeriodoProposta()
-        : { ini: '', fim: '', valido: false };
-    const dtDefault = dataSugerida || (per && per.ini) || '';
     const base = Array.isArray(arrAtual) ? arrAtual.map(it => {
-        if (!it) return { data: dtDefault, ini: '', fim: '', comercial: true };
+        if (!it) return { data: '', ini: '', fim: '', comercial: false };
         if (typeof it === 'object' && ('comercial' in it || 'ini' in it || 'fim' in it)) {
+            const ehComObj = Boolean(it.comercial);
             return {
-                data: String(it.data || dtDefault).trim().slice(0, 10),
-                ini: String(it.ini || '').trim(),
-                fim: String(it.fim || '').trim(),
-                comercial: Boolean(it.comercial)
+                data: String(it.data || '').trim().slice(0, 10),
+                ini: ehComObj ? '08:00' : String(it.ini || '').trim(),
+                fim: ehComObj ? '18:00' : String(it.fim || '').trim(),
+                comercial: ehComObj
             };
         }
         const parsed = window._parseDiasEventoItem(it);
         const ehCom = Boolean(parsed.comercial || /^comercial$/i.test(String(parsed.horario || '').trim()));
         return {
-            data: String(parsed.data || dtDefault).trim().slice(0, 10),
-            ini: ehCom ? '' : String(parsed.horario_ini || ''),
-            fim: ehCom ? '' : String(parsed.horario_fim || ''),
+            data: String(parsed.data || '').trim().slice(0, 10),
+            ini: ehCom ? '08:00' : String(parsed.horario_ini || ''),
+            fim: ehCom ? '18:00' : String(parsed.horario_fim || ''),
             comercial: ehCom
         };
     }) : [];
     while (base.length < qtd) {
-        const ref = base[base.length - 1] || { data: dtDefault, ini: '', fim: '', comercial: true };
         base.push({
-            data: ref.data || dtDefault,
-            ini: ref.ini || '',
-            fim: ref.fim || '',
-            comercial: Boolean(ref.comercial)
+            data: '',
+            ini: '',
+            fim: '',
+            comercial: false
         });
     }
     if (base.length > qtd) base.length = qtd;
@@ -24072,14 +24063,14 @@ window.atualizarPainelAddDiasLimpaFossa = function(tipoOverride) {
                 <input type="date" value="${_escHtmlProp(dObj.data || '')}" ${minAttr} ${maxAttr}
                     onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'data', this.value)"
                     style="height:24px; padding:1px 5px; border:1px solid ${dataOk ? '#a78bfa' : '#ef4444'}; border-radius:5px; font-size:0.73rem; font-weight:700; background:#fff; color:#1e293b; width:auto !important;">
-                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700; ${isCom ? 'opacity:0.45;' : ''}">de</span>
-                <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700;">de</span>
+                <input type="time" value="${_escHtmlProp(isCom ? '08:00' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
                     onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'ini', this.value)"
-                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; width:auto !important;">
-                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700; ${isCom ? 'opacity:0.45;' : ''}">até</span>
-                <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
+                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#6ee7b7' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#ecfdf5' : '#fff'}; color:#1e293b; width:auto !important;">
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700;">até</span>
+                <input type="time" value="${_escHtmlProp(isCom ? '18:00' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
                     onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'fim', this.value)"
-                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; width:auto !important;">
+                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#6ee7b7' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#ecfdf5' : '#fff'}; color:#1e293b; width:auto !important;">
                 <label style="display:inline-flex; align-items:center; gap:3px; font-size:0.69rem; color:${isCom ? '#047857' : '#5b21b6'}; background:${isCom ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isCom ? '#6ee7b7' : '#ddd6fe'}; padding:2px 6px; border-radius:5px; cursor:pointer; font-weight:700; user-select:none;">
                     <input type="checkbox" ${isCom ? 'checked' : ''} onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'comercial', this.checked)" style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;"> Horário comercial
                 </label>
@@ -24107,7 +24098,10 @@ window.atualizarCampoDraftDiaLimpaFossa = function(idx, campo, valor) {
         }
         window._propDiasLimpaFossaDraft[idx].data = iso;
     } else if (campo === 'comercial') {
-        window._propDiasLimpaFossaDraft[idx].comercial = Boolean(valor);
+        const marcado = Boolean(valor);
+        window._propDiasLimpaFossaDraft[idx].comercial = marcado;
+        window._propDiasLimpaFossaDraft[idx].ini = marcado ? '08:00' : '';
+        window._propDiasLimpaFossaDraft[idx].fim = marcado ? '18:00' : '';
     } else if (campo === 'ini' || campo === 'fim') {
         window._propDiasLimpaFossaDraft[idx][campo] = String(valor || '').trim();
         window._propDiasLimpaFossaDraft[idx].comercial = false;
@@ -24185,7 +24179,10 @@ window.atualizarDiaLimpaFossaNoGrid = function(pIdx, dIdx, campo, valor) {
         }
         listaObj[dIdx].data = iso;
     } else if (campo === 'comercial') {
-        listaObj[dIdx].comercial = Boolean(valor);
+        const marcado = Boolean(valor);
+        listaObj[dIdx].comercial = marcado;
+        listaObj[dIdx].ini = marcado ? '08:00' : '';
+        listaObj[dIdx].fim = marcado ? '18:00' : '';
     } else if (campo === 'ini' || campo === 'fim') {
         listaObj[dIdx][campo] = String(valor || '').trim();
         listaObj[dIdx].comercial = false;
@@ -24209,7 +24206,7 @@ window.htmlDiasLimpaFossaGrid = function(p, idx) {
 
     const expandido = window._propDiasLimpaFossaExpandidoMap && window._propDiasLimpaFossaExpandidoMap[idx] !== undefined
         ? Boolean(window._propDiasLimpaFossaExpandidoMap[idx])
-        : true;
+        : false;
     const fmtBr = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? String(iso).split('-').reverse().join('/') : (iso || 'Sem data');
     const minAttr = per.valido && per.ini ? `min="${_escHtmlProp(per.ini)}"` : '';
     const maxAttr = per.valido && per.fim ? `max="${_escHtmlProp(per.fim)}"` : '';
@@ -24238,14 +24235,14 @@ window.htmlDiasLimpaFossaGrid = function(p, idx) {
                     <input type="date" value="${_escHtmlProp(dObj.data || '')}" ${minAttr} ${maxAttr}
                         onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'data', this.value)"
                         style="border:1px solid ${dOk ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:21px; width:auto !important;">
-                    <span style="font-size:0.67rem; color:#6d28d9; ${isCom ? 'opacity:0.45;' : ''}">de</span>
-                    <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
+                    <span style="font-size:0.67rem; color:#6d28d9;">de</span>
+                    <input type="time" value="${_escHtmlProp(isCom ? '08:00' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
                         onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'ini', this.value)"
-                        style="border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
-                    <span style="font-size:0.67rem; color:#6d28d9; ${isCom ? 'opacity:0.45;' : ''}">até</span>
-                    <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
+                        style="border:1px solid ${isCom ? '#6ee7b7' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#ecfdf5' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
+                    <span style="font-size:0.67rem; color:#6d28d9;">até</span>
+                    <input type="time" value="${_escHtmlProp(isCom ? '18:00' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
                         onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'fim', this.value)"
-                        style="border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
+                        style="border:1px solid ${isCom ? '#6ee7b7' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#ecfdf5' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
                     <label style="display:inline-flex; align-items:center; gap:3px; font-size:0.67rem; color:${isCom ? '#047857' : '#5b21b6'}; background:${isCom ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isCom ? '#6ee7b7' : '#ddd6fe'}; padding:1px 5px; border-radius:4px; cursor:pointer; font-weight:700;">
                         <input type="checkbox" ${isCom ? 'checked' : ''} onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'comercial', this.checked)" style="width:auto !important; height:auto !important; margin:0; accent-color:#059669;"> Comercial
                     </label>
@@ -24801,28 +24798,28 @@ window.renderizarDiasEventoProposta = function() {
                     <span class="prop-chip-dia-evento" onclick="event.stopPropagation();" style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; width:100%; box-sizing:border-box; background:#ede9fe; color:#5b21b6; border:1px solid ${temHorario ? '#c4b5fd' : '#fca5a5'}; padding:3px 8px; border-radius:8px; font-size:0.78rem; font-weight:700;">
                         <i class="ph ph-calendar-check" style="font-size:0.85rem;"></i>
                         <span style="font-variant-numeric:tabular-nums;">${fmt}</span>
-                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">de</span>
+                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600;">de</span>
                         <input type="time"
                             data-dia-evento-iso="${iso}"
                             data-dia-evento-campo="ini"
-                            value="${isComercial ? '' : _escHtmlProp(hp.ini)}"
+                            value="${isComercial ? '08:00' : _escHtmlProp(hp.ini)}"
                             ${isComercial ? 'disabled' : ''}
                             onclick="event.stopPropagation();"
                             oninput="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'ini')"
                             onchange="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'ini')"
                             title="Horário inicial do evento / sucção para o dia ${fmt}"
-                            style="border:1px solid ${isComercial ? '#cbd5e1' : (iniOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none; ${isComercial ? 'opacity:0.55;' : ''}">
-                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600; ${isComercial ? 'opacity:0.45;' : ''}">até</span>
+                            style="border:1px solid ${isComercial ? '#6ee7b7' : (iniOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#ecfdf5' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none;">
+                        <span style="font-size:0.72rem; color:#6d28d9; font-weight:600;">até</span>
                         <input type="time"
                             data-dia-evento-iso="${iso}"
                             data-dia-evento-campo="fim"
-                            value="${isComercial ? '' : _escHtmlProp(hp.fim)}"
+                            value="${isComercial ? '18:00' : _escHtmlProp(hp.fim)}"
                             ${isComercial ? 'disabled' : ''}
                             onclick="event.stopPropagation();"
                             oninput="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'fim')"
                             onchange="window.atualizarHorarioDiaEventoProposta('${iso}', this.value, event, 'fim')"
                             title="Horário final do evento / sucção para o dia ${fmt}"
-                            style="border:1px solid ${isComercial ? '#cbd5e1' : (fimOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none; ${isComercial ? 'opacity:0.55;' : ''}">
+                            style="border:1px solid ${isComercial ? '#6ee7b7' : (fimOk ? '#a78bfa' : '#ef4444')}; background:${isComercial ? '#ecfdf5' : '#fff'}; color:#1e293b; border-radius:5px; padding:1px 5px; font-size:0.75rem; font-weight:700; height:24px; width:auto !important; cursor:${isComercial ? 'not-allowed' : 'pointer'}; outline:none;">
                         <label onclick="event.stopPropagation();" style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; color:${isComercial ? '#047857' : '#5b21b6'}; background:${isComercial ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isComercial ? '#6ee7b7' : '#ddd6fe'}; padding:2px 6px; border-radius:5px; cursor:pointer; font-weight:700; user-select:none;" title="Indicar que a manutenção neste dia pode ser feita em horário comercial (sem horário fixo)">
                             <input type="checkbox"
                                 data-dia-evento-comercial="${iso}"
@@ -28266,6 +28263,10 @@ window.adicionarProdutoProposta = async function() {
         valor_unitario: valorUnitarioFinal,
         valor_total: valorTotalFinal
     });
+    if (!window._propDiasLimpaFossaExpandidoMap) window._propDiasLimpaFossaExpandidoMap = {};
+    window._propDiasLimpaFossaExpandidoMap[window._propProdutosAdicionados.length - 1] = false;
+    if (!window._propDiasProdutoExpandidoMap) window._propDiasProdutoExpandidoMap = {};
+    window._propDiasProdutoExpandidoMap[window._propProdutosAdicionados.length - 1] = false;
     const tipoAtuAddProd = String(document.getElementById('prop-tipo')?.value || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
     if (tipoAtuAddProd === 'EVENTO' && typeof window.propostaTemProdutoParceiros === 'function' && window.propostaTemProdutoParceiros(window._propProdutosAdicionados)) {
         const elModImp = document.getElementById('prop-modelo');
@@ -28678,11 +28679,16 @@ window.renderizarProdutosPropostaGrid = function() {
                 : '');
         const qtdDiasProd = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean).length : 0;
         const expandidoProdDias = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
+        const expandidoLfDias = Boolean(window._propDiasLimpaFossaExpandidoMap && window._propDiasLimpaFossaExpandidoMap[idx]);
         const btnToggleDiasAcaoHtml = (usaDias && qtdDiasProd >= 1)
-            ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandidoProdDias ? 'Recolher detalhes das diárias' : 'Aumentar detalhes das diárias'}" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+            ? `<button type="button" onclick="window.toggleDetalhesDiasProdutoGrid(${idx})" title="${expandidoProdDias ? 'Recolher detalhes das diárias' : 'Abrir detalhes das diárias'}" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
                         <i class="ph ph-caret-${expandidoProdDias ? 'up' : 'down'}" style="font-size:0.95rem; font-weight:700;"></i>
                     </button>`
-            : '';
+            : ((ehLfGrid && qtd >= 2)
+                ? `<button type="button" onclick="window.toggleDetalhesDiasLimpaFossaGrid(${idx})" title="${expandidoLfDias ? 'Recolher dias da Limpa Fossa' : 'Abrir e editar dias da Limpa Fossa'}" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; width:28px; height:28px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s;" onmouseover="this.style.background='#ddd6fe'" onmouseout="this.style.background='#ede9fe'">
+                        <i class="ph ph-caret-${expandidoLfDias ? 'up' : 'down'}" style="font-size:0.95rem; font-weight:700;"></i>
+                    </button>`
+                : '');
 
         const podeDescGrid = typeof window.usuarioPodeIncluirDescontoProposta === 'function' ? window.usuarioPodeIncluirDescontoProposta() : false;
         const temValorTabelaItem = window.itemTemValorNaTabelaPrecos({ codigo: p.codigo, nome: nomeProd, grupo_produto: p.grupo_produto, tem_valor_tabela: p.tem_valor_tabela });

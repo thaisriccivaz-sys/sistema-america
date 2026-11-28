@@ -323,7 +323,7 @@
 
     function resolverModalidadeObraEventoOs(prop, dadosOs) {
         const tipoOpAtu = normStr(resolverTipoOsComercial(prop));
-        if (tipoOpAtu === 'compras') {
+        if (tipoOpAtu === 'compras' || tipoOpAtu === 'limpa fossa') {
             return '-';
         }
         if (osVeioDeContrato(prop)) {
@@ -516,11 +516,14 @@
             const mManual = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(prop._tipoOsManual));
             if (mManual) return mManual.nome;
         }
+        const tipoCtr = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+        if ((tipoCtr === 'LIMPA FOSSA' || tipoCtr.startsWith('LIMPA FOSSA')) && (!salvo || normStr(salvo) === 'envio')) {
+            return 'Limpa fossa';
+        }
         const matchSalvo = OS_COMERCIAL_TIPOS_CONFIG.find(t => normStr(t.nome) === normStr(salvo));
         if (matchSalvo) return matchSalvo.nome;
 
-        const tipoCtr = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        if (tipoCtr === 'LIMPA FOSSA') return 'Limpa fossa';
+        if (tipoCtr === 'LIMPA FOSSA' || tipoCtr.startsWith('LIMPA FOSSA')) return 'Limpa fossa';
 
         let itensArr = [];
         try {
@@ -608,7 +611,7 @@
         const tNorm = normStr(tipoOsVal);
         const modAtual = resolverModalidadeObraEventoOs(prop, dadosOs);
         const ehEvento = normStr(modAtual) === 'evento';
-        const ehObra = !ehEvento;
+        const ehObra = !ehEvento && normStr(modAtual) !== '-';
         const temFob = propostaTemFreteFob(prop);
         const itensAtivos = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
         const servsAtivos = obterServicosMescladosOs(prop).filter(s => s && !s._substituido_por_aditivo);
@@ -752,6 +755,61 @@
         return Array.from(mapDias.values()).sort((a, b) => a.data.localeCompare(b.data));
     }
 
+    function extrairServicosIniciaisContratoLimpaFossaOs(prop) {
+        if (!prop) return [];
+        let servsBase = [];
+        try {
+            servsBase = typeof prop.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop.itens_servicos) ? prop.itens_servicos : []);
+        } catch (_) { servsBase = []; }
+        if (Array.isArray(servsBase) && servsBase.filter(Boolean).length > 0) {
+            return servsBase.filter(Boolean).map(s => {
+                const nm = normalizarNomeServicoSemZonaOs(s.servico || s.produto || s.descricao || 'LIMPA FOSSA') || 'LIMPA FOSSA';
+                return {
+                    codigo: '',
+                    servico: nm,
+                    descricao: nm,
+                    observacao: String(s.observacao || '').trim(),
+                    valor_unitario: 0,
+                    valor_total: 0,
+                    frete_fob: false
+                };
+            });
+        }
+        const itensMesclados = obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo);
+        return itensMesclados.map(it => {
+            const nmRaw = String(it.produto || it.descricao || it.nome || 'LIMPA FOSSA').replace(/^\d+\s*-\s*/, '').trim();
+            const nm = normalizarNomeServicoSemZonaOs(nmRaw) || nmRaw || 'LIMPA FOSSA';
+            const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+            const obsPartes = [];
+            if (qtd > 1) obsPartes.push(`Qtd: ${qtd}`);
+            const diasLf = Array.isArray(it.dias_limpa_fossa) && it.dias_limpa_fossa.length > 0
+                ? it.dias_limpa_fossa
+                : (Array.isArray(it.dias_evento) ? it.dias_evento : []);
+            if (qtd >= 2 && diasLf.length > 0) {
+                const diasTxt = diasLf.map((raw, idxD) => {
+                    const s = String(raw || '').trim();
+                    const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/);
+                    if (!m) return '';
+                    const dtBr = m[1].split('-').reverse().join('/');
+                    const hRaw = String(m[2] || '').trim();
+                    const hBr = (!hRaw || /^comercial$/i.test(hRaw)) ? '08:00 às 18:00' : hRaw.replace('-', ' às ');
+                    return `${idxD + 1}º: ${dtBr} (${hBr})`;
+                }).filter(Boolean).join(' · ');
+                if (diasTxt) obsPartes.push(diasTxt);
+            }
+            if (String(it.observacao || '').trim()) obsPartes.push(String(it.observacao || '').trim());
+            return {
+                codigo: '',
+                servico: nm,
+                descricao: nm,
+                observacao: obsPartes.join(' | '),
+                valor_unitario: 0,
+                valor_total: 0,
+                frete_fob: false
+            };
+        });
+    }
+
     function inicializarDadosOsComercial(prop) {
         if (!prop) return null;
         let salvo = {};
@@ -763,10 +821,14 @@
             } catch (_) { salvo = {}; }
         }
 
+        const tipoOpResNorm = normStr(resolverTipoOsComercial(prop));
+        const ehSemModalidadeInit = (tipoOpResNorm === 'compras' || tipoOpResNorm === 'limpa fossa');
         const tipoLimpoUp = String(prop.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
-        const modResolvida = salvo.modalidade_os || salvo.modalidade_obra_evento || (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO') ? 'Evento' : 'Obra');
-        const ehObra = modResolvida === 'Obra';
-        const ehEvento = modResolvida === 'Evento';
+        const modResolvida = ehSemModalidadeInit
+            ? '-'
+            : (salvo.modalidade_os || salvo.modalidade_obra_evento || (tipoLimpoUp === 'EVENTO' || tipoLimpoUp.includes('EVENTO') ? 'Evento' : 'Obra'));
+        const ehEvento = !ehSemModalidadeInit && modResolvida === 'Evento';
+        const permiteAgendarRet = !ehEvento && tipoOpResNorm !== 'compras';
 
         const temRetiradaSalva = Boolean(
             String(salvo.data_retirada || '').trim() ||
@@ -774,26 +836,35 @@
             salvo.retirada_horario_comercial
         );
 
+        const servsLimpaFossaIniciais = Array.isArray(salvo.servicos_os_limpa_fossa)
+            ? salvo.servicos_os_limpa_fossa
+            : ((tipoOpResNorm === 'limpa fossa' && osVeioDeContrato(prop))
+                ? extrairServicosIniciaisContratoLimpaFossaOs(prop)
+                : undefined);
+
         return {
             modalidade_os: modResolvida,
             modalidade_obra_evento: modResolvida,
             data_entrega: salvo.data_entrega !== undefined ? salvo.data_entrega : '',
-            hora_entrega: salvo.hora_entrega !== undefined ? salvo.hora_entrega : '',
+            hora_entrega: salvo.entrega_horario_comercial ? '08:00 às 18:00' : (salvo.hora_entrega !== undefined ? salvo.hora_entrega : ''),
             entrega_horario_comercial: ehEvento ? false : Boolean(salvo.entrega_horario_comercial),
 
-            agendar_retirada: ehObra ? (salvo.agendar_retirada !== undefined ? Boolean(salvo.agendar_retirada) : temRetiradaSalva) : false,
+            agendar_retirada: permiteAgendarRet ? (salvo.agendar_retirada !== undefined ? Boolean(salvo.agendar_retirada) : temRetiradaSalva) : false,
             data_retirada: salvo.data_retirada !== undefined ? salvo.data_retirada : '',
-            hora_retirada: salvo.hora_retirada !== undefined ? salvo.hora_retirada : '',
+            hora_retirada: salvo.retirada_horario_comercial ? '08:00 às 18:00' : (salvo.hora_retirada !== undefined ? salvo.hora_retirada : ''),
             retirada_horario_comercial: ehEvento ? false : Boolean(salvo.retirada_horario_comercial),
 
             qtd_manutencoes: formatarTextoQtdManutencoes(salvo.qtd_manutencoes) || extrairQuantidadeManutencoesProposta(prop),
-            horario_manutencao: salvo.horario_manutencao !== undefined ? salvo.horario_manutencao : '',
+            horario_manutencao: salvo.manutencao_horario_comercial ? '08:00 às 18:00' : (salvo.horario_manutencao !== undefined ? salvo.horario_manutencao : ''),
             manutencao_horario_comercial: ehEvento ? false : Boolean(salvo.manutencao_horario_comercial),
-            dias_semana_manutencao: Array.isArray(salvo.dias_semana_manutencao) ? salvo.dias_semana_manutencao : [],
+            dias_semana_manutencao: tipoOpResNorm === 'limpa fossa' ? [] : (Array.isArray(salvo.dias_semana_manutencao) ? salvo.dias_semana_manutencao : []),
 
-            dias_evento: Array.isArray(salvo.dias_evento) && salvo.dias_evento.length > 0
-                ? salvo.dias_evento
-                : extrairDiasEventoInicialDaProposta(prop),
+            dias_evento: ehSemModalidadeInit
+                ? []
+                : (Array.isArray(salvo.dias_evento) && salvo.dias_evento.length > 0
+                    ? salvo.dias_evento
+                    : extrairDiasEventoInicialDaProposta(prop)),
+            ...(servsLimpaFossaIniciais !== undefined ? { servicos_os_limpa_fossa: servsLimpaFossaIniciais } : {}),
 
             fob_data_entrega: salvo.fob_data_entrega !== undefined ? salvo.fob_data_entrega : '',
             fob_data_retirada: salvo.fob_data_retirada !== undefined ? salvo.fob_data_retirada : '',
@@ -1062,6 +1133,21 @@
         if (!prop || !prop.id) {
             return Array.isArray(state.itensServicosDraft) ? state.itensServicosDraft.filter(Boolean) : [];
         }
+        if (osVeioDeContrato(prop) && normStr(resolverTipoOsComercial(prop)) === 'limpa fossa') {
+            if (state.dadosOs && Array.isArray(state.dadosOs.servicos_os_limpa_fossa)) {
+                return state.dadosOs.servicos_os_limpa_fossa.filter(Boolean);
+            }
+            let salvoJson = {};
+            try {
+                salvoJson = typeof prop.os_comercial_dados_json === 'string'
+                    ? JSON.parse(prop.os_comercial_dados_json || '{}')
+                    : (prop.os_comercial_dados_json || {});
+            } catch (_) { salvoJson = {}; }
+            if (Array.isArray(salvoJson.servicos_os_limpa_fossa)) {
+                return salvoJson.servicos_os_limpa_fossa.filter(Boolean);
+            }
+            return extrairServicosIniciaisContratoLimpaFossaOs(prop);
+        }
         let servsBase = [];
         try {
             servsBase = typeof prop?.itens_servicos === 'string' ? JSON.parse(prop.itens_servicos || '[]') : (Array.isArray(prop?.itens_servicos) ? prop.itens_servicos : []);
@@ -1328,9 +1414,11 @@
 
     function renderServicosGridHtml(prop) {
         const veioDeCtr = osVeioDeContrato(prop);
+        const ehLfServ = normStr(resolverTipoOsComercial(prop)) === 'limpa fossa';
+        const permiteEditarServ = !veioDeCtr || ehLfServ;
         const servsTodos = obterServicosMescladosOs(prop);
         const servsAtivos = servsTodos.filter(s => s && !s._substituido_por_aditivo);
-        const totalCols = veioDeCtr ? 2 : 3;
+        const totalCols = permiteEditarServ ? 3 : 2;
 
         const badge = document.getElementById('cos-servicos-count-badge');
         if (badge) {
@@ -1361,7 +1449,7 @@
                     </span>
                 </td>
                 <td style="padding:6px 8px; color:#475569; ${strikeStyle}">${esc(obs || '—')}</td>
-                ${!veioDeCtr ? `<td style="padding:6px; text-align:center;">
+                ${permiteEditarServ ? `<td style="padding:6px; text-align:center;">
                     <button type="button" onclick="window._comercialOS.removerServicoOsAvulsa(${idx})" title="Remover serviço da OS"
                         style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; width:24px !important; padding:0 !important;">
                         <i class="ph ph-trash"></i>
@@ -1450,8 +1538,6 @@
         const tipoOsResolvido = resolverTipoOsComercial(prop);
         const tipoOsPreenchido = Boolean(String(tipoOsResolvido || '').trim());
         const modalidadeAtual = resolverModalidadeObraEventoOs(prop, d);
-        const ehEvento = normStr(modalidadeAtual) === 'evento';
-        const ehObra = !ehEvento;
 
         const clienteNomeRaw = limparPrefixoGrupoSeguroOs(isNovo ? (d.cliente_nome_draft || '') : v('cliente_nome'));
         const clienteNomeFormatado = (clienteNomeRaw && typeof window.formatarNomeClienteComIcone === 'function')
@@ -1460,8 +1546,13 @@
 
         const regrasPS = obterRegrasProdutosEServicosOs(prop, d);
         const ehComprasOs = regrasPS.ehCompras;
-        const modalidadeBloqueada = veioDeContrato || ehComprasOs;
-        const temFob = regrasPS.temFob;
+        const ehLimpaFossaOs = regrasPS.ehLimpaFossa;
+        const ehSemModalidadeOs = ehComprasOs || ehLimpaFossaOs;
+        const ehEvento = !ehSemModalidadeOs && normStr(modalidadeAtual) === 'evento';
+        const ehObra = !ehSemModalidadeOs && !ehEvento;
+        const modalidadeBloqueada = veioDeContrato || ehSemModalidadeOs;
+        const permiteEditarServicosOs = !veioDeContrato || ehLimpaFossaOs;
+        const temFob = ehLimpaFossaOs ? false : regrasPS.temFob;
         const checkObrig = verificarCamposObrigatoriosOsPreenchidos();
         const lockPorTipoAttr = !tipoOsPreenchido ? 'disabled' : '';
         const lockPorTipoTitle = !tipoOsPreenchido ? 'Selecione primeiro o Tipo * de OS para liberar o preenchimento dos demais campos.' : '';
@@ -1716,14 +1807,14 @@
                                     <button type="button" id="cos-modalidade-custom-btn"
                                         ${modalidadeBloqueada ? 'disabled' : ''}
                                         onclick="window._comercialOS.toggleMenuModalidadeOs(event)"
-                                        title="${ehComprasOs ? 'Para OS do tipo Compras não há modalidade Obra / Evento.' : (veioDeContrato ? 'A modalidade (Obra / Evento) vem automaticamente do Contrato vinculado e não pode ser alterada.' : 'Selecionar Obra ou Evento')}"
+                                        title="${ehSemModalidadeOs ? 'Para este tipo de OS não há modalidade Obra / Evento.' : (veioDeContrato ? 'A modalidade (Obra / Evento) vem automaticamente do Contrato vinculado e não pode ser alterada.' : 'Selecionar Obra ou Evento')}"
                                         style="width:100% !important; display:flex !important; justify-content:space-between !important; align-items:center !important; padding:0 8px !important; border:1px solid #cbd5e1; background:${modalidadeBloqueada ? '#f8fafc' : '#fff'}; cursor:${modalidadeBloqueada ? 'not-allowed' : 'pointer'};">
                                         <span id="cos-modalidade-custom-badge" style="display:inline-flex; align-items:center; gap:6px;">
-                                            ${window.renderBadgeModalidadeObraEventoOsHtml(ehComprasOs ? '-' : modalidadeAtual)}
+                                            ${window.renderBadgeModalidadeObraEventoOsHtml(ehSemModalidadeOs ? '-' : modalidadeAtual)}
                                         </span>
-                                        ${!modalidadeBloqueada ? `<i class="ph ph-caret-down" style="font-size:0.82rem; color:#64748b;"></i>` : (ehComprasOs ? '' : `<i class="ph ph-lock-simple" style="font-size:0.78rem; color:#94a3b8;"></i>`)}
+                                        ${!modalidadeBloqueada ? `<i class="ph ph-caret-down" style="font-size:0.82rem; color:#64748b;"></i>` : (ehSemModalidadeOs ? '' : `<i class="ph ph-lock-simple" style="font-size:0.78rem; color:#94a3b8;"></i>`)}
                                     </button>
-                                    <input type="hidden" id="cos-modalidade-os" value="${esc(ehComprasOs ? '-' : modalidadeAtual)}">
+                                    <input type="hidden" id="cos-modalidade-os" value="${esc(ehSemModalidadeOs ? '-' : modalidadeAtual)}">
                                     ${!modalidadeBloqueada ? `
                                         <div id="cos-modalidade-custom-menu" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 10px 25px rgba(15,23,42,0.14); z-index:1100; padding:6px;">
                                             ${['Obra', 'Evento'].map(mod => `
@@ -1941,7 +2032,7 @@
                                                         <label class="prop-lbl">Horário de funcionamento <span style="color:#dc2626;">*</span></label>
                                                         <input type="text" id="cos-hora-entrega" inputmode="numeric" maxlength="14"
                                                             data-prev-hora="${esc(d.entrega_horario_comercial ? '' : (d.hora_entrega || ''))}"
-                                                            value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
+                                                            value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00' : (d.hora_entrega || ''))}"
                                                             placeholder="HH:MM às HH:MM"
                                                             ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
                                                             oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'hora_entrega')" style="width:100%;">
@@ -1959,7 +2050,7 @@
                                     }
                                     const mostrarBlocoRetirada = ehEvento || Boolean(d.agendar_retirada);
                                     return `
-                                        <div style="display:grid; grid-template-columns:${mostrarBlocoRetirada ? (ehObra ? '1.25fr 1fr' : '1fr 1fr') : '1fr'}; gap:0.6rem; margin-bottom:0.45rem;">
+                                        <div style="display:grid; grid-template-columns:${mostrarBlocoRetirada ? (!ehEvento ? '1.25fr 1fr' : '1fr 1fr') : '1fr'}; gap:0.6rem; margin-bottom:0.45rem;">
                                             <!-- Bloco Entrega -->
                                             <div style="background:rgba(255,255,255,0.75); border:1px solid #bbf7d0; border-radius:6px; padding:0.45rem 0.6rem;">
                                                 <div style="display:grid; grid-template-columns:${ehEvento ? '1fr 1fr' : '1fr 1fr auto auto'}; gap:0.45rem; align-items:end;">
@@ -1972,7 +2063,7 @@
                                                         <label class="prop-lbl">Horário da Entrega <span style="color:#dc2626;">*</span></label>
                                                         <input type="text" id="cos-hora-entrega" inputmode="numeric" maxlength="14"
                                                             data-prev-hora="${esc(d.entrega_horario_comercial ? '' : (d.hora_entrega || ''))}"
-                                                            value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_entrega || ''))}"
+                                                            value="${esc(d.entrega_horario_comercial ? '08:00 às 18:00' : (d.hora_entrega || ''))}"
                                                             placeholder="HH:MM às HH:MM"
                                                             ${(!tipoOsPreenchido || d.entrega_horario_comercial) ? 'disabled' : ''}
                                                             oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'hora_entrega')" style="width:100%;">
@@ -2009,7 +2100,7 @@
                                                             <label class="prop-lbl">Horário da Retirada <span style="color:#dc2626;">*</span></label>
                                                             <input type="text" id="cos-hora-retirada" inputmode="numeric" maxlength="14"
                                                                 data-prev-hora="${esc(d.retirada_horario_comercial ? '' : (d.hora_retirada || ''))}"
-                                                                value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00 (Comercial)' : (d.hora_retirada || ''))}"
+                                                                value="${esc(d.retirada_horario_comercial ? '08:00 às 18:00' : (d.hora_retirada || ''))}"
                                                                 placeholder="HH:MM às HH:MM"
                                                                 ${(!tipoOsPreenchido || d.retirada_horario_comercial) ? 'disabled' : ''}
                                                                 oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'hora_retirada')" style="width:100%;">
@@ -2089,7 +2180,7 @@
                                             <label class="prop-lbl">Horário da Manutenção</label>
                                             <input type="text" id="cos-horario-manutencao" inputmode="numeric" maxlength="14"
                                                 data-prev-hora="${esc(d.manutencao_horario_comercial ? '' : (d.horario_manutencao || ''))}"
-                                                value="${esc(d.manutencao_horario_comercial ? '08:00 às 18:00 (Horário Comercial)' : (d.horario_manutencao || ''))}"
+                                                value="${esc(d.manutencao_horario_comercial ? '08:00 às 18:00' : (d.horario_manutencao || ''))}"
                                                 placeholder="HH:MM às HH:MM"
                                                 ${(!tipoOsPreenchido || d.manutencao_horario_comercial) ? 'disabled' : ''}
                                                 oninput="window._comercialOS.onInputHorarioIntervaloOs(this, 'horario_manutencao')" style="width:100%;">
@@ -2101,7 +2192,8 @@
                                                 <span>Horário comercial</span>
                                             </label>
                                         </div>
-                                        <!-- Dias da Semana (ao lado direito do Horário comercial da Manutenção, padrão OS da Logística) -->
+                                        ${!ehLimpaFossaOs ? `
+                                        <!-- Dias da Semana (ao lado direito do Horário comercial da Manutenção, oculto em OS do tipo Limpa fossa) -->
                                         <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap; padding-left:4px; border-left:1px solid #cbd5e1;">
                                             <button type="button" id="cos-btn-agenda-endereco" ${!tipoOsPreenchido ? 'disabled' : ''}
                                                 onclick="window._comercialOS.buscarAgendaEnderecoOs(event)"
@@ -2128,6 +2220,7 @@
                                             }).join('')}
                                             <div id="cos-sugestoes-dias-container" style="flex-basis:100%; font-size:0.73rem; padding:2px 4px; display:none;"></div>
                                         </div>
+                                        ` : ''}
                                     </div>
                                 ` : ''}
 
@@ -2338,7 +2431,7 @@
                                 </button>
                             </div>
                             <div id="cos-secao-servicos-body" style="display:${state.secoesAbertas.servicos ? 'block' : 'none'}; margin-top:0.45rem;">
-                                ${!veioDeContrato ? `
+                                ${permiteEditarServicosOs ? `
                                     <div style="display:grid; grid-template-columns:2.1fr 2fr ${ehObra ? 'auto' : ''} auto; gap:0.45rem; align-items:end; margin-bottom:0.5rem;">
                                         <div>
                                             <label class="prop-lbl">Serviço ${regrasPS.servicoObrigatorio ? '<span style="color:#dc2626;">*</span>' : ''}</label>
@@ -2388,7 +2481,7 @@
                                             <tr style="background:#f8fafc; border-bottom:2px solid #cbd5e1; color:#475569; font-size:0.7rem; text-transform:uppercase;">
                                                 <th style="padding:8px;">Serviço</th>
                                                 <th style="padding:8px;">Observação</th>
-                                                ${!veioDeContrato ? '<th style="padding:8px 6px; text-align:center; width:52px;">Ações</th>' : ''}
+                                                ${permiteEditarServicosOs ? '<th style="padding:8px 6px; text-align:center; width:52px;">Ações</th>' : ''}
                                             </tr>
                                         </thead>
                                         <tbody id="cos-servicos-tbody">
@@ -3222,6 +3315,7 @@
             const val = String(novoTipo || '').trim();
             if (state.osAtual && state.osAtual.id) {
                 state.osAtual.os_tipo_operacao = val;
+                state.osAtual._tipoOsManual = val;
             } else {
                 state.tipoOsDraft = val;
                 if (!state.dadosOs) {
@@ -3259,7 +3353,8 @@
                 event.stopPropagation();
             }
             if (osVeioDeContrato(state.osAtual)) return;
-            if (normStr(resolverTipoOsComercial(state.osAtual)) === 'compras') return;
+            const tOpMenu = normStr(resolverTipoOsComercial(state.osAtual));
+            if (tOpMenu === 'compras' || tOpMenu === 'limpa fossa') return;
             const menu = document.getElementById('cos-modalidade-custom-menu');
             if (!menu) return;
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
@@ -4012,6 +4107,13 @@
 
         _obterListaServicosMutavelOs() {
             if (state.osAtual && state.osAtual.id) {
+                if (osVeioDeContrato(state.osAtual) && normStr(resolverTipoOsComercial(state.osAtual)) === 'limpa fossa') {
+                    if (!state.dadosOs) state.dadosOs = {};
+                    if (!Array.isArray(state.dadosOs.servicos_os_limpa_fossa)) {
+                        state.dadosOs.servicos_os_limpa_fossa = obterServicosMescladosOs(state.osAtual).map(s => ({ ...s }));
+                    }
+                    return state.dadosOs.servicos_os_limpa_fossa;
+                }
                 let arr = [];
                 try {
                     arr = typeof state.osAtual.itens_servicos === 'string' ? JSON.parse(state.osAtual.itens_servicos || '[]') : (Array.isArray(state.osAtual.itens_servicos) ? state.osAtual.itens_servicos : []);
@@ -4024,6 +4126,11 @@
 
         _salvarListaServicosMutavelOs(novaLista) {
             if (state.osAtual && state.osAtual.id) {
+                if (osVeioDeContrato(state.osAtual) && normStr(resolverTipoOsComercial(state.osAtual)) === 'limpa fossa') {
+                    if (!state.dadosOs) state.dadosOs = {};
+                    state.dadosOs.servicos_os_limpa_fossa = novaLista;
+                    return;
+                }
                 state.osAtual.itens_servicos = novaLista;
             } else {
                 state.itensServicosDraft = novaLista;
@@ -4350,7 +4457,7 @@
         },
 
         async abrirModalPesquisaServicosOs() {
-            if (osVeioDeContrato(state.osAtual)) return;
+            if (osVeioDeContrato(state.osAtual) && normStr(resolverTipoOsComercial(state.osAtual)) !== 'limpa fossa') return;
             const servs = await this._obterServicosUnicosCatalogoOs();
             const termoIni = String(document.getElementById('cos-serv-input')?.value || '').trim();
 
@@ -4423,7 +4530,7 @@
         },
 
         adicionarServicoOsAvulsa() {
-            if (osVeioDeContrato(state.osAtual)) return;
+            if (osVeioDeContrato(state.osAtual) && normStr(resolverTipoOsComercial(state.osAtual)) !== 'limpa fossa') return;
             const inp = document.getElementById('cos-serv-input');
             const nomeDigitado = String(inp?.value || '').trim();
             const nomeRaw = normalizarNomeServicoSemZonaOs(nomeDigitado) || nomeDigitado;
@@ -4469,7 +4576,7 @@
         },
 
         removerServicoOsAvulsa(idx) {
-            if (osVeioDeContrato(state.osAtual)) return;
+            if (osVeioDeContrato(state.osAtual) && normStr(resolverTipoOsComercial(state.osAtual)) !== 'limpa fossa') return;
             const lista = this._obterListaServicosMutavelOs();
             if (idx < 0 || idx >= lista.length) return;
             lista.splice(idx, 1);
@@ -4780,31 +4887,44 @@
 
         onToggleHorarioComercial(qual, checked) {
             if (!state.dadosOs) state.dadosOs = {};
+            const ehHoraComPadrao = (v) => /^08:00\s*[aà]s\s*18:00/i.test(String(v || '').trim());
             if (qual === 'entrega') {
                 state.dadosOs.entrega_horario_comercial = Boolean(checked);
-                if (checked) state.dadosOs.hora_entrega = '08:00 às 18:00';
+                if (checked) {
+                    state.dadosOs.hora_entrega = '08:00 às 18:00';
+                } else if (ehHoraComPadrao(state.dadosOs.hora_entrega)) {
+                    state.dadosOs.hora_entrega = '';
+                }
                 const inp = document.getElementById('cos-hora-entrega');
                 if (inp) {
                     inp.disabled = Boolean(checked);
-                    inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_entrega || '');
+                    inp.value = checked ? '08:00 às 18:00' : (state.dadosOs.hora_entrega || '');
                     inp.dataset.prevHora = checked ? '' : (state.dadosOs.hora_entrega || '');
                 }
             } else if (qual === 'retirada') {
                 state.dadosOs.retirada_horario_comercial = Boolean(checked);
-                if (checked) state.dadosOs.hora_retirada = '08:00 às 18:00';
+                if (checked) {
+                    state.dadosOs.hora_retirada = '08:00 às 18:00';
+                } else if (ehHoraComPadrao(state.dadosOs.hora_retirada)) {
+                    state.dadosOs.hora_retirada = '';
+                }
                 const inp = document.getElementById('cos-hora-retirada');
                 if (inp) {
                     inp.disabled = Boolean(checked);
-                    inp.value = checked ? '08:00 às 18:00 (Comercial)' : (state.dadosOs.hora_retirada || '');
+                    inp.value = checked ? '08:00 às 18:00' : (state.dadosOs.hora_retirada || '');
                     inp.dataset.prevHora = checked ? '' : (state.dadosOs.hora_retirada || '');
                 }
             } else if (qual === 'manutencao') {
                 state.dadosOs.manutencao_horario_comercial = Boolean(checked);
-                if (checked) state.dadosOs.horario_manutencao = '08:00 às 18:00';
+                if (checked) {
+                    state.dadosOs.horario_manutencao = '08:00 às 18:00';
+                } else if (ehHoraComPadrao(state.dadosOs.horario_manutencao)) {
+                    state.dadosOs.horario_manutencao = '';
+                }
                 const inp = document.getElementById('cos-horario-manutencao');
                 if (inp) {
                     inp.disabled = Boolean(checked);
-                    inp.value = checked ? '08:00 às 18:00 (Horário Comercial)' : (state.dadosOs.horario_manutencao || '');
+                    inp.value = checked ? '08:00 às 18:00' : (state.dadosOs.horario_manutencao || '');
                     inp.dataset.prevHora = checked ? '' : (state.dadosOs.horario_manutencao || '');
                 }
             }
@@ -5016,10 +5136,15 @@
 
             const regrasPS = obterRegrasProdutosEServicosOs(state.osAtual, state.dadosOs);
             const ehComprasSalvar = regrasPS.ehCompras;
-            const modAtual = ehComprasSalvar ? '-' : resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
+            const ehLimpaFossaSalvar = regrasPS.ehLimpaFossa;
+            const modAtual = (ehComprasSalvar || ehLimpaFossaSalvar) ? '-' : resolverModalidadeObraEventoOs(state.osAtual, state.dadosOs);
             if (!state.dadosOs) state.dadosOs = {};
             state.dadosOs.modalidade_os = modAtual;
             state.dadosOs.modalidade_obra_evento = modAtual;
+            if (ehLimpaFossaSalvar) {
+                state.dadosOs.dias_semana_manutencao = [];
+                state.dadosOs.dias_evento = [];
+            }
 
             const clienteRawInput = ehComprasSalvar
                 ? ''
@@ -5105,8 +5230,8 @@
                 }
                 return false;
             }
-            if (!veioDeContrato) {
-                if (regrasPS.produtoObrigatorio && regrasPS.itensAtivos.length === 0) {
+            if (!veioDeContrato || ehLimpaFossaSalvar) {
+                if (!veioDeContrato && regrasPS.produtoObrigatorio && regrasPS.itensAtivos.length === 0) {
                     if (!silencioso) {
                         Swal.fire('Produto obrigatório', `Para OS do tipo "${tipoOperacao}", é obrigatório adicionar pelo menos um produto.`, 'warning');
                     }
@@ -5161,7 +5286,7 @@
                 endereco_instalacao: enderecoAtualVal,
                 ...(!veioDeContrato ? {
                     modalidade_obra_evento: modAtual,
-                    tipo: ehComprasSalvar ? 'Compras' : (modAtual === 'Evento' ? 'Proposta Evento' : 'Proposta Obra'),
+                    tipo: ehComprasSalvar ? 'Compras' : (ehLimpaFossaSalvar ? 'Limpa fossa' : (modAtual === 'Evento' ? 'Proposta Evento' : 'Proposta Obra')),
                     titulo_contrato: String(document.getElementById('cos-titulo-contrato')?.value || '').trim(),
                     cliente_nome: clienteLimpo,
                     nome_evento: String(document.getElementById('cos-nome-evento')?.value || '').trim(),

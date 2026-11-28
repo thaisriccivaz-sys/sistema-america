@@ -54,9 +54,10 @@
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(tEfetivo);
     };
 
-    /* O quadro de Serviços aparece em todos os modelos na tela de Contratos, e na proposta em OBRA, EVENTO, EQUIPAMENTOS e ADITIVO */
+    /* O quadro de Serviços aparece na tela de Contratos (exceto LIMPA FOSSA e VENDA), e na proposta em OBRA, EVENTO, EQUIPAMENTOS e ADITIVO */
     window.tipoPropostaUsaServicos = function (tipo) {
         const t = tipoLimpo(tipo);
+        if (t === 'LIMPA FOSSA' || t.startsWith('LIMPA FOSSA')) return false;
         if (window._modoTelaComercial === 'contrato') return true;
         if (Array.isArray(window._propServicosAdicionados) && window._propServicosAdicionados.length > 0) return true;
         return window.TIPOS_PROPOSTA_COM_SERVICOS.includes(t) || window.TIPOS_PROPOSTA_SERVICO_OPCIONAL.includes(t);
