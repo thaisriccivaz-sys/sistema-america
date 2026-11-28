@@ -1027,7 +1027,187 @@
         return { ok: pendencias.length === 0, pendencias };
     }
 
+    function coletarDadosResumoLateralOs() {
+        const prop = state.osAtual;
+        const d = state.dadosOs || {};
+        const isNovo = !prop || !prop.id;
+        const v = (campo) => prop ? (prop[campo] || '') : '';
+        const regrasPS = obterRegrasProdutosEServicosOs(prop, d);
+        const ehCompras = regrasPS.ehCompras;
+        const modAtual = resolverModalidadeObraEventoOs(prop, d);
+        const ehEv = !ehCompras && !regrasPS.ehLimpaFossa && normStr(modAtual) === 'evento';
+
+        const cliDomEl = document.getElementById('cos-cliente');
+        const cliRaw = cliDomEl
+            ? cliDomEl.value
+            : (isNovo ? (d.cliente_nome_draft || '') : v('cliente_nome'));
+        const clienteLimpo = limparPrefixoGrupoSeguroOs(cliRaw);
+        const clienteInterno = (clienteLimpo && typeof window.formatarNomeClienteComIcone === 'function')
+            ? window.formatarNomeClienteComIcone(clienteLimpo)
+            : clienteLimpo;
+
+        const ctsInst = Array.isArray(d.contatos_instalacao)
+            ? d.contatos_instalacao.map(x => String(x || '').trim()).filter(Boolean)
+            : extrairContatosInstalacaoIniciaisOs(prop, d);
+
+        const listaEnds = obterListaEnderecosEstadoAtualOs(prop, d);
+
+        const prodsLinhas = [];
+        const itensAtivos = regrasPS.mostrarQuadroProdutos
+            ? obterProdutosMescladosOs(prop).filter(it => it && !it._substituido_por_aditivo)
+            : [];
+        itensAtivos.forEach(it => {
+            const assoc = associarProdutoComEquipamentoOsLogistica(it, prop || { tipo: ehEv ? 'EVENTO' : 'OBRA MENSAL' });
+            const qtd = Math.max(1, parseInt(it.quantidade ?? it.qtde ?? 1, 10) || 1);
+            const diasArr = Array.isArray(it.dias_evento) ? it.dias_evento.filter(Boolean) : [];
+            const nDiarias = ehEv ? (diasArr.length > 0 ? diasArr.length : Math.max(1, parseInt(it.diarias ?? prop?.dias_contrato ?? 1, 10) || 1)) : 1;
+            const numManut = parseInt(String(it.manut_semana || '').replace(/\D+/g, ''), 10) || 0;
+            const complFreq = ehEv
+                ? `${nDiarias} diária(s)`
+                : (numManut > 0 ? `${numManut}x/sem.` : '');
+            const obs = String(it.observacao || '').trim();
+            prodsLinhas.push({
+                icone: assoc.icone || '',
+                texto: `${qtd}x ${assoc.nome}${complFreq ? ` (${complFreq})` : ''}${obs ? ` — ${obs}` : ''}`
+            });
+        });
+
+        const distPorEnd = {};
+        if (listaEnds.length > 1 && itensAtivos.length > 0 && Array.isArray(d.distribuicao_enderecos)) {
+            listaEnds.forEach((_, eIdx) => {
+                const partes = [];
+                itensAtivos.forEach((it, pIdx) => {
+                    const q = parseInt(d.distribuicao_enderecos[eIdx]?.quantidades?.[pIdx] ?? 0, 10) || 0;
+                    if (q > 0) {
+                        const assoc = associarProdutoComEquipamentoOsLogistica(it, prop || { tipo: ehEv ? 'EVENTO' : 'OBRA MENSAL' });
+                        partes.push(`${q}x ${assoc.nome}`);
+                    }
+                });
+                if (partes.length > 0) distPorEnd[eIdx] = partes.join(', ');
+            });
+        }
+
+        const servsLinhas = [];
+        const servsAtivos = regrasPS.mostrarQuadroServicos
+            ? obterServicosMescladosOs(prop).filter(s => s && !s._substituido_por_aditivo)
+            : [];
+        servsAtivos.forEach(s => {
+            const nomeRaw = String(s.servico || s.produto || s.descricao || s.nome || '').trim();
+            const nome = normalizarNomeServicoSemZonaOs(nomeRaw) || nomeRaw;
+            if (!nome) return;
+            const obs = String(s.observacao || '').trim();
+            const ehFob = Boolean(s.frete_fob || normStr(nome).includes('fob'));
+            servsLinhas.push(`${nome}${ehFob && !normStr(nome).includes('fob') ? ' (Frete FOB)' : ''}${obs ? ` — ${obs}` : ''}`);
+        });
+        if (regrasPS.mostrarQuadroServicos && servsLinhas.length === 0 && regrasPS.temFob && !regrasPS.ehLimpaFossa) {
+            servsLinhas.push('Frete FOB');
+        }
+
+        const infoComprasDom = document.getElementById('cos-info-importantes-compras');
+        const infoComprasTxt = String(infoComprasDom ? infoComprasDom.value : (d.informacoes_importantes || '')).trim();
+
+        return {
+            ehCompras,
+            mostrarProdutos: regrasPS.mostrarQuadroProdutos,
+            mostrarServicos: regrasPS.mostrarQuadroServicos,
+            mostrarInfoCompras: regrasPS.mostrarQuadroInfoCompras,
+            clienteLimpo,
+            clienteInterno,
+            ctsInst,
+            listaEnds,
+            distPorEnd,
+            prodsLinhas,
+            servsLinhas,
+            infoComprasTxt
+        };
+    }
+
+    function gerarConteudoResumoOsHtml() {
+        const r = coletarDadosResumoLateralOs();
+        const vazioSpan = (txt) => `<span style="color:#94a3b8; font-style:italic; font-weight:500;">${esc(txt)}</span>`;
+        const blocoStyle = 'padding:5px 0; border-bottom:1px dashed #e2e8f0; line-height:1.35;';
+        const rotuloStyle = 'font-size:0.68rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.03em; display:block; margin-bottom:1px;';
+        const valorStyle = 'font-size:0.76rem; font-weight:600; color:#0f172a; overflow-wrap:break-word; word-break:break-word;';
+
+        const htmlCliente = !r.ehCompras ? `
+            <div style="${blocoStyle}">
+                <span style="${rotuloStyle}">Cliente</span>
+                <div style="${valorStyle}; font-weight:700;">${r.clienteInterno ? esc(r.clienteInterno) : vazioSpan('Não informado')}</div>
+            </div>
+        ` : '';
+
+        const htmlContatoInst = !r.ehCompras ? `
+            <div style="${blocoStyle}">
+                <span style="${rotuloStyle}">Contato(s) de Instalação</span>
+                <div style="${valorStyle}">${r.ctsInst.length > 0
+                    ? r.ctsInst.map(c => `<div>• ${esc(c)}</div>`).join('')
+                    : vazioSpan('Não informado')}</div>
+            </div>
+        ` : '';
+
+        const htmlEndereco = `
+            <div style="${blocoStyle}">
+                <span style="${rotuloStyle}">${r.ehCompras ? 'Endereço(s) de Retirada' : 'Endereço(s) de Instalação'}</span>
+                <div style="${valorStyle}">${r.listaEnds.length > 0
+                    ? r.listaEnds.map((end, idx) => {
+                        const prefixo = r.listaEnds.length > 1 ? `<strong>#${idx + 1}:</strong> ` : '';
+                        const subDist = r.distPorEnd[idx]
+                            ? `<div style="font-size:0.7rem; color:#1d4ed8; font-weight:700; margin-top:1px;">↳ ${esc(r.distPorEnd[idx])}</div>`
+                            : '';
+                        return `<div style="${idx > 0 ? 'margin-top:3px;' : ''}">${prefixo}${esc(end)}${subDist}</div>`;
+                    }).join('')
+                    : vazioSpan('Não informado')}</div>
+            </div>
+        `;
+
+        const partesProdServ = [];
+        if (r.mostrarProdutos) {
+            partesProdServ.push(`
+                <div style="margin-bottom:${r.mostrarServicos ? '4px' : '0'};">
+                    <span style="font-size:0.69rem; font-weight:700; color:#475569;">Produtos:</span>
+                    ${r.prodsLinhas.length > 0
+                        ? r.prodsLinhas.map(p => `<div style="${valorStyle}">• ${p.icone ? `${p.icone} ` : ''}${esc(p.texto)}</div>`).join('')
+                        : `<div>${vazioSpan('Nenhum produto adicionado')}</div>`}
+                </div>
+            `);
+        }
+        if (r.mostrarServicos) {
+            partesProdServ.push(`
+                <div>
+                    <span style="font-size:0.69rem; font-weight:700; color:#475569;">Serviços:</span>
+                    ${r.servsLinhas.length > 0
+                        ? r.servsLinhas.map(s => `<div style="${valorStyle}">• ${esc(s)}</div>`).join('')
+                        : `<div>${vazioSpan('Nenhum serviço adicionado')}</div>`}
+                </div>
+            `);
+        }
+        if (r.mostrarInfoCompras) {
+            partesProdServ.push(`
+                <div>
+                    <span style="font-size:0.69rem; font-weight:700; color:#475569;">Informações Importantes:</span>
+                    <div style="${valorStyle}; white-space:pre-line;">${r.infoComprasTxt ? esc(r.infoComprasTxt) : vazioSpan('Não preenchido')}</div>
+                </div>
+            `);
+        }
+
+        const htmlProdServ = `
+            <div style="padding:5px 0 0 0; line-height:1.35;">
+                <span style="${rotuloStyle}">${r.mostrarInfoCompras ? 'Detalhes da Retirada' : 'Produtos e Serviços'}</span>
+                ${partesProdServ.join('')}
+            </div>
+        `;
+
+        return `${htmlCliente}${htmlContatoInst}${htmlEndereco}${htmlProdServ}`;
+    }
+
+    function atualizarQuadroResumoOs() {
+        const el = document.getElementById('cos-resumo-lateral-body');
+        if (!el) return;
+        el.innerHTML = gerarConteudoResumoOsHtml();
+    }
+
     function atualizarVisibilidadeBotaoEnviarLogistica() {
+        atualizarQuadroResumoOs();
         const btn = document.getElementById('btn-cos-enviar-logistica');
         if (!btn) return;
         const check = verificarCamposObrigatoriosOsPreenchidos();
@@ -1723,6 +1903,18 @@
                 #view-comercial-os table td {
                     padding: 0.3rem 0.45rem !important;
                 }
+                #view-comercial-os .cos-topo-resumo-grid {
+                    display: grid;
+                    grid-template-columns: minmax(250px, 1fr) minmax(0, 2fr);
+                    gap: 0.85rem;
+                    align-items: stretch;
+                    margin-bottom: 0.55rem;
+                }
+                @media (max-width: 980px) {
+                    #view-comercial-os .cos-topo-resumo-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
             </style>
             <div style="background:#fff; width:100%; border-radius:14px; box-shadow:0 5px 20px rgba(0,0,0,0.05); overflow:visible; margin:0 auto; border: 1px solid #e2e8f0; font-family:'Inter',sans-serif;">
                 <!-- Toolbar Superior -->
@@ -1772,14 +1964,28 @@
                 <!-- Corpo do Formulário -->
                 <div style="padding:1.25rem 1.5rem;">
                     <form id="form-comercial-os" autocomplete="off" onsubmit="return false;">
+                        <!-- Topo dividido: 1/3 lateral esquerda (Quadro Resumo) + 2/3 direita (Dados da OS e Dados do Cliente) -->
+                        <div class="cos-topo-resumo-grid">
+                            <!-- Lateral Esquerda (1/3): Quadro Resumo -->
+                            <aside id="cos-resumo-lateral-card" style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:9px; padding:0.6rem 0.85rem; display:flex; flex-direction:column; box-sizing:border-box; min-width:0;">
+                                <h4 style="margin:0 0 0.35rem !important; color:#1e3a8a !important; border-bottom:1.5px solid #cbd5e1 !important;">
+                                    <i class="ph ph-article" style="color:#2563eb;"></i> Resumo
+                                </h4>
+                                <div id="cos-resumo-lateral-body" style="flex:1; overflow-y:auto; max-height:255px; padding-right:2px; text-transform:none;">
+                                    ${gerarConteudoResumoOsHtml()}
+                                </div>
+                            </aside>
+
+                            <!-- Direita (2/3): Dados da OS + Dados do Cliente -->
+                            <div style="display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
                         <!-- Linha 1: Nº da OS, Tipo *, Obra / Evento (ao lado direito do Tipo *), Atendente, Data Cadastro * -->
-                        <div style="display:grid; grid-template-columns:1fr 1.55fr 0.95fr 1.3fr 0.95fr; gap:1rem; margin-bottom:1rem;">
+                        <div style="display:grid; grid-template-columns:0.95fr 1.35fr 0.95fr 1.25fr 0.95fr; gap:1rem; margin-bottom:1rem;">
                             <div>
                                 <label class="prop-lbl">Nº da OS</label>
                                 <div style="display:flex; gap:0.25rem; align-items:center;">
                                     <input type="text" id="cos-codigo" value="${isNovo ? '' : esc(String(v('numero_os') || '').toUpperCase())}"
                                         ${!isNovo ? 'readonly' : ''}
-                                        placeholder="Nº da OS, cliente, contrato ou proposta..."
+                                        placeholder="Nº OS, cliente, ctr..."
                                         title="Pressione Enter ou clique na lupa para pesquisar outra OS"
                                         onkeydown="if(event.key==='Enter'){ event.preventDefault(); event.stopPropagation(); window._comercialOS.pesquisarPorCampoOsInput(); }"
                                         style="flex:1; font-weight:700;">
@@ -1911,7 +2117,7 @@
 
                         <!-- Seção: Dados do Cliente (oculta para OS do tipo Compras) -->
                         ${!ehComprasOs ? `
-                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
+                        <div style="background:#fdf2f8; border:1px solid #fbcfe8; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
                             <h4 style="margin:0 0 0.35rem !important;">
                                 <i class="ph ph-buildings" style="color:#7048e8;"></i> Dados do Cliente <span style="color:#dc2626;">*</span>
                             </h4>
@@ -1999,6 +2205,8 @@
                             </div>
                         </div>
                         ` : ''}
+                            </div>
+                        </div>
 
                         <!-- Seção: Entrega, Manutenções e Retiradas (ou Informações de retirada quando Compras) -->
                         <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9px; padding:0.55rem 0.85rem; margin-bottom:0.55rem; ${lockPorTipoStyle}" onclick="window._comercialOS.onClickCampoBloqueadoPorTipoOs(event)">
