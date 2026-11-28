@@ -2316,13 +2316,7 @@ window.propostaEstaAssinadaOuAprovada = function(p) {
 };
 
 window.podeExcluirPropostaAtual = function(p) {
-    if (p && window.propostaEstaAssinadaOuAprovada(p)) return false;
-    if (window.usuarioLogadoEhThais && window.usuarioLogadoEhThais()) return true;
-    const ctx = window._contextoUsuarioComercial;
-    if (ctx && (ctx.pode_excluir_proposta === true || ctx.is_gestor_departamento === true)) {
-        return true;
-    }
-    return false;
+    return Boolean(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais());
 };
 
 /* Regra: Apenas o gestor de algum departamento que tiver liberação de acesso para a tela de proposta pode incluir desconto */
@@ -5477,8 +5471,8 @@ function _renderFormPropostaInt() {
                             <div>
                                 <label class="prop-lbl">Quantidade</label>
                                 <input type="number" id="prop-prod-quantidade" value="${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '10' : '1'}" min="${window.tipoPropostaEhVenda && window.tipoPropostaEhVenda(v('tipo')) ? '10' : '1'}"
-                                    oninput="window.recalcularPreviewProdutoProposta('qtd')"
-                                    onchange="if(typeof window.validarMinimoQuantidadeVendaInput === 'function') window.validarMinimoQuantidadeVendaInput(this);"
+                                    oninput="window.recalcularPreviewProdutoProposta('qtd'); if(typeof window.atualizarPainelAddDiasLimpaFossa === 'function') window.atualizarPainelAddDiasLimpaFossa();"
+                                    onchange="if(typeof window.validarMinimoQuantidadeVendaInput === 'function') window.validarMinimoQuantidadeVendaInput(this); if(typeof window.atualizarPainelAddDiasLimpaFossa === 'function') window.atualizarPainelAddDiasLimpaFossa();"
                                     style="width:100%; padding:0.55rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; box-sizing:border-box; height:28px; background:#fff;">
                             </div>
                         </div>
@@ -5598,6 +5592,25 @@ function _renderFormPropostaInt() {
                             <div id="prop-dias-evento-popover" onclick="event.stopPropagation()"
                                 style="display:none; position:absolute; top:calc(100% + 5px); left:0; z-index:1090; width:360px !important; box-sizing:border-box !important; background:#fff; border:1px solid #cbd5e1; border-radius:10px; box-shadow:0 12px 28px rgba(15,23,42,0.18); padding:0.85rem !important; font-family:'Inter',sans-serif;">
                             </div>
+                        </div>
+
+                        <!-- Dias de Execução da Limpa Fossa (exibido quando Proposta = Limpa Fossa e Quantidade >= 2) -->
+                        <div id="prop-wrapper-dias-limpa-fossa" style="display:none; margin:0 0 0.65rem 0; padding:0.6rem 0.75rem; background:#faf5ff; border:1px solid #ddd6fe; border-radius:8px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                                <label class="prop-lbl" style="margin:0; display:flex; align-items:center; gap:6px; color:#5b21b6; font-weight:800;">
+                                    <i class="ph ph-calendar-check" style="color:#7048e8; font-size:0.98rem;"></i>
+                                    <span>Dias e Horários da Limpa Fossa *</span>
+                                    <span id="prop-dias-limpa-fossa-badge" style="background:#ede9fe; color:#6d28d9; border:1px solid #c4b5fd; padding:1px 8px; border-radius:999px; font-size:0.71rem; font-weight:800;"></span>
+                                </label>
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <button type="button" onclick="window.replicarHorarioAddLimpaFossa()"
+                                        title="Copiar o horário do 1º atendimento para todos os demais atendimentos abaixo"
+                                        style="background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:0 0.75rem; height:28px; border-radius:6px; font-size:0.74rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                                        <i class="ph ph-clock" style="font-size:0.9rem;"></i> Replicar horários
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="prop-dias-limpa-fossa-rows" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px;"></div>
                         </div>
                         <div id="prop-wrapper-btn-add-sem-dias" style="display:${window.tipoPropostaUsaDiasEvento(v('tipo')) ? 'none' : 'flex'}; justify-content:flex-end; margin:0 0 0.65rem 0;">
                             <button type="button" onclick="window.adicionarProdutoProposta()" style="background:#16a34a; color:#fff; border:none; border-radius:6px; padding:0 1.25rem; height:32px; font-size:0.78rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center; gap:5px;" onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
@@ -6044,14 +6057,15 @@ window.aplicarBloqueioCamposPropostaNoContrato = function() {
                 chkComp.parentElement.style.opacity = '0.65';
             }
         }
-        ['prop-prod-add-grid', 'prop-prod-valores-grid', 'prop-wrapper-dias-evento'].forEach(idBloco => {
+        ['prop-prod-add-grid', 'prop-prod-valores-grid', 'prop-wrapper-dias-evento', 'prop-wrapper-dias-limpa-fossa'].forEach(idBloco => {
             const bl = document.getElementById(idBloco);
             if (bl && isCtr) bl.style.display = 'none';
         });
         bodyProd.querySelectorAll('input, select, textarea, button').forEach(el => {
             if (!isCtr) return;
             const onclickStr = String(el.getAttribute('onclick') || '');
-            if (onclickStr.includes('toggleDetalhesDiasProdutoGrid')) return;
+            if (onclickStr.includes('toggleDetalhesDiasProdutoGrid') || onclickStr.includes('toggleDetalhesDiasLimpaFossaGrid')) return;
+            if (el.closest && el.closest('.prop-lf-dias-edit-wrap')) return;
             if (onclickStr.includes('removerProdutoProposta') || onclickStr.includes('removerDiaEventoDeProduto')) {
                 el.style.display = 'none';
                 el.disabled = true;
@@ -10404,11 +10418,13 @@ window.salvarPropostaNova = async function() {
                 });
             }
         }
+    } else if (typeof window.tipoPropostaEhLimpaFossa === 'function' && window.tipoPropostaEhLimpaFossa(tipo)) {
+        if (!window.validarTodosItensLimpaFossaProposta(tipo)) return;
     } else {
         window._propDiasEventoSelecionados = [];
         window._propDiasEventoHorarios = {};
         if (Array.isArray(window._propProdutosAdicionados)) {
-            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; p.dias_limpa_fossa = []; });
         }
     }
 
@@ -10930,11 +10946,13 @@ window.estornarPropostaEdicao = async function() {
                 });
             }
         }
+    } else if (typeof window.tipoPropostaEhLimpaFossa === 'function' && window.tipoPropostaEhLimpaFossa(tipo)) {
+        if (!window.validarTodosItensLimpaFossaProposta(tipo)) return;
     } else {
         window._propDiasEventoSelecionados = [];
         window._propDiasEventoHorarios = {};
         if (Array.isArray(window._propProdutosAdicionados)) {
-            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; p.dias_limpa_fossa = []; });
         }
     }
 
@@ -13209,29 +13227,21 @@ window.verDocumentoHistoricoProposta = async function(propId, logId, ehLogContra
 
 /* ── Excluir proposta ───────────────────────────────────────────────── */
 async function excluirProposta(id) {
-    const isModoContrato = window._modoTelaComercial === 'contrato';
-    const senha = await window.solicitarSenhaAcaoComMascaraX({
-        titulo: isModoContrato ? 'Excluir Contrato' : 'Excluir Proposta',
-        mensagem: isModoContrato ? 'Digite a senha para excluir o contrato:' : 'Digite a senha para excluir a proposta:',
-        confirmButtonText: 'Continuar'
-    });
-    if (senha === null) return;
-    if (String(senha).trim() !== 'comerc123') {
+    if (!(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais())) {
         if (typeof Swal !== 'undefined') {
-            Swal.fire('Senha Incorreta', 'A senha informada está incorreta. Exclusão cancelada.', 'error');
-        } else {
-            alert('Senha incorreta! Exclusão cancelada.');
+            Swal.fire('Acesso restrito', 'Apenas o usuário autorizado pode excluir propostas ou contratos.', 'error');
         }
         return;
     }
+    const isModoContrato = window._modoTelaComercial === 'contrato';
     if (!confirm(`Tem certeza que deseja excluir ${isModoContrato ? 'este contrato' : 'esta proposta'}? Esta ação não pode ser desfeita.`)) return;
     try {
-        const resp = await apiDelete(`/propostas/${id}?senha=comerc123`);
+        const resp = await apiDelete(`/propostas/${id}`);
         if (resp && resp.success) {
             fecharFormProposta();
             await carregarPropostas();
             renderTelaPropostas();
-            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso('Proposta excluída.');
+            if (typeof mostrarToastSucesso === 'function') mostrarToastSucesso(isModoContrato ? 'Contrato excluído.' : 'Proposta excluída.');
         } else {
             alert('Erro ao excluir: ' + (resp?.error || 'Erro desconhecido'));
         }
@@ -23320,7 +23330,7 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         const isModoContratoModal = window._modoTelaComercial === 'contrato';
-        const exibirColExcluirModal = true;
+        const exibirColExcluirModal = Boolean(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais());
         const extrairNumOrdenacaoModal = (val) => {
             const digits = String(val || '').replace(/\D/g, '');
             return digits ? parseInt(digits, 10) : 0;
@@ -23552,24 +23562,18 @@ window.abrirModalPesquisaPropostas = async function(filtroCodigoInicial = '') {
         });
 
         window.excluirPropostaModalBusca = async function(id) {
+            if (!(window.usuarioLogadoEhThais && window.usuarioLogadoEhThais())) {
+                alert('Apenas o usuário autorizado pode excluir propostas ou contratos.');
+                return;
+            }
             const pObj = (_propostasData || []).find(pr => Number(pr.id) === Number(id));
             const isContrato = isModoContratoModal;
             const cod = isContrato
                 ? ((pObj && pObj.contrato) ? pObj.contrato : ((pObj && pObj.codigo) ? pObj.codigo : id))
                 : ((pObj && pObj.codigo) ? pObj.codigo : id);
-            const senha = await window.solicitarSenhaAcaoComMascaraX({
-                titulo: isContrato ? `Excluir Contrato Nº ${cod}` : `Excluir Proposta Nº ${cod}`,
-                mensagem: `Digite a senha para excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}:`,
-                confirmButtonText: 'Continuar'
-            });
-            if (senha === null) return;
-            if (String(senha).trim() !== 'comerc123') {
-                alert('Senha incorreta! Exclusão cancelada.');
-                return;
-            }
             if (!window.confirm(`Tem certeza que deseja excluir ${isContrato ? 'o contrato' : 'a proposta'} Nº ${cod}? Esta ação não pode ser desfeita.`)) return;
             try {
-                const resp = await apiDelete(`/propostas/${id}?senha=comerc123`);
+                const resp = await apiDelete(`/propostas/${id}`);
                 if (resp && resp.success) {
                     _propostasData = (_propostasData || []).filter(pr => Number(pr.id) !== Number(id));
                     if (typeof window._removerPropostaDoModalBusca === 'function') {
@@ -23974,6 +23978,321 @@ window.tipoPropostaUsaDiasEvento = function(tipo) {
     return t === 'EVENTO' || t === 'EQUIPAMENTOS' || t === 'EQUIPAMENTO';
 };
 
+window.tipoPropostaEhLimpaFossa = function(tipo) {
+    const raw = (tipo !== undefined && tipo !== null && String(tipo).trim() !== '')
+        ? tipo
+        : (document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
+    const t = String(window.obterTipoEfetivoProposta(raw) || '').trim().toUpperCase();
+    return t === 'LIMPA FOSSA' || t.startsWith('LIMPA FOSSA');
+};
+
+window._propDiasLimpaFossaDraft = window._propDiasLimpaFossaDraft || [];
+window._propDiasLimpaFossaExpandidoMap = window._propDiasLimpaFossaExpandidoMap || {};
+
+window._garantirTamanhoArrayDiasLimpaFossa = function(arrAtual, qtdAlvo, dataSugerida = '') {
+    const qtd = Math.max(0, parseInt(qtdAlvo, 10) || 0);
+    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: '', fim: '', valido: false };
+    const dtDefault = dataSugerida || (per && per.ini) || '';
+    const base = Array.isArray(arrAtual) ? arrAtual.map(it => {
+        if (!it) return { data: dtDefault, ini: '', fim: '', comercial: true };
+        if (typeof it === 'object' && ('comercial' in it || 'ini' in it || 'fim' in it)) {
+            return {
+                data: String(it.data || dtDefault).trim().slice(0, 10),
+                ini: String(it.ini || '').trim(),
+                fim: String(it.fim || '').trim(),
+                comercial: Boolean(it.comercial)
+            };
+        }
+        const parsed = window._parseDiasEventoItem(it);
+        const ehCom = Boolean(parsed.comercial || /^comercial$/i.test(String(parsed.horario || '').trim()));
+        return {
+            data: String(parsed.data || dtDefault).trim().slice(0, 10),
+            ini: ehCom ? '' : String(parsed.horario_ini || ''),
+            fim: ehCom ? '' : String(parsed.horario_fim || ''),
+            comercial: ehCom
+        };
+    }) : [];
+    while (base.length < qtd) {
+        const ref = base[base.length - 1] || { data: dtDefault, ini: '', fim: '', comercial: true };
+        base.push({
+            data: ref.data || dtDefault,
+            ini: ref.ini || '',
+            fim: ref.fim || '',
+            comercial: Boolean(ref.comercial)
+        });
+    }
+    if (base.length > qtd) base.length = qtd;
+    return base;
+};
+
+window._serializarItemDiaLimpaFossa = function(entry) {
+    if (!entry || typeof entry !== 'object') return '';
+    const dt = String(entry.data || '').trim().slice(0, 10);
+    if (!dt) return '';
+    if (entry.comercial) return `${dt} COMERCIAL`;
+    if (/^\d{2}:\d{2}$/.test(entry.ini || '') && /^\d{2}:\d{2}$/.test(entry.fim || '')) {
+        return `${dt} ${entry.ini}-${entry.fim}`;
+    }
+    const par = [entry.ini || '', entry.fim || ''].join('-');
+    return par !== '-' ? `${dt} ${par}` : dt;
+};
+
+window.atualizarPainelAddDiasLimpaFossa = function(tipoOverride) {
+    const wrap = document.getElementById('prop-wrapper-dias-limpa-fossa');
+    const rowsEl = document.getElementById('prop-dias-limpa-fossa-rows');
+    const badgeEl = document.getElementById('prop-dias-limpa-fossa-badge');
+    if (!wrap || !rowsEl) return;
+
+    const ehLf = window.tipoPropostaEhLimpaFossa(tipoOverride);
+    const qtd = parseInt(document.getElementById('prop-prod-quantidade')?.value || '1', 10) || 1;
+    if (!ehLf || qtd < 2 || window._modoTelaComercial === 'contrato') {
+        wrap.style.display = 'none';
+        return;
+    }
+
+    wrap.style.display = 'block';
+    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: '', fim: '', valido: false };
+    window._propDiasLimpaFossaDraft = window._garantirTamanhoArrayDiasLimpaFossa(window._propDiasLimpaFossaDraft, qtd, per.ini || '');
+    if (badgeEl) badgeEl.textContent = `${qtd} atendimentos separados`;
+
+    const minAttr = per.valido && per.ini ? `min="${_escHtmlProp(per.ini)}"` : '';
+    const maxAttr = per.valido && per.fim ? `max="${_escHtmlProp(per.fim)}"` : '';
+
+    rowsEl.innerHTML = window._propDiasLimpaFossaDraft.map((dObj, i) => {
+        const isCom = Boolean(dObj.comercial);
+        const dataOk = /^\d{4}-\d{2}-\d{2}$/.test(dObj.data || '');
+        const horOk = isCom || (/^\d{2}:\d{2}$/.test(dObj.ini || '') && /^\d{2}:\d{2}$/.test(dObj.fim || ''));
+        return `
+            <div style="background:#ede9fe; border:1px solid ${(dataOk && horOk) ? '#c4b5fd' : '#fca5a5'}; border-radius:7px; padding:5px 8px; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                <span style="background:#7048e8; color:#fff; border-radius:999px; padding:1px 7px; font-size:0.68rem; font-weight:800; white-space:nowrap;">${i + 1}ª Limpa Fossa</span>
+                <input type="date" value="${_escHtmlProp(dObj.data || '')}" ${minAttr} ${maxAttr}
+                    onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'data', this.value)"
+                    style="height:24px; padding:1px 5px; border:1px solid ${dataOk ? '#a78bfa' : '#ef4444'}; border-radius:5px; font-size:0.73rem; font-weight:700; background:#fff; color:#1e293b; width:auto !important;">
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700; ${isCom ? 'opacity:0.45;' : ''}">de</span>
+                <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
+                    onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'ini', this.value)"
+                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; width:auto !important;">
+                <span style="font-size:0.68rem; color:#6d28d9; font-weight:700; ${isCom ? 'opacity:0.45;' : ''}">até</span>
+                <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
+                    onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'fim', this.value)"
+                    style="height:24px; padding:0 4px; border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; border-radius:5px; font-size:0.72rem; font-weight:700; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; width:auto !important;">
+                <label style="display:inline-flex; align-items:center; gap:3px; font-size:0.69rem; color:${isCom ? '#047857' : '#5b21b6'}; background:${isCom ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isCom ? '#6ee7b7' : '#ddd6fe'}; padding:2px 6px; border-radius:5px; cursor:pointer; font-weight:700; user-select:none;">
+                    <input type="checkbox" ${isCom ? 'checked' : ''} onchange="window.atualizarCampoDraftDiaLimpaFossa(${i}, 'comercial', this.checked)" style="width:auto !important; height:auto !important; margin:0; accent-color:#059669; cursor:pointer;"> Horário comercial
+                </label>
+            </div>
+        `;
+    }).join('');
+};
+
+window.atualizarCampoDraftDiaLimpaFossa = function(idx, campo, valor) {
+    const qtd = parseInt(document.getElementById('prop-prod-quantidade')?.value || '1', 10) || 1;
+    window._propDiasLimpaFossaDraft = window._garantirTamanhoArrayDiasLimpaFossa(window._propDiasLimpaFossaDraft, qtd);
+    if (!window._propDiasLimpaFossaDraft[idx]) return;
+    if (campo === 'data') {
+        const iso = String(valor || '').trim();
+        if (iso && typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(iso)) {
+            const per = typeof window.obterIntervaloPeriodoProposta === 'function' ? window.obterIntervaloPeriodoProposta() : { ini: '', fim: '', valido: false };
+            if (!per.valido) {
+                alert('Preencha primeiro Período Início * e Até * antes de informar os dias da Limpa Fossa.');
+            } else {
+                const fmtBr = (s) => String(s || '').split('-').reverse().join('/');
+                alert(`A data da Limpa Fossa deve estar dentro do Período (${fmtBr(per.ini)} até ${fmtBr(per.fim)}).`);
+            }
+            window.atualizarPainelAddDiasLimpaFossa();
+            return;
+        }
+        window._propDiasLimpaFossaDraft[idx].data = iso;
+    } else if (campo === 'comercial') {
+        window._propDiasLimpaFossaDraft[idx].comercial = Boolean(valor);
+    } else if (campo === 'ini' || campo === 'fim') {
+        window._propDiasLimpaFossaDraft[idx][campo] = String(valor || '').trim();
+        window._propDiasLimpaFossaDraft[idx].comercial = false;
+    }
+    window.atualizarPainelAddDiasLimpaFossa();
+};
+
+window.replicarHorarioAddLimpaFossa = function() {
+    const arr = window._propDiasLimpaFossaDraft || [];
+    if (arr.length < 2) return;
+    const base = arr[0];
+    for (let i = 1; i < arr.length; i++) {
+        arr[i].comercial = Boolean(base.comercial);
+        arr[i].ini = base.ini || '';
+        arr[i].fim = base.fim || '';
+    }
+    window.atualizarPainelAddDiasLimpaFossa();
+};
+
+window.validarDraftDiasLimpaFossaParaAdicionar = function(qtd) {
+    if (!window.tipoPropostaEhLimpaFossa()) return [];
+    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: document.getElementById('prop-periodo-ini')?.value || '', fim: document.getElementById('prop-periodo-fim')?.value || '', valido: false };
+    if (qtd <= 1) {
+        const dtUnica = String(per.ini || document.getElementById('prop-periodo-ini')?.value || '').trim().slice(0, 10);
+        return dtUnica ? [`${dtUnica} COMERCIAL`] : [];
+    }
+    const lista = window._garantirTamanhoArrayDiasLimpaFossa(window._propDiasLimpaFossaDraft, qtd, per.ini || '');
+    window._propDiasLimpaFossaDraft = lista;
+    for (let i = 0; i < lista.length; i++) {
+        const it = lista[i];
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(it.data || '')) {
+            alert(`Preencha a data da ${i + 1}ª Limpa Fossa antes de adicionar.`);
+            window.atualizarPainelAddDiasLimpaFossa();
+            return null;
+        }
+        if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(it.data)) {
+            alert(`A data da ${i + 1}ª Limpa Fossa precisa estar dentro do Período Início e Até da proposta.`);
+            return null;
+        }
+        const horOk = it.comercial || (/^\d{2}:\d{2}$/.test(it.ini || '') && /^\d{2}:\d{2}$/.test(it.fim || ''));
+        if (!horOk) {
+            alert(`Informe o horário completo (de ... até ...) ou marque "Horário comercial" na ${i + 1}ª Limpa Fossa.`);
+            window.atualizarPainelAddDiasLimpaFossa();
+            return null;
+        }
+    }
+    return lista.map(window._serializarItemDiaLimpaFossa);
+};
+
+window.toggleDetalhesDiasLimpaFossaGrid = function(pIdx) {
+    if (!window._propDiasLimpaFossaExpandidoMap) window._propDiasLimpaFossaExpandidoMap = {};
+    window._propDiasLimpaFossaExpandidoMap[pIdx] = !Boolean(window._propDiasLimpaFossaExpandidoMap[pIdx]);
+    window.renderizarProdutosPropostaGrid();
+};
+
+window.atualizarDiaLimpaFossaNoGrid = function(pIdx, dIdx, campo, valor) {
+    const itens = window._propProdutosAdicionados || [];
+    const p = itens[pIdx];
+    if (!p) return;
+    const qtd = Math.max(1, parseInt(p.quantidade, 10) || 1);
+    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: document.getElementById('prop-periodo-ini')?.value || '', fim: '', valido: false };
+    const listaObj = window._garantirTamanhoArrayDiasLimpaFossa(p.dias_limpa_fossa || p.dias_evento || [], qtd, per.ini || '');
+    if (!listaObj[dIdx]) return;
+    if (campo === 'data') {
+        const iso = String(valor || '').trim();
+        if (iso && typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(iso)) {
+            const fmtBr = (s) => String(s || '').split('-').reverse().join('/');
+            alert(per.valido ? `A data da Limpa Fossa deve estar dentro do Período (${fmtBr(per.ini)} até ${fmtBr(per.fim)}).` : 'Preencha primeiro Período Início * e Até *.');
+            window.renderizarProdutosPropostaGrid();
+            return;
+        }
+        listaObj[dIdx].data = iso;
+    } else if (campo === 'comercial') {
+        listaObj[dIdx].comercial = Boolean(valor);
+    } else if (campo === 'ini' || campo === 'fim') {
+        listaObj[dIdx][campo] = String(valor || '').trim();
+        listaObj[dIdx].comercial = false;
+    }
+    p.dias_limpa_fossa = listaObj.map(window._serializarItemDiaLimpaFossa);
+    p.dias_evento = [...p.dias_limpa_fossa];
+    if (typeof window.marcarPropostaComoEditada === 'function') window.marcarPropostaComoEditada();
+    window.renderizarProdutosPropostaGrid();
+};
+
+window.htmlDiasLimpaFossaGrid = function(p, idx) {
+    if (!p) return '';
+    const qtd = Math.max(1, parseInt(p.quantidade, 10) || 1);
+    if (qtd < 2) return '';
+    const per = typeof window.obterIntervaloPeriodoProposta === 'function'
+        ? window.obterIntervaloPeriodoProposta()
+        : { ini: document.getElementById('prop-periodo-ini')?.value || '', fim: document.getElementById('prop-periodo-fim')?.value || '', valido: false };
+    const listaObj = window._garantirTamanhoArrayDiasLimpaFossa(p.dias_limpa_fossa || p.dias_evento || [], qtd, per.ini || '');
+    p.dias_limpa_fossa = listaObj.map(window._serializarItemDiaLimpaFossa);
+    p.dias_evento = [...p.dias_limpa_fossa];
+
+    const expandido = window._propDiasLimpaFossaExpandidoMap && window._propDiasLimpaFossaExpandidoMap[idx] !== undefined
+        ? Boolean(window._propDiasLimpaFossaExpandidoMap[idx])
+        : true;
+    const fmtBr = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? String(iso).split('-').reverse().join('/') : (iso || 'Sem data');
+    const minAttr = per.valido && per.ini ? `min="${_escHtmlProp(per.ini)}"` : '';
+    const maxAttr = per.valido && per.fim ? `max="${_escHtmlProp(per.fim)}"` : '';
+
+    if (!expandido) {
+        const resumo = listaObj.slice(0, 3).map((d, i) => `${i + 1}º: ${fmtBr(d.data)}`).join(' · ') + (listaObj.length > 3 ? '…' : '');
+        return `<div class="prop-lf-dias-edit-wrap" style="margin-top:5px;">
+            <span onclick="window.toggleDetalhesDiasLimpaFossaGrid(${idx})" style="background:#ede9fe; color:#5b21b6; border:1px solid #c4b5fd; padding:2px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="Clique para ver/editar cada dia da Limpa Fossa">
+                <i class="ph ph-calendar-check" style="font-size:0.78rem;"></i> ${qtd} dias de Limpa Fossa (${_escHtmlProp(resumo)}) <i class="ph ph-caret-down"></i>
+            </span>
+        </div>`;
+    }
+
+    return `<div class="prop-lf-dias-edit-wrap" style="margin-top:6px; display:flex; flex-direction:column; gap:5px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:0.71rem; font-weight:800; color:#5b21b6;"><i class="ph ph-calendar-check"></i> Dias programados da Limpa Fossa (${qtd}):</span>
+            <button type="button" onclick="window.toggleDetalhesDiasLimpaFossaGrid(${idx})" style="background:transparent; border:none; color:#6d28d9; font-size:0.7rem; font-weight:700; cursor:pointer; padding:0;">Recolher <i class="ph ph-caret-up"></i></button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px; width:100%;">
+            ${listaObj.map((dObj, dIdx) => {
+                const isCom = Boolean(dObj.comercial);
+                const dOk = /^\d{4}-\d{2}-\d{2}$/.test(dObj.data || '');
+                const hOk = isCom || (/^\d{2}:\d{2}$/.test(dObj.ini || '') && /^\d{2}:\d{2}$/.test(dObj.fim || ''));
+                return `<span style="background:#ede9fe; color:#5b21b6; border:1px solid ${(dOk && hOk) ? '#c4b5fd' : '#fca5a5'}; padding:3px 6px; border-radius:6px; font-size:0.71rem; font-weight:700; display:flex; align-items:center; gap:4px; flex-wrap:wrap; box-sizing:border-box;">
+                    <span style="background:#7048e8; color:#fff; border-radius:999px; padding:0 6px; font-size:0.65rem; font-weight:800;">${dIdx + 1}º</span>
+                    <input type="date" value="${_escHtmlProp(dObj.data || '')}" ${minAttr} ${maxAttr}
+                        onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'data', this.value)"
+                        style="border:1px solid ${dOk ? '#a78bfa' : '#ef4444'}; background:#fff; color:#1e293b; border-radius:4px; padding:0 4px; font-size:0.7rem; font-weight:700; height:21px; width:auto !important;">
+                    <span style="font-size:0.67rem; color:#6d28d9; ${isCom ? 'opacity:0.45;' : ''}">de</span>
+                    <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.ini || ''))}" ${isCom ? 'disabled' : ''}
+                        onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'ini', this.value)"
+                        style="border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.ini || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
+                    <span style="font-size:0.67rem; color:#6d28d9; ${isCom ? 'opacity:0.45;' : ''}">até</span>
+                    <input type="time" value="${_escHtmlProp(isCom ? '' : (dObj.fim || ''))}" ${isCom ? 'disabled' : ''}
+                        onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'fim', this.value)"
+                        style="border:1px solid ${isCom ? '#cbd5e1' : (/^\d{2}:\d{2}$/.test(dObj.fim || '') ? '#a78bfa' : '#ef4444')}; background:${isCom ? '#f1f5f9' : '#fff'}; color:#1e293b; border-radius:4px; padding:0 3px; font-size:0.69rem; font-weight:700; height:21px; width:auto !important;">
+                    <label style="display:inline-flex; align-items:center; gap:3px; font-size:0.67rem; color:${isCom ? '#047857' : '#5b21b6'}; background:${isCom ? '#d1fae5' : '#f5f3ff'}; border:1px solid ${isCom ? '#6ee7b7' : '#ddd6fe'}; padding:1px 5px; border-radius:4px; cursor:pointer; font-weight:700;">
+                        <input type="checkbox" ${isCom ? 'checked' : ''} onchange="window.atualizarDiaLimpaFossaNoGrid(${idx}, ${dIdx}, 'comercial', this.checked)" style="width:auto !important; height:auto !important; margin:0; accent-color:#059669;"> Comercial
+                    </label>
+                </span>`;
+            }).join('')}
+        </div>
+    </div>`;
+};
+
+window.validarTodosItensLimpaFossaProposta = function(tipoOverride) {
+    if (!window.tipoPropostaEhLimpaFossa(tipoOverride)) return true;
+    const itens = Array.isArray(window._propProdutosAdicionados) ? window._propProdutosAdicionados : [];
+    const perIni = String(document.getElementById('prop-periodo-ini')?.value || '').trim().slice(0, 10);
+    for (let i = 0; i < itens.length; i++) {
+        const p = itens[i];
+        if (!p || p._substituido_por_aditivo) continue;
+        const qtd = Math.max(1, parseInt(p.quantidade, 10) || 1);
+        if (qtd === 1) {
+            const lista1 = window._garantirTamanhoArrayDiasLimpaFossa(p.dias_limpa_fossa || p.dias_evento || [], 1, perIni);
+            if (!lista1[0].data && perIni) lista1[0].data = perIni;
+            p.dias_limpa_fossa = lista1.map(window._serializarItemDiaLimpaFossa).filter(Boolean);
+            p.dias_evento = [...p.dias_limpa_fossa];
+            continue;
+        }
+        const listaObj = window._garantirTamanhoArrayDiasLimpaFossa(p.dias_limpa_fossa || p.dias_evento || [], qtd, perIni);
+        for (let k = 0; k < listaObj.length; k++) {
+            const dObj = listaObj[k];
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dObj.data || '')) {
+                alert(`Informe a data do ${k + 1}º atendimento de "${p.produto || p.descricao || 'Limpa Fossa'}".`);
+                return false;
+            }
+            if (typeof window.diaEstaDentroDoPeriodoProposta === 'function' && !window.diaEstaDentroDoPeriodoProposta(dObj.data)) {
+                alert(`A data do ${k + 1}º atendimento de "${p.produto || p.descricao || 'Limpa Fossa'}" deve estar dentro do Período Início e Até.`);
+                return false;
+            }
+            const hOk = dObj.comercial || (/^\d{2}:\d{2}$/.test(dObj.ini || '') && /^\d{2}:\d{2}$/.test(dObj.fim || ''));
+            if (!hOk) {
+                alert(`Preencha o horário completo (de ... até ...) ou marque "Comercial" no ${k + 1}º atendimento de "${p.produto || p.descricao || 'Limpa Fossa'}".`);
+                return false;
+            }
+        }
+        p.dias_limpa_fossa = listaObj.map(window._serializarItemDiaLimpaFossa);
+        p.dias_evento = [...p.dias_limpa_fossa];
+    }
+    return true;
+};
+
 window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
     if (typeof window.atualizarVisibilidadeNomeEventoProposta === 'function') {
         window.atualizarVisibilidadeNomeEventoProposta(tipo);
@@ -23981,6 +24300,10 @@ window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
     const wrap = document.getElementById('prop-wrapper-dias-evento');
     const wrapBtnSemDias = document.getElementById('prop-wrapper-btn-add-sem-dias');
     const usa = window.tipoPropostaUsaDiasEvento(tipo);
+    const ehLfVis = typeof window.tipoPropostaEhLimpaFossa === 'function' && window.tipoPropostaEhLimpaFossa(tipo);
+    if (typeof window.atualizarPainelAddDiasLimpaFossa === 'function') {
+        window.atualizarPainelAddDiasLimpaFossa(tipo);
+    }
     if (wrapBtnSemDias) wrapBtnSemDias.style.display = usa ? 'none' : 'flex';
     if (!usa) {
         if (wrap) wrap.style.display = 'none';
@@ -23991,8 +24314,8 @@ window.atualizarVisibilidadeDiasEventoProposta = function(tipo) {
         window._ultimoHorarioDiaEventoEditado = '';
         const hiddenEl = document.getElementById('prop-dias-evento');
         if (hiddenEl) hiddenEl.value = '[]';
-        if (Array.isArray(window._propProdutosAdicionados)) {
-            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; });
+        if (!ehLfVis && Array.isArray(window._propProdutosAdicionados)) {
+            window._propProdutosAdicionados.forEach(p => { p.dias_evento = []; p.dias_limpa_fossa = []; });
         }
         if (typeof window.renderizarProdutosPropostaGrid === 'function') {
             window.renderizarProdutosPropostaGrid();
@@ -27830,6 +28153,14 @@ window.adicionarProdutoProposta = async function() {
         return;
     }
 
+    let diasLimpaFossaSelecionados = [];
+    const ehLimpaFossaAdd = typeof window.tipoPropostaEhLimpaFossa === 'function' && window.tipoPropostaEhLimpaFossa();
+    if (ehLimpaFossaAdd && typeof window.validarDraftDiasLimpaFossaParaAdicionar === 'function') {
+        const validadosLf = window.validarDraftDiasLimpaFossaParaAdicionar(quantidade);
+        if (validadosLf === null) return;
+        diasLimpaFossaSelecionados = validadosLf;
+    }
+
     const tipoRef = window.obterTipoEfetivoProposta(document.getElementById('prop-tipo')?.value || document.getElementById('prop-tabela')?.value || '');
     const vTab = window.obterValorTabelaPorTipoEProduto(tipoRef, { codigo, nome: produtoNome });
     let unitDigitado = window.parseMoedaProposta(inputValor?.value);
@@ -27923,7 +28254,8 @@ window.adicionarProdutoProposta = async function() {
         })(),
         observacao: observacao,
         quantidade: quantidade,
-        dias_evento: ehProdServico ? [] : [...diasSelecionados],
+        dias_evento: ehLimpaFossaAdd ? [...diasLimpaFossaSelecionados] : (ehProdServico ? [] : [...diasSelecionados]),
+        dias_limpa_fossa: ehLimpaFossaAdd ? [...diasLimpaFossaSelecionados] : [],
         manutencao_diaria: ehProdServico ? false : Boolean(document.getElementById('prop-dias-manut-diarias')?.checked),
         valor_base: precoBase,
         tem_valor_tabela: Boolean((vTab !== null && vTab !== undefined && !isNaN(Number(vTab)) && Number(vTab) > 0) || (parseFloat(inputValor?.getAttribute('data-valor-tabela')) > 0)),
@@ -27947,6 +28279,8 @@ window.adicionarProdutoProposta = async function() {
     }
     if (inputObservacao) inputObservacao.value = '';
     if (inputQuantidade) inputQuantidade.value = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? '10' : '1';
+    window._propDiasLimpaFossaDraft = [];
+    if (typeof window.atualizarPainelAddDiasLimpaFossa === 'function') window.atualizarPainelAddDiasLimpaFossa();
     const inputManutReset = document.getElementById('prop-prod-manut');
     if (inputManutReset) { inputManutReset.value = ''; inputManutReset.dataset.prevManut = ''; }
     if (descPctEl) descPctEl.value = '0';
@@ -28041,6 +28375,12 @@ window.atualizarItemProdutoProposta = function(idx, campo, valorNovo, reRender =
         const minQtdItem = (typeof window.tipoPropostaEhVenda === 'function' && window.tipoPropostaEhVenda()) ? 10 : 1;
         const qtd = Math.max(minQtdItem, parseInt(valorNovo, 10) || minQtdItem);
         item.quantidade = qtd;
+        if (typeof window.tipoPropostaEhLimpaFossa === 'function' && window.tipoPropostaEhLimpaFossa()) {
+            const perIniAtu = String(document.getElementById('prop-periodo-ini')?.value || '').trim().slice(0, 10);
+            const ajustadosLf = window._garantirTamanhoArrayDiasLimpaFossa(item.dias_limpa_fossa || item.dias_evento || [], qtd, perIniAtu);
+            item.dias_limpa_fossa = ajustadosLf.map(window._serializarItemDiaLimpaFossa);
+            item.dias_evento = [...item.dias_limpa_fossa];
+        }
         const vBase = parseFloat(item.valor_base ?? item.valor ?? item.valor_unitario ?? 0) || 0;
         if (item.desconto_tipo === 'pct' && parseFloat(item.desconto_pct) > 0) {
             const pct = parseFloat(item.desconto_pct) || 0;
@@ -28330,9 +28670,12 @@ window.renderizarProdutosPropostaGrid = function() {
         const valorTotalFinalLinha = ehEventoGrid ? (subtotal * nDiariasLinha) : subtotal;
 
         const usaDias = typeof window.tipoPropostaUsaDiasEvento === 'function' ? window.tipoPropostaUsaDiasEvento() : false;
+        const ehLfGrid = typeof window.tipoPropostaEhLimpaFossa === 'function' ? window.tipoPropostaEhLimpaFossa() : false;
         const diasChipsHtml = (usaDias && typeof window.htmlDiasProdutoGrid === 'function')
             ? window.htmlDiasProdutoGrid(p, idx, list.length)
-            : '';
+            : ((ehLfGrid && typeof window.htmlDiasLimpaFossaGrid === 'function')
+                ? window.htmlDiasLimpaFossaGrid(p, idx)
+                : '');
         const qtdDiasProd = Array.isArray(p.dias_evento) ? p.dias_evento.filter(Boolean).length : 0;
         const expandidoProdDias = Boolean(window._propDiasProdutoExpandidoMap && window._propDiasProdutoExpandidoMap[idx]);
         const btnToggleDiasAcaoHtml = (usaDias && qtdDiasProd >= 1)
@@ -31010,6 +31353,9 @@ window.CONTRATO_MNEMONICOS_CATALOGO = [
     { tag: '{{DIAS_CONTRATO}}', label: 'Dias de Contrato', categoria: 'Período e Local', exemplo: '30' },
     { tag: '{{TABELA_DIARIAS}}', label: 'Tabela de Diárias (Sem Horário)', categoria: 'Período e Local', exemplo: '[Tabela de Diárias]' },
     { tag: '{{TABELA_DIARIAS_HORARIO}}', label: 'Tabela de Diárias (Com Horários)', categoria: 'Período e Local', exemplo: '[Tabela de Diárias com Horários]' },
+    { tag: '{{DIAS_LIMPAFOSSA}}', label: 'Tabela de Dias e Horários da Limpa Fossa (1º, 2º, 3º Atendimento)', categoria: 'Período e Local', exemplo: '[Tabela de Dias e Horários da Limpa Fossa]' },
+    { tag: '{{DIAS_LIMPAFOSSA_SEM_HORARIO}}', label: 'Tabela de Dias da Limpa Fossa (Sem Horário)', categoria: 'Período e Local', exemplo: '[Tabela de Dias da Limpa Fossa]' },
+    { tag: '{{DIAS_LIMPAFOSSA_TEXTO}}', label: 'Dias e Horários da Limpa Fossa em Texto Corrido', categoria: 'Período e Local', exemplo: '1º: 20/11/2026 (08:00 às 12:00); 2º: 25/11/2026 (Horário comercial)' },
     { tag: '{{NOME_EVENTO}}', label: 'Nome do Evento', categoria: 'Período e Local', exemplo: 'Festival América 2026' },
     { tag: '{{ENDERECO_INSTALACAO}}', label: 'Endereço(s) de Entrega / Instalação (separados por |)', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP | Av. Brasil, 100 - Centro - Guarulhos/SP' },
     { tag: '{{ENDERECOS_INSTALACAO}}', label: 'Endereços de Instalação (separados por |)', categoria: 'Período e Local', exemplo: 'Rua da Obra, 250 - Centro - Guarulhos/SP | Av. Brasil, 100 - Centro - Guarulhos/SP' },
@@ -32436,6 +32782,128 @@ window.gerarHtmlTabelaDiariasContrato = function(propostaObj, comHorario = false
             <tbody>${rowsHtml}</tbody>
         </table>
     `;
+};
+
+window.extrairListaAtendimentosLimpaFossaContrato = function(propostaObj) {
+    const p = propostaObj || {};
+    const fmtDataBr = (d) => {
+        const s = String(d || '').trim();
+        if (!s) return '—';
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+    };
+    const formatarHorarioLegivel = (hRaw) => {
+        const h = String(hRaw || '').trim();
+        if (!h) return 'Horário comercial';
+        if (/^(?:hor[aá]rio\s+)?comercial$/i.test(h)) return 'Horário comercial';
+        const mInt = h.match(/^(\d{2}:\d{2})\s*(?:-|às|a|ate|até)\s*(\d{2}:\d{2})$/i);
+        if (mInt) return `${mInt[1]} às ${mInt[2]}`;
+        return h;
+    };
+    const parseItem = (entry) => {
+        if (!entry) return null;
+        if (typeof entry === 'object') {
+            const dRaw = String(entry.data || entry.dia || '').trim();
+            const hRaw = entry.comercial ? 'COMERCIAL' : String(entry.horario || (entry.ini && entry.fim ? `${entry.ini}-${entry.fim}` : '')).trim();
+            if (!dRaw) return null;
+            return { dataBr: fmtDataBr(dRaw), horFmt: formatarHorarioLegivel(hRaw) };
+        }
+        const trimS = String(entry).trim();
+        if (!trimS) return null;
+        const mIso = trimS.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/);
+        if (mIso) return { dataBr: fmtDataBr(mIso[1]), horFmt: formatarHorarioLegivel(mIso[2] || '') };
+        const mBr = trimS.match(/^(\d{2}\/\d{2}\/\d{4})(?:\s+(.*))?$/);
+        if (mBr) return { dataBr: mBr[1], horFmt: formatarHorarioLegivel(mBr[2] || '') };
+        return null;
+    };
+
+    let itens = [];
+    try {
+        itens = typeof p.itens === 'string' ? JSON.parse(p.itens || '[]') : (Array.isArray(p.itens) ? p.itens : []);
+    } catch (_) { itens = []; }
+    if (p && !p._isPreviewModelo && typeof window.aplicarMesclagemAditivosNoContratoAtivo === 'function') {
+        const mesclados = window.aplicarMesclagemAditivosNoContratoAtivo(p, itens, []);
+        itens = (mesclados.produtos || []).filter(it => it && !it._substituido_por_aditivo);
+    }
+
+    let diasPropFallback = [];
+    try {
+        diasPropFallback = typeof p.dias_evento === 'string' ? JSON.parse(p.dias_evento || '[]') : (Array.isArray(p.dias_evento) ? p.dias_evento : []);
+    } catch (_) { diasPropFallback = []; }
+
+    if (!itens.length && p._isPreviewModelo) {
+        return [
+            { ordem: 1, servico: 'LIMPA FOSSA', dataBr: '20/11/2026', horFmt: '08:00 às 12:00' },
+            { ordem: 2, servico: 'LIMPA FOSSA', dataBr: '25/11/2026', horFmt: 'Horário comercial' }
+        ];
+    }
+
+    const atendimentos = [];
+    const dataIniContratoBr = fmtDataBr(p.periodo_inicio || '');
+    itens.forEach((it, idxIt) => {
+        if (!it || it._substituido_por_aditivo) return;
+        const nomeServ = String(it.produto || it.descricao || it.nome || `Limpa Fossa ${idxIt + 1}`).replace(/^\d+\s*-\s*/, '').trim();
+        const qtd = Math.max(1, parseInt(it.quantidade || it.qtde || 1, 10) || 1);
+        const rawArr = (Array.isArray(it.dias_limpa_fossa) && it.dias_limpa_fossa.length > 0)
+            ? it.dias_limpa_fossa
+            : ((Array.isArray(it.dias_evento) && it.dias_evento.length > 0) ? it.dias_evento : diasPropFallback);
+        for (let k = 0; k < qtd; k++) {
+            const parsed = parseItem(rawArr && rawArr[k]);
+            atendimentos.push({
+                ordem: atendimentos.length + 1,
+                servico: nomeServ,
+                dataBr: parsed ? parsed.dataBr : dataIniContratoBr,
+                horFmt: parsed ? parsed.horFmt : 'Horário comercial'
+            });
+        }
+    });
+
+    if (!atendimentos.length) {
+        atendimentos.push({
+            ordem: 1,
+            servico: 'LIMPA FOSSA',
+            dataBr: dataIniContratoBr,
+            horFmt: 'Horário comercial'
+        });
+    }
+    return atendimentos;
+};
+
+window.gerarHtmlTabelaDiasLimpaFossaContrato = function(propostaObj, comHorario = true) {
+    const atendimentos = window.extrairListaAtendimentosLimpaFossaContrato(propostaObj);
+    const servicosUnicos = new Set(atendimentos.map(a => a.servico));
+    const mostrarColServico = servicosUnicos.size > 1;
+    const rowsHtml = atendimentos.map(a => `
+        <tr>
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; color:#0f172a;">${a.ordem}º Atendimento</td>
+            ${mostrarColServico ? `<td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; font-weight:700; color:#0f172a;">${_escHtmlProp(a.servico)}</td>` : ''}
+            <td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; text-align:center; font-weight:700; color:#0f172a;">${_escHtmlProp(a.dataBr)}</td>
+            ${comHorario ? `<td style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8pt; color:#0f172a;">${_escHtmlProp(a.horFmt)}</td>` : ''}
+        </tr>
+    `).join('');
+
+    return `
+        <table style="width:100%; border-collapse:collapse; margin:6px 0 10px 0; font-size:8.5pt; font-family:Arial, Helvetica, sans-serif;">
+            <thead>
+                <tr style="background:#f1f5f9; color:#1e293b;">
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:135px;">Atendimento</th>
+                    ${mostrarColServico ? `<th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left; width:34%;">Serviço</th>` : ''}
+                    <th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:center; width:145px;">Data Programada</th>
+                    ${comHorario ? `<th style="padding:4px 6px; border:1px solid #cbd5e1; font-size:8.5pt; text-align:left;">Horário</th>` : ''}
+                </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+        </table>
+    `;
+};
+
+window.gerarTextoCorridoDiasLimpaFossaContrato = function(propostaObj) {
+    const atendimentos = window.extrairListaAtendimentosLimpaFossaContrato(propostaObj);
+    if (atendimentos.length === 1) {
+        const u = atendimentos[0];
+        return u.horFmt ? `${u.dataBr} (${u.horFmt})` : u.dataBr;
+    }
+    return atendimentos.map(a => `${a.ordem}º: ${a.dataBr}${a.horFmt ? ` (${a.horFmt})` : ''}`).join('; ');
 };
 
 window.gerarHtmlTabelaValoresAvariasContrato = function(listaAvarias) {
@@ -34550,6 +35018,9 @@ window.montarContextoMnemonicosContrato = function(pRaw, clientObj, contatoObj, 
         '{{DIARIAS_EVENTO_SEM_HORARIO}}': tabelaDiariasSemHorHtml,
         '{{DIARIAS_EVENTO_COM_HORARIO}}': tabelaDiariasComHorHtml,
         '{{DIAS_EVENTO}}': diariasComHorarioTxt,
+        '{{DIAS_LIMPAFOSSA}}': window.gerarHtmlTabelaDiasLimpaFossaContrato(p, true),
+        '{{DIAS_LIMPAFOSSA_SEM_HORARIO}}': window.gerarHtmlTabelaDiasLimpaFossaContrato(p, false),
+        '{{DIAS_LIMPAFOSSA_TEXTO}}': window.gerarTextoCorridoDiasLimpaFossaContrato(p),
         '{{NOME_EVENTO}}': String(p.nome_evento || '—').trim(),
         '{{ENDERECO_INSTALACAO}}': (() => {
             const rawEnd = String(p.endereco_instalacao || `${cli.endereco || 'Local da Obra'}, ${cli.numero || 'S/N'} - ${cli.bairro || 'Centro'} - ${cli.municipio || 'Guarulhos'}/${cli.uf || 'SP'}`).trim();
@@ -34686,7 +35157,7 @@ window.resolverTextoModeloContrato = function(textoBruto, ctxMap, escapeHtmlText
     }
 
     // When rendering paragraphs to HTML: escape plain text lines, but allow HTML tables ({{TABELA_PRODUTOS}}, {{TABELA_SERVICOS}}, {{TABELA_VALORES_AVARIAS}}, {{TABELA_DIARIAS}}, {{TABELA_DIARIAS_HORARIO}})
-    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}', '{{TABELA_DIARIAS}}', '{{TABELA_DIARIAS_HORARIO}}', '{{DIARIAS_EVENTO_SEM_HORARIO}}', '{{DIARIAS_EVENTO_COM_HORARIO}}'];
+    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}', '{{TABELA_DIARIAS}}', '{{TABELA_DIARIAS_HORARIO}}', '{{DIARIAS_EVENTO_SEM_HORARIO}}', '{{DIARIAS_EVENTO_COM_HORARIO}}', '{{DIAS_LIMPAFOSSA}}', '{{DIAS_LIMPAFOSSA_SEM_HORARIO}}'];
     Object.keys(map).forEach(k => {
         if (k.startsWith('_')) return;
         if (!htmlTags.includes(k)) {
@@ -35113,7 +35584,7 @@ window.resolverHtmlRicoModeloContrato = function(htmlOuTextoBruto, ctx) {
     const temHtml = /<(div|p|br|span|b|strong|i|em|u|font|ul|ol|li|h[1-6]|table)\b/i.test(raw);
     const htmlBase = temHtml ? raw : window.converterTextoContratoParaHtmlEditavel(raw);
 
-    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}', '{{TABELA_DIARIAS}}', '{{TABELA_DIARIAS_HORARIO}}', '{{DIARIAS_EVENTO_SEM_HORARIO}}', '{{DIARIAS_EVENTO_COM_HORARIO}}'];
+    const htmlTags = ['{{TABELA_PRODUTOS}}', '{{TABELA_SERVICOS}}', '{{TABELA_VALORES_AVARIAS}}', '{{TABELA_DIARIAS}}', '{{TABELA_DIARIAS_HORARIO}}', '{{DIARIAS_EVENTO_SEM_HORARIO}}', '{{DIARIAS_EVENTO_COM_HORARIO}}', '{{DIAS_LIMPAFOSSA}}', '{{DIAS_LIMPAFOSSA_SEM_HORARIO}}'];
     const mapEscapado = {};
     Object.keys(ctx || {}).forEach(k => {
         if (k.startsWith('_')) return;

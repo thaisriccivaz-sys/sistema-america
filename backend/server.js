@@ -42802,8 +42802,9 @@ function resolverContextoUsuarioComercial(userJwt) {
             departamento: colab ? String(colab.departamento || '').trim() : '',
             cargo: colab ? String(colab.cargo || '').trim() : '',
             foto_url: (colab && colab.id && temFotoColab) ? `/api/colaboradores/foto/${colab.id}` : '',
+            is_thais: Boolean(isThais),
             is_gestor_departamento: Boolean(isThais || isGestorDepto),
-            pode_excluir_proposta: Boolean(isThais || isGestorDepto)
+            pode_excluir_proposta: Boolean(isThais)
           });
         });
       });
@@ -43986,6 +43987,45 @@ app.patch('/api/propostas/:id/os-comercial', authenticateToken, async (req, res)
     });
   } catch (e) {
     res.status(500).json({ error: e.message || 'Erro ao salvar OS.' });
+  }
+});
+
+// DELETE /api/comercial/os/:id - Excluir OS na tela Comercial -> OS (restrito exclusivamente ao usuário thais.ricci, sem senha)
+app.delete('/api/comercial/os/:id', authenticateToken, async (req, res) => {
+  try {
+    const propId = Number(req.params.id);
+    if (!propId) return res.status(400).json({ error: 'ID inválido.' });
+    const ctx = await resolverContextoUsuarioComercial(req.user);
+    if (!ctx || !ctx.is_thais) {
+      return res.status(403).json({ error: 'Apenas o usuário thais.ricci possui permissão para excluir uma OS.' });
+    }
+    db.get('SELECT * FROM propostas WHERE id = ?', [propId], (errG, row) => {
+      if (errG) return res.status(500).json({ error: errG.message });
+      if (!row) return res.status(404).json({ error: 'OS não encontrada.' });
+      const sitUp = String(row.situacao_contrato || '').trim().toUpperCase();
+      const faseUp = String(row.fase_negociacao || '').trim().toUpperCase();
+      const ehAvulsa = sitUp === 'OS AVULSA' || faseUp === 'OS AVULSA' || (!String(row.codigo || '').trim() && !String(row.contrato || '').trim());
+      db.run('DELETE FROM comercial_os_anexos WHERE proposta_id = ?', [propId], () => {});
+      db.run('DELETE FROM comercial_os_comentarios WHERE proposta_id = ?', [propId], () => {});
+      if (ehAvulsa) {
+        db.run('DELETE FROM propostas WHERE id = ?', [propId], function(errDel) {
+          if (errDel) return res.status(500).json({ error: errDel.message });
+          return res.json({ success: true, deleted_record: true });
+        });
+      } else {
+        db.run(
+          `UPDATE propostas SET numero_os = '', status_os = '', os_criada_em = '', os_tipo_operacao = '', os_comercial_dados_json = '{}' WHERE id = ?`,
+          [propId],
+          function(errUp) {
+            if (errUp) return res.status(500).json({ error: errUp.message });
+            sincronizarContratoDaProposta(propId);
+            return res.json({ success: true, deleted_record: false });
+          }
+        );
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Erro ao excluir OS.' });
   }
 });
 
@@ -47584,25 +47624,20 @@ function gerarHtmlProposta(p) {
     </body></html>`;
 }
 
-// DELETE /api/propostas/:id - Excluir proposta ou contrato (exige senha comerc123 ou permissao)
+// DELETE /api/propostas/:id - Excluir proposta ou contrato (restrito exclusivamente ao usuário thais.ricci, sem senha)
 app.delete('/api/propostas/:id', authenticateToken, async (req, res) => {
   try {
-    const senhaInformada = String((req.query && req.query.senha) || (req.body && req.body.senha) || '').trim();
-    const senhaValida = senhaInformada === 'comerc123';
     const ctx = await resolverContextoUsuarioComercial(req.user);
-    if (!senhaValida && !ctx.pode_excluir_proposta) {
-      return res.status(403).json({ error: 'Senha inválida ou usuário sem permissão para excluir.' });
+    if (!ctx || !ctx.is_thais) {
+      return res.status(403).json({ error: 'Apenas o usuário thais.ricci possui permissão para excluir propostas ou contratos.' });
     }
     db.get('SELECT * FROM propostas WHERE id = ?', [req.params.id], (errG, row) => {
       if (errG) return res.status(500).json({ error: errG.message });
       if (!row) return res.status(404).json({ error: 'Proposta/Contrato não encontrado' });
-      const faseUp = String(row.fase_negociacao || '').trim().toUpperCase();
-      if (!senhaValida && !ctx.is_thais && (row.assinatura_r2_key || row.aceite_publico_em || faseUp === 'PRÉ APROVADA' || faseUp === 'APROVADA')) {
-        return res.status(400).json({ error: 'Propostas assinadas ou aprovadas exigem a senha comercial para exclusão.' });
-      }
       db.run('DELETE FROM propostas WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Proposta/Contrato não encontrado' });
+        db.run('DELETE FROM contratos WHERE proposta_id = ?', [req.params.id], () => {});
         db.run('DELETE FROM logistica_estoque_reservas WHERE proposta_id = ?', [req.params.id], () => {});
         res.json({ success: true });
       });

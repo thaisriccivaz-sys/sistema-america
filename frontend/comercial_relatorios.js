@@ -39,6 +39,7 @@
 
     const STATUS_OS_TODOS = [
         'EM ELABORAÇÃO',
+        'ENVIADO PARA LOGÍSTICA',
         'LIBERADO',
         'ENTREGA AGENDADA',
         'ENTREGUE - ACOMPANHAMENTO OS',
@@ -357,6 +358,8 @@
                     st.dados = arr.filter(p => {
                         if (!p || String(p.status || '').toLowerCase() === 'excluída') return false;
                         const tUp = String(p.tipo || '').trim().toUpperCase().replace(/^PROPOSTA\s+/i, '');
+                        const tipoOpNorm = normStr(p.os_tipo_operacao || '');
+                        if (tipoOpNorm === 'compras' || tUp === 'COMPRAS') return false;
                         return tUp !== 'ADITIVO' && Boolean(String(p.numero_os || '').trim());
                     }).map(p => {
                         const { prodsAtivos, servsAtivos } = extrairProdutosEServicos(p, true);
@@ -1169,6 +1172,7 @@
     function obterConfigStatusOsLocal(stRaw) {
         const listaCfg = Array.isArray(window.OS_COMERCIAL_STATUS_CONFIG) ? window.OS_COMERCIAL_STATUS_CONFIG : [
             { nome: 'EM ELABORAÇÃO',                bg: '#fef3c7', text: '#b45309', border: '#fcd34d', icon: 'ph-pencil-simple-line' },
+            { nome: 'ENVIADO PARA LOGÍSTICA',       bg: '#e0e7ff', text: '#3730a3', border: '#a5b4fc', icon: 'ph-paper-plane-tilt' },
             { nome: 'LIBERADO',                      bg: '#dcfce7', text: '#15803d', border: '#86efac', icon: 'ph-check-circle' },
             { nome: 'ENTREGA AGENDADA',              bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd', icon: 'ph-calendar-check' },
             { nome: 'ENTREGUE - ACOMPANHAMENTO OS',  bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc', icon: 'ph-truck' },
@@ -1405,7 +1409,7 @@
             `;
         }
 
-        const tiposOsOpts = ['Envio', 'Visita técnica', 'Limpa fossa', 'Compras', 'Equipamentos'];
+        const tiposOsOpts = ['Envio', 'Visita técnica', 'Limpa fossa', 'Equipamentos'];
         return `
             <div style="flex:1.6 1 200px;">
                 <label style="${lblSt}">Pesquisar</label>
